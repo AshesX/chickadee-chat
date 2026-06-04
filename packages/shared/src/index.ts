@@ -19,6 +19,22 @@ export interface Peer {
   muted: boolean;
   /** Whether this peer's camera is currently on (tracked server-side). */
   cameraOn: boolean;
+  /**
+   * The MediaStream id of this peer's active screen share, or null if not
+   * sharing. Lets receivers tell the screen stream apart from the camera
+   * stream, and lets mid-share joiners classify it correctly.
+   */
+  screenStreamId: string | null;
+}
+
+/** A capturable screen or window, enumerated by the main process for the picker. */
+export interface ScreenSource {
+  id: string;
+  name: string;
+  /** Pre-rendered thumbnail as a data URL. */
+  thumbnail: string;
+  /** App icon as a data URL (windows only), or null. */
+  appIcon: string | null;
 }
 
 /** Messages sent from a client up to the signaling server. */
@@ -29,7 +45,8 @@ export type ClientMessage =
   | { type: 'ice-candidate'; to: PeerId; candidate: RTCIceCandidateInit }
   // Broadcast to the whole room (no `to`); server relays with `from` stamped.
   | { type: 'mic-state'; muted: boolean }
-  | { type: 'cam-state'; on: boolean };
+  | { type: 'cam-state'; on: boolean }
+  | { type: 'screen-state'; streamId: string | null };
 
 /** Messages sent from the signaling server down to a client. */
 export type ServerMessage =
@@ -48,7 +65,9 @@ export type ServerMessage =
   // A peer toggled their mic; broadcast to everyone else in the room.
   | { type: 'mic-state'; from: PeerId; muted: boolean }
   // A peer toggled their camera; broadcast to everyone else in the room.
-  | { type: 'cam-state'; from: PeerId; on: boolean };
+  | { type: 'cam-state'; from: PeerId; on: boolean }
+  // A peer started/stopped sharing their screen (streamId null = stopped).
+  | { type: 'screen-state'; from: PeerId; streamId: string | null };
 
 /** Union of every message that can travel over the signaling socket. */
 export type SignalMessage = ClientMessage | ServerMessage;

@@ -36,6 +36,7 @@ const wb = await b.ready;
 check('B joins -> welcome lists A', wb.type === 'welcome' && wb.peers.length === 1 && wb.peers[0].displayName === 'Alpha');
 check('welcome carries muted=false for existing peers', wb.peers[0].muted === false);
 check('welcome carries cameraOn=false for existing peers', wb.peers[0].cameraOn === false);
+check('welcome carries screenStreamId=null for existing peers', wb.peers[0].screenStreamId === null);
 
 await wait(150);
 check('A is notified B joined', a.events.some((e) => e.type === 'peer-joined' && e.peer.displayName === 'Bravo'));
@@ -70,6 +71,21 @@ const fromCCam = (ev) => ev.type === 'cam-state' && ev.from === wc.selfId && ev.
 check('A receives C cam-state(on)', a.events.some(fromCCam));
 check('D receives C cam-state(on)', d.events.some(fromCCam));
 check('C does not receive its own cam-state', !c.events.some((ev) => ev.type === 'cam-state'));
+
+// Phase 4: C starts then stops screen share; A and D should be told, C never echoed.
+c.ws.send(JSON.stringify({ type: 'screen-state', streamId: 'stream-123' }));
+await wait(200);
+const fromCShareOn = (ev) =>
+  ev.type === 'screen-state' && ev.from === wc.selfId && ev.streamId === 'stream-123';
+check('A receives C screen-state(on)', a.events.some(fromCShareOn));
+check('D receives C screen-state(on)', d.events.some(fromCShareOn));
+
+c.ws.send(JSON.stringify({ type: 'screen-state', streamId: null }));
+await wait(200);
+const fromCShareOff = (ev) =>
+  ev.type === 'screen-state' && ev.from === wc.selfId && ev.streamId === null;
+check('A receives C screen-state(off)', a.events.some(fromCShareOff));
+check('C does not receive its own screen-state', !c.events.some((ev) => ev.type === 'screen-state'));
 
 for (const cl of [a, c, d, e]) cl.ws.close();
 await wait(100);

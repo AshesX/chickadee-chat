@@ -50,6 +50,7 @@ function handleJoin(socket: WebSocket, msg: Extract<ClientMessage, { type: 'join
     displayName: msg.displayName.trim() || 'Anonymous',
     muted: false,
     cameraOn: false,
+    screenStreamId: null,
   };
   const conn: Connection = { socket, peer, room: msg.room };
 
@@ -99,6 +100,12 @@ function handleCamState(conn: Connection, on: boolean): void {
   broadcast(conn.room, { type: 'cam-state', from: conn.peer.id, on }, conn.peer.id);
 }
 
+/** Record a peer's screen-share state (streamId or null) and tell the room. */
+function handleScreenState(conn: Connection, streamId: string | null): void {
+  conn.peer.screenStreamId = streamId;
+  broadcast(conn.room, { type: 'screen-state', from: conn.peer.id, streamId }, conn.peer.id);
+}
+
 function handleDisconnect(conn: Connection): void {
   const members = rooms.get(conn.room);
   if (!members) return;
@@ -132,6 +139,8 @@ wss.on('connection', (socket) => {
       handleMicState(conn, msg.muted);
     } else if (msg.type === 'cam-state') {
       handleCamState(conn, msg.on);
+    } else if (msg.type === 'screen-state') {
+      handleScreenState(conn, msg.streamId);
     }
   });
 

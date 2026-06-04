@@ -3,6 +3,8 @@ import { MAX_PEERS_PER_ROOM } from '@chickadee/shared';
 import { useSignaling } from './hooks/useSignaling';
 import { usePeerMesh } from './hooks/usePeerMesh';
 import { ParticipantTile } from './components/ParticipantTile';
+import { ScreenView } from './components/ScreenView';
+import { ScreenSharePicker } from './components/ScreenSharePicker';
 
 const STATUS_LABEL: Record<string, string> = {
   idle: 'Not connected',
@@ -12,6 +14,13 @@ const STATUS_LABEL: Record<string, string> = {
   error: 'Connection error',
   closed: 'Disconnected',
 };
+
+interface ActiveScreen {
+  key: string;
+  displayName: string;
+  isSelf: boolean;
+  stream: MediaStream;
+}
 
 export function App(): React.JSX.Element {
   const signalingUrl = useMemo(
@@ -23,6 +32,7 @@ export function App(): React.JSX.Element {
 
   const [displayName, setDisplayName] = useState('');
   const [room, setRoom] = useState('lobby');
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const inCall = signaling.status === 'connected';
   const isBusy = signaling.status === 'connecting';
@@ -36,6 +46,46 @@ export function App(): React.JSX.Element {
   }
 
   const totalInRoom = inCall ? signaling.peers.length + 1 : 0;
+
+  // Camera tiles (self + peers), reused in both grid and filmstrip layouts.
+  const tiles = inCall && (
+    <>
+      <ParticipantTile
+        displayName={displayName}
+        isSelf
+        muted={!mesh.micEnabled}
+        cameraOn={mesh.cameraEnabled}
+        cameraStream={mesh.localStream}
+      />
+      {signaling.peers.map((peer) => {
+        const media = mesh.remote[peer.id];
+        return (
+          <ParticipantTile
+            key={peer.id}
+            displayName={peer.displayName}
+            isSelf={false}
+            muted={peer.muted}
+            cameraOn={peer.cameraOn}
+            cameraStream={media?.cameraStream ?? null}
+            connectionState={media?.connectionState ?? 'new'}
+          />
+        );
+      })}
+    </>
+  );
+
+  // Active screen shares: ours plus any peer currently sharing.
+  const activeScreens: ActiveScreen[] = [];
+  if (mesh.sharingScreen && mesh.localScreenStream) {
+    activeScreens.push({ key: 'self-screen', displayName, isSelf: true, stream: mesh.localScreenStream });
+  }
+  for (const peer of signaling.peers) {
+    const screen = peer.screenStreamId ? mesh.remote[peer.id]?.screenStream : null;
+    if (screen) {
+      activeScreens.push({ key: `${peer.id}-screen`, displayName: peer.displayName, isSelf: false, stream: screen });
+    }
+  }
+  const presenting = activeScreens.length > 0;
 
   return (
     <div className="app">
@@ -100,6 +150,14 @@ export function App(): React.JSX.Element {
               >
                 {mesh.cameraEnabled ? '📷 Stop video' : '📹 Start video'}
               </button>
+              <button
+                className={`btn--share${mesh.sharingScreen ? ' btn--share-on' : ''}`}
+                onClick={() =>
+                  mesh.sharingScreen ? mesh.stopScreenShare() : setPickerOpen(true)
+                }
+              >
+                {mesh.sharingScreen ? '🛑 Stop sharing' : '🖥️ Share screen'}
+              </button>
               <button className="btn--leave" onClick={signaling.leave}>
                 Leave
               </button>
@@ -108,35 +166,37 @@ export function App(): React.JSX.Element {
 
           {mesh.micError && <p className="error">{mesh.micError}</p>}
           {mesh.cameraError && <p className="error">{mesh.cameraError}</p>}
+          {mesh.screenError && <p className="error">{mesh.screenError}</p>}
 
-          <ul className="grid" data-count={Math.min(totalInRoom, MAX_PEERS_PER_ROOM)}>
-            <ParticipantTile
-              displayName={displayName}
-              isSelf
-              muted={!mesh.micEnabled}
-              cameraOn={mesh.cameraEnabled}
-              stream={mesh.localStream}
-            />
-            {signaling.peers.map((peer) => {
-              const media = mesh.remote[peer.id];
-              return (
-                <ParticipantTile
-                  key={peer.id}
-                  displayName={peer.displayName}
-                  isSelf={false}
-                  muted={peer.muted}
-                  cameraOn={peer.cameraOn}
-                  stream={media?.stream ?? null}
-                  connectionState={media?.connectionState ?? 'new'}
-                />
-              );
-            })}
-          </ul>
+          {presenting ? (
+            <div className="presentation">
+              <div className="stage" data-count={Math.min(activeScreens.length, 4)}>
+                {activeScreens.map((s) => (
+                  <ScreenView key={s.key} displayName={s.displayName} isSelf={s.isSelf} stream={s.stream} />
+                ))}
+              </div>
+              <ul className="filmstrip">{tiles}</ul>
+            </div>
+          ) : (
+            <ul className="grid" data-count={Math.min(totalInRoom, MAX_PEERS_PER_ROOM)}>
+              {tiles}
+            </ul>
+          )}
 
-          {signaling.peers.length === 0 && (
+          {signaling.peers.length === 0 && !presenting && (
             <p className="hint">Waiting for others to join “{room}”…</p>
           )}
         </main>
+      )}
+
+      {pickerOpen && (
+        <ScreenSharePicker
+          onPick={(id, withAudio) => {
+            setPickerOpen(false);
+            mesh.startScreenShare(id, withAudio);
+          }}
+          onClose={() => setPickerOpen(false)}
+        />
       )}
     </div>
   );

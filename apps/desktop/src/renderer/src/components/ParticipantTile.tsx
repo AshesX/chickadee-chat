@@ -7,8 +7,8 @@ export interface ParticipantTileProps {
   muted: boolean;
   /** Whether this participant's camera is on (show video vs. avatar). */
   cameraOn: boolean;
-  /** Local stream for self (muted preview); remote stream otherwise. */
-  stream: MediaStream | null;
+  /** Camera+mic stream: local (muted preview) for self, remote otherwise. */
+  cameraStream: MediaStream | null;
   /** Connection state for remote peers; omitted for self. */
   connectionState?: RTCPeerConnectionState;
 }
@@ -26,18 +26,18 @@ export function ParticipantTile({
   isSelf,
   muted,
   cameraOn,
-  stream,
+  cameraStream,
   connectionState,
 }: ParticipantTileProps): React.JSX.Element {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const speaking = useAudioActivity(muted ? null : stream);
+  const speaking = useAudioActivity(muted ? null : cameraStream);
 
   // The <video> element plays remote audio+video; for self it's a muted
   // preview. It is always mounted so remote audio plays even with camera off.
   useEffect(() => {
     const el = videoRef.current;
-    if (el) el.srcObject = stream;
-  }, [stream]);
+    if (el) el.srcObject = cameraStream;
+  }, [cameraStream]);
 
   const connNote = !isSelf && connectionState ? CONN_LABEL[connectionState] : undefined;
 

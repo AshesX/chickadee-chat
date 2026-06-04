@@ -130,6 +130,14 @@ export function useSignaling(url: string): Signaling {
               ),
             }));
             break;
+          case 'screen-state':
+            setState((prev) => ({
+              ...prev,
+              peers: prev.peers.map((p) =>
+                p.id === msg.from ? { ...p, screenStreamId: msg.streamId } : p,
+              ),
+            }));
+            break;
           case 'room-full':
             setState((prev) => ({
               ...prev,

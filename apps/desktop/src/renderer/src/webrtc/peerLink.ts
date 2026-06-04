@@ -39,6 +39,12 @@ export interface PeerLink {
    * do not renegotiate. Pass null to stop sending video (keeps the m-line).
    */
   setLocalVideoTrack: (track: MediaStreamTrack | null, stream: MediaStream) => void;
+  /**
+   * Add, swap, or clear the outgoing screen share (its video + optional system
+   * audio track). First call per kind creates the sender (one renegotiation);
+   * later calls use replaceTrack. Pass null to stop sharing (keeps the m-lines).
+   */
+  setLocalScreenStream: (stream: MediaStream | null) => void;
   /** Tear down the connection and detach all handlers. */
   close: () => void;
 }
@@ -60,8 +66,10 @@ export function createPeerLink(opts: PeerLinkOptions): PeerLink {
   let ignoreOffer = false;
   let isSettingRemoteAnswerPending = false;
 
-  // The single outgoing video sender, created lazily on the first video track.
+  // Outgoing senders, created lazily on first use so toggles can replaceTrack.
   let videoSender: RTCRtpSender | null = null;
+  let screenVideoSender: RTCRtpSender | null = null;
+  let screenAudioSender: RTCRtpSender | null = null;
 
   pc.onnegotiationneeded = async () => {
     try {
@@ -112,6 +120,28 @@ export function createPeerLink(opts: PeerLinkOptions): PeerLink {
     }
   }
 
+  /** Apply a track via its sender: create on first use, else replaceTrack. */
+  function applyTrack(
+    sender: RTCRtpSender | null,
+    track: MediaStreamTrack | null,
+    stream: MediaStream | null,
+  ): RTCRtpSender | null {
+    if (track && stream) {
+      if (sender) void sender.replaceTrack(track);
+      else return pc.addTrack(track, stream);
+    } else if (sender) {
+      void sender.replaceTrack(null);
+    }
+    return sender;
+  }
+
+  function setLocalScreenStream(stream: MediaStream | null): void {
+    const videoTrack = stream?.getVideoTracks()[0] ?? null;
+    const audioTrack = stream?.getAudioTracks()[0] ?? null;
+    screenVideoSender = applyTrack(screenVideoSender, videoTrack, stream);
+    screenAudioSender = applyTrack(screenAudioSender, audioTrack, stream);
+  }
+
   async function handleSignal(signal: PeerSignal): Promise<void> {
     try {
       if (signal.type === 'ice-candidate') {
@@ -155,5 +185,5 @@ export function createPeerLink(opts: PeerLinkOptions): PeerLink {
     pc.close();
   }
 
-  return { pc, handleSignal, setLocalVideoTrack, close };
+  return { pc, handleSignal, setLocalVideoTrack, setLocalScreenStream, close };
 }
