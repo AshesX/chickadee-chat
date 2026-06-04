@@ -1,0 +1,223 @@
+:root {
+  --bg: #1b1b22;
+  --surface: #24242e;
+  --surface-2: #2e2e3a;
+  --border: #3a3a48;
+  --text: #e8e8f0;
+  --text-dim: #9a9aac;
+  --accent: #ffcf56;
+  --accent-2: #6fcf97;
+  --danger: #e06c75;
+  --radius: 10px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.app__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.app__title {
+  font-size: 22px;
+  margin: 0;
+}
+
+.badge {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+}
+
+.badge--connected {
+  color: #11231a;
+  background: var(--accent-2);
+  border-color: transparent;
+}
+
+.badge--connecting {
+  color: var(--bg);
+  background: var(--accent);
+  border-color: transparent;
+}
+
+.badge--error,
+.badge--room-full {
+  color: #2a1112;
+  background: var(--danger);
+  border-color: transparent;
+}
+
+/* Join form */
+.join {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.field input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 15px;
+  padding: 10px 12px;
+  outline: none;
+}
+
+.field input:focus {
+  border-color: var(--accent);
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  border-radius: 8px;
+  padding: 11px 16px;
+  font-size: 15px;
+  font-weight: 600;
+  background: var(--accent);
+  color: #2a2208;
+  transition: filter 0.15s ease;
+}
+
+button:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn--leave {
+  background: var(--danger);
+  color: #2a1112;
+}
+
+.hint {
+  color: var(--text-dim);
+  font-size: 12px;
+  margin: 4px 0 0;
+}
+
+.error {
+  color: var(--danger);
+  font-size: 13px;
+  margin: 0;
+}
+
+/* Room view */
+.room {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.room__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+}
+
+.room__name {
+  margin: 0;
+  font-size: 16px;
+}
+
+.room__count {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.peers {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.peer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+}
+
+.peer--self {
+  border-color: var(--accent-2);
+}
+
+.peer__avatar {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.peer__name {
+  flex: 1;
+  font-size: 15px;
+}
+
+.peer__tag {
+  font-size: 11px;
+  color: var(--accent-2);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}

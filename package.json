@@ -1,0 +1,21 @@
+{
+  "name": "chickadee-chat",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Lightweight P2P desktop voice/video/screen-share app for small groups.",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n signaling,desktop -c cyan,magenta \"npm run dev:signaling\" \"npm run dev:desktop\"",
+    "dev:signaling": "npm run dev --workspace @chickadee/signaling",
+    "dev:desktop": "npm run dev --workspace @chickadee/desktop",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "typescript": "^5.7.2"
+  }
+}
