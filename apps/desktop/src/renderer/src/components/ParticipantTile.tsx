@@ -5,7 +5,9 @@ export interface ParticipantTileProps {
   displayName: string;
   isSelf: boolean;
   muted: boolean;
-  /** Local stream for self (analysed, never played); remote stream otherwise. */
+  /** Whether this participant's camera is on (show video vs. avatar). */
+  cameraOn: boolean;
+  /** Local stream for self (muted preview); remote stream otherwise. */
   stream: MediaStream | null;
   /** Connection state for remote peers; omitted for self. */
   connectionState?: RTCPeerConnectionState;
@@ -23,32 +25,51 @@ export function ParticipantTile({
   displayName,
   isSelf,
   muted,
+  cameraOn,
   stream,
   connectionState,
 }: ParticipantTileProps): React.JSX.Element {
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const speaking = useAudioActivity(muted ? null : stream);
 
-  // Attach the remote stream for playback. Self audio is never played (echo).
+  // The <video> element plays remote audio+video; for self it's a muted
+  // preview. It is always mounted so remote audio plays even with camera off.
   useEffect(() => {
-    const el = audioRef.current;
-    if (el && !isSelf) el.srcObject = stream;
-  }, [stream, isSelf]);
+    const el = videoRef.current;
+    if (el) el.srcObject = stream;
+  }, [stream]);
 
-  const connNote = connectionState ? CONN_LABEL[connectionState] : undefined;
+  const connNote = !isSelf && connectionState ? CONN_LABEL[connectionState] : undefined;
 
   return (
-    <li className={`peer${isSelf ? ' peer--self' : ''}${speaking ? ' peer--speaking' : ''}`}>
-      <span className="peer__avatar">{avatarFor(displayName)}</span>
-      <span className="peer__name">{displayName}</span>
+    <li
+      className={`tile${isSelf ? ' tile--self' : ''}${speaking ? ' tile--speaking' : ''}`}
+    >
+      <video
+        ref={videoRef}
+        className="tile__video"
+        autoPlay
+        playsInline
+        muted={isSelf}
+        style={{ visibility: cameraOn ? 'visible' : 'hidden' }}
+      />
 
-      {isSelf && <span className="peer__tag">you</span>}
-      {connNote && <span className="peer__conn">{connNote}</span>}
-      <span className={`peer__mic${muted ? ' peer__mic--muted' : ''}`} aria-hidden>
-        {muted ? '🔇' : '🎙️'}
-      </span>
+      {!cameraOn && (
+        <div className="tile__placeholder">
+          <span className="tile__avatar">{avatarFor(displayName)}</span>
+        </div>
+      )}
 
-      {!isSelf && <audio ref={audioRef} autoPlay />}
+      <div className="tile__bar">
+        <span className={`tile__mic${muted ? ' tile__mic--muted' : ''}`} aria-hidden>
+          {muted ? '🔇' : '🎙️'}
+        </span>
+        <span className="tile__name">
+          {displayName}
+          {isSelf && ' (you)'}
+        </span>
+        {connNote && <span className="tile__conn">{connNote}</span>}
+      </div>
     </li>
   );
 }

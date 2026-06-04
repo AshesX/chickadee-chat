@@ -33,6 +33,12 @@ export interface PeerLink {
   readonly pc: RTCPeerConnection;
   /** Feed an inbound offer/answer/ice-candidate from the remote peer. */
   handleSignal: (signal: PeerSignal) => Promise<void>;
+  /**
+   * Add, swap, or clear the outgoing video track. The first non-null track
+   * creates the sender (one renegotiation); later calls use replaceTrack and
+   * do not renegotiate. Pass null to stop sending video (keeps the m-line).
+   */
+  setLocalVideoTrack: (track: MediaStreamTrack | null, stream: MediaStream) => void;
   /** Tear down the connection and detach all handlers. */
   close: () => void;
 }
@@ -53,6 +59,9 @@ export function createPeerLink(opts: PeerLinkOptions): PeerLink {
   let makingOffer = false;
   let ignoreOffer = false;
   let isSettingRemoteAnswerPending = false;
+
+  // The single outgoing video sender, created lazily on the first video track.
+  let videoSender: RTCRtpSender | null = null;
 
   pc.onnegotiationneeded = async () => {
     try {
@@ -82,10 +91,24 @@ export function createPeerLink(opts: PeerLinkOptions): PeerLink {
     onConnectionState(pc.connectionState);
   };
 
-  // Adding local tracks triggers onnegotiationneeded → the initial offer.
+  // Add only the audio track at creation; video is managed via
+  // setLocalVideoTrack so its sender can be tracked for replaceTrack swaps.
+  // Adding a track triggers onnegotiationneeded → the initial offer.
   if (localStream) {
-    for (const track of localStream.getTracks()) {
+    for (const track of localStream.getAudioTracks()) {
       pc.addTrack(track, localStream);
+    }
+  }
+
+  function setLocalVideoTrack(track: MediaStreamTrack | null, stream: MediaStream): void {
+    if (track) {
+      if (videoSender) {
+        void videoSender.replaceTrack(track); // swap, no renegotiation
+      } else {
+        videoSender = pc.addTrack(track, stream); // first time → renegotiates
+      }
+    } else if (videoSender) {
+      void videoSender.replaceTrack(null); // stop sending, keep the m-line
     }
   }
 
@@ -132,5 +155,5 @@ export function createPeerLink(opts: PeerLinkOptions): PeerLink {
     pc.close();
   }
 
-  return { pc, handleSignal, close };
+  return { pc, handleSignal, setLocalVideoTrack, close };
 }

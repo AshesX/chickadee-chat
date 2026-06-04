@@ -94,6 +94,12 @@ export function App(): React.JSX.Element {
               >
                 {mesh.micEnabled ? '🎙️ Mute' : '🔇 Unmute'}
               </button>
+              <button
+                className={`btn--cam${mesh.cameraEnabled ? ' btn--cam-on' : ''}`}
+                onClick={mesh.toggleCamera}
+              >
+                {mesh.cameraEnabled ? '📷 Stop video' : '📹 Start video'}
+              </button>
               <button className="btn--leave" onClick={signaling.leave}>
                 Leave
               </button>
@@ -101,12 +107,14 @@ export function App(): React.JSX.Element {
           </div>
 
           {mesh.micError && <p className="error">{mesh.micError}</p>}
+          {mesh.cameraError && <p className="error">{mesh.cameraError}</p>}
 
-          <ul className="peers">
+          <ul className="grid" data-count={Math.min(totalInRoom, MAX_PEERS_PER_ROOM)}>
             <ParticipantTile
               displayName={displayName}
               isSelf
               muted={!mesh.micEnabled}
+              cameraOn={mesh.cameraEnabled}
               stream={mesh.localStream}
             />
             {signaling.peers.map((peer) => {
@@ -117,6 +125,7 @@ export function App(): React.JSX.Element {
                   displayName={peer.displayName}
                   isSelf={false}
                   muted={peer.muted}
+                  cameraOn={peer.cameraOn}
                   stream={media?.stream ?? null}
                   connectionState={media?.connectionState ?? 'new'}
                 />

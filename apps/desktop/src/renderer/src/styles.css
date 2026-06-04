@@ -33,7 +33,7 @@ body {
   display: flex;
   flex-direction: column;
   height: 100%;
-  max-width: 720px;
+  max-width: 1000px;
   margin: 0 auto;
   padding: 24px;
 }
@@ -83,6 +83,9 @@ body {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  width: 100%;
+  max-width: 420px;
+  align-self: center;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -151,6 +154,8 @@ button:disabled {
 
 /* Room view */
 .room {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -177,72 +182,114 @@ button:disabled {
   color: var(--text-dim);
 }
 
-.peers {
+/* Adaptive video grid: tiles resize to fill the available space. */
+.grid {
   list-style: none;
   margin: 0;
   padding: 0;
+  flex: 1;
+  min-height: 0;
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
-.peer {
+.grid[data-count='1'] {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr;
+}
+
+.grid[data-count='2'] {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr;
+}
+
+.grid[data-count='3'],
+.grid[data-count='4'] {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+}
+
+.tile {
+  position: relative;
   display: flex;
-  align-items: center;
-  gap: 12px;
+  min-height: 0;
+  overflow: hidden;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 12px 16px;
-}
-
-.peer--self {
-  border-color: var(--accent-2);
-}
-
-.peer__avatar {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: var(--surface-2);
-  font-weight: 700;
-  color: var(--accent);
-}
-
-.peer__name {
-  flex: 1;
-  font-size: 15px;
-}
-
-.peer__tag {
-  font-size: 11px;
-  color: var(--accent-2);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
 }
 
 /* Speaking indicator: a glowing ring around the active talker. */
-.peer--speaking {
+.tile--speaking {
   border-color: var(--accent-2);
-  box-shadow: 0 0 0 2px var(--accent-2), 0 0 14px -2px var(--accent-2);
+  box-shadow: 0 0 0 2px var(--accent-2), 0 0 16px -2px var(--accent-2);
 }
 
-.peer__conn {
-  font-size: 11px;
-  color: var(--text-dim);
-  font-style: italic;
+.tile__video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #000;
 }
 
-.peer__mic {
-  font-size: 15px;
+/* Mirror the local self-preview like a mirror. */
+.tile--self .tile__video {
+  transform: scaleX(-1);
+}
+
+.tile__placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: var(--surface);
+}
+
+.tile__avatar {
+  display: grid;
+  place-items: center;
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--accent);
+  font-size: 34px;
+  font-weight: 700;
+}
+
+.tile__bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.65), transparent);
+}
+
+.tile__name {
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.tile__mic {
+  font-size: 14px;
   line-height: 1;
-  opacity: 0.85;
 }
 
-.peer__mic--muted {
-  opacity: 1;
+.tile__mic--muted {
   filter: saturate(0.5);
+}
+
+.tile__conn {
+  margin-left: auto;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--accent);
 }
 
 /* Room action buttons */
@@ -260,4 +307,16 @@ button:disabled {
   background: var(--surface-2);
   color: var(--text);
   border: 1px solid var(--border);
+}
+
+.btn--cam {
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.btn--cam-on {
+  background: var(--accent);
+  color: #2a2208;
+  border-color: transparent;
 }

@@ -17,6 +17,8 @@ export interface Peer {
   displayName: string;
   /** Whether this peer's microphone is currently muted (tracked server-side). */
   muted: boolean;
+  /** Whether this peer's camera is currently on (tracked server-side). */
+  cameraOn: boolean;
 }
 
 /** Messages sent from a client up to the signaling server. */
@@ -26,7 +28,8 @@ export type ClientMessage =
   | { type: 'answer'; to: PeerId; sdp: RTCSessionDescriptionInit }
   | { type: 'ice-candidate'; to: PeerId; candidate: RTCIceCandidateInit }
   // Broadcast to the whole room (no `to`); server relays with `from` stamped.
-  | { type: 'mic-state'; muted: boolean };
+  | { type: 'mic-state'; muted: boolean }
+  | { type: 'cam-state'; on: boolean };
 
 /** Messages sent from the signaling server down to a client. */
 export type ServerMessage =
@@ -43,7 +46,9 @@ export type ServerMessage =
   | { type: 'answer'; from: PeerId; sdp: RTCSessionDescriptionInit }
   | { type: 'ice-candidate'; from: PeerId; candidate: RTCIceCandidateInit }
   // A peer toggled their mic; broadcast to everyone else in the room.
-  | { type: 'mic-state'; from: PeerId; muted: boolean };
+  | { type: 'mic-state'; from: PeerId; muted: boolean }
+  // A peer toggled their camera; broadcast to everyone else in the room.
+  | { type: 'cam-state'; from: PeerId; on: boolean };
 
 /** Union of every message that can travel over the signaling socket. */
 export type SignalMessage = ClientMessage | ServerMessage;

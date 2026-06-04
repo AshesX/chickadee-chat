@@ -122,6 +122,14 @@ export function useSignaling(url: string): Signaling {
               ),
             }));
             break;
+          case 'cam-state':
+            setState((prev) => ({
+              ...prev,
+              peers: prev.peers.map((p) =>
+                p.id === msg.from ? { ...p, cameraOn: msg.on } : p,
+              ),
+            }));
+            break;
           case 'room-full':
             setState((prev) => ({
               ...prev,

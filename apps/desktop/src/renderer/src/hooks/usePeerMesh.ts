@@ -15,14 +15,25 @@ export interface PeerMesh {
   micEnabled: boolean;
   /** Set when we couldn't get a mic (listen-only fallback). */
   micError: string | null;
+  /** True when the local camera is on and sending video. */
+  cameraEnabled: boolean;
+  /** Set when the camera couldn't be turned on. */
+  cameraError: string | null;
   /** Per-peer media keyed by peer id. */
   remote: Record<PeerId, RemoteMedia>;
   /** Start acquiring the mic early (called on Join so the prompt shows promptly). */
   prepareMedia: () => void;
   toggleMic: () => void;
+  toggleCamera: () => void;
 }
 
 const TERMINAL_STATUSES = new Set(['idle', 'closed', 'error', 'room-full']);
+
+const VIDEO_CONSTRAINTS: MediaTrackConstraints = {
+  width: { ideal: 1280 },
+  height: { ideal: 720 },
+  frameRate: { ideal: 30 },
+};
 
 /**
  * Owns the local mic stream and one RTCPeerConnection (peerLink) per remote
@@ -35,6 +46,8 @@ export function usePeerMesh(signaling: Signaling): PeerMesh {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [micEnabled, setMicEnabled] = useState(true);
   const [micError, setMicError] = useState<string | null>(null);
+  const [cameraEnabled, setCameraEnabled] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
   const [remote, setRemote] = useState<Record<PeerId, RemoteMedia>>({});
 
   const linksRef = useRef<Map<PeerId, PeerLink>>(new Map());
@@ -42,6 +55,8 @@ export function usePeerMesh(signaling: Signaling): PeerMesh {
   const localStreamPromiseRef = useRef<Promise<MediaStream | null> | null>(null);
   const selfIdRef = useRef<PeerId | null>(null);
   const micEnabledRef = useRef(true);
+  const videoTrackRef = useRef<MediaStreamTrack | null>(null);
+  const cameraEnabledRef = useRef(false);
   const disposedRef = useRef(false);
 
   const ensureLocalStream = useCallback((): Promise<MediaStream | null> => {
@@ -60,9 +75,10 @@ export function usePeerMesh(signaling: Signaling): PeerMesh {
         localStreamRef.current = stream;
         for (const track of stream.getAudioTracks()) track.enabled = micEnabledRef.current;
         // Upgrade links created before the mic was ready (listen-only → sending).
+        // Audio only — video is managed separately via setLocalVideoTrack.
         for (const link of linksRef.current.values()) {
           if (link.pc.getSenders().length === 0) {
-            for (const track of stream.getTracks()) link.pc.addTrack(track, stream);
+            for (const track of stream.getAudioTracks()) link.pc.addTrack(track, stream);
           }
         }
         setLocalStream(stream);
@@ -112,6 +128,13 @@ export function usePeerMesh(signaling: Signaling): PeerMesh {
 
       linksRef.current.set(peerId, link);
       patchRemote(peerId, { connectionState: link.pc.connectionState });
+
+      // A peer joining while our camera is already on should receive video.
+      const videoTrack = videoTrackRef.current;
+      const stream = localStreamRef.current;
+      if (cameraEnabledRef.current && videoTrack && stream) {
+        link.setLocalVideoTrack(videoTrack, stream);
+      }
       return link;
     },
     [send, patchRemote],
@@ -141,10 +164,14 @@ export function usePeerMesh(signaling: Signaling): PeerMesh {
     localStreamPromiseRef.current = null;
     selfIdRef.current = null;
     micEnabledRef.current = true;
+    videoTrackRef.current = null;
+    cameraEnabledRef.current = false;
     setRemote({});
     setLocalStream(null);
     setMicEnabled(true);
     setMicError(null);
+    setCameraEnabled(false);
+    setCameraError(null);
   }, []);
 
   const toggleMic = useCallback(() => {
@@ -156,6 +183,56 @@ export function usePeerMesh(signaling: Signaling): PeerMesh {
     setMicEnabled(next);
     send({ type: 'mic-state', muted: !next });
   }, [send]);
+
+  const stopCamera = useCallback(() => {
+    const videoTrack = videoTrackRef.current;
+    for (const link of linksRef.current.values()) {
+      if (localStreamRef.current) link.setLocalVideoTrack(null, localStreamRef.current);
+    }
+    if (videoTrack) {
+      videoTrack.stop();
+      localStreamRef.current?.removeTrack(videoTrack);
+    }
+    videoTrackRef.current = null;
+    cameraEnabledRef.current = false;
+    setCameraEnabled(false);
+    send({ type: 'cam-state', on: false });
+  }, [send]);
+
+  const toggleCamera = useCallback(() => {
+    if (cameraEnabledRef.current) {
+      stopCamera();
+      return;
+    }
+    setCameraError(null);
+    void (async () => {
+      try {
+        const camStream = await navigator.mediaDevices.getUserMedia({ video: VIDEO_CONSTRAINTS });
+        const videoTrack = camStream.getVideoTracks()[0];
+        if (!videoTrack) return;
+
+        // Need the audio stream to group the track onto; ensure it exists.
+        const base = (await ensureLocalStream()) ?? localStreamRef.current;
+        if (disposedRef.current || !base) {
+          videoTrack.stop();
+          return;
+        }
+
+        videoTrackRef.current = videoTrack;
+        cameraEnabledRef.current = true;
+        base.addTrack(videoTrack);
+        for (const link of linksRef.current.values()) link.setLocalVideoTrack(videoTrack, base);
+        // Auto-disable if the camera is unplugged or revoked.
+        videoTrack.onended = () => stopCamera();
+
+        setCameraEnabled(true);
+        send({ type: 'cam-state', on: true });
+      } catch (err) {
+        console.error('camera getUserMedia failed', err);
+        setCameraError('Could not start the camera.');
+      }
+    })();
+  }, [send, ensureLocalStream, stopCamera]);
 
   // React to signaling messages: set up / tear down links and route negotiation.
   useEffect(() => {
@@ -192,5 +269,15 @@ export function usePeerMesh(signaling: Signaling): PeerMesh {
   // Final cleanup on unmount.
   useEffect(() => teardown, [teardown]);
 
-  return { localStream, micEnabled, micError, remote, prepareMedia, toggleMic };
+  return {
+    localStream,
+    micEnabled,
+    micError,
+    cameraEnabled,
+    cameraError,
+    remote,
+    prepareMedia,
+    toggleMic,
+    toggleCamera,
+  };
 }

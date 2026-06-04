@@ -49,6 +49,7 @@ function handleJoin(socket: WebSocket, msg: Extract<ClientMessage, { type: 'join
     id: randomUUID(),
     displayName: msg.displayName.trim() || 'Anonymous',
     muted: false,
+    cameraOn: false,
   };
   const conn: Connection = { socket, peer, room: msg.room };
 
@@ -92,6 +93,12 @@ function handleMicState(conn: Connection, muted: boolean): void {
   broadcast(conn.room, { type: 'mic-state', from: conn.peer.id, muted }, conn.peer.id);
 }
 
+/** Record a peer's new camera state and tell everyone else in the room. */
+function handleCamState(conn: Connection, on: boolean): void {
+  conn.peer.cameraOn = on;
+  broadcast(conn.room, { type: 'cam-state', from: conn.peer.id, on }, conn.peer.id);
+}
+
 function handleDisconnect(conn: Connection): void {
   const members = rooms.get(conn.room);
   if (!members) return;
@@ -123,6 +130,8 @@ wss.on('connection', (socket) => {
       relay(conn, msg);
     } else if (msg.type === 'mic-state') {
       handleMicState(conn, msg.muted);
+    } else if (msg.type === 'cam-state') {
+      handleCamState(conn, msg.on);
     }
   });
 

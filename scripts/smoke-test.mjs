@@ -35,6 +35,7 @@ const b = client('Bravo');
 const wb = await b.ready;
 check('B joins -> welcome lists A', wb.type === 'welcome' && wb.peers.length === 1 && wb.peers[0].displayName === 'Alpha');
 check('welcome carries muted=false for existing peers', wb.peers[0].muted === false);
+check('welcome carries cameraOn=false for existing peers', wb.peers[0].cameraOn === false);
 
 await wait(150);
 check('A is notified B joined', a.events.some((e) => e.type === 'peer-joined' && e.peer.displayName === 'Bravo'));
@@ -57,10 +58,18 @@ check('A notified B left', a.events.some((ev) => ev.type === 'peer-left' && ev.p
 // Phase 2: C mutes; A and D should be told, C should not receive its own echo.
 c.ws.send(JSON.stringify({ type: 'mic-state', muted: true }));
 await wait(200);
-const fromC = (ev) => ev.type === 'mic-state' && ev.from === wc.selfId && ev.muted === true;
-check('A receives C mic-state(muted)', a.events.some(fromC));
-check('D receives C mic-state(muted)', d.events.some(fromC));
+const fromCMic = (ev) => ev.type === 'mic-state' && ev.from === wc.selfId && ev.muted === true;
+check('A receives C mic-state(muted)', a.events.some(fromCMic));
+check('D receives C mic-state(muted)', d.events.some(fromCMic));
 check('C does not receive its own mic-state', !c.events.some((ev) => ev.type === 'mic-state'));
+
+// Phase 3: C turns camera on; A and D should be told, C should not echo.
+c.ws.send(JSON.stringify({ type: 'cam-state', on: true }));
+await wait(200);
+const fromCCam = (ev) => ev.type === 'cam-state' && ev.from === wc.selfId && ev.on === true;
+check('A receives C cam-state(on)', a.events.some(fromCCam));
+check('D receives C cam-state(on)', d.events.some(fromCCam));
+check('C does not receive its own cam-state', !c.events.some((ev) => ev.type === 'cam-state'));
 
 for (const cl of [a, c, d, e]) cl.ws.close();
 await wait(100);
