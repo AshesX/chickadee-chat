@@ -48,6 +48,7 @@ function handleJoin(socket: WebSocket, msg: Extract<ClientMessage, { type: 'join
   const peer: Peer = {
     id: randomUUID(),
     displayName: msg.displayName.trim() || 'Anonymous',
+    muted: false,
   };
   const conn: Connection = { socket, peer, room: msg.room };
 
@@ -85,6 +86,12 @@ function relay(conn: Connection, msg: ClientMessage & { to: PeerId }): void {
   }
 }
 
+/** Record a peer's new mute state and tell everyone else in the room. */
+function handleMicState(conn: Connection, muted: boolean): void {
+  conn.peer.muted = muted;
+  broadcast(conn.room, { type: 'mic-state', from: conn.peer.id, muted }, conn.peer.id);
+}
+
 function handleDisconnect(conn: Connection): void {
   const members = rooms.get(conn.room);
   if (!members) return;
@@ -114,6 +121,8 @@ wss.on('connection', (socket) => {
 
     if (msg.type === 'offer' || msg.type === 'answer' || msg.type === 'ice-candidate') {
       relay(conn, msg);
+    } else if (msg.type === 'mic-state') {
+      handleMicState(conn, msg.muted);
     }
   });
 

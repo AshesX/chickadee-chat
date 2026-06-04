@@ -221,3 +221,43 @@ button:disabled {
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
+
+/* Speaking indicator: a glowing ring around the active talker. */
+.peer--speaking {
+  border-color: var(--accent-2);
+  box-shadow: 0 0 0 2px var(--accent-2), 0 0 14px -2px var(--accent-2);
+}
+
+.peer__conn {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.peer__mic {
+  font-size: 15px;
+  line-height: 1;
+  opacity: 0.85;
+}
+
+.peer__mic--muted {
+  opacity: 1;
+  filter: saturate(0.5);
+}
+
+/* Room action buttons */
+.room__actions {
+  display: flex;
+  gap: 10px;
+}
+
+.btn--mic {
+  background: var(--accent-2);
+  color: #11231a;
+}
+
+.btn--mic-off {
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+}

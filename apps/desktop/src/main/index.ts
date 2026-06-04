@@ -1,5 +1,21 @@
 import { join } from 'node:path';
-import { app, BrowserWindow, shell } from 'electron';
+import { app, BrowserWindow, session, shell } from 'electron';
+
+/**
+ * Permissions the renderer is allowed to use. `media` covers microphone (and
+ * camera in Phase 3); `display-capture` is pre-cleared for screen share in
+ * Phase 4. Without this, getUserMedia is silently denied in Electron.
+ */
+const GRANTED_PERMISSIONS = new Set(['media', 'display-capture']);
+
+function configureMediaPermissions(): void {
+  session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
+    callback(GRANTED_PERMISSIONS.has(permission));
+  });
+  session.defaultSession.setPermissionCheckHandler((_wc, permission) =>
+    GRANTED_PERMISSIONS.has(permission),
+  );
+}
 
 function createWindow(): void {
   const window = new BrowserWindow({
@@ -37,6 +53,7 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  configureMediaPermissions();
   createWindow();
 
   app.on('activate', () => {

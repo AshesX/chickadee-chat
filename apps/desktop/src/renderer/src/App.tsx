@@ -1,6 +1,8 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { MAX_PEERS_PER_ROOM } from '@chickadee/shared';
 import { useSignaling } from './hooks/useSignaling';
+import { usePeerMesh } from './hooks/usePeerMesh';
+import { ParticipantTile } from './components/ParticipantTile';
 
 const STATUS_LABEL: Record<string, string> = {
   idle: 'Not connected',
@@ -17,6 +19,7 @@ export function App(): React.JSX.Element {
     [],
   );
   const signaling = useSignaling(signalingUrl);
+  const mesh = usePeerMesh(signaling);
 
   const [displayName, setDisplayName] = useState('');
   const [room, setRoom] = useState('lobby');
@@ -26,11 +29,12 @@ export function App(): React.JSX.Element {
 
   function handleJoin(event: FormEvent): void {
     event.preventDefault();
-    if (!displayName.trim()) return;
-    signaling.join(room.trim() || 'lobby', displayName.trim());
+    const name = displayName.trim();
+    if (!name) return;
+    mesh.prepareMedia(); // kick off mic acquisition so the prompt shows now
+    signaling.join(room.trim() || 'lobby', name);
   }
 
-  // Self plus other peers, for the room count.
   const totalInRoom = inCall ? signaling.peers.length + 1 : 0;
 
   return (
@@ -81,23 +85,43 @@ export function App(): React.JSX.Element {
                 {totalInRoom} / {MAX_PEERS_PER_ROOM} in room
               </p>
             </div>
-            <button className="btn--leave" onClick={signaling.leave}>
-              Leave
-            </button>
+            <div className="room__actions">
+              <button
+                className={`btn--mic${mesh.micEnabled ? '' : ' btn--mic-off'}`}
+                onClick={mesh.toggleMic}
+                disabled={!mesh.localStream}
+                title={mesh.localStream ? '' : 'No microphone'}
+              >
+                {mesh.micEnabled ? '🎙️ Mute' : '🔇 Unmute'}
+              </button>
+              <button className="btn--leave" onClick={signaling.leave}>
+                Leave
+              </button>
+            </div>
           </div>
 
+          {mesh.micError && <p className="error">{mesh.micError}</p>}
+
           <ul className="peers">
-            <li className="peer peer--self">
-              <span className="peer__avatar">{avatarFor(displayName)}</span>
-              <span className="peer__name">{displayName}</span>
-              <span className="peer__tag">you</span>
-            </li>
-            {signaling.peers.map((peer) => (
-              <li className="peer" key={peer.id}>
-                <span className="peer__avatar">{avatarFor(peer.displayName)}</span>
-                <span className="peer__name">{peer.displayName}</span>
-              </li>
-            ))}
+            <ParticipantTile
+              displayName={displayName}
+              isSelf
+              muted={!mesh.micEnabled}
+              stream={mesh.localStream}
+            />
+            {signaling.peers.map((peer) => {
+              const media = mesh.remote[peer.id];
+              return (
+                <ParticipantTile
+                  key={peer.id}
+                  displayName={peer.displayName}
+                  isSelf={false}
+                  muted={peer.muted}
+                  stream={media?.stream ?? null}
+                  connectionState={media?.connectionState ?? 'new'}
+                />
+              );
+            })}
           </ul>
 
           {signaling.peers.length === 0 && (
@@ -107,8 +131,4 @@ export function App(): React.JSX.Element {
       )}
     </div>
   );
-}
-
-function avatarFor(name: string): string {
-  return name.trim().charAt(0).toUpperCase() || '?';
 }

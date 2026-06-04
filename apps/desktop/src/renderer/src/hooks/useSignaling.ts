@@ -4,7 +4,11 @@ import {
   type ClientMessage,
   type Peer,
   type PeerId,
+  type ServerMessage,
 } from '@chickadee/shared';
+
+/** A listener invoked for every inbound server message (used by the WebRTC layer). */
+export type MessageListener = (message: ServerMessage) => void;
 
 export type ConnectionStatus =
   | 'idle'
@@ -26,8 +30,10 @@ export interface SignalingState {
 export interface Signaling extends SignalingState {
   join: (room: string, displayName: string) => void;
   leave: () => void;
-  /** Send a directed message to the server (used by WebRTC in Phase 2). */
+  /** Send a message to the server (used by WebRTC negotiation + mic-state). */
   send: (message: ClientMessage) => void;
+  /** Subscribe to raw inbound server messages; returns an unsubscribe fn. */
+  subscribe: (listener: MessageListener) => () => void;
 }
 
 const INITIAL: SignalingState = {
@@ -46,6 +52,14 @@ const INITIAL: SignalingState = {
 export function useSignaling(url: string): Signaling {
   const [state, setState] = useState<SignalingState>(INITIAL);
   const socketRef = useRef<WebSocket | null>(null);
+  const listenersRef = useRef<Set<MessageListener>>(new Set());
+
+  const subscribe = useCallback((listener: MessageListener) => {
+    listenersRef.current.add(listener);
+    return () => {
+      listenersRef.current.delete(listener);
+    };
+  }, []);
 
   const closeSocket = useCallback(() => {
     const socket = socketRef.current;
@@ -75,6 +89,9 @@ export function useSignaling(url: string): Signaling {
         const msg = parseServerMessage(String(event.data));
         if (!msg) return;
 
+        // Fan out to the WebRTC layer before updating presence state.
+        for (const listener of listenersRef.current) listener(msg);
+
         switch (msg.type) {
           case 'welcome':
             setState((prev) => ({
@@ -95,6 +112,14 @@ export function useSignaling(url: string): Signaling {
             setState((prev) => ({
               ...prev,
               peers: prev.peers.filter((p) => p.id !== msg.peerId),
+            }));
+            break;
+          case 'mic-state':
+            setState((prev) => ({
+              ...prev,
+              peers: prev.peers.map((p) =>
+                p.id === msg.from ? { ...p, muted: msg.muted } : p,
+              ),
             }));
             break;
           case 'room-full':
@@ -144,5 +169,5 @@ export function useSignaling(url: string): Signaling {
   // Clean up the socket if the component unmounts mid-call.
   useEffect(() => closeSocket, [closeSocket]);
 
-  return { ...state, join, leave, send };
+  return { ...state, join, leave, send, subscribe };
 }

@@ -1,5 +1,6 @@
-// Phase 1 smoke test: verifies presence (welcome/peer-joined/peer-left) and
-// the 4-peer room cap against a running signaling server on ws://localhost:8080.
+// Signaling smoke test: verifies presence (welcome/peer-joined/peer-left), the
+// 4-peer room cap, and Phase 2 mute broadcast (mic-state) against a running
+// signaling server on ws://localhost:8080.
 import { WebSocket } from 'ws';
 
 const URL = 'ws://localhost:8080';
@@ -33,12 +34,13 @@ check('A joins empty room -> welcome with 0 peers', wa.type === 'welcome' && wa.
 const b = client('Bravo');
 const wb = await b.ready;
 check('B joins -> welcome lists A', wb.type === 'welcome' && wb.peers.length === 1 && wb.peers[0].displayName === 'Alpha');
+check('welcome carries muted=false for existing peers', wb.peers[0].muted === false);
 
 await wait(150);
 check('A is notified B joined', a.events.some((e) => e.type === 'peer-joined' && e.peer.displayName === 'Bravo'));
 
 const c = client('Charlie');
-await c.ready;
+const wc = await c.ready;
 const d = client('Delta');
 const wd = await d.ready;
 check('D is 4th peer -> welcome lists 3 existing', wd.type === 'welcome' && wd.peers.length === 3);
@@ -51,6 +53,14 @@ check('E is 5th peer -> rejected with room-full', we.type === 'room-full');
 b.ws.close();
 await wait(200);
 check('A notified B left', a.events.some((ev) => ev.type === 'peer-left' && ev.peerId === wb.selfId));
+
+// Phase 2: C mutes; A and D should be told, C should not receive its own echo.
+c.ws.send(JSON.stringify({ type: 'mic-state', muted: true }));
+await wait(200);
+const fromC = (ev) => ev.type === 'mic-state' && ev.from === wc.selfId && ev.muted === true;
+check('A receives C mic-state(muted)', a.events.some(fromC));
+check('D receives C mic-state(muted)', d.events.some(fromC));
+check('C does not receive its own mic-state', !c.events.some((ev) => ev.type === 'mic-state'));
 
 for (const cl of [a, c, d, e]) cl.ws.close();
 await wait(100);

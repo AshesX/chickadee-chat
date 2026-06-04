@@ -15,6 +15,8 @@ export type PeerId = string;
 export interface Peer {
   id: PeerId;
   displayName: string;
+  /** Whether this peer's microphone is currently muted (tracked server-side). */
+  muted: boolean;
 }
 
 /** Messages sent from a client up to the signaling server. */
@@ -22,7 +24,9 @@ export type ClientMessage =
   | { type: 'join'; room: RoomId; displayName: string }
   | { type: 'offer'; to: PeerId; sdp: RTCSessionDescriptionInit }
   | { type: 'answer'; to: PeerId; sdp: RTCSessionDescriptionInit }
-  | { type: 'ice-candidate'; to: PeerId; candidate: RTCIceCandidateInit };
+  | { type: 'ice-candidate'; to: PeerId; candidate: RTCIceCandidateInit }
+  // Broadcast to the whole room (no `to`); server relays with `from` stamped.
+  | { type: 'mic-state'; muted: boolean };
 
 /** Messages sent from the signaling server down to a client. */
 export type ServerMessage =
@@ -37,7 +41,9 @@ export type ServerMessage =
   // Relayed WebRTC signaling, with `from` stamped by the server.
   | { type: 'offer'; from: PeerId; sdp: RTCSessionDescriptionInit }
   | { type: 'answer'; from: PeerId; sdp: RTCSessionDescriptionInit }
-  | { type: 'ice-candidate'; from: PeerId; candidate: RTCIceCandidateInit };
+  | { type: 'ice-candidate'; from: PeerId; candidate: RTCIceCandidateInit }
+  // A peer toggled their mic; broadcast to everyone else in the room.
+  | { type: 'mic-state'; from: PeerId; muted: boolean };
 
 /** Union of every message that can travel over the signaling socket. */
 export type SignalMessage = ClientMessage | ServerMessage;
