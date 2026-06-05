@@ -1,13 +1,22 @@
 import { dirname, join } from 'node:path';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import { app, BrowserWindow, desktopCapturer, ipcMain, session, shell } from 'electron';
-import { PUBLIC_TURN_SERVERS, STUN_SERVERS, type ScreenSource } from '@chickadee/shared';
+import {
+  PUBLIC_TURN_SERVERS,
+  STUN_SERVERS,
+  defaultSettings,
+  type PersistedSettings,
+  type ScreenSource,
+} from '@chickadee/shared';
 
-// Running two dev instances that share one userData dir causes cache-lock
-// errors (Unable to move the cache / GPU cache creation failed). Give each
-// unpackaged instance its own dir so two clients can run side by side cleanly.
+// In dev, override userData per "instance slot" (default 0) so settings persist
+// across restarts (a fixed dir) while two instances stay isolated — run a second
+// one with CHICKADEE_INSTANCE=1. (A per-pid dir would lose settings every launch.)
+// Packaged builds keep the real per-user userData.
 if (!app.isPackaged) {
-  app.setPath('userData', join(app.getPath('temp'), `chickadee-dev-${process.pid}`));
+  const slot = process.env.CHICKADEE_INSTANCE ?? '0';
+  app.setPath('userData', join(app.getPath('temp'), `chickadee-dev-${slot}`));
 }
 
 /**
@@ -39,6 +48,44 @@ function loadDotEnv(): void {
 interface AppConfig {
   signalingUrl: string;
   iceServers: RTCIceServer[];
+  settings: PersistedSettings;
+}
+
+// Persisted settings live in userData/settings.json; held in memory after load.
+let currentSettings: PersistedSettings = defaultSettings();
+
+function settingsPath(): string {
+  return join(app.getPath('userData'), 'settings.json');
+}
+
+/** Load settings (merged over defaults), minting a stable userId on first run. */
+function loadSettings(): void {
+  let stored: Partial<PersistedSettings> = {};
+  try {
+    const path = settingsPath();
+    if (existsSync(path)) stored = JSON.parse(readFileSync(path, 'utf8')) as Partial<PersistedSettings>;
+  } catch (err) {
+    console.error('failed to read settings.json', err);
+  }
+  currentSettings = { ...defaultSettings(), ...stored };
+  if (!currentSettings.userId) {
+    currentSettings.userId = randomUUID();
+    persistSettings();
+  }
+}
+
+function persistSettings(): void {
+  try {
+    writeFileSync(settingsPath(), JSON.stringify(currentSettings, null, 2));
+  } catch (err) {
+    console.error('failed to write settings.json', err);
+  }
+}
+
+/** Merge a partial settings update from the renderer and persist it. */
+function saveSettings(partial: Partial<PersistedSettings>): void {
+  currentSettings = { ...currentSettings, ...partial };
+  persistSettings();
 }
 
 /** Build runtime config from env: signaling URL + ICE servers (STUN + TURN). */
@@ -60,7 +107,7 @@ function buildConfig(): AppConfig {
   } else {
     iceServers.push(...PUBLIC_TURN_SERVERS);
   }
-  return { signalingUrl, iceServers };
+  return { signalingUrl, iceServers, settings: currentSettings };
 }
 
 loadDotEnv();
@@ -201,6 +248,10 @@ app.on('render-process-gone', (_e, _wc, details) => {
 });
 
 app.whenReady().then(() => {
+  loadSettings();
+  ipcMain.handle('chickadee:save-settings', (_e, partial: Partial<PersistedSettings>) =>
+    saveSettings(partial),
+  );
   configureMediaPermissions();
   configureScreenShare();
   registerWindowControls();

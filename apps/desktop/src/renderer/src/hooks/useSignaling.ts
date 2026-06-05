@@ -29,7 +29,7 @@ export interface SignalingState {
 }
 
 export interface Signaling extends SignalingState {
-  join: (room: string, displayName: string) => void;
+  join: (room: string, displayName: string, userId: string) => void;
   leave: () => void;
   /** Send a message to the server (used by WebRTC negotiation + mic-state). */
   send: (message: ClientMessage) => void;
@@ -65,6 +65,7 @@ export function useSignaling(url: string): Signaling {
 
   const roomRef = useRef('');
   const nameRef = useRef('');
+  const userIdRef = useRef('');
   const shouldReconnectRef = useRef(false);
   const attemptsRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -123,7 +124,14 @@ export function useSignaling(url: string): Signaling {
     socketRef.current = socket;
 
     socket.onopen = () => {
-      socket.send(JSON.stringify({ type: 'join', room: roomRef.current, displayName: nameRef.current }));
+      socket.send(
+        JSON.stringify({
+          type: 'join',
+          room: roomRef.current,
+          displayName: nameRef.current,
+          userId: userIdRef.current,
+        }),
+      );
       // Heartbeat: ping periodically; if pongs stop, force-close → reconnect.
       lastPongRef.current = Date.now();
       pingTimerRef.current = setInterval(() => {
@@ -239,13 +247,14 @@ export function useSignaling(url: string): Signaling {
   }, [connect]);
 
   const join = useCallback(
-    (room: string, displayName: string) => {
+    (room: string, displayName: string, userId: string) => {
       closeSocket();
       clearTimers();
       shouldReconnectRef.current = true;
       attemptsRef.current = 0;
       roomRef.current = room;
       nameRef.current = displayName;
+      userIdRef.current = userId;
       setState({ ...INITIAL, status: 'connecting' });
       connect();
     },

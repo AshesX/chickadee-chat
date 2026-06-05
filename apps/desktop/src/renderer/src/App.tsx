@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
-import { DEFAULT_ICE_SERVERS, MAX_PEERS_PER_ROOM } from '@chickadee/shared';
+import { DEFAULT_ICE_SERVERS, MAX_PEERS_PER_ROOM, type Room } from '@chickadee/shared';
 import { useSignaling } from './hooks/useSignaling';
 import { usePeerMesh } from './hooks/usePeerMesh';
 import { useSessionTimer } from './hooks/useSessionTimer';
 import { useRoomChat } from './hooks/useRoomChat';
+import { useFriends } from './hooks/useFriends';
 import { SELF_COLOR, useUserColors } from './lib/userColors';
-import { store, type Room } from './lib/localStore';
+import { store } from './lib/settings';
 import { Sidebar } from './components/Sidebar';
 import { RoomHeader } from './components/RoomHeader';
 import { ControlBar } from './components/ControlBar';
@@ -36,6 +37,7 @@ export function App(): React.JSX.Element {
   const colors = useUserColors(signaling.peers.map((p) => p.id));
   const timer = useSessionTimer(signaling.status === 'connected');
 
+  const userId = useMemo(() => store.getUserId(), []);
   const [displayName, setDisplayName] = useState(() => store.getName());
   const [rooms, setRooms] = useState<Room[]>(() => store.getRooms());
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(null);
@@ -52,12 +54,13 @@ export function App(): React.JSX.Element {
   const inRoom = currentRoomId !== null;
   const currentRoom = rooms.find((r) => r.id === currentRoomId) ?? null;
   const totalInRoom = inRoom ? signaling.peers.length + 1 : 0;
+  const friends = useFriends(signaling.peers, userId, currentRoom?.label ?? null);
 
   function joinRoom(id: string): void {
     if (id === currentRoomId) return;
     setCurrentRoomId(id);
     mesh.prepareMedia();
-    signaling.join(id, displayName);
+    signaling.join(id, displayName, userId);
   }
 
   function leaveRoom(): void {
@@ -147,7 +150,7 @@ export function App(): React.JSX.Element {
         currentRoomCount={totalInRoom}
         onSelectRoom={joinRoom}
         onCreateRoom={() => setCreateOpen(true)}
-        friends={[]}
+        friends={friends}
         selfName={displayName}
         selfColor={SELF_COLOR}
         online={inRoom && signaling.status === 'connected'}

@@ -1,5 +1,5 @@
 import { MessageSquare, Mic } from 'lucide-react';
-import type { Room } from '../lib/localStore';
+import type { Room } from '@chickadee/shared';
 import type { ConnectionStatus } from '../hooks/useSignaling';
 import { WindowControls } from './WindowControls';
 

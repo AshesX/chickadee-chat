@@ -1,5 +1,5 @@
 import { Plus, Settings } from 'lucide-react';
-import type { Room } from '../lib/localStore';
+import type { Room } from '@chickadee/shared';
 
 export interface Friend {
   name: string;

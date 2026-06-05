@@ -6,11 +6,15 @@ import { WebSocket } from 'ws';
 const URL = 'ws://localhost:8080';
 const ROOM = 'smoke';
 
-function client(displayName) {
+function client(displayName, { room = ROOM, userId = `uid-${displayName}` } = {}) {
   const events = [];
   const ws = new WebSocket(URL);
   const ready = new Promise((resolve) => {
-    ws.on('open', () => ws.send(JSON.stringify({ type: 'join', room: ROOM, displayName })));
+    ws.on('open', () => {
+      const join = { type: 'join', room, displayName };
+      if (userId !== null) join.userId = userId;
+      ws.send(JSON.stringify(join));
+    });
     ws.on('message', (d) => {
       const msg = JSON.parse(d.toString());
       events.push(msg);
@@ -43,6 +47,7 @@ check('welcome carries muted=false for existing peers', wb.peers[0].muted === fa
 check('welcome carries cameraOn=false for existing peers', wb.peers[0].cameraOn === false);
 check('welcome carries screenStreamId=null for existing peers', wb.peers[0].screenStreamId === null);
 check('welcome carries game=null for existing peers', wb.peers[0].game === null);
+check('welcome carries userId for existing peers', wb.peers[0].userId === 'uid-Alpha');
 
 await wait(150);
 check('A is notified B joined', a.events.some((e) => e.type === 'peer-joined' && e.peer.displayName === 'Bravo'));
@@ -115,6 +120,18 @@ const cGame = (ev) => ev.type === 'game-state' && ev.from === wc.selfId && ev.ga
 check('A receives C game-state', a.events.some(cGame));
 check('D receives C game-state', d.events.some(cGame));
 check('C does not receive its own game-state', !c.events.some((ev) => ev.type === 'game-state'));
+
+// Phase 6C: a join without userId still gets a non-empty userId (server fallback).
+const f1 = client('Foxtrot', { room: 'fb', userId: null });
+await f1.ready;
+const f2 = client('Golf', { room: 'fb' });
+const wf2 = await f2.ready;
+check(
+  'missing userId falls back to a non-empty id',
+  typeof wf2.peers[0].userId === 'string' && wf2.peers[0].userId.length > 0,
+);
+f1.ws.close();
+f2.ws.close();
 
 for (const cl of [a, c, d, e]) cl.ws.close();
 await wait(100);

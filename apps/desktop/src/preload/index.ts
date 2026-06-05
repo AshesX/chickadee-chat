@@ -1,9 +1,15 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { DEFAULT_ICE_SERVERS, type ScreenSource } from '@chickadee/shared';
+import {
+  DEFAULT_ICE_SERVERS,
+  defaultSettings,
+  type PersistedSettings,
+  type ScreenSource,
+} from '@chickadee/shared';
 
 interface AppConfig {
   signalingUrl: string;
   iceServers: RTCIceServer[];
+  settings: PersistedSettings;
 }
 
 /** Main passes runtime config synchronously via --chickadee-config=<json>. */
@@ -11,6 +17,7 @@ function readConfig(): AppConfig {
   const fallback: AppConfig = {
     signalingUrl: 'ws://localhost:8080',
     iceServers: DEFAULT_ICE_SERVERS,
+    settings: defaultSettings(),
   };
   const arg = process.argv.find((a) => a.startsWith('--chickadee-config='));
   if (!arg) return fallback;
@@ -32,6 +39,11 @@ const api = {
   signalingUrl: config.signalingUrl,
   /** ICE servers (STUN + TURN) for RTCPeerConnection. */
   iceServers: config.iceServers,
+  /** Persisted settings (name, rooms, friends, userId, prefs). */
+  settings: config.settings,
+  /** Merge + persist a partial settings update to userData. */
+  saveSettings: (partial: Partial<PersistedSettings>): Promise<void> =>
+    ipcRenderer.invoke('chickadee:save-settings', partial),
   platform: process.platform,
   /** List the shareable screens and windows for the screen-share picker. */
   getScreenSources: (): Promise<ScreenSource[]> =>

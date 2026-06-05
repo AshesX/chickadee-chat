@@ -14,6 +14,8 @@ export type PeerId = string;
 
 export interface Peer {
   id: PeerId;
+  /** Stable per-user id (client-generated, persisted) for recognizing friends. */
+  userId: string;
   displayName: string;
   /** Whether this peer's microphone is currently muted (tracked server-side). */
   muted: boolean;
@@ -29,6 +31,40 @@ export interface Peer {
   game: string | null;
 }
 
+/** A sidebar room entry (local; the server uses arbitrary room ids). */
+export interface Room {
+  id: string;
+  label: string;
+  icon: string;
+}
+
+/** A remembered friend, keyed by stable userId. */
+export interface StoredFriend {
+  userId: string;
+  name: string;
+  color: string;
+}
+
+/** Settings persisted to Electron userData (the renderer reads/writes via IPC). */
+export interface PersistedSettings {
+  /** Stable per-user id; generated once in main if missing. */
+  userId: string;
+  displayName: string;
+  rooms: Room[];
+  friends: StoredFriend[];
+  chatVisible: boolean;
+}
+
+export const DEFAULT_ROOMS: Room[] = [
+  { id: 'lobby', label: 'Lobby', icon: '🏠' },
+  { id: 'dungeon', label: 'Dungeon Run', icon: '⚔️' },
+  { id: 'chill', label: 'Chill Zone', icon: '🎮' },
+];
+
+export function defaultSettings(): PersistedSettings {
+  return { userId: '', displayName: '', rooms: DEFAULT_ROOMS, friends: [], chatVisible: false };
+}
+
 /** A capturable screen or window, enumerated by the main process for the picker. */
 export interface ScreenSource {
   id: string;
@@ -41,7 +77,7 @@ export interface ScreenSource {
 
 /** Messages sent from a client up to the signaling server. */
 export type ClientMessage =
-  | { type: 'join'; room: RoomId; displayName: string }
+  | { type: 'join'; room: RoomId; displayName: string; userId: string }
   | { type: 'offer'; to: PeerId; sdp: RTCSessionDescriptionInit }
   | { type: 'answer'; to: PeerId; sdp: RTCSessionDescriptionInit }
   | { type: 'ice-candidate'; to: PeerId; candidate: RTCIceCandidateInit }

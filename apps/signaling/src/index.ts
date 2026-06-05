@@ -45,8 +45,11 @@ function handleJoin(socket: WebSocket, msg: Extract<ClientMessage, { type: 'join
     return null;
   }
 
+  const id = randomUUID();
   const peer: Peer = {
-    id: randomUUID(),
+    id,
+    // Tolerant: fall back to the session id if a client omits a stable userId.
+    userId: typeof msg.userId === 'string' && msg.userId ? msg.userId : id,
     displayName: msg.displayName.trim() || 'Anonymous',
     muted: false,
     cameraOn: false,
