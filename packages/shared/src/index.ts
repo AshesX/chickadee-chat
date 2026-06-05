@@ -46,7 +46,9 @@ export type ClientMessage =
   // Broadcast to the whole room (no `to`); server relays with `from` stamped.
   | { type: 'mic-state'; muted: boolean }
   | { type: 'cam-state'; on: boolean }
-  | { type: 'screen-state'; streamId: string | null };
+  | { type: 'screen-state'; streamId: string | null }
+  // Liveness check so the client can detect a dead/half-open connection.
+  | { type: 'ping' };
 
 /** Messages sent from the signaling server down to a client. */
 export type ServerMessage =
@@ -67,19 +69,33 @@ export type ServerMessage =
   // A peer toggled their camera; broadcast to everyone else in the room.
   | { type: 'cam-state'; from: PeerId; on: boolean }
   // A peer started/stopped sharing their screen (streamId null = stopped).
-  | { type: 'screen-state'; from: PeerId; streamId: string | null };
+  | { type: 'screen-state'; from: PeerId; streamId: string | null }
+  // Reply to a client ping.
+  | { type: 'pong' };
 
 /** Union of every message that can travel over the signaling socket. */
 export type SignalMessage = ClientMessage | ServerMessage;
 
-/**
- * ICE server configuration for WebRTC (used in Phase 2).
- * STUN is free and configured now; TURN relay is added in Phase 5 for peers
- * behind symmetric NAT where pure P2P fails.
- */
-export const DEFAULT_ICE_SERVERS: RTCIceServer[] = [
+/** STUN lets peers discover their public address; free and always included. */
+export const STUN_SERVERS: RTCIceServer[] = [
   { urls: 'stun:stun.l.google.com:19302' },
 ];
+
+/**
+ * Free public TURN relay (OpenRelay) used as a best-effort default so cross-NAT
+ * play works out of the box. It is rate-limited and may be down — for reliable
+ * internet play, override it with your own coturn/hosted TURN via the
+ * CHICKADEE_TURN_URL / CHICKADEE_TURN_USERNAME / CHICKADEE_TURN_CREDENTIAL env
+ * vars (see README "Play over the internet").
+ */
+export const PUBLIC_TURN_SERVERS: RTCIceServer[] = [
+  { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+  { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+  { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
+];
+
+/** Renderer fallback when the main process didn't supply a configured set. */
+export const DEFAULT_ICE_SERVERS: RTCIceServer[] = [...STUN_SERVERS, ...PUBLIC_TURN_SERVERS];
 
 function parseTyped<T extends { type: string }>(data: string): T | null {
   try {

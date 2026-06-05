@@ -4,10 +4,12 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()],
+    // Bundle the workspace shared package (its entry is .ts) instead of
+    // externalizing it, so main can import runtime values (ICE servers).
+    plugins: [externalizeDepsPlugin({ exclude: ['@chickadee/shared'] })],
   },
   preload: {
-    plugins: [externalizeDepsPlugin()],
+    plugins: [externalizeDepsPlugin({ exclude: ['@chickadee/shared'] })],
   },
   renderer: {
     root: resolve(__dirname, 'src/renderer'),

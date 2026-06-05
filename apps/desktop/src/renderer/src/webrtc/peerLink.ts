@@ -5,6 +5,9 @@ import {
   type ServerMessage,
 } from '@chickadee/shared';
 
+/** Don't fire ICE restarts more often than this (ms) per connection. */
+const ICE_RESTART_COOLDOWN_MS = 4000;
+
 /** The subset of relayed signaling messages a peer link consumes. */
 export type PeerSignal = Extract<
   ServerMessage,
@@ -21,6 +24,8 @@ export interface PeerLinkOptions {
   polite: boolean;
   /** Local media to send, or null for a listen-only (receive-only) link. */
   localStream: MediaStream | null;
+  /** ICE servers (STUN + TURN) for this connection. */
+  iceServers: RTCIceServer[];
   /** Send a directed signaling message up to the server. */
   send: (message: ClientMessage) => void;
   /** Called whenever the remote stream arrives or changes. */
@@ -59,7 +64,7 @@ export interface PeerLink {
 export function createPeerLink(opts: PeerLinkOptions): PeerLink {
   const { peerId, polite, localStream, send, onRemoteStream, onConnectionState } = opts;
 
-  const pc = new RTCPeerConnection({ iceServers: DEFAULT_ICE_SERVERS });
+  const pc = new RTCPeerConnection({ iceServers: opts.iceServers ?? DEFAULT_ICE_SERVERS });
 
   // Perfect-negotiation bookkeeping.
   let makingOffer = false;
@@ -95,7 +100,26 @@ export function createPeerLink(opts: PeerLinkOptions): PeerLink {
     if (streams[0]) onRemoteStream(streams[0]);
   };
 
+  let lastIceRestart = 0;
+
+  // Re-gather ICE when a connection fails (e.g. network path changed). The
+  // restart flag is consumed by the next negotiation, which the existing
+  // perfect-negotiation offer path drives; both ends may restart (glare-safe).
+  // Only works while signaling is up; full signaling loss is handled by the
+  // mesh rebuild on reconnect.
+  function maybeRestartIce(): void {
+    const now = Date.now();
+    if (now - lastIceRestart < ICE_RESTART_COOLDOWN_MS) return;
+    lastIceRestart = now;
+    try {
+      pc.restartIce();
+    } catch (err) {
+      console.error(`[peerLink ${peerId}] restartIce failed`, err);
+    }
+  }
+
   pc.onconnectionstatechange = () => {
+    if (pc.connectionState === 'failed') maybeRestartIce();
     onConnectionState(pc.connectionState);
   };
 

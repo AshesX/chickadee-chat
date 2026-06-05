@@ -4,10 +4,9 @@ Lightweight P2P desktop **voice / video / screen-share** app — "Discord Lite" 
 
 ## Status
 
-Phases 1–4 complete and manually verified: presence, mesh **audio** (mute + speaking indicator), **video** (adaptive grid + camera toggle), and **screen share** (separate stream + Windows system audio, presentation layout).
+Phases 1–5 complete: presence, mesh **audio** (mute + speaking indicator), **video** (adaptive grid + camera toggle), **screen share** (separate stream + Windows system audio, presentation layout), and **connectivity/resilience** (configurable signaling URL + STUN/TURN, auto-reconnect + ICE restart, signaling Dockerfile). Phases 1–4 manually verified; Phase 5 reconnection is locally testable, full TURN/internet needs a deployed signaling URL + a remote peer.
 
 Roadmap ahead:
-- **Phase 5** — TURN server (cross-NAT internet play) + reconnection/resilience.
 - **Phase 6** — UI improvements & quality-of-life changes.
 - **Later** — packaging/distribution to `.exe` (electron-builder); intentionally deferred.
 
@@ -68,7 +67,10 @@ Existing examples: `muted` (mic-state), `cameraOn` (cam-state), `screenStreamId`
 - **Screen capture path:** `desktopCapturer` (main only) lists sources over IPC for the picker; capture uses `getDisplayMedia()` fulfilled by `setDisplayMediaRequestHandler` in main, with `audio: 'loopback'` for Windows system/game audio. The legacy `getUserMedia({ chromeMediaSource })` path was unreliable.
 - **Dev `userData` is per-instance** (`temp/chickadee-dev-<pid>`, unpackaged only) so two clients run side-by-side without cache-lock errors.
 - **Renderer accesses `window.chickadee` defensively** (optional chaining + guards); the `ErrorBoundary` surfaces any renderer throw instead of blanking.
-- **STUN only today** (`stun:stun.l.google.com:19302`). Cross-NAT internet play needs **TURN** (Phase 5) — pure P2P fails behind symmetric NAT.
+- **Runtime config flows main → preload via `additionalArguments`.** Main's `buildConfig()` reads env (`CHICKADEE_SIGNALING_URL`, `CHICKADEE_TURN_*`; `loadDotEnv()` walks up for a `.env`) and JSON-passes `{ signalingUrl, iceServers }` on `--chickadee-config=` in argv; the preload parses it and exposes both on `window.chickadee`. (Chosen over preload `process.env` for reliability.) Because main/preload now import runtime values from shared, `externalizeDepsPlugin({ exclude: ['@chickadee/shared'] })` bundles shared into them.
+- **ICE: STUN + TURN, configurable.** `STUN_SERVERS` always; TURN from `CHICKADEE_TURN_*` env, else a best-effort free public default (`PUBLIC_TURN_SERVERS`). Symmetric-NAT internet play needs a real TURN — see README "Play over the internet".
+- **Resilience:** `useSignaling` auto-reconnects (backoff, `reconnecting` status) and re-joins after a drop; an app-level `ping`/`pong` heartbeat detects half-open sockets (server also runs a ws-level heartbeat to drop dead peers). On the re-`welcome` (new `selfId`) `usePeerMesh` rebuilds all links and re-announces mic/cam/screen state. `peerLink` calls `restartIce()` on `failed` (glare-safe). Reconnect is *not* a terminal status, so local media survives the blip.
+- **Signaling in prod runs via `tsx`** (not a `tsc` build) to avoid resolving shared's `.ts` entry; `apps/signaling/Dockerfile` builds from the **repo root** context.
 
 ## Testing
 

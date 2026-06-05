@@ -51,8 +51,12 @@ const VIDEO_CONSTRAINTS: MediaTrackConstraints = {
  * peer, driven entirely by signaling messages. The imperative WebRTC objects
  * live in refs; only render-relevant snapshots live in React state.
  */
-export function usePeerMesh(signaling: Signaling): PeerMesh {
+export function usePeerMesh(signaling: Signaling, iceServers: RTCIceServer[]): PeerMesh {
   const { subscribe, send, status } = signaling;
+
+  // Kept in a ref so the stable ensureLink callback always sees the latest set.
+  const iceServersRef = useRef(iceServers);
+  iceServersRef.current = iceServers;
 
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [localScreenStream, setLocalScreenStream] = useState<MediaStream | null>(null);
@@ -179,6 +183,7 @@ export function usePeerMesh(signaling: Signaling): PeerMesh {
         peerId,
         polite,
         localStream: localStreamRef.current,
+        iceServers: iceServersRef.current,
         send,
         onRemoteStream: (stream) => recordRemoteStream(peerId, stream),
         onConnectionState: (connectionState) => patchRemote(peerId, { connectionState }),
@@ -373,20 +378,42 @@ export function usePeerMesh(signaling: Signaling): PeerMesh {
     [send, stopScreenShare],
   );
 
+  // After a reconnect the server reset our peer to defaults; re-broadcast any
+  // non-default local state so others' tiles reflect reality.
+  const reannounceLocalState = useCallback(() => {
+    if (!micEnabledRef.current) send({ type: 'mic-state', muted: true });
+    if (cameraEnabledRef.current) send({ type: 'cam-state', on: true });
+    if (sharingScreenRef.current && screenStreamRef.current) {
+      send({ type: 'screen-state', streamId: screenStreamRef.current.id });
+    }
+  }, [send]);
+
   // React to signaling messages: set up / tear down links and route negotiation.
   useEffect(() => {
     const handle: MessageListener = (msg) => {
       switch (msg.type) {
-        case 'welcome':
+        case 'welcome': {
+          // A second welcome means we reconnected with a fresh identity: peers
+          // tore down their links to our old id when our socket dropped, so
+          // rebuild every link from scratch (local media streams are kept).
+          const isReconnect = selfIdRef.current !== null;
           selfIdRef.current = msg.selfId;
+          for (const link of linksRef.current.values()) link.close();
+          linksRef.current.clear();
+          remoteStreamsRef.current.clear();
+          screenIdsRef.current.clear();
+          setRemote({});
           for (const peer of msg.peers) {
             if (peer.screenStreamId) screenIdsRef.current.set(peer.id, peer.screenStreamId);
           }
           void (async () => {
             await ensureLocalStream();
             for (const peer of msg.peers) ensureLink(peer.id);
+            // The server reset our peer to defaults; re-tell the room our state.
+            if (isReconnect) reannounceLocalState();
           })();
           break;
+        }
         case 'peer-joined':
           ensureLink(msg.peer.id);
           break;
@@ -406,7 +433,7 @@ export function usePeerMesh(signaling: Signaling): PeerMesh {
       }
     };
     return subscribe(handle);
-  }, [subscribe, ensureLocalStream, ensureLink, closeLink, recomputeRemote]);
+  }, [subscribe, ensureLocalStream, ensureLink, closeLink, recomputeRemote, reannounceLocalState]);
 
   // Tear everything down when the call ends (leave / disconnect / error).
   useEffect(() => {

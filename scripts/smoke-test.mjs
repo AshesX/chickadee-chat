@@ -31,6 +31,11 @@ const a = client('Alpha');
 const wa = await a.ready;
 check('A joins empty room -> welcome with 0 peers', wa.type === 'welcome' && wa.peers.length === 0);
 
+// Phase 5: heartbeat ping -> pong.
+a.ws.send(JSON.stringify({ type: 'ping' }));
+await wait(100);
+check('A ping -> pong', a.events.some((ev) => ev.type === 'pong'));
+
 const b = client('Bravo');
 const wb = await b.ready;
 check('B joins -> welcome lists A', wb.type === 'welcome' && wb.peers.length === 1 && wb.peers[0].displayName === 'Alpha');

@@ -117,13 +117,24 @@ function handleDisconnect(conn: Connection): void {
 
 const wss = new WebSocketServer({ port: PORT });
 
+/** Liveness tracking for the ws-level heartbeat (terminates dead sockets). */
+const alive = new WeakMap<WebSocket, boolean>();
+
 wss.on('connection', (socket) => {
   // A connection has no identity until it sends a valid `join`.
   let conn: Connection | null = null;
+  alive.set(socket, true);
+  socket.on('pong', () => alive.set(socket, true));
 
   socket.on('message', (data) => {
     const msg = parseClientMessage(data.toString());
     if (!msg) return;
+
+    // App-level liveness ping (lets the client detect a half-open socket).
+    if (msg.type === 'ping') {
+      send(socket, { type: 'pong' });
+      return;
+    }
 
     if (msg.type === 'join') {
       if (conn) return; // already joined; ignore duplicate joins
@@ -152,5 +163,21 @@ wss.on('connection', (socket) => {
     if (conn) handleDisconnect(conn);
   });
 });
+
+// ws-level heartbeat: ping every client; terminate any that didn't pong since
+// the last round. Terminating fires 'close' → handleDisconnect → peer-left, so
+// dead peers are cleaned up promptly instead of lingering until TCP timeout.
+const heartbeat = setInterval(() => {
+  for (const client of wss.clients) {
+    if (alive.get(client) === false) {
+      client.terminate();
+      continue;
+    }
+    alive.set(client, false);
+    client.ping();
+  }
+}, 20_000);
+
+wss.on('close', () => clearInterval(heartbeat));
 
 console.log(`Chickadee signaling server listening on :${PORT}`);

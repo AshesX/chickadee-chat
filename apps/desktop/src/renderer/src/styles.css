@@ -65,7 +65,8 @@ body {
   border-color: transparent;
 }
 
-.badge--connecting {
+.badge--connecting,
+.badge--reconnecting {
   color: var(--bg);
   background: var(--accent);
   border-color: transparent;

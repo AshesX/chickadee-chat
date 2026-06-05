@@ -1,6 +1,7 @@
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
 import { app, BrowserWindow, desktopCapturer, ipcMain, session, shell } from 'electron';
-import type { ScreenSource } from '@chickadee/shared';
+import { PUBLIC_TURN_SERVERS, STUN_SERVERS, type ScreenSource } from '@chickadee/shared';
 
 // Running two dev instances that share one userData dir causes cache-lock
 // errors (Unable to move the cache / GPU cache creation failed). Give each
@@ -8,6 +9,61 @@ import type { ScreenSource } from '@chickadee/shared';
 if (!app.isPackaged) {
   app.setPath('userData', join(app.getPath('temp'), `chickadee-dev-${process.pid}`));
 }
+
+/**
+ * Minimal .env loader (no dependency): walks up from the cwd looking for a
+ * `.env` file and sets any KEY=VALUE lines into process.env without overwriting
+ * existing vars. Lets users configure signaling/TURN with a file in dev.
+ */
+function loadDotEnv(): void {
+  let dir = process.cwd();
+  for (let i = 0; i < 4; i++) {
+    const candidate = join(dir, '.env');
+    if (existsSync(candidate)) {
+      for (const line of readFileSync(candidate, 'utf8').split(/\r?\n/)) {
+        const match = /^\s*([A-Za-z0-9_]+)\s*=\s*(.*?)\s*$/.exec(line);
+        if (!match || line.trimStart().startsWith('#')) continue;
+        const [, key, raw] = match;
+        if (process.env[key] !== undefined) continue;
+        const value = raw.replace(/^["']|["']$/g, '');
+        process.env[key] = value;
+      }
+      return;
+    }
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+}
+
+interface AppConfig {
+  signalingUrl: string;
+  iceServers: RTCIceServer[];
+}
+
+/** Build runtime config from env: signaling URL + ICE servers (STUN + TURN). */
+function buildConfig(): AppConfig {
+  const signalingUrl =
+    process.env.CHICKADEE_SIGNALING_URL ??
+    process.env.VITE_SIGNALING_URL ??
+    'ws://localhost:8080';
+
+  const iceServers: RTCIceServer[] = [...STUN_SERVERS];
+  const turnUrl = process.env.CHICKADEE_TURN_URL;
+  if (turnUrl) {
+    // Custom TURN replaces the public default.
+    iceServers.push({
+      urls: turnUrl.split(',').map((u) => u.trim()).filter(Boolean),
+      username: process.env.CHICKADEE_TURN_USERNAME,
+      credential: process.env.CHICKADEE_TURN_CREDENTIAL,
+    });
+  } else {
+    iceServers.push(...PUBLIC_TURN_SERVERS);
+  }
+  return { signalingUrl, iceServers };
+}
+
+loadDotEnv();
 
 /**
  * Permissions the renderer is allowed to use. `media` covers microphone and
@@ -81,6 +137,8 @@ function configureScreenShare(): void {
 }
 
 function createWindow(): void {
+  const config = buildConfig();
+
   const window = new BrowserWindow({
     width: 1100,
     height: 720,
@@ -98,6 +156,8 @@ function createWindow(): void {
       sandbox: false,
       contextIsolation: true,
       nodeIntegration: false,
+      // Pass runtime config to the preload synchronously via argv.
+      additionalArguments: [`--chickadee-config=${JSON.stringify(config)}`],
     },
   });
 

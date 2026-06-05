@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react';
-import { MAX_PEERS_PER_ROOM } from '@chickadee/shared';
+import { DEFAULT_ICE_SERVERS, MAX_PEERS_PER_ROOM } from '@chickadee/shared';
 import { useSignaling } from './hooks/useSignaling';
 import { usePeerMesh } from './hooks/usePeerMesh';
 import { ParticipantTile } from './components/ParticipantTile';
@@ -10,6 +10,7 @@ const STATUS_LABEL: Record<string, string> = {
   idle: 'Not connected',
   connecting: 'Connecting…',
   connected: 'Connected',
+  reconnecting: 'Reconnecting…',
   'room-full': 'Room full',
   error: 'Connection error',
   closed: 'Disconnected',
@@ -27,8 +28,12 @@ export function App(): React.JSX.Element {
     () => window.chickadee?.signalingUrl ?? 'ws://localhost:8080',
     [],
   );
+  const iceServers = useMemo(
+    () => window.chickadee?.iceServers ?? DEFAULT_ICE_SERVERS,
+    [],
+  );
   const signaling = useSignaling(signalingUrl);
-  const mesh = usePeerMesh(signaling);
+  const mesh = usePeerMesh(signaling, iceServers);
 
   const [displayName, setDisplayName] = useState('');
   const [room, setRoom] = useState('lobby');
