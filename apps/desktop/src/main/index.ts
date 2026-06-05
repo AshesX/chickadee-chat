@@ -1,7 +1,15 @@
 import { dirname, join } from 'node:path';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
-import { app, BrowserWindow, desktopCapturer, ipcMain, session, shell } from 'electron';
+import {
+  app,
+  BrowserWindow,
+  desktopCapturer,
+  globalShortcut,
+  ipcMain,
+  session,
+  shell,
+} from 'electron';
 import {
   PUBLIC_TURN_SERVERS,
   STUN_SERVERS,
@@ -183,6 +191,30 @@ function configureScreenShare(): void {
   );
 }
 
+/**
+ * Global push-to-talk: register the chosen accelerator system-wide; each press
+ * tells the renderer to toggle the mic (works even when a game is focused).
+ * globalShortcut has no key-up and consumes the key system-wide, so this is a
+ * toggle (not hold) and the key must be one not used in-game (default F8).
+ */
+function registerPushToTalk(): void {
+  ipcMain.handle(
+    'chickadee:set-ptt',
+    (e, opts: { enabled: boolean; key: string }) => {
+      globalShortcut.unregisterAll();
+      if (!opts.enabled || !opts.key) return;
+      try {
+        const ok = globalShortcut.register(opts.key, () => {
+          BrowserWindow.fromWebContents(e.sender)?.webContents.send('chickadee:ptt-toggle');
+        });
+        if (!ok) console.error('push-to-talk: failed to register', opts.key);
+      } catch (err) {
+        console.error('push-to-talk: invalid accelerator', opts.key, err);
+      }
+    },
+  );
+}
+
 function registerWindowControls(): void {
   ipcMain.on('chickadee:window-minimize', (e) => BrowserWindow.fromWebContents(e.sender)?.minimize());
   ipcMain.on('chickadee:window-maximize-toggle', (e) => {
@@ -215,6 +247,8 @@ function createWindow(): void {
       sandbox: false,
       contextIsolation: true,
       nodeIntegration: false,
+      // Keep the renderer responsive (mic toggles, PTT) when unfocused/minimized.
+      backgroundThrottling: false,
       // Pass runtime config to the preload synchronously via argv.
       additionalArguments: [`--chickadee-config=${JSON.stringify(config)}`],
     },
@@ -255,6 +289,7 @@ app.whenReady().then(() => {
   configureMediaPermissions();
   configureScreenShare();
   registerWindowControls();
+  registerPushToTalk();
   createWindow();
 
   app.on('activate', () => {
@@ -262,6 +297,8 @@ app.whenReady().then(() => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
+
+app.on('will-quit', () => globalShortcut.unregisterAll());
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();

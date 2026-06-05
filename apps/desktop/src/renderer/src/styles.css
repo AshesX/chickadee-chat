@@ -972,6 +972,80 @@ button {
   line-height: 1.5;
 }
 
+/* Settings rows (label + control) */
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.settings-row__label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+.settings-row__hint {
+  font-size: 11px;
+  color: var(--dim);
+}
+
+/* Toggle switch */
+.switch {
+  flex-shrink: 0;
+  width: 38px;
+  height: 22px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-2, #2e2e3a);
+  border: 1px solid var(--border);
+  position: relative;
+  transition: all 0.15s ease;
+}
+.switch--on {
+  background: var(--active-bg);
+  border-color: var(--active-border);
+}
+.switch__knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--dim);
+  transition: all 0.15s ease;
+}
+.switch--on .switch__knob {
+  left: 18px;
+  background: var(--active-text);
+}
+
+/* Push-to-talk rebind button */
+.rebind {
+  flex-shrink: 0;
+  min-width: 84px;
+  padding: 6px 12px;
+  border-radius: var(--radius-badge);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+}
+.rebind--active {
+  border-color: var(--active-border);
+  color: var(--active-text);
+  background: var(--active-bg);
+}
+
+/* "Transmitting…" badge in the self tile name bar */
+.tile__transmitting {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--online);
+  white-space: nowrap;
+}
+
 /* Welcome / first-run name modal */
 .modal-panel--welcome {
   max-width: 380px;

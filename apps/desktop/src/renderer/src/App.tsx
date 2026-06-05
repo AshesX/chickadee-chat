@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { DEFAULT_ICE_SERVERS, MAX_PEERS_PER_ROOM, type Room } from '@chickadee/shared';
 import { useSignaling } from './hooks/useSignaling';
 import { usePeerMesh } from './hooks/usePeerMesh';
@@ -33,7 +33,8 @@ export function App(): React.JSX.Element {
   const signalingUrl = useMemo(() => window.chickadee?.signalingUrl ?? 'ws://localhost:8080', []);
   const iceServers = useMemo(() => window.chickadee?.iceServers ?? DEFAULT_ICE_SERVERS, []);
   const signaling = useSignaling(signalingUrl);
-  const mesh = usePeerMesh(signaling, iceServers);
+  const [noiseSuppression, setNoiseSuppression] = useState(() => store.getNoiseSuppression());
+  const mesh = usePeerMesh(signaling, iceServers, noiseSuppression);
   const colors = useUserColors(signaling.peers.map((p) => p.id));
   const timer = useSessionTimer(signaling.status === 'connected');
 
@@ -45,10 +46,11 @@ export function App(): React.JSX.Element {
   const [createOpen, setCreateOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [noiseSuppressed, setNoiseSuppressed] = useState(true);
-  const [pttOn, setPttOn] = useState(false);
+  const [pttEnabled, setPttEnabled] = useState(() => store.getPttEnabled());
+  const [pushToTalkKey, setPushToTalkKey] = useState(() => store.getPushToTalkKey());
 
   const chat = useRoomChat({ signaling, displayName, colors, roomId: currentRoomId });
+  const transmitting = pttEnabled && mesh.micEnabled;
 
   const nameNeeded = !displayName;
   const inRoom = currentRoomId !== null;
@@ -91,6 +93,37 @@ export function App(): React.JSX.Element {
     setDisplayName(name);
   }
 
+  function applyNoiseSuppression(on: boolean): void {
+    setNoiseSuppression(on);
+    store.setNoiseSuppression(on);
+    mesh.setNoiseSuppression(on);
+  }
+
+  function applyPttEnabled(on: boolean): void {
+    setPttEnabled(on);
+    store.setPttEnabled(on);
+  }
+
+  function applyPushToTalkKey(key: string): void {
+    setPushToTalkKey(key);
+    store.setPushToTalkKey(key);
+  }
+
+  // (Un)register the global PTT hotkey whenever the mode or key changes.
+  useEffect(() => {
+    void window.chickadee?.setPushToTalk?.({ enabled: pttEnabled, key: pushToTalkKey });
+  }, [pttEnabled, pushToTalkKey]);
+
+  // In PTT mode the mic starts muted (until the hotkey toggles transmit).
+  useEffect(() => {
+    if (pttEnabled && mesh.localStream) mesh.setMicEnabled(false);
+  }, [pttEnabled, mesh.localStream, mesh.setMicEnabled]);
+
+  // A global PTT key press toggles transmit.
+  useEffect(() => {
+    return window.chickadee?.onPushToTalk?.(() => mesh.toggleMic());
+  }, [mesh.toggleMic]);
+
   // Camera tiles (self + peers), reused in grid and filmstrip layouts.
   const tiles = inRoom && (
     <>
@@ -101,6 +134,7 @@ export function App(): React.JSX.Element {
         cameraOn={mesh.cameraEnabled}
         cameraStream={mesh.localStream}
         color={SELF_COLOR}
+        transmitting={transmitting}
       />
       {signaling.peers.map((peer) => {
         const media = mesh.remote[peer.id];
@@ -164,8 +198,8 @@ export function App(): React.JSX.Element {
           maxCount={MAX_PEERS_PER_ROOM}
           status={signaling.status}
           timer={timer}
-          noiseSuppressed={noiseSuppressed}
-          onToggleNoise={() => setNoiseSuppressed((n) => !n)}
+          noiseSuppressed={noiseSuppression}
+          onToggleNoise={() => applyNoiseSuppression(!noiseSuppression)}
           chatOpen={chatOpen}
           onToggleChat={toggleChat}
         />
@@ -203,8 +237,9 @@ export function App(): React.JSX.Element {
               onToggleShare={() =>
                 mesh.sharingScreen ? mesh.stopScreenShare() : setPickerOpen(true)
               }
-              pttOn={pttOn}
-              onTogglePtt={() => setPttOn((p) => !p)}
+              pttOn={pttEnabled}
+              onTogglePtt={() => applyPttEnabled(!pttEnabled)}
+              transmitting={transmitting}
               onVolume={() => {}}
               onSettings={() => setSettingsOpen(true)}
               onLeave={leaveRoom}
@@ -247,6 +282,12 @@ export function App(): React.JSX.Element {
         <SettingsModal
           displayName={displayName}
           onChangeName={saveName}
+          noiseSuppression={noiseSuppression}
+          onChangeNoiseSuppression={applyNoiseSuppression}
+          pttEnabled={pttEnabled}
+          onChangePttEnabled={applyPttEnabled}
+          pushToTalkKey={pushToTalkKey}
+          onChangePushToTalkKey={applyPushToTalkKey}
           onClose={() => setSettingsOpen(false)}
         />
       )}

@@ -52,6 +52,8 @@ interface ControlBarProps {
   onToggleShare: () => void;
   pttOn: boolean;
   onTogglePtt: () => void;
+  /** True while transmitting in push-to-talk mode (Mute button glows active). */
+  transmitting: boolean;
   onVolume: () => void;
   onSettings: () => void;
   onLeave: () => void;
@@ -67,6 +69,7 @@ export function ControlBar({
   onToggleShare,
   pttOn,
   onTogglePtt,
+  transmitting,
   onVolume,
   onSettings,
   onLeave,
@@ -75,8 +78,8 @@ export function ControlBar({
     <footer className="control-bar">
       <ControlButton
         icon={micEnabled ? Mic : MicOff}
-        label={micEnabled ? 'Mute' : 'Unmute'}
-        state={micEnabled ? 'default' : 'danger'}
+        label={transmitting ? 'Transmitting' : micEnabled ? 'Mute' : 'Unmute'}
+        state={transmitting ? 'active' : micEnabled ? 'default' : 'danger'}
         disabled={!hasMic}
         title={hasMic ? '' : 'No microphone'}
         onClick={onToggleMic}

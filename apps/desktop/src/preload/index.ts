@@ -57,6 +57,15 @@ const api = {
     toggleMaximize: (): void => ipcRenderer.send('chickadee:window-maximize-toggle'),
     close: (): void => ipcRenderer.send('chickadee:window-close'),
   },
+  /** Register/unregister the global push-to-talk hotkey in main. */
+  setPushToTalk: (opts: { enabled: boolean; key: string }): Promise<void> =>
+    ipcRenderer.invoke('chickadee:set-ptt', opts),
+  /** Subscribe to global PTT key presses; returns an unsubscribe fn. */
+  onPushToTalk: (cb: () => void): (() => void) => {
+    const listener = (): void => cb();
+    ipcRenderer.on('chickadee:ptt-toggle', listener);
+    return () => ipcRenderer.removeListener('chickadee:ptt-toggle', listener);
+  },
 };
 
 contextBridge.exposeInMainWorld('chickadee', api);

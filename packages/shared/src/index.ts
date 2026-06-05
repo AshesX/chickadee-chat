@@ -53,6 +53,10 @@ export interface PersistedSettings {
   rooms: Room[];
   friends: StoredFriend[];
   chatVisible: boolean;
+  noiseSuppression: boolean;
+  pttEnabled: boolean;
+  /** Electron accelerator for the global push-to-talk toggle. */
+  pushToTalkKey: string;
 }
 
 export const DEFAULT_ROOMS: Room[] = [
@@ -62,7 +66,18 @@ export const DEFAULT_ROOMS: Room[] = [
 ];
 
 export function defaultSettings(): PersistedSettings {
-  return { userId: '', displayName: '', rooms: DEFAULT_ROOMS, friends: [], chatVisible: false };
+  return {
+    userId: '',
+    displayName: '',
+    rooms: DEFAULT_ROOMS,
+    friends: [],
+    chatVisible: false,
+    noiseSuppression: true,
+    pttEnabled: false,
+    // Default to F8 — a global shortcut is captured system-wide, so Space would
+    // swallow the spacebar in-game.
+    pushToTalkKey: 'F8',
+  };
 }
 
 /** A capturable screen or window, enumerated by the main process for the picker. */

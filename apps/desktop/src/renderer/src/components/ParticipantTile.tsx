@@ -16,6 +16,8 @@ export interface ParticipantTileProps {
   connectionState?: RTCPeerConnectionState;
   /** Abbreviated game name (top-right tag); omitted when none. */
   gameTag?: string;
+  /** Self only: actively transmitting in push-to-talk mode. */
+  transmitting?: boolean;
 }
 
 const CONN_LABEL: Partial<Record<RTCPeerConnectionState, string>> = {
@@ -35,6 +37,7 @@ export function ParticipantTile({
   color,
   connectionState,
   gameTag,
+  transmitting,
 }: ParticipantTileProps): React.JSX.Element {
   const videoRef = useRef<HTMLVideoElement>(null);
   const speaking = useAudioActivity(muted ? null : cameraStream);
@@ -114,6 +117,7 @@ export function ParticipantTile({
           {displayName}
           {isSelf && ' (you)'}
         </span>
+        {transmitting && <span className="tile__transmitting">🎙 Transmitting…</span>}
         {muted && cameraOn && <MicOff size={12} className="tile__badge-mute" />}
       </div>
 

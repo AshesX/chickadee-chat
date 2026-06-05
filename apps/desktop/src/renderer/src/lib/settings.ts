@@ -52,6 +52,12 @@ export const store = {
   setFriends: (friends: StoredFriend[]): void => persist({ friends }),
   getChatVisible: (): boolean => cache.chatVisible,
   setChatVisible: (chatVisible: boolean): void => persist({ chatVisible }),
+  getNoiseSuppression: (): boolean => cache.noiseSuppression,
+  setNoiseSuppression: (noiseSuppression: boolean): void => persist({ noiseSuppression }),
+  getPttEnabled: (): boolean => cache.pttEnabled,
+  setPttEnabled: (pttEnabled: boolean): void => persist({ pttEnabled }),
+  getPushToTalkKey: (): string => cache.pushToTalkKey,
+  setPushToTalkKey: (pushToTalkKey: string): void => persist({ pushToTalkKey }),
 };
 
 const FRIEND_PALETTE = [

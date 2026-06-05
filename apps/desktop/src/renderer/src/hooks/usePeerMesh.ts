@@ -32,6 +32,10 @@ export interface PeerMesh {
   /** Start acquiring the mic early (called on Join so the prompt shows promptly). */
   prepareMedia: () => void;
   toggleMic: () => void;
+  /** Explicitly set mic transmit state (used by push-to-talk). */
+  setMicEnabled: (on: boolean) => void;
+  /** Apply Chromium's noise-suppression constraint to the local mic. */
+  setNoiseSuppression: (on: boolean) => void;
   toggleCamera: () => void;
   /** Begin sharing the chosen desktop source (optionally with system audio). */
   startScreenShare: (sourceId: string, withAudio: boolean) => void;
@@ -51,12 +55,18 @@ const VIDEO_CONSTRAINTS: MediaTrackConstraints = {
  * peer, driven entirely by signaling messages. The imperative WebRTC objects
  * live in refs; only render-relevant snapshots live in React state.
  */
-export function usePeerMesh(signaling: Signaling, iceServers: RTCIceServer[]): PeerMesh {
+export function usePeerMesh(
+  signaling: Signaling,
+  iceServers: RTCIceServer[],
+  noiseSuppression: boolean,
+): PeerMesh {
   const { subscribe, send, status } = signaling;
 
   // Kept in a ref so the stable ensureLink callback always sees the latest set.
   const iceServersRef = useRef(iceServers);
   iceServersRef.current = iceServers;
+  const nsRef = useRef(noiseSuppression);
+  nsRef.current = noiseSuppression;
 
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [localScreenStream, setLocalScreenStream] = useState<MediaStream | null>(null);
@@ -88,7 +98,10 @@ export function usePeerMesh(signaling: Signaling, iceServers: RTCIceServer[]): P
     disposedRef.current = false;
 
     const promise = navigator.mediaDevices
-      .getUserMedia({ audio: true, video: false })
+      .getUserMedia({
+        audio: { echoCancellation: true, autoGainControl: true, noiseSuppression: nsRef.current },
+        video: false,
+      })
       .then((stream) => {
         // The call may have ended while the permission prompt was open; if so,
         // stop the freshly-acquired mic instead of leaving it live.
@@ -252,15 +265,33 @@ export function usePeerMesh(signaling: Signaling, iceServers: RTCIceServer[]): P
     setScreenError(null);
   }, []);
 
+  const setMicEnabledExt = useCallback(
+    (on: boolean) => {
+      const stream = localStreamRef.current;
+      if (!stream) return; // listen-only: nothing to toggle
+      if (micEnabledRef.current === on) return;
+      micEnabledRef.current = on;
+      for (const track of stream.getAudioTracks()) track.enabled = on;
+      setMicEnabled(on);
+      send({ type: 'mic-state', muted: !on });
+    },
+    [send],
+  );
+
   const toggleMic = useCallback(() => {
+    setMicEnabledExt(!micEnabledRef.current);
+  }, [setMicEnabledExt]);
+
+  const setNoiseSuppression = useCallback((on: boolean) => {
+    nsRef.current = on;
     const stream = localStreamRef.current;
-    if (!stream) return; // listen-only: nothing to toggle
-    const next = !micEnabledRef.current;
-    micEnabledRef.current = next;
-    for (const track of stream.getAudioTracks()) track.enabled = next;
-    setMicEnabled(next);
-    send({ type: 'mic-state', muted: !next });
-  }, [send]);
+    if (!stream) return;
+    for (const track of stream.getAudioTracks()) {
+      void track.applyConstraints({ noiseSuppression: on }).catch(() => {
+        /* best-effort; fully applies on next mic acquisition */
+      });
+    }
+  }, []);
 
   const stopCamera = useCallback(() => {
     const videoTrack = videoTrackRef.current;
@@ -455,6 +486,8 @@ export function usePeerMesh(signaling: Signaling, iceServers: RTCIceServer[]): P
     remote,
     prepareMedia,
     toggleMic,
+    setMicEnabled: setMicEnabledExt,
+    setNoiseSuppression,
     toggleCamera,
     startScreenShare,
     stopScreenShare,
