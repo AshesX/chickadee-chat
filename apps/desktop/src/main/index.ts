@@ -136,17 +136,29 @@ function configureScreenShare(): void {
   );
 }
 
+function registerWindowControls(): void {
+  ipcMain.on('chickadee:window-minimize', (e) => BrowserWindow.fromWebContents(e.sender)?.minimize());
+  ipcMain.on('chickadee:window-maximize-toggle', (e) => {
+    const win = BrowserWindow.fromWebContents(e.sender);
+    if (!win) return;
+    if (win.isMaximized()) win.unmaximize();
+    else win.maximize();
+  });
+  ipcMain.on('chickadee:window-close', (e) => BrowserWindow.fromWebContents(e.sender)?.close());
+}
+
 function createWindow(): void {
   const config = buildConfig();
 
   const window = new BrowserWindow({
     width: 1100,
     height: 720,
-    minWidth: 640,
-    minHeight: 480,
+    minWidth: 760,
+    minHeight: 520,
     show: false,
+    frame: false,
     autoHideMenuBar: true,
-    backgroundColor: '#1b1b22',
+    backgroundColor: '#06060f',
     title: 'Chickadee Chat',
     webPreferences: {
       // Main and preload are built as CommonJS (the package is not
@@ -191,6 +203,7 @@ app.on('render-process-gone', (_e, _wc, details) => {
 app.whenReady().then(() => {
   configureMediaPermissions();
   configureScreenShare();
+  registerWindowControls();
   createWindow();
 
   app.on('activate', () => {

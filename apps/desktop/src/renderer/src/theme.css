@@ -1,0 +1,172 @@
+/* Chickadee Chat — "Midnight Gamer Lounge" design tokens & globals. */
+
+:root {
+  /* Surfaces */
+  --bg: #06060f;
+  --panel: #0a0a1c;
+  --card: #0e0e23;
+  --border: #171736;
+
+  /* Text */
+  --dim: #353570;
+  --text: #e0deef;
+  --text-sub: #aeaccc;
+
+  /* Brand gradient — logo, active states, send button */
+  --gradient: linear-gradient(135deg, #7c3aed, #3b82f6);
+
+  /* Status */
+  --online: #22c55e;
+  --idle: #f59e0b;
+  --offline: #404070;
+
+  /* Actions */
+  --danger: #ef4444;
+  --danger-glow: rgba(239, 68, 68, 0.26);
+  --active-bg: rgba(139, 92, 246, 0.18);
+  --active-border: rgba(139, 92, 246, 0.38);
+  --active-text: #c4b5fd;
+
+  /* Per-user accent colors (assigned on join) */
+  --user-1: #f59e0b;
+  --user-2: #8b5cf6;
+  --user-3: #3b82f6;
+  --user-4: #ec4899;
+
+  /* Radius & spacing */
+  --radius-tile: 16px;
+  --radius-panel: 14px;
+  --radius-badge: 8px;
+  --radius-pill: 99px;
+  --radius-btn: 10px;
+  --gap-grid: 10px;
+  --gap-layout: 14px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: 'Outfit', -apple-system, system-ui, sans-serif;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  overflow: hidden;
+}
+
+/* Subtle ambient glow behind everything. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 55% 50% at 32% 48%,
+    rgba(139, 92, 246, 0.07) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 3px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #22224e;
+  border-radius: var(--radius-pill);
+}
+
+input::placeholder {
+  color: #22225a;
+}
+input:focus {
+  outline: none;
+}
+
+/* ── Animations ───────────────────────────────────────────── */
+
+/* Double-staggered ripple for the speaking indicator */
+@keyframes ripple {
+  0% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+
+/* Emoji floating up on reaction send */
+@keyframes floatUp {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-88px) scale(2.3);
+  }
+}
+
+/* Chat panel slide in from the right */
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* New chat message bounce */
+@keyframes msgIn {
+  from {
+    opacity: 0;
+    transform: translateY(7px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Online presence dot pulse */
+@keyframes dotPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 4px var(--online);
+  }
+  50% {
+    box-shadow: 0 0 10px var(--online), 0 0 18px rgba(34, 197, 94, 0.27);
+  }
+}
+
+/* Modal fade/scale in */
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

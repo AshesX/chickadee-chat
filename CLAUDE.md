@@ -4,11 +4,12 @@ Lightweight P2P desktop **voice / video / screen-share** app — "Discord Lite" 
 
 ## Status
 
-Phases 1–5 complete: presence, mesh **audio** (mute + speaking indicator), **video** (adaptive grid + camera toggle), **screen share** (separate stream + Windows system audio, presentation layout), and **connectivity/resilience** (configurable signaling URL + STUN/TURN, auto-reconnect + ICE restart, signaling Dockerfile). Phases 1–4 manually verified; Phase 5 reconnection is locally testable, full TURN/internet needs a deployed signaling URL + a remote peer.
+Phases 1–5 complete (media core): presence, mesh **audio**, **video**, **screen share**, and **connectivity/resilience** (configurable signaling URL + STUN/TURN, auto-reconnect + ICE restart, signaling Dockerfile).
 
-Roadmap ahead:
-- **Phase 6** — UI improvements & quality-of-life changes.
-- **Later** — packaging/distribution to `.exe` (electron-builder); intentionally deferred.
+**Phase 6 = "Midnight Gamer Lounge" redesign** (`chickadee-redesign-handoff.md` + `chickadee-redesign.jsx`), split into sub-phases on top of the media core:
+- **6A — done (visual):** design system (`theme.css` tokens + animations, bundled Outfit font, lucide-react icons), 3-zone lounge layout (sidebar + header + grid/presentation + control bar), redesigned `ParticipantTile` (per-user colors, speaking ripples), rooms sidebar (switch = leave+join; only the current room shows a live count), first-run name modal → lounge entry, session timer, **frameless window** + custom window controls. New-feature buttons are stubbed; chat panel = local-echo shell; friends section empty.
+- **6B** — room chat + reactions + game-activity over the **signaling relay** (new `chat`/reaction message types, mirror pattern). **6C** — friends (persist + in-room presence) + move prefs from `localStorage` to Electron `userData`. **6D** — push-to-talk (`globalShortcut`), game detection (`ps-list`), noise suppression, per-peer volume, tray, real Settings.
+- **Later** — packaging to `.exe` (electron-builder); intentionally deferred.
 
 ## Tech stack
 
@@ -25,7 +26,7 @@ Renderer layers (each builds on the one below):
 - `hooks/useSignaling.ts` — WebSocket transport: connection status, `selfId`, presence list (`peers`), `send()`, and `subscribe()` for raw inbound messages. Source of truth for **identity + per-peer mute/camera/screen flags**.
 - `webrtc/peerLink.ts` — one `RTCPeerConnection`, **perfect-negotiation** pattern (polite/impolite, glare-safe). Manages senders: audio (at creation), `setLocalVideoTrack`, `setLocalScreenStream` (add-once then `replaceTrack`).
 - `hooks/usePeerMesh.ts` — orchestrator: owns the local mic/camera/screen streams and a `peerLink` per peer (in refs; imperative WebRTC objects don't belong in React state). Exposes render snapshots (`remote` map) + `toggleMic`/`toggleCamera`/`startScreenShare`/`stopScreenShare`.
-- UI: `App.tsx` (join form, room bar, grid vs. presentation layout), `components/ParticipantTile.tsx` (camera tile + avatar fallback + speaking ring), `components/ScreenView.tsx`, `components/ScreenSharePicker.tsx`, `components/ErrorBoundary.tsx`.
+- UI (Phase 6A lounge): `App.tsx` orchestrates the 3-zone shell — `components/Sidebar.tsx` (rooms/friends/self-status), `components/RoomHeader.tsx` (status badge, toggles, `WindowControls`), grid (`ParticipantTile`) vs. `ScreenView` presentation, `components/ControlBar.tsx`, `components/ChatPanel.tsx` (shell), modals (`NameModal`/`CreateRoomModal`/`SettingsModal` over a shared `Modal`), `ErrorBoundary`. Design tokens/animations live in `renderer/src/theme.css`; component styles in `styles.css`. `lib/userColors.ts` (per-session accent colors, self always gold), `lib/localStore.ts` (interim `localStorage` for name/rooms/prefs → `userData` in 6C), `hooks/useSessionTimer.ts`.
 
 ## Repo layout (npm workspaces)
 
@@ -71,6 +72,8 @@ Existing examples: `muted` (mic-state), `cameraOn` (cam-state), `screenStreamId`
 - **ICE: STUN + TURN, configurable.** `STUN_SERVERS` always; TURN from `CHICKADEE_TURN_*` env, else a best-effort free public default (`PUBLIC_TURN_SERVERS`). Symmetric-NAT internet play needs a real TURN — see README "Play over the internet".
 - **Resilience:** `useSignaling` auto-reconnects (backoff, `reconnecting` status) and re-joins after a drop; an app-level `ping`/`pong` heartbeat detects half-open sockets (server also runs a ws-level heartbeat to drop dead peers). On the re-`welcome` (new `selfId`) `usePeerMesh` rebuilds all links and re-announces mic/cam/screen state. `peerLink` calls `restartIce()` on `failed` (glare-safe). Reconnect is *not* a terminal status, so local media survives the blip.
 - **Signaling in prod runs via `tsx`** (not a `tsc` build) to avoid resolving shared's `.ts` entry; `apps/signaling/Dockerfile` builds from the **repo root** context.
+- **Frameless window (6A):** `BrowserWindow({ frame: false })`; the sidebar logo + room header are drag regions (`-webkit-app-region: drag`) with `no-drag` on interactive children (`.pill`, `.winctl`); `window.chickadee.windowControls` → IPC → minimize/maximize/close. **Entry flow:** no join form — a first-run `NameModal` (name in `localStorage`), then clicking a sidebar room calls `signaling.join` (switching rooms just re-joins; the server allows arbitrary room ids). Sidebar room counts are only known for the room you're in.
+- **6A stubs (don't mistake for done):** noise-suppression / push-to-talk / volume / settings are UI-only; chat is local-echo (no broadcast yet); friends list is empty. These become real in 6B–6D.
 
 ## Testing
 

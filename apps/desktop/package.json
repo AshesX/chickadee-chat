@@ -10,7 +10,9 @@
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json"
   },
   "dependencies": {
-    "@chickadee/shared": "*"
+    "@chickadee/shared": "*",
+    "@fontsource/outfit": "^5.2.8",
+    "lucide-react": "^1.17.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

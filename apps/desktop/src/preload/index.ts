@@ -39,6 +39,12 @@ const api = {
   /** Record the chosen source just before calling getDisplayMedia(). */
   setShareSource: (sourceId: string, audio: boolean): Promise<void> =>
     ipcRenderer.invoke('chickadee:set-share-source', sourceId, audio),
+  /** Frameless-window title-bar controls. */
+  windowControls: {
+    minimize: (): void => ipcRenderer.send('chickadee:window-minimize'),
+    toggleMaximize: (): void => ipcRenderer.send('chickadee:window-maximize-toggle'),
+    close: (): void => ipcRenderer.send('chickadee:window-close'),
+  },
 };
 
 contextBridge.exposeInMainWorld('chickadee', api);
