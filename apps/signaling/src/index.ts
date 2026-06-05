@@ -51,6 +51,7 @@ function handleJoin(socket: WebSocket, msg: Extract<ClientMessage, { type: 'join
     muted: false,
     cameraOn: false,
     screenStreamId: null,
+    game: null,
   };
   const conn: Connection = { socket, peer, room: msg.room };
 
@@ -106,6 +107,25 @@ function handleScreenState(conn: Connection, streamId: string | null): void {
   broadcast(conn.room, { type: 'screen-state', from: conn.peer.id, streamId }, conn.peer.id);
 }
 
+/** Record a peer's detected game and tell the room (mirror pattern). */
+function handleGameState(conn: Connection, game: string | null): void {
+  conn.peer.game = game ? game.slice(0, 24) : null;
+  broadcast(conn.room, { type: 'game-state', from: conn.peer.id, game: conn.peer.game }, conn.peer.id);
+}
+
+const CHAT_MAX_LEN = 500;
+
+/** Relay an ephemeral chat message / reaction to the rest of the room. */
+function handleChat(conn: Connection, text: string, reaction: boolean | undefined): void {
+  const trimmed = text.trim().slice(0, CHAT_MAX_LEN);
+  if (!trimmed) return;
+  broadcast(
+    conn.room,
+    { type: 'chat', from: conn.peer.id, text: trimmed, reaction },
+    conn.peer.id,
+  );
+}
+
 function handleDisconnect(conn: Connection): void {
   const members = rooms.get(conn.room);
   if (!members) return;
@@ -152,6 +172,10 @@ wss.on('connection', (socket) => {
       handleCamState(conn, msg.on);
     } else if (msg.type === 'screen-state') {
       handleScreenState(conn, msg.streamId);
+    } else if (msg.type === 'game-state') {
+      handleGameState(conn, msg.game);
+    } else if (msg.type === 'chat') {
+      handleChat(conn, msg.text, msg.reaction);
     }
   });
 

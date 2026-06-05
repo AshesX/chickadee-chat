@@ -8,7 +8,7 @@ Phases 1–5 complete (media core): presence, mesh **audio**, **video**, **scree
 
 **Phase 6 = "Midnight Gamer Lounge" redesign** (`chickadee-redesign-handoff.md` + `chickadee-redesign.jsx`), split into sub-phases on top of the media core:
 - **6A — done (visual):** design system (`theme.css` tokens + animations, bundled Outfit font, lucide-react icons), 3-zone lounge layout (sidebar + header + grid/presentation + control bar), redesigned `ParticipantTile` (per-user colors, speaking ripples), rooms sidebar (switch = leave+join; only the current room shows a live count), first-run name modal → lounge entry, session timer, **frameless window** + custom window controls. New-feature buttons are stubbed; chat panel = local-echo shell; friends section empty.
-- **6B** — room chat + reactions + game-activity over the **signaling relay** (new `chat`/reaction message types, mirror pattern). **6C** — friends (persist + in-room presence) + move prefs from `localStorage` to Electron `userData`. **6D** — push-to-talk (`globalShortcut`), game detection (`ps-list`), noise suppression, per-peer volume, tray, real Settings.
+- **6B — done (chat):** room chat + emoji reactions over the **signaling relay** (`useRoomChat` hook; `chat` = ephemeral relayed event, reactions float on all screens), and **game-activity plumbing** (`game-state` mirror → `Peer.game` → tile game tag) ready for the 6D detector. **6C** — friends (persist + in-room presence) + move prefs from `localStorage` to Electron `userData`. **6D** — push-to-talk (`globalShortcut`), game detection (`ps-list`), noise suppression, per-peer volume, tray, real Settings.
 - **Later** — packaging to `.exe` (electron-builder); intentionally deferred.
 
 ## Tech stack
@@ -73,7 +73,7 @@ Existing examples: `muted` (mic-state), `cameraOn` (cam-state), `screenStreamId`
 - **Resilience:** `useSignaling` auto-reconnects (backoff, `reconnecting` status) and re-joins after a drop; an app-level `ping`/`pong` heartbeat detects half-open sockets (server also runs a ws-level heartbeat to drop dead peers). On the re-`welcome` (new `selfId`) `usePeerMesh` rebuilds all links and re-announces mic/cam/screen state. `peerLink` calls `restartIce()` on `failed` (glare-safe). Reconnect is *not* a terminal status, so local media survives the blip.
 - **Signaling in prod runs via `tsx`** (not a `tsc` build) to avoid resolving shared's `.ts` entry; `apps/signaling/Dockerfile` builds from the **repo root** context.
 - **Frameless window (6A):** `BrowserWindow({ frame: false })`; the sidebar logo + room header are drag regions (`-webkit-app-region: drag`) with `no-drag` on interactive children (`.pill`, `.winctl`); `window.chickadee.windowControls` → IPC → minimize/maximize/close. **Entry flow:** no join form — a first-run `NameModal` (name in `localStorage`), then clicking a sidebar room calls `signaling.join` (switching rooms just re-joins; the server allows arbitrary room ids). Sidebar room counts are only known for the room you're in.
-- **6A stubs (don't mistake for done):** noise-suppression / push-to-talk / volume / settings are UI-only; chat is local-echo (no broadcast yet); friends list is empty. These become real in 6B–6D.
+- **Still-stubbed (don't mistake for done):** noise-suppression / push-to-talk / volume / real settings are UI-only (→ 6D); friends list is empty + prefs live in `localStorage` not `userData` (→ 6C); game tags need the 6D detector to actually populate. Chat + reactions are real as of 6B.
 
 ## Testing
 

@@ -25,6 +25,8 @@ export interface Peer {
    * stream, and lets mid-share joiners classify it correctly.
    */
   screenStreamId: string | null;
+  /** Short tag for the game this peer is playing (e.g. "DRG"), or null. */
+  game: string | null;
 }
 
 /** A capturable screen or window, enumerated by the main process for the picker. */
@@ -47,6 +49,9 @@ export type ClientMessage =
   | { type: 'mic-state'; muted: boolean }
   | { type: 'cam-state'; on: boolean }
   | { type: 'screen-state'; streamId: string | null }
+  | { type: 'game-state'; game: string | null }
+  // Ephemeral room chat (a reaction is a chat with `reaction: true`).
+  | { type: 'chat'; text: string; reaction?: boolean }
   // Liveness check so the client can detect a dead/half-open connection.
   | { type: 'ping' };
 
@@ -70,6 +75,10 @@ export type ServerMessage =
   | { type: 'cam-state'; from: PeerId; on: boolean }
   // A peer started/stopped sharing their screen (streamId null = stopped).
   | { type: 'screen-state'; from: PeerId; streamId: string | null }
+  // A peer's detected game changed (null = none).
+  | { type: 'game-state'; from: PeerId; game: string | null }
+  // Relayed room chat / reaction.
+  | { type: 'chat'; from: PeerId; text: string; reaction?: boolean }
   // Reply to a client ping.
   | { type: 'pong' };
 

@@ -193,6 +193,12 @@ export function useSignaling(url: string): Signaling {
             ),
           }));
           break;
+        case 'game-state':
+          setState((prev) => ({
+            ...prev,
+            peers: prev.peers.map((p) => (p.id === msg.from ? { ...p, game: msg.game } : p)),
+          }));
+          break;
         case 'room-full':
           shouldReconnectRef.current = false;
           clearTimers();

@@ -3,6 +3,7 @@ import { DEFAULT_ICE_SERVERS, MAX_PEERS_PER_ROOM } from '@chickadee/shared';
 import { useSignaling } from './hooks/useSignaling';
 import { usePeerMesh } from './hooks/usePeerMesh';
 import { useSessionTimer } from './hooks/useSessionTimer';
+import { useRoomChat } from './hooks/useRoomChat';
 import { SELF_COLOR, useUserColors } from './lib/userColors';
 import { store, type Room } from './lib/localStore';
 import { Sidebar } from './components/Sidebar';
@@ -11,7 +12,7 @@ import { ControlBar } from './components/ControlBar';
 import { ParticipantTile } from './components/ParticipantTile';
 import { ScreenView } from './components/ScreenView';
 import { ScreenSharePicker } from './components/ScreenSharePicker';
-import { ChatPanel, type ChatMessage } from './components/ChatPanel';
+import { ChatPanel } from './components/ChatPanel';
 import { NameModal } from './components/NameModal';
 import { CreateRoomModal } from './components/CreateRoomModal';
 import { SettingsModal } from './components/SettingsModal';
@@ -23,18 +24,8 @@ interface ActiveScreen {
   stream: MediaStream;
 }
 
-interface FloatReaction {
-  id: number;
-  emoji: string;
-  x: number;
-}
-
 function slugify(label: string): string {
   return label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'room';
-}
-
-function nowTime(): string {
-  return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 export function App(): React.JSX.Element {
@@ -54,8 +45,8 @@ export function App(): React.JSX.Element {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [noiseSuppressed, setNoiseSuppressed] = useState(true);
   const [pttOn, setPttOn] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [floats, setFloats] = useState<FloatReaction[]>([]);
+
+  const chat = useRoomChat({ signaling, displayName, colors, roomId: currentRoomId });
 
   const nameNeeded = !displayName;
   const inRoom = currentRoomId !== null;
@@ -64,7 +55,6 @@ export function App(): React.JSX.Element {
 
   function joinRoom(id: string): void {
     if (id === currentRoomId) return;
-    setMessages([]);
     setCurrentRoomId(id);
     mesh.prepareMedia();
     signaling.join(id, displayName);
@@ -73,7 +63,6 @@ export function App(): React.JSX.Element {
   function leaveRoom(): void {
     signaling.leave();
     setCurrentRoomId(null);
-    setMessages([]);
   }
 
   function createRoom(label: string, icon: string): void {
@@ -99,24 +88,6 @@ export function App(): React.JSX.Element {
     setDisplayName(name);
   }
 
-  // 6A: chat is local echo only; 6B broadcasts these over the signaling relay.
-  function sendChat(text: string): void {
-    setMessages((m) => [
-      ...m,
-      { id: Date.now(), senderName: displayName, color: SELF_COLOR, text, time: nowTime() },
-    ]);
-  }
-
-  function react(emoji: string): void {
-    const id = Date.now();
-    setFloats((f) => [...f, { id, emoji, x: 18 + Math.random() * 64 }]);
-    setTimeout(() => setFloats((f) => f.filter((i) => i.id !== id)), 1800);
-    setMessages((m) => [
-      ...m,
-      { id, senderName: displayName, color: SELF_COLOR, text: emoji, time: nowTime(), isReaction: true },
-    ]);
-  }
-
   // Camera tiles (self + peers), reused in grid and filmstrip layouts.
   const tiles = inRoom && (
     <>
@@ -140,6 +111,7 @@ export function App(): React.JSX.Element {
             cameraStream={media?.cameraStream ?? null}
             color={colors[peer.id] ?? SELF_COLOR}
             connectionState={media?.connectionState ?? 'new'}
+            gameTag={peer.game ?? undefined}
           />
         );
       })}
@@ -163,7 +135,7 @@ export function App(): React.JSX.Element {
 
   return (
     <div className="app">
-      {floats.map((f) => (
+      {chat.floats.map((f) => (
         <div key={f.id} className="float-reaction" style={{ left: `${f.x}%` }}>
           {f.emoji}
         </div>
@@ -213,7 +185,9 @@ export function App(): React.JSX.Element {
                 </ul>
               )}
 
-              {chatOpen && <ChatPanel messages={messages} onSend={sendChat} onReact={react} />}
+              {chatOpen && (
+                <ChatPanel messages={chat.messages} onSend={chat.sendChat} onReact={chat.react} />
+              )}
             </div>
 
             <ControlBar

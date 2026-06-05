@@ -42,6 +42,7 @@ check('B joins -> welcome lists A', wb.type === 'welcome' && wb.peers.length ===
 check('welcome carries muted=false for existing peers', wb.peers[0].muted === false);
 check('welcome carries cameraOn=false for existing peers', wb.peers[0].cameraOn === false);
 check('welcome carries screenStreamId=null for existing peers', wb.peers[0].screenStreamId === null);
+check('welcome carries game=null for existing peers', wb.peers[0].game === null);
 
 await wait(150);
 check('A is notified B joined', a.events.some((e) => e.type === 'peer-joined' && e.peer.displayName === 'Bravo'));
@@ -91,6 +92,29 @@ const fromCShareOff = (ev) =>
   ev.type === 'screen-state' && ev.from === wc.selfId && ev.streamId === null;
 check('A receives C screen-state(off)', a.events.some(fromCShareOff));
 check('C does not receive its own screen-state', !c.events.some((ev) => ev.type === 'screen-state'));
+
+// Phase 6B: chat relay (ephemeral) — A sends, C/D receive, A is not echoed.
+a.ws.send(JSON.stringify({ type: 'chat', text: 'hello room' }));
+await wait(200);
+const aChat = (ev) => ev.type === 'chat' && ev.from === wa.selfId && ev.text === 'hello room';
+check('C receives A chat', c.events.some(aChat));
+check('D receives A chat', d.events.some(aChat));
+check('A does not receive its own chat', !a.events.some((ev) => ev.type === 'chat'));
+
+a.ws.send(JSON.stringify({ type: 'chat', text: '🔥', reaction: true }));
+await wait(200);
+check(
+  'C receives A reaction (reaction:true)',
+  c.events.some((ev) => ev.type === 'chat' && ev.reaction === true && ev.text === '🔥'),
+);
+
+// Phase 6B: game-state mirror — C announces, A/D told, C not echoed.
+c.ws.send(JSON.stringify({ type: 'game-state', game: 'DRG' }));
+await wait(200);
+const cGame = (ev) => ev.type === 'game-state' && ev.from === wc.selfId && ev.game === 'DRG';
+check('A receives C game-state', a.events.some(cGame));
+check('D receives C game-state', d.events.some(cGame));
+check('C does not receive its own game-state', !c.events.some((ev) => ev.type === 'game-state'));
 
 for (const cl of [a, c, d, e]) cl.ws.close();
 await wait(100);
