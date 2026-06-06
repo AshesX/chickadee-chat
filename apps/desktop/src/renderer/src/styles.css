@@ -50,7 +50,7 @@ button {
 }
 
 .sidebar__bird {
-  font-size: 22px;
+  flex-shrink: 0;
 }
 
 .sidebar__wordmark {
@@ -685,7 +685,6 @@ button {
   max-width: 360px;
 }
 .empty-lounge__bird {
-  font-size: 44px;
   margin-bottom: 10px;
 }
 .empty-lounge__card h2 {
@@ -1122,7 +1121,6 @@ button {
   gap: 0;
 }
 .welcome__logo {
-  font-size: 40px;
   margin-bottom: 10px;
 }
 .welcome__title {

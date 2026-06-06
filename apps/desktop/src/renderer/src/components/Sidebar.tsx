@@ -1,5 +1,6 @@
 import { Plus, Settings } from 'lucide-react';
 import type { Room } from '@chickadee/shared';
+import { Logo } from './Logo';
 
 export interface Friend {
   name: string;
@@ -43,7 +44,7 @@ export function Sidebar({
   return (
     <nav className="sidebar">
       <div className="sidebar__logo">
-        <span className="sidebar__bird">🐦</span>
+        <Logo size={24} className="sidebar__bird" />
         <span className="sidebar__wordmark">
           Chickadee <span className="sidebar__wordmark-accent">CHAT</span>
         </span>

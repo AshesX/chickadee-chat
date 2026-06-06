@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Logo } from './Logo';
 
 interface NameModalProps {
   onSubmit: (name: string) => void;
@@ -16,7 +17,7 @@ export function NameModal({ onSubmit }: NameModalProps): React.JSX.Element {
   return (
     <div className="modal-overlay">
       <div className="modal-panel modal-panel--welcome" onClick={(e) => e.stopPropagation()}>
-        <div className="welcome__logo">🐦</div>
+        <Logo size={64} className="welcome__logo" />
         <h2 className="welcome__title">
           Welcome to Chickadee <span className="sidebar__wordmark-accent">CHAT</span>
         </h2>

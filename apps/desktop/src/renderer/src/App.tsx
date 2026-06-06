@@ -18,6 +18,7 @@ import { VolumePopover } from './components/VolumePopover';
 import { NameModal } from './components/NameModal';
 import { CreateRoomModal } from './components/CreateRoomModal';
 import { SettingsModal } from './components/SettingsModal';
+import { Logo } from './components/Logo';
 import { generateTrayIcon } from './lib/trayIcon';
 
 interface ActiveScreen {
@@ -143,7 +144,9 @@ export function App(): React.JSX.Element {
 
   // Tray: generate the icon once, keep the room label current, and wire mute.
   useEffect(() => {
-    window.chickadee?.setTrayIcon?.(generateTrayIcon());
+    void generateTrayIcon().then((url) => {
+      if (url) window.chickadee?.setTrayIcon?.(url);
+    });
   }, []);
   useEffect(() => {
     window.chickadee?.setTrayRoom?.(currentRoom?.label ?? null);
@@ -290,7 +293,7 @@ export function App(): React.JSX.Element {
         ) : (
           <div className="empty-lounge">
             <div className="empty-lounge__card">
-              <div className="empty-lounge__bird">🐦</div>
+              <Logo size={72} className="empty-lounge__bird" />
               <h2>Pick a room to start</h2>
               <p>Choose a room from the sidebar — or create your own — to drop into the lounge.</p>
             </div>
