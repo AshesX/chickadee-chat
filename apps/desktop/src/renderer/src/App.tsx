@@ -64,6 +64,8 @@ export function App(): React.JSX.Element {
   const [pttEnabled, setPttEnabled] = useState(() => store.getPttEnabled());
   const [pushToTalkKey, setPushToTalkKey] = useState(() => store.getPushToTalkKey());
   const [pttMode, setPttMode] = useState<'hold' | 'toggle'>(() => store.getPttMode());
+  const [muteKey, setMuteKey] = useState(() => store.getMuteKey());
+  const [muteMode, setMuteMode] = useState<'hold' | 'toggle'>(() => store.getMuteMode());
   const [game, setGame] = useState<{ name: string; short: string } | null>(null);
   const [volumes, setVolumes] = useState<Record<string, number>>({});
   const [volumeOpen, setVolumeOpen] = useState(false);
@@ -253,6 +255,16 @@ export function App(): React.JSX.Element {
     store.setPttMode(mode);
   }
 
+  function applyMuteKey(key: string): void {
+    setMuteKey(key);
+    store.setMuteKey(key);
+  }
+
+  function applyMuteMode(mode: 'hold' | 'toggle'): void {
+    setMuteMode(mode);
+    store.setMuteMode(mode);
+  }
+
   function applySfxEnabled(on: boolean): void {
     setSfxEnabled(on);
     store.setSfxEnabled(on);
@@ -375,8 +387,13 @@ export function App(): React.JSX.Element {
 
   // (Un)register the global PTT hotkey whenever enabled/key/mode changes.
   useEffect(() => {
-    void window.chickadee?.setPushToTalk?.({ enabled: pttEnabled, key: pushToTalkKey, mode: pttMode });
+    void window.chickadee?.setPushToTalk?.({ enabled: pttEnabled && pushToTalkKey !== '', key: pushToTalkKey, mode: pttMode });
   }, [pttEnabled, pushToTalkKey, pttMode]);
+
+  // (Un)register the global Mute hotkey whenever key/mode changes.
+  useEffect(() => {
+    void window.chickadee?.setMuteKeybind?.({ enabled: muteKey !== '', key: muteKey, mode: muteMode });
+  }, [muteKey, muteMode]);
 
   // Acquire mic for test when settings is open, release if not in room when closed
   useEffect(() => {
@@ -407,6 +424,20 @@ export function App(): React.JSX.Element {
     const unsubStop = window.chickadee?.onPttStop?.(() => mesh.setMicEnabled(false));
     return () => { unsubStart?.(); unsubStop?.(); };
   }, [pttMode, mesh.setMicEnabled]);
+
+  // Mute Toggle mode: each key press toggles mic on/off.
+  useEffect(() => {
+    if (muteMode !== 'toggle') return;
+    return window.chickadee?.onMuteToggle?.(() => mesh.toggleMic());
+  }, [muteMode, mesh.toggleMic]);
+
+  // Mute Hold mode: mic off while key held, on on release.
+  useEffect(() => {
+    if (muteMode !== 'hold') return;
+    const unsubStart = window.chickadee?.onMuteStart?.(() => mesh.setMicEnabled(false));
+    const unsubStop = window.chickadee?.onMuteStop?.(() => mesh.setMicEnabled(true));
+    return () => { unsubStart?.(); unsubStop?.(); };
+  }, [muteMode, mesh.setMicEnabled]);
 
   // Detected game (from the main-process scanner).
   useEffect(() => {
@@ -755,12 +786,14 @@ export function App(): React.JSX.Element {
           onChangeName={saveName}
           noiseSuppression={noiseSuppression}
           onChangeNoiseSuppression={applyNoiseSuppression}
-          pttEnabled={pttEnabled}
-          onChangePttEnabled={applyPttEnabled}
           pushToTalkKey={pushToTalkKey}
           onChangePushToTalkKey={applyPushToTalkKey}
           pttMode={pttMode}
           onChangePttMode={applyPttMode}
+          muteKey={muteKey}
+          onChangeMuteKey={applyMuteKey}
+          muteMode={muteMode}
+          onChangeMuteMode={applyMuteMode}
           sfxEnabled={sfxEnabled}
           onChangeSfxEnabled={applySfxEnabled}
           sfxVolume={sfxVolume}

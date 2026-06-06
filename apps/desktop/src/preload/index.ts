@@ -81,6 +81,27 @@ const api = {
     ipcRenderer.on('chickadee:ptt-stop', listener);
     return () => ipcRenderer.removeListener('chickadee:ptt-stop', listener);
   },
+  /** Register/unregister the global mute mic hotkey in main. */
+  setMuteKeybind: (opts: { enabled: boolean; key: string; mode: 'hold' | 'toggle' }): Promise<void> =>
+    ipcRenderer.invoke('chickadee:set-mute-keybind', opts),
+  /** Subscribe to Mute toggle events. Returns an unsubscribe fn. */
+  onMuteToggle: (cb: () => void): (() => void) => {
+    const listener = (): void => cb();
+    ipcRenderer.on('chickadee:mute-toggle', listener);
+    return () => ipcRenderer.removeListener('chickadee:mute-toggle', listener);
+  },
+  /** Subscribe to Mute hold start. Returns an unsubscribe fn. */
+  onMuteStart: (cb: () => void): (() => void) => {
+    const listener = (): void => cb();
+    ipcRenderer.on('chickadee:mute-start', listener);
+    return () => ipcRenderer.removeListener('chickadee:mute-start', listener);
+  },
+  /** Subscribe to Mute hold stop. Returns an unsubscribe fn. */
+  onMuteStop: (cb: () => void): (() => void) => {
+    const listener = (): void => cb();
+    ipcRenderer.on('chickadee:mute-stop', listener);
+    return () => ipcRenderer.removeListener('chickadee:mute-stop', listener);
+  },
   /** Subscribe to detected-game changes from the main-process scanner. */
   onGameDetected: (cb: (game: { name: string; short: string } | null) => void): (() => void) => {
     const listener = (_e: unknown, game: { name: string; short: string } | null): void => cb(game);

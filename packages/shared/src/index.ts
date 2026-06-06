@@ -75,6 +75,8 @@ export interface PersistedSettings {
   badgeNotificationsEnabled: boolean;
   status: 'online' | 'idle' | 'dnd';
   micVolume: number;
+  muteKey: string;
+  muteMode: 'hold' | 'toggle';
 }
 
 export const DEFAULT_ROOMS: Room[] = [
@@ -101,6 +103,8 @@ export function defaultSettings(): PersistedSettings {
     badgeNotificationsEnabled: true,
     status: 'online',
     micVolume: 1.0,
+    muteKey: '',
+    muteMode: 'toggle',
   };
 }
 

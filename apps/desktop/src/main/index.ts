@@ -214,11 +214,17 @@ function configureScreenShare(): void {
   );
 }
 
-// ── Push-to-talk (uiohook-napi for out-of-focus + before-input-event for in-focus) ─
+// ── Push-to-talk & Mute Mic (uiohook-napi for out-of-focus + before-input-event for in-focus) ─
 let pttKeyCode: number | null = null;      // uiohook keycode
 let pttInputCode: string | null = null;    // DOM input.code for before-input-event
 let pttCurrentMode: 'hold' | 'toggle' = 'hold';
 let pttIsHeld = false; // shared flag: whichever source fires first owns the press
+
+let muteKeyCode: number | null = null;      // uiohook keycode
+let muteInputCode: string | null = null;    // DOM input.code for before-input-event
+let muteCurrentMode: 'hold' | 'toggle' = 'toggle';
+let muteIsHeld = false; // shared flag
+
 let uiohookRunning = false;
 
 // Maps Electron accelerator strings to uiohook keycodes (for global/out-of-focus PTT).
@@ -245,20 +251,55 @@ function acceleratorToInputCode(accel: string): string {
   return accel; // F1-F24, Space, Tab, Insert, Delete, Home, End match as-is
 }
 
+function updateUiohookState(): void {
+  const needsUiohook = (pttKeyCode !== null) || (muteKeyCode !== null);
+  if (needsUiohook && !uiohookRunning) {
+    try {
+      uIOhook.start();
+      uiohookRunning = true;
+    } catch (err) {
+      console.error('failed to start uIOhook', err);
+    }
+  } else if (!needsUiohook && uiohookRunning) {
+    try {
+      uIOhook.stop();
+      uiohookRunning = false;
+    } catch (err) {
+      console.error('failed to stop uIOhook', err);
+    }
+  }
+}
+
 function registerPushToTalk(): void {
-  // Listeners are registered once; the pttKeyCode guard filters the target key.
+  // Listeners are registered once; the pttKeyCode / muteKeyCode guard filters the target key.
   uIOhook.on('keydown', (e) => {
-    if (pttKeyCode === null || e.keycode !== pttKeyCode || pttIsHeld) return;
-    pttIsHeld = true; // suppress OS key-repeat: only fire on the first keydown
-    mainWindow?.webContents.send(
-      pttCurrentMode === 'hold' ? 'chickadee:ptt-start' : 'chickadee:ptt-toggle',
-    );
+    // Push-to-talk
+    if (pttKeyCode !== null && e.keycode === pttKeyCode && !pttIsHeld) {
+      pttIsHeld = true; // suppress OS key-repeat: only fire on the first keydown
+      mainWindow?.webContents.send(
+        pttCurrentMode === 'hold' ? 'chickadee:ptt-start' : 'chickadee:ptt-toggle',
+      );
+    }
+    // Mute mic
+    if (muteKeyCode !== null && e.keycode === muteKeyCode && !muteIsHeld) {
+      muteIsHeld = true; // suppress OS key-repeat
+      mainWindow?.webContents.send(
+        muteCurrentMode === 'hold' ? 'chickadee:mute-start' : 'chickadee:mute-toggle',
+      );
+    }
   });
+
   uIOhook.on('keyup', (e) => {
-    if (pttKeyCode === null || e.keycode !== pttKeyCode) return;
-    if (!pttIsHeld) return; // before-input-event already handled this keyup
-    pttIsHeld = false;
-    if (pttCurrentMode === 'hold') mainWindow?.webContents.send('chickadee:ptt-stop');
+    // Push-to-talk
+    if (pttKeyCode !== null && e.keycode === pttKeyCode && pttIsHeld) {
+      pttIsHeld = false;
+      if (pttCurrentMode === 'hold') mainWindow?.webContents.send('chickadee:ptt-stop');
+    }
+    // Mute mic
+    if (muteKeyCode !== null && e.keycode === muteKeyCode && muteIsHeld) {
+      muteIsHeld = false;
+      if (muteCurrentMode === 'hold') mainWindow?.webContents.send('chickadee:mute-stop');
+    }
   });
 
   ipcMain.handle(
@@ -269,16 +310,26 @@ function registerPushToTalk(): void {
       pttCurrentMode = opts.mode ?? 'hold';
       pttIsHeld = false;
 
-      if (opts.enabled && !uiohookRunning) {
-        uIOhook.start();
-        uiohookRunning = true;
-      } else if (!opts.enabled && uiohookRunning) {
-        uIOhook.stop();
-        uiohookRunning = false;
-      }
+      updateUiohookState();
 
       if (opts.enabled && pttKeyCode === null) {
         console.warn('push-to-talk: key not mapped to uiohook code:', opts.key);
+      }
+    },
+  );
+
+  ipcMain.handle(
+    'chickadee:set-mute-keybind',
+    (_e, opts: { enabled: boolean; key: string; mode: 'hold' | 'toggle' }) => {
+      muteKeyCode = opts.enabled ? acceleratorToUiohookCode(opts.key) : null;
+      muteInputCode = opts.enabled ? acceleratorToInputCode(opts.key) : null;
+      muteCurrentMode = opts.mode ?? 'toggle';
+      muteIsHeld = false;
+
+      updateUiohookState();
+
+      if (opts.enabled && muteKeyCode === null) {
+        console.warn('mute-mic: key not mapped to uiohook code:', opts.key);
       }
     },
   );
@@ -460,23 +511,41 @@ function createWindow(): void {
     console.error('preload-error', preloadPath, error);
   });
 
-  // PTT fallback for when the window is in the foreground: uiohook-napi's global
+  // PTT and Mute fallback for when the window is in the foreground: uiohook-napi's global
   // hook doesn't fire while Chromium is the active window, so before-input-event
-  // covers the in-focus case. pttIsHeld coordinates between the two sources so
-  // only one sends the IPC message per physical press.
+  // covers the in-focus case. pttIsHeld and muteIsHeld coordinate between the two
+  // sources so only one sends the IPC message per physical press.
   window.webContents.on('before-input-event', (_event, input) => {
-    if (!pttInputCode || input.code !== pttInputCode) return;
-    if (input.type === 'keyDown') {
-      if (pttIsHeld) return; // uiohook fired first, or key is already held (OS repeat)
-      if (input.isAutoRepeat) return; // belt-and-suspenders: suppress OS key-repeat
-      pttIsHeld = true;
-      window.webContents.send(
-        pttCurrentMode === 'hold' ? 'chickadee:ptt-start' : 'chickadee:ptt-toggle',
-      );
-    } else if (input.type === 'keyUp') {
-      if (!pttIsHeld) return; // uiohook already handled this keyup
-      pttIsHeld = false;
-      if (pttCurrentMode === 'hold') window.webContents.send('chickadee:ptt-stop');
+    // Push-to-talk
+    if (pttInputCode && input.code === pttInputCode) {
+      if (input.type === 'keyDown') {
+        if (pttIsHeld) return; // uiohook fired first, or key is already held (OS repeat)
+        if (input.isAutoRepeat) return; // belt-and-suspenders: suppress OS key-repeat
+        pttIsHeld = true;
+        window.webContents.send(
+          pttCurrentMode === 'hold' ? 'chickadee:ptt-start' : 'chickadee:ptt-toggle',
+        );
+      } else if (input.type === 'keyUp') {
+        if (!pttIsHeld) return; // uiohook already handled this keyup
+        pttIsHeld = false;
+        if (pttCurrentMode === 'hold') window.webContents.send('chickadee:ptt-stop');
+      }
+    }
+
+    // Mute mic
+    if (muteInputCode && input.code === muteInputCode) {
+      if (input.type === 'keyDown') {
+        if (muteIsHeld) return;
+        if (input.isAutoRepeat) return;
+        muteIsHeld = true;
+        window.webContents.send(
+          muteCurrentMode === 'hold' ? 'chickadee:mute-start' : 'chickadee:mute-toggle',
+        );
+      } else if (input.type === 'keyUp') {
+        if (!muteIsHeld) return;
+        muteIsHeld = false;
+        if (muteCurrentMode === 'hold') window.webContents.send('chickadee:mute-stop');
+      }
     }
   });
 

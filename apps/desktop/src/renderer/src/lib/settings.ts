@@ -83,6 +83,10 @@ export const store = {
   setStatus: (status: 'online' | 'idle' | 'dnd'): void => persist({ status }),
   getMicVolume: (): number => cache.micVolume ?? 1.0,
   setMicVolume: (micVolume: number): void => persist({ micVolume }),
+  getMuteKey: (): string => cache.muteKey ?? '',
+  setMuteKey: (muteKey: string): void => persist({ muteKey }),
+  getMuteMode: (): 'hold' | 'toggle' => cache.muteMode ?? 'toggle',
+  setMuteMode: (muteMode: 'hold' | 'toggle'): void => persist({ muteMode }),
 };
 
 const FRIEND_PALETTE = [
