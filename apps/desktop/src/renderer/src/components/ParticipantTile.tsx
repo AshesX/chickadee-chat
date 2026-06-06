@@ -18,6 +18,8 @@ export interface ParticipantTileProps {
   gameTag?: string;
   /** Self only: actively transmitting in push-to-talk mode. */
   transmitting?: boolean;
+  /** Remote only: output volume 0–1 (default 1). */
+  volume?: number;
 }
 
 const CONN_LABEL: Partial<Record<RTCPeerConnectionState, string>> = {
@@ -38,6 +40,7 @@ export function ParticipantTile({
   connectionState,
   gameTag,
   transmitting,
+  volume,
 }: ParticipantTileProps): React.JSX.Element {
   const videoRef = useRef<HTMLVideoElement>(null);
   const speaking = useAudioActivity(muted ? null : cameraStream);
@@ -47,6 +50,12 @@ export function ParticipantTile({
     const el = videoRef.current;
     if (el) el.srcObject = cameraStream;
   }, [cameraStream]);
+
+  // Per-peer output volume (remote tiles).
+  useEffect(() => {
+    const el = videoRef.current;
+    if (el && !isSelf) el.volume = Math.max(0, Math.min(1, volume ?? 1));
+  }, [volume, isSelf, cameraStream]);
 
   const connNote = !isSelf && connectionState ? CONN_LABEL[connectionState] : undefined;
   const initial = displayName.trim().charAt(0).toUpperCase() || '?';

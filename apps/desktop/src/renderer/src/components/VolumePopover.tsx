@@ -1,0 +1,50 @@
+import type { Peer, PeerId } from '@chickadee/shared';
+
+interface VolumePopoverProps {
+  peers: Peer[];
+  colors: Record<PeerId, string>;
+  volumes: Record<PeerId, number>;
+  onChange: (peerId: PeerId, volume: number) => void;
+  onClose: () => void;
+}
+
+/** Floating per-peer output-volume sliders, anchored above the control bar. */
+export function VolumePopover({
+  peers,
+  colors,
+  volumes,
+  onChange,
+  onClose,
+}: VolumePopoverProps): React.JSX.Element {
+  return (
+    <div className="popover-backdrop" onClick={onClose}>
+      <div className="volume-pop" onClick={(e) => e.stopPropagation()}>
+        <div className="volume-pop__head">Volume</div>
+        {peers.length === 0 && <p className="volume-pop__empty">No one else here.</p>}
+        {peers.map((p) => {
+          const color = colors[p.id] ?? '#8a8ac0';
+          const v = volumes[p.id] ?? 1;
+          return (
+            <div key={p.id} className="volume-row">
+              <span
+                className="volume-row__avatar"
+                style={{ background: `linear-gradient(135deg, ${color}, ${color}66)` }}
+              >
+                {p.displayName.trim().charAt(0).toUpperCase() || '?'}
+              </span>
+              <span className="volume-row__name">{p.displayName}</span>
+              <input
+                className="volume-row__slider"
+                type="range"
+                min={0}
+                max={100}
+                value={Math.round(v * 100)}
+                onChange={(e) => onChange(p.id, Number(e.target.value) / 100)}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

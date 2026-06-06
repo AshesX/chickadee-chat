@@ -14,9 +14,11 @@ import { ParticipantTile } from './components/ParticipantTile';
 import { ScreenView } from './components/ScreenView';
 import { ScreenSharePicker } from './components/ScreenSharePicker';
 import { ChatPanel } from './components/ChatPanel';
+import { VolumePopover } from './components/VolumePopover';
 import { NameModal } from './components/NameModal';
 import { CreateRoomModal } from './components/CreateRoomModal';
 import { SettingsModal } from './components/SettingsModal';
+import { generateTrayIcon } from './lib/trayIcon';
 
 interface ActiveScreen {
   key: string;
@@ -48,6 +50,9 @@ export function App(): React.JSX.Element {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pttEnabled, setPttEnabled] = useState(() => store.getPttEnabled());
   const [pushToTalkKey, setPushToTalkKey] = useState(() => store.getPushToTalkKey());
+  const [game, setGame] = useState<{ name: string; short: string } | null>(null);
+  const [volumes, setVolumes] = useState<Record<string, number>>({});
+  const [volumeOpen, setVolumeOpen] = useState(false);
 
   const chat = useRoomChat({ signaling, displayName, colors, roomId: currentRoomId });
   const transmitting = pttEnabled && mesh.micEnabled;
@@ -124,6 +129,29 @@ export function App(): React.JSX.Element {
     return window.chickadee?.onPushToTalk?.(() => mesh.toggleMic());
   }, [mesh.toggleMic]);
 
+  // Detected game (from the main-process scanner).
+  useEffect(() => {
+    return window.chickadee?.onGameDetected?.((g) => setGame(g));
+  }, []);
+
+  // Broadcast our game short-tag to the room (re-announces on join/reconnect).
+  useEffect(() => {
+    if (signaling.status === 'connected') {
+      signaling.send({ type: 'game-state', game: game?.short ?? null });
+    }
+  }, [game, currentRoomId, signaling.status, signaling.send]);
+
+  // Tray: generate the icon once, keep the room label current, and wire mute.
+  useEffect(() => {
+    window.chickadee?.setTrayIcon?.(generateTrayIcon());
+  }, []);
+  useEffect(() => {
+    window.chickadee?.setTrayRoom?.(currentRoom?.label ?? null);
+  }, [currentRoom?.label]);
+  useEffect(() => {
+    return window.chickadee?.onTrayMute?.(() => mesh.toggleMic());
+  }, [mesh.toggleMic]);
+
   // Camera tiles (self + peers), reused in grid and filmstrip layouts.
   const tiles = inRoom && (
     <>
@@ -135,6 +163,7 @@ export function App(): React.JSX.Element {
         cameraStream={mesh.localStream}
         color={SELF_COLOR}
         transmitting={transmitting}
+        gameTag={game?.short}
       />
       {signaling.peers.map((peer) => {
         const media = mesh.remote[peer.id];
@@ -149,6 +178,7 @@ export function App(): React.JSX.Element {
             color={colors[peer.id] ?? SELF_COLOR}
             connectionState={media?.connectionState ?? 'new'}
             gameTag={peer.game ?? undefined}
+            volume={volumes[peer.id] ?? 1}
           />
         );
       })}
@@ -188,6 +218,7 @@ export function App(): React.JSX.Element {
         selfName={displayName}
         selfColor={SELF_COLOR}
         online={inRoom && signaling.status === 'connected'}
+        selfGame={game?.name}
         onOpenSettings={() => setSettingsOpen(true)}
       />
 
@@ -198,6 +229,7 @@ export function App(): React.JSX.Element {
           maxCount={MAX_PEERS_PER_ROOM}
           status={signaling.status}
           timer={timer}
+          game={game?.name}
           noiseSuppressed={noiseSuppression}
           onToggleNoise={() => applyNoiseSuppression(!noiseSuppression)}
           chatOpen={chatOpen}
@@ -240,10 +272,20 @@ export function App(): React.JSX.Element {
               pttOn={pttEnabled}
               onTogglePtt={() => applyPttEnabled(!pttEnabled)}
               transmitting={transmitting}
-              onVolume={() => {}}
+              onVolume={() => setVolumeOpen((v) => !v)}
               onSettings={() => setSettingsOpen(true)}
               onLeave={leaveRoom}
             />
+
+            {volumeOpen && (
+              <VolumePopover
+                peers={signaling.peers}
+                colors={colors}
+                volumes={volumes}
+                onChange={(peerId, volume) => setVolumes((prev) => ({ ...prev, [peerId]: volume }))}
+                onClose={() => setVolumeOpen(false)}
+              />
+            )}
           </>
         ) : (
           <div className="empty-lounge">

@@ -66,6 +66,21 @@ const api = {
     ipcRenderer.on('chickadee:ptt-toggle', listener);
     return () => ipcRenderer.removeListener('chickadee:ptt-toggle', listener);
   },
+  /** Subscribe to detected-game changes from the main-process scanner. */
+  onGameDetected: (cb: (game: { name: string; short: string } | null) => void): (() => void) => {
+    const listener = (_e: unknown, game: { name: string; short: string } | null): void => cb(game);
+    ipcRenderer.on('chickadee:game-detected', listener);
+    return () => ipcRenderer.removeListener('chickadee:game-detected', listener);
+  },
+  /** Tray: set its icon (data URL), current room label, and mute-from-tray. */
+  setTrayIcon: (dataUrl: string): Promise<void> => ipcRenderer.invoke('chickadee:set-tray-icon', dataUrl),
+  setTrayRoom: (label: string | null): Promise<void> =>
+    ipcRenderer.invoke('chickadee:set-tray-room', label),
+  onTrayMute: (cb: () => void): (() => void) => {
+    const listener = (): void => cb();
+    ipcRenderer.on('chickadee:tray-mute', listener);
+    return () => ipcRenderer.removeListener('chickadee:tray-mute', listener);
+  },
 };
 
 contextBridge.exposeInMainWorld('chickadee', api);

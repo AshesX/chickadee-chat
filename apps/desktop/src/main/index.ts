@@ -1,14 +1,18 @@
 import { dirname, join } from 'node:path';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
+import { exec } from 'node:child_process';
 import {
   app,
   BrowserWindow,
   desktopCapturer,
   globalShortcut,
   ipcMain,
+  Menu,
+  nativeImage,
   session,
   shell,
+  Tray,
 } from 'electron';
 import {
   PUBLIC_TURN_SERVERS,
@@ -215,6 +219,135 @@ function registerPushToTalk(): void {
   );
 }
 
+// The primary window, used by tray actions and game-detection broadcasts.
+let mainWindow: BrowserWindow | null = null;
+
+// ── Game detection (Windows tasklist; zero-dependency) ───────────────────────
+interface GameDef {
+  name: string;
+  short: string;
+  processName: string;
+}
+
+const DEFAULT_GAMES: GameDef[] = [
+  { name: 'Deep Rock Galactic', short: 'DRG', processName: 'fsd-win64' },
+  { name: 'Helldivers 2', short: 'HD2', processName: 'helldivers2' },
+  { name: 'Valheim', short: 'VLH', processName: 'valheim' },
+  { name: 'Counter-Strike 2', short: 'CS2', processName: 'cs2' },
+  { name: 'Elden Ring', short: 'ELD', processName: 'eldenring' },
+  { name: 'Apex Legends', short: 'APX', processName: 'r5apex' },
+  { name: 'Rocket League', short: 'RL', processName: 'rocketleague' },
+  { name: 'Minecraft', short: 'MC', processName: 'javaw' },
+  { name: 'Fortnite', short: 'FN', processName: 'fortniteclient-win64-shipping' },
+  { name: 'Overwatch 2', short: 'OW', processName: 'overwatch' },
+  { name: 'Stardew Valley', short: 'SDV', processName: 'stardew valley' },
+  { name: 'Terraria', short: 'TER', processName: 'terraria' },
+];
+
+let gamesList: GameDef[] = DEFAULT_GAMES;
+let lastGameShort: string | null = null;
+
+function loadGamesList(): void {
+  const path = join(app.getPath('userData'), 'games.json');
+  try {
+    if (existsSync(path)) {
+      gamesList = JSON.parse(readFileSync(path, 'utf8')) as GameDef[];
+      return;
+    }
+    writeFileSync(path, JSON.stringify(DEFAULT_GAMES, null, 2));
+  } catch (err) {
+    console.error('games.json failed; using defaults', err);
+    gamesList = DEFAULT_GAMES;
+  }
+}
+
+/** Lowercased base names (no .exe) of running processes; Windows-only. */
+function runningProcessNames(): Promise<Set<string>> {
+  return new Promise((resolve) => {
+    if (process.platform !== 'win32') return resolve(new Set());
+    exec('tasklist /fo csv /nh', { windowsHide: true, maxBuffer: 8 * 1024 * 1024 }, (err, stdout) => {
+      if (err) return resolve(new Set());
+      const names = new Set<string>();
+      for (const line of stdout.split(/\r?\n/)) {
+        const m = /^"([^"]+)"/.exec(line);
+        if (!m) continue;
+        let n = m[1].toLowerCase();
+        if (n.endsWith('.exe')) n = n.slice(0, -4);
+        names.add(n);
+      }
+      resolve(names);
+    });
+  });
+}
+
+async function detectGame(): Promise<{ name: string; short: string } | null> {
+  const names = await runningProcessNames();
+  if (names.size === 0) return null;
+  for (const g of gamesList) {
+    const pn = g.processName.toLowerCase();
+    for (const n of names) {
+      if (n.includes(pn)) return { name: g.name, short: g.short };
+    }
+  }
+  return null;
+}
+
+function startGameDetection(window: BrowserWindow): void {
+  const scan = async (): Promise<void> => {
+    const game = await detectGame();
+    const short = game?.short ?? null;
+    if (short !== lastGameShort) {
+      lastGameShort = short;
+      if (!window.isDestroyed()) window.webContents.send('chickadee:game-detected', game);
+    }
+  };
+  setTimeout(() => void scan(), 4000);
+  const interval = setInterval(() => void scan(), 30_000);
+  window.on('closed', () => clearInterval(interval));
+}
+
+// ── Tray ─────────────────────────────────────────────────────────────────────
+let tray: Tray | null = null;
+let trayRoom: string | null = null;
+
+function rebuildTrayMenu(): void {
+  if (!tray) return;
+  tray.setToolTip(trayRoom ? `Chickadee — ${trayRoom}` : 'Chickadee Chat');
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      {
+        label: 'Show Chickadee',
+        click: () => {
+          if (!mainWindow) return;
+          if (mainWindow.isMinimized()) mainWindow.restore();
+          mainWindow.show();
+          mainWindow.focus();
+        },
+      },
+      { label: trayRoom ? `Room: ${trayRoom}` : 'Not in a room', enabled: false },
+      { type: 'separator' },
+      { label: 'Toggle mic', click: () => mainWindow?.webContents.send('chickadee:tray-mute') },
+      { type: 'separator' },
+      { label: 'Quit', click: () => app.quit() },
+    ]),
+  );
+}
+
+function configureTray(): void {
+  ipcMain.handle('chickadee:set-tray-icon', (_e, dataUrl: string) => {
+    const image = nativeImage.createFromDataURL(dataUrl);
+    if (tray) tray.setImage(image);
+    else {
+      tray = new Tray(image);
+      rebuildTrayMenu();
+    }
+  });
+  ipcMain.handle('chickadee:set-tray-room', (_e, label: string | null) => {
+    trayRoom = label;
+    rebuildTrayMenu();
+  });
+}
+
 function registerWindowControls(): void {
   ipcMain.on('chickadee:window-minimize', (e) => BrowserWindow.fromWebContents(e.sender)?.minimize());
   ipcMain.on('chickadee:window-maximize-toggle', (e) => {
@@ -274,6 +407,12 @@ function createWindow(): void {
   } else {
     void window.loadFile(join(__dirname, '../renderer/index.html'));
   }
+
+  mainWindow = window;
+  window.on('closed', () => {
+    if (mainWindow === window) mainWindow = null;
+  });
+  startGameDetection(window);
 }
 
 // Log renderer crashes so a white-screen never goes unexplained.
@@ -283,6 +422,7 @@ app.on('render-process-gone', (_e, _wc, details) => {
 
 app.whenReady().then(() => {
   loadSettings();
+  loadGamesList();
   ipcMain.handle('chickadee:save-settings', (_e, partial: Partial<PersistedSettings>) =>
     saveSettings(partial),
   );
@@ -290,6 +430,7 @@ app.whenReady().then(() => {
   configureScreenShare();
   registerWindowControls();
   registerPushToTalk();
+  configureTray();
   createWindow();
 
   app.on('activate', () => {
@@ -298,7 +439,10 @@ app.whenReady().then(() => {
   });
 });
 
-app.on('will-quit', () => globalShortcut.unregisterAll());
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll();
+  tray?.destroy();
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
