@@ -32,7 +32,7 @@ export interface SignalingState {
 }
 
 export interface Signaling extends SignalingState {
-  join: (spaceId: string, room: string, displayName: string, userId: string, rooms: Room[]) => void;
+  join: (spaceId: string, room: string, displayName: string, userId: string, rooms: Room[], status: 'online' | 'idle' | 'dnd') => void;
   leave: () => void;
   /** Send a message to the server (used by WebRTC negotiation + mic-state). */
   send: (message: ClientMessage) => void;
@@ -72,6 +72,7 @@ export function useSignaling(url: string): Signaling {
   const nameRef = useRef('');
   const userIdRef = useRef('');
   const roomsRef = useRef<Room[]>([]);
+  const statusRef = useRef<'online' | 'idle' | 'dnd'>('online');
   const shouldReconnectRef = useRef(false);
   const attemptsRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -138,6 +139,7 @@ export function useSignaling(url: string): Signaling {
           displayName: nameRef.current,
           userId: userIdRef.current,
           rooms: roomsRef.current,
+          status: statusRef.current,
         }),
       );
       // Heartbeat: ping periodically; if pongs stop, force-close → reconnect.
@@ -228,6 +230,12 @@ export function useSignaling(url: string): Signaling {
             peers: prev.peers.map((p) => (p.id === msg.from ? { ...p, deafened: msg.deafened } : p)),
           }));
           break;
+        case 'status-state':
+          setState((prev) => ({
+            ...prev,
+            peers: prev.peers.map((p) => (p.id === msg.from ? { ...p, status: msg.status } : p)),
+          }));
+          break;
         case 'room-full':
           shouldReconnectRef.current = false;
           clearTimers();
@@ -268,7 +276,7 @@ export function useSignaling(url: string): Signaling {
   }, [connect]);
 
   const join = useCallback(
-    (spaceId: string, room: string, displayName: string, userId: string, roomsList: Room[]) => {
+    (spaceId: string, room: string, displayName: string, userId: string, roomsList: Room[], status: 'online' | 'idle' | 'dnd') => {
       closeSocket();
       clearTimers();
       shouldReconnectRef.current = true;
@@ -278,6 +286,7 @@ export function useSignaling(url: string): Signaling {
       nameRef.current = displayName;
       userIdRef.current = userId;
       roomsRef.current = roomsList;
+      statusRef.current = status;
       setState({ ...INITIAL, status: 'connecting', rooms: roomsList });
       connect();
     },

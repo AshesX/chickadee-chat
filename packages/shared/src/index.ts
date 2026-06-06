@@ -31,6 +31,8 @@ export interface Peer {
   game: string | null;
   /** Whether this peer is currently deafened. */
   deafened: boolean;
+  /** The presence status of this peer: 'online' | 'idle' | 'dnd'. */
+  status: 'online' | 'idle' | 'dnd';
 }
 
 /** A sidebar room entry (local; the server uses arbitrary room ids). */
@@ -71,6 +73,7 @@ export interface PersistedSettings {
   sfxEnabled: boolean;
   sfxVolume: number;
   badgeNotificationsEnabled: boolean;
+  status: 'online' | 'idle' | 'dnd';
 }
 
 export const DEFAULT_ROOMS: Room[] = [
@@ -95,6 +98,7 @@ export function defaultSettings(): PersistedSettings {
     sfxEnabled: true,
     sfxVolume: 0.25,
     badgeNotificationsEnabled: true,
+    status: 'online',
   };
 }
 
@@ -110,7 +114,7 @@ export interface ScreenSource {
 
 /** Messages sent from a client up to the signaling server. */
 export type ClientMessage =
-  | { type: 'join'; spaceId: string; room: RoomId; displayName: string; userId: string; rooms: Room[] }
+  | { type: 'join'; spaceId: string; room: RoomId; displayName: string; userId: string; rooms: Room[]; status?: 'online' | 'idle' | 'dnd' }
   | { type: 'offer'; to: PeerId; sdp: RTCSessionDescriptionInit }
   | { type: 'answer'; to: PeerId; sdp: RTCSessionDescriptionInit }
   | { type: 'ice-candidate'; to: PeerId; candidate: RTCIceCandidateInit }
@@ -120,6 +124,7 @@ export type ClientMessage =
   | { type: 'screen-state'; streamId: string | null }
   | { type: 'game-state'; game: string | null }
   | { type: 'deafen-state'; deafened: boolean }
+  | { type: 'status-state'; status: 'online' | 'idle' | 'dnd' }
   // Broadcast room list changes to the active space.
   | { type: 'update-rooms'; spaceId: string; rooms: Room[] }
   // Ephemeral room chat (a reaction is a chat with `reaction: true`).
@@ -151,6 +156,8 @@ export type ServerMessage =
   | { type: 'game-state'; from: PeerId; game: string | null }
   // A peer toggled their deafen state; broadcast to everyone else in the room.
   | { type: 'deafen-state'; from: PeerId; deafened: boolean }
+  // A peer updated their presence status; broadcast to everyone else in the room.
+  | { type: 'status-state'; from: PeerId; status: 'online' | 'idle' | 'dnd' }
   // Broadcast room list changes to the active space.
   | { type: 'rooms-updated'; spaceId: string; rooms: Room[] }
   // Relayed room chat / reaction.

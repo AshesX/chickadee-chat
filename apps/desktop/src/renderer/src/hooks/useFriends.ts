@@ -42,14 +42,16 @@ export function useFriends(
   }, [sig, selfUserId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return useMemo(() => {
-    const onlineIds = new Set(peers.map((p) => p.userId));
+    const onlinePeersMap = new Map(peers.map((p) => [p.userId, p]));
     return stored.map((f) => {
-      const online = onlineIds.has(f.userId);
+      const activePeer = onlinePeersMap.get(f.userId);
+      const online = !!activePeer;
+      const status = activePeer ? activePeer.status : ('offline' as const);
       return {
         name: f.name,
         initial: f.name.trim().charAt(0).toUpperCase() || '?',
         color: f.color,
-        status: online ? ('online' as const) : ('offline' as const),
+        status,
         where: online && currentRoomLabel ? `In ${currentRoomLabel}` : 'Offline',
       };
     });

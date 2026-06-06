@@ -76,6 +76,7 @@ export function App(): React.JSX.Element {
   }, [mesh.micEnabled]);
   const [badgeNotificationsEnabled, setBadgeNotificationsEnabled] = useState(() => store.getBadgeNotificationsEnabled());
   const [unreadCount, setUnreadCount] = useState(0);
+  const [selfStatus, setSelfStatus] = useState<'online' | 'idle' | 'dnd'>(() => store.getStatus());
 
   const handleNewMessage = useCallback(() => {
     if (!document.hasFocus()) {
@@ -104,11 +105,19 @@ export function App(): React.JSX.Element {
   const totalInRoom = inRoom ? signaling.peers.length + 1 : 0;
   const friends = useFriends(signaling.peers, userId, currentRoom?.label ?? null);
 
+  const applyStatus = useCallback((status: 'online' | 'idle' | 'dnd') => {
+    setSelfStatus(status);
+    store.setStatus(status);
+    if (signaling.status === 'connected') {
+      signaling.send({ type: 'status-state', status });
+    }
+  }, [signaling.status, signaling.send]);
+
   function joinRoom(id: string): void {
     if (id === currentRoomId || !currentSpaceId) return;
     setCurrentRoomId(id);
     mesh.prepareMedia();
-    signaling.join(currentSpaceId, id, displayName, userId, rooms);
+    signaling.join(currentSpaceId, id, displayName, userId, rooms, selfStatus);
   }
 
   function leaveRoom(): void {
@@ -387,15 +396,16 @@ export function App(): React.JSX.Element {
     return window.chickadee?.onGameDetected?.((g) => setGame(g));
   }, []);
 
-  // Broadcast our game short-tag and deafen state to the room (re-announces on join/reconnect).
+  // Broadcast our game short-tag, deafen state, and status to the room (re-announces on join/reconnect).
   useEffect(() => {
     if (signaling.status === 'connected') {
       signaling.send({ type: 'game-state', game: game?.short ?? null });
       if (deafened) {
         signaling.send({ type: 'deafen-state', deafened: true });
       }
+      signaling.send({ type: 'status-state', status: selfStatus });
     }
-  }, [game, currentRoomId, signaling.status, signaling.send, deafened]);
+  }, [game, currentRoomId, signaling.status, signaling.send, deafened, selfStatus]);
 
   // Keep local rooms in sync with the signaling server's room list for this Space
   useEffect(() => {
@@ -499,6 +509,8 @@ export function App(): React.JSX.Element {
         onCreateSpace={() => setCreateSpaceOpen(true)}
         onJoinSpace={() => setJoinSpaceOpen(true)}
         onDeleteSpace={deleteSpace}
+        selfStatus={selfStatus}
+        onChangeStatus={applyStatus}
       />
 
       <div className="main">

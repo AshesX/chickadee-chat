@@ -79,6 +79,8 @@ export const store = {
   setSfxVolume: (sfxVolume: number): void => persist({ sfxVolume }),
   getBadgeNotificationsEnabled: (): boolean => cache.badgeNotificationsEnabled ?? true,
   setBadgeNotificationsEnabled: (badgeNotificationsEnabled: boolean): void => persist({ badgeNotificationsEnabled }),
+  getStatus: (): 'online' | 'idle' | 'dnd' => cache.status ?? 'online',
+  setStatus: (status: 'online' | 'idle' | 'dnd'): void => persist({ status }),
 };
 
 const FRIEND_PALETTE = [

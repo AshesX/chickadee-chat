@@ -6,7 +6,7 @@ export interface Friend {
   name: string;
   initial: string;
   color: string;
-  status: 'online' | 'idle' | 'offline';
+  status: 'online' | 'idle' | 'dnd' | 'offline';
   where: string;
 }
 
@@ -25,6 +25,8 @@ interface SidebarProps {
   online: boolean;
   selfGame?: string;
   onOpenSettings: () => void;
+  selfStatus: 'online' | 'idle' | 'dnd';
+  onChangeStatus: (status: 'online' | 'idle' | 'dnd') => void;
 
   // Space additions
   spaces: SpaceInfo[];
@@ -49,6 +51,8 @@ export function Sidebar({
   online,
   selfGame,
   onOpenSettings,
+  selfStatus,
+  onChangeStatus,
 
   spaces,
   activeSpaceId,
@@ -60,6 +64,7 @@ export function Sidebar({
   const onlineCount = friends.filter((f) => f.status !== 'offline').length;
   const selfInitial = selfName.trim().charAt(0).toUpperCase() || 'Y';
   const [menu, setMenu] = useState<{ room: Room; x: number; y: number } | null>(null);
+  const [statusMenuOpen, setStatusMenuOpen] = useState(false);
   
   // Space switcher states
   const [switcherOpen, setSwitcherOpen] = useState(false);
@@ -211,15 +216,21 @@ export function Sidebar({
       </div>
 
       <div className="sidebar__self">
-        <div className="friend-row__avatar-wrap">
-          <div
-            className="self__avatar"
-            style={{ background: `linear-gradient(135deg, ${selfColor}, ${selfColor}99)` }}
-          >
-            {selfInitial}
+        <button
+          className="sidebar__self-avatar-btn"
+          onClick={() => setStatusMenuOpen(!statusMenuOpen)}
+          aria-label="Change status"
+        >
+          <div className="friend-row__avatar-wrap">
+            <div
+              className="self__avatar"
+              style={{ background: `linear-gradient(135deg, ${selfColor}, ${selfColor}99)` }}
+            >
+              {selfInitial}
+            </div>
+            <span className={`presence-dot presence-dot--${online ? selfStatus : 'offline'}`} />
           </div>
-          <span className={`presence-dot presence-dot--${online ? 'online' : 'offline'}`} />
-        </div>
+        </button>
         <div className="self__meta">
           <div className="self__name">{selfName || 'You'}</div>
           {selfGame && <div className="self__game">🎮 {selfGame}</div>}
@@ -227,6 +238,44 @@ export function Sidebar({
         <button className="self__settings" onClick={onOpenSettings} aria-label="Settings">
           <Settings size={15} />
         </button>
+
+        {statusMenuOpen && (
+          <>
+            <div className="status-dropdown-backdrop" onClick={() => setStatusMenuOpen(false)} />
+            <div className="status-dropdown" onClick={(e) => e.stopPropagation()}>
+              <button
+                className={`status-dropdown__item${selfStatus === 'online' ? ' status-dropdown__item--active' : ''}`}
+                onClick={() => {
+                  onChangeStatus('online');
+                  setStatusMenuOpen(false);
+                }}
+              >
+                <span className="presence-dot presence-dot--online presence-dot--static" />
+                <span>Online</span>
+              </button>
+              <button
+                className={`status-dropdown__item${selfStatus === 'idle' ? ' status-dropdown__item--active' : ''}`}
+                onClick={() => {
+                  onChangeStatus('idle');
+                  setStatusMenuOpen(false);
+                }}
+              >
+                <span className="presence-dot presence-dot--idle presence-dot--static" />
+                <span>Idle</span>
+              </button>
+              <button
+                className={`status-dropdown__item${selfStatus === 'dnd' ? ' status-dropdown__item--active' : ''}`}
+                onClick={() => {
+                  onChangeStatus('dnd');
+                  setStatusMenuOpen(false);
+                }}
+              >
+                <span className="presence-dot presence-dot--dnd presence-dot--static" />
+                <span>Do Not Disturb</span>
+              </button>
+            </div>
+          </>
+        )}
       </div>
 
       {menu && (

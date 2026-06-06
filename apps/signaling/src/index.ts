@@ -62,6 +62,7 @@ function handleJoin(socket: WebSocket, msg: Extract<ClientMessage, { type: 'join
     screenStreamId: null,
     game: null,
     deafened: false,
+    status: msg.status || 'online',
   };
   const conn: Connection = { socket, peer, space: msg.spaceId, room: fullRoomId };
 
@@ -133,6 +134,12 @@ function handleGameState(conn: Connection, game: string | null): void {
 function handleDeafenState(conn: Connection, deafened: boolean): void {
   conn.peer.deafened = deafened;
   broadcast(conn.room, { type: 'deafen-state', from: conn.peer.id, deafened }, conn.peer.id);
+}
+
+/** Record a peer's presence status and tell the room (mirror pattern). */
+function handleStatusState(conn: Connection, status: 'online' | 'idle' | 'dnd'): void {
+  conn.peer.status = status;
+  broadcast(conn.room, { type: 'status-state', from: conn.peer.id, status }, conn.peer.id);
 }
 
 function handleUpdateRooms(spaceId: string, roomsList: Room[]): void {
@@ -227,6 +234,8 @@ wss.on('connection', (socket) => {
       handleGameState(conn, msg.game);
     } else if (msg.type === 'deafen-state') {
       handleDeafenState(conn, msg.deafened);
+    } else if (msg.type === 'status-state') {
+      handleStatusState(conn, msg.status);
     } else if (msg.type === 'update-rooms') {
       handleUpdateRooms(msg.spaceId, msg.rooms);
     } else if (msg.type === 'chat') {
