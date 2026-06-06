@@ -58,6 +58,8 @@ export const store = {
   setPttEnabled: (pttEnabled: boolean): void => persist({ pttEnabled }),
   getPushToTalkKey: (): string => cache.pushToTalkKey,
   setPushToTalkKey: (pushToTalkKey: string): void => persist({ pushToTalkKey }),
+  getPttMode: (): 'hold' | 'toggle' => cache.pttMode,
+  setPttMode: (pttMode: 'hold' | 'toggle'): void => persist({ pttMode }),
 };
 
 const FRIEND_PALETTE = [

@@ -10,6 +10,8 @@ interface SettingsModalProps {
   onChangePttEnabled: (on: boolean) => void;
   pushToTalkKey: string;
   onChangePushToTalkKey: (key: string) => void;
+  pttMode: 'hold' | 'toggle';
+  onChangePttMode: (mode: 'hold' | 'toggle') => void;
   onClose: () => void;
 }
 
@@ -50,6 +52,8 @@ export function SettingsModal({
   onChangePttEnabled,
   pushToTalkKey,
   onChangePushToTalkKey,
+  pttMode,
+  onChangePttMode,
   onClose,
 }: SettingsModalProps): React.JSX.Element {
   const [name, setName] = useState(displayName);
@@ -93,9 +97,26 @@ export function SettingsModal({
       <div className="settings-row">
         <div className="settings-row__label">
           <span>Push-to-talk</span>
-          <span className="settings-row__hint">Mic mutes; tap the hotkey to toggle transmit.</span>
+          <span className="settings-row__hint">System-wide hotkey; mic off until activated.</span>
         </div>
         <Toggle on={pttEnabled} onClick={() => onChangePttEnabled(!pttEnabled)} />
+      </div>
+
+      <div className="settings-row">
+        <div className="settings-row__label">
+          <span>PTT mode</span>
+          <span className="settings-row__hint">Hold: mic live while key held. Toggle: press to unmute, press again to mute.</span>
+        </div>
+        <div className="seg-group">
+          <button
+            className={`seg-btn${pttMode === 'hold' ? ' seg-btn--active' : ''}`}
+            onClick={() => onChangePttMode('hold')}
+          >Hold</button>
+          <button
+            className={`seg-btn${pttMode === 'toggle' ? ' seg-btn--active' : ''}`}
+            onClick={() => onChangePttMode('toggle')}
+          >Toggle</button>
+        </div>
       </div>
 
       <div className="settings-row">

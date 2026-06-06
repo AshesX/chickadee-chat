@@ -52,6 +52,7 @@ export function App(): React.JSX.Element {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pttEnabled, setPttEnabled] = useState(() => store.getPttEnabled());
   const [pushToTalkKey, setPushToTalkKey] = useState(() => store.getPushToTalkKey());
+  const [pttMode, setPttMode] = useState<'hold' | 'toggle'>(() => store.getPttMode());
   const [game, setGame] = useState<{ name: string; short: string } | null>(null);
   const [volumes, setVolumes] = useState<Record<string, number>>({});
   const [volumeOpen, setVolumeOpen] = useState(false);
@@ -135,20 +136,34 @@ export function App(): React.JSX.Element {
     store.setPushToTalkKey(key);
   }
 
-  // (Un)register the global PTT hotkey whenever the mode or key changes.
-  useEffect(() => {
-    void window.chickadee?.setPushToTalk?.({ enabled: pttEnabled, key: pushToTalkKey });
-  }, [pttEnabled, pushToTalkKey]);
+  function applyPttMode(mode: 'hold' | 'toggle'): void {
+    setPttMode(mode);
+    store.setPttMode(mode);
+  }
 
-  // In PTT mode the mic starts muted (until the hotkey toggles transmit).
+  // (Un)register the global PTT hotkey whenever enabled/key/mode changes.
+  useEffect(() => {
+    void window.chickadee?.setPushToTalk?.({ enabled: pttEnabled, key: pushToTalkKey, mode: pttMode });
+  }, [pttEnabled, pushToTalkKey, pttMode]);
+
+  // In PTT mode the mic starts muted until the hotkey activates it.
   useEffect(() => {
     if (pttEnabled && mesh.localStream) mesh.setMicEnabled(false);
   }, [pttEnabled, mesh.localStream, mesh.setMicEnabled]);
 
-  // A global PTT key press toggles transmit.
+  // Toggle mode: each key press flips mic on/off.
   useEffect(() => {
+    if (pttMode !== 'toggle') return;
     return window.chickadee?.onPushToTalk?.(() => mesh.toggleMic());
-  }, [mesh.toggleMic]);
+  }, [pttMode, mesh.toggleMic]);
+
+  // Hold mode: mic on while key held, off on release.
+  useEffect(() => {
+    if (pttMode !== 'hold') return;
+    const unsubStart = window.chickadee?.onPttStart?.(() => mesh.setMicEnabled(true));
+    const unsubStop = window.chickadee?.onPttStop?.(() => mesh.setMicEnabled(false));
+    return () => { unsubStart?.(); unsubStop?.(); };
+  }, [pttMode, mesh.setMicEnabled]);
 
   // Detected game (from the main-process scanner).
   useEffect(() => {
@@ -371,6 +386,8 @@ export function App(): React.JSX.Element {
           onChangePttEnabled={applyPttEnabled}
           pushToTalkKey={pushToTalkKey}
           onChangePushToTalkKey={applyPushToTalkKey}
+          pttMode={pttMode}
+          onChangePttMode={applyPttMode}
           onClose={() => setSettingsOpen(false)}
         />
       )}

@@ -14,6 +14,7 @@ import {
   shell,
   Tray,
 } from 'electron';
+import { uIOhook, UiohookKey } from 'uiohook-napi';
 import {
   PUBLIC_TURN_SERVERS,
   STUN_SERVERS,
@@ -195,25 +196,59 @@ function configureScreenShare(): void {
   );
 }
 
-/**
- * Global push-to-talk: register the chosen accelerator system-wide; each press
- * tells the renderer to toggle the mic (works even when a game is focused).
- * globalShortcut has no key-up and consumes the key system-wide, so this is a
- * toggle (not hold) and the key must be one not used in-game (default F8).
- */
+// ── Push-to-talk (uiohook-napi: true keydown/keyup events, works when unfocused) ─
+let pttKeyCode: number | null = null;
+let pttCurrentMode: 'hold' | 'toggle' = 'hold';
+let pttIsHeld = false;
+let uiohookRunning = false;
+
+// Maps Electron accelerator strings (from the settings UI) to uiohook keycodes.
+// Arrow keys differ in naming; everything else (A-Z, F1-F24, Space, Tab, etc.)
+// shares the same name between the accelerator format and UiohookKey.
+function acceleratorToUiohookCode(accel: string): number | null {
+  const arrowMap: Record<string, number> = {
+    Up: UiohookKey.ArrowUp,
+    Down: UiohookKey.ArrowDown,
+    Left: UiohookKey.ArrowLeft,
+    Right: UiohookKey.ArrowRight,
+  };
+  if (accel in arrowMap) return arrowMap[accel]!;
+  const code = (UiohookKey as unknown as Record<string, number | undefined>)[accel];
+  return code ?? null;
+}
+
 function registerPushToTalk(): void {
+  // Listeners are registered once; the pttKeyCode guard filters the target key.
+  uIOhook.on('keydown', (e) => {
+    if (pttKeyCode === null || e.keycode !== pttKeyCode || pttIsHeld) return;
+    pttIsHeld = true; // suppress OS key-repeat: only fire on the first keydown
+    mainWindow?.webContents.send(
+      pttCurrentMode === 'hold' ? 'chickadee:ptt-start' : 'chickadee:ptt-toggle',
+    );
+  });
+  uIOhook.on('keyup', (e) => {
+    if (pttKeyCode === null || e.keycode !== pttKeyCode) return;
+    pttIsHeld = false;
+    if (pttCurrentMode === 'hold') mainWindow?.webContents.send('chickadee:ptt-stop');
+  });
+
   ipcMain.handle(
     'chickadee:set-ptt',
-    (e, opts: { enabled: boolean; key: string }) => {
-      globalShortcut.unregisterAll();
-      if (!opts.enabled || !opts.key) return;
-      try {
-        const ok = globalShortcut.register(opts.key, () => {
-          BrowserWindow.fromWebContents(e.sender)?.webContents.send('chickadee:ptt-toggle');
-        });
-        if (!ok) console.error('push-to-talk: failed to register', opts.key);
-      } catch (err) {
-        console.error('push-to-talk: invalid accelerator', opts.key, err);
+    (_e, opts: { enabled: boolean; key: string; mode: 'hold' | 'toggle' }) => {
+      pttKeyCode = opts.enabled ? acceleratorToUiohookCode(opts.key) : null;
+      pttCurrentMode = opts.mode ?? 'hold';
+      pttIsHeld = false;
+
+      if (opts.enabled && !uiohookRunning) {
+        uIOhook.start();
+        uiohookRunning = true;
+      } else if (!opts.enabled && uiohookRunning) {
+        uIOhook.stop();
+        uiohookRunning = false;
+      }
+
+      if (opts.enabled && pttKeyCode === null) {
+        console.warn('push-to-talk: key not mapped to uiohook code:', opts.key);
       }
     },
   );
@@ -440,6 +475,7 @@ app.whenReady().then(() => {
 });
 
 app.on('will-quit', () => {
+  if (uiohookRunning) uIOhook.stop();
   globalShortcut.unregisterAll();
   tray?.destroy();
 });

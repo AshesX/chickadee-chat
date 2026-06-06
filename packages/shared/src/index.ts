@@ -55,8 +55,10 @@ export interface PersistedSettings {
   chatVisible: boolean;
   noiseSuppression: boolean;
   pttEnabled: boolean;
-  /** Electron accelerator for the global push-to-talk toggle. */
+  /** Electron accelerator for the global push-to-talk hotkey. */
   pushToTalkKey: string;
+  /** 'hold' = mic live while key held; 'toggle' = press to unmute/mute. */
+  pttMode: 'hold' | 'toggle';
 }
 
 export const DEFAULT_ROOMS: Room[] = [
@@ -74,9 +76,9 @@ export function defaultSettings(): PersistedSettings {
     chatVisible: false,
     noiseSuppression: true,
     pttEnabled: false,
-    // Default to F8 — a global shortcut is captured system-wide, so Space would
-    // swallow the spacebar in-game.
+    // Default to F8 — captured system-wide, so Space would swallow the spacebar in-game.
     pushToTalkKey: 'F8',
+    pttMode: 'hold',
   };
 }
 

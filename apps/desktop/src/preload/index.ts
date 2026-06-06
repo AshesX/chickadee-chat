@@ -58,13 +58,25 @@ const api = {
     close: (): void => ipcRenderer.send('chickadee:window-close'),
   },
   /** Register/unregister the global push-to-talk hotkey in main. */
-  setPushToTalk: (opts: { enabled: boolean; key: string }): Promise<void> =>
+  setPushToTalk: (opts: { enabled: boolean; key: string; mode: 'hold' | 'toggle' }): Promise<void> =>
     ipcRenderer.invoke('chickadee:set-ptt', opts),
-  /** Subscribe to global PTT key presses; returns an unsubscribe fn. */
+  /** Subscribe to PTT toggle events (toggle mode). Returns an unsubscribe fn. */
   onPushToTalk: (cb: () => void): (() => void) => {
     const listener = (): void => cb();
     ipcRenderer.on('chickadee:ptt-toggle', listener);
     return () => ipcRenderer.removeListener('chickadee:ptt-toggle', listener);
+  },
+  /** Subscribe to PTT key-down (hold mode: mic on). Returns an unsubscribe fn. */
+  onPttStart: (cb: () => void): (() => void) => {
+    const listener = (): void => cb();
+    ipcRenderer.on('chickadee:ptt-start', listener);
+    return () => ipcRenderer.removeListener('chickadee:ptt-start', listener);
+  },
+  /** Subscribe to PTT key-up (hold mode: mic off). Returns an unsubscribe fn. */
+  onPttStop: (cb: () => void): (() => void) => {
+    const listener = (): void => cb();
+    ipcRenderer.on('chickadee:ptt-stop', listener);
+    return () => ipcRenderer.removeListener('chickadee:ptt-stop', listener);
   },
   /** Subscribe to detected-game changes from the main-process scanner. */
   onGameDetected: (cb: (game: { name: string; short: string } | null) => void): (() => void) => {

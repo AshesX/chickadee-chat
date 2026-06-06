@@ -12,7 +12,8 @@
   "dependencies": {
     "@chickadee/shared": "*",
     "@fontsource/outfit": "^5.2.8",
-    "lucide-react": "^1.17.0"
+    "lucide-react": "^1.17.0",
+    "uiohook-napi": "^1.5.5"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

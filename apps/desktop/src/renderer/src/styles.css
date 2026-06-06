@@ -1037,6 +1037,33 @@ button {
   background: var(--active-bg);
 }
 
+/* PTT Hold/Toggle segmented control */
+.seg-group {
+  display: flex;
+  flex-shrink: 0;
+}
+.seg-btn {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.seg-btn:first-child {
+  border-radius: var(--radius-badge) 0 0 var(--radius-badge);
+}
+.seg-btn:last-child {
+  border-radius: 0 var(--radius-badge) var(--radius-badge) 0;
+  border-left: none;
+}
+.seg-btn--active {
+  border-color: var(--active-border);
+  color: var(--active-text);
+  background: var(--active-bg);
+}
+
 /* "Transmitting…" badge in the self tile name bar */
 .tile__transmitting {
   font-size: 10px;
