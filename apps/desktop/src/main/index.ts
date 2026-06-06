@@ -196,15 +196,14 @@ function configureScreenShare(): void {
   );
 }
 
-// ── Push-to-talk (uiohook-napi: true keydown/keyup events, works when unfocused) ─
-let pttKeyCode: number | null = null;
+// ── Push-to-talk (uiohook-napi for out-of-focus + before-input-event for in-focus) ─
+let pttKeyCode: number | null = null;      // uiohook keycode
+let pttInputCode: string | null = null;    // DOM input.code for before-input-event
 let pttCurrentMode: 'hold' | 'toggle' = 'hold';
-let pttIsHeld = false;
+let pttIsHeld = false; // shared flag: whichever source fires first owns the press
 let uiohookRunning = false;
 
-// Maps Electron accelerator strings (from the settings UI) to uiohook keycodes.
-// Arrow keys differ in naming; everything else (A-Z, F1-F24, Space, Tab, etc.)
-// shares the same name between the accelerator format and UiohookKey.
+// Maps Electron accelerator strings to uiohook keycodes (for global/out-of-focus PTT).
 function acceleratorToUiohookCode(accel: string): number | null {
   const arrowMap: Record<string, number> = {
     Up: UiohookKey.ArrowUp,
@@ -215,6 +214,17 @@ function acceleratorToUiohookCode(accel: string): number | null {
   if (accel in arrowMap) return arrowMap[accel]!;
   const code = (UiohookKey as unknown as Record<string, number | undefined>)[accel];
   return code ?? null;
+}
+
+// Maps Electron accelerator strings to DOM input.code format (for before-input-event).
+function acceleratorToInputCode(accel: string): string {
+  if (/^[A-Z]$/.test(accel)) return `Key${accel}`;
+  if (/^[0-9]$/.test(accel)) return `Digit${accel}`;
+  if (accel === 'Up') return 'ArrowUp';
+  if (accel === 'Down') return 'ArrowDown';
+  if (accel === 'Left') return 'ArrowLeft';
+  if (accel === 'Right') return 'ArrowRight';
+  return accel; // F1-F24, Space, Tab, Insert, Delete, Home, End match as-is
 }
 
 function registerPushToTalk(): void {
@@ -228,6 +238,7 @@ function registerPushToTalk(): void {
   });
   uIOhook.on('keyup', (e) => {
     if (pttKeyCode === null || e.keycode !== pttKeyCode) return;
+    if (!pttIsHeld) return; // before-input-event already handled this keyup
     pttIsHeld = false;
     if (pttCurrentMode === 'hold') mainWindow?.webContents.send('chickadee:ptt-stop');
   });
@@ -236,6 +247,7 @@ function registerPushToTalk(): void {
     'chickadee:set-ptt',
     (_e, opts: { enabled: boolean; key: string; mode: 'hold' | 'toggle' }) => {
       pttKeyCode = opts.enabled ? acceleratorToUiohookCode(opts.key) : null;
+      pttInputCode = opts.enabled ? acceleratorToInputCode(opts.key) : null;
       pttCurrentMode = opts.mode ?? 'hold';
       pttIsHeld = false;
 
@@ -427,6 +439,26 @@ function createWindow(): void {
   // Surface preload load failures (they would otherwise be silent).
   window.webContents.on('preload-error', (_e, preloadPath, error) => {
     console.error('preload-error', preloadPath, error);
+  });
+
+  // PTT fallback for when the window is in the foreground: uiohook-napi's global
+  // hook doesn't fire while Chromium is the active window, so before-input-event
+  // covers the in-focus case. pttIsHeld coordinates between the two sources so
+  // only one sends the IPC message per physical press.
+  window.webContents.on('before-input-event', (_event, input) => {
+    if (!pttInputCode || input.code !== pttInputCode) return;
+    if (input.type === 'keyDown') {
+      if (pttIsHeld) return; // uiohook fired first, or key is already held (OS repeat)
+      if (input.isAutoRepeat) return; // belt-and-suspenders: suppress OS key-repeat
+      pttIsHeld = true;
+      window.webContents.send(
+        pttCurrentMode === 'hold' ? 'chickadee:ptt-start' : 'chickadee:ptt-toggle',
+      );
+    } else if (input.type === 'keyUp') {
+      if (!pttIsHeld) return; // uiohook already handled this keyup
+      pttIsHeld = false;
+      if (pttCurrentMode === 'hold') window.webContents.send('chickadee:ptt-stop');
+    }
   });
 
   // Open external links in the user's browser, never inside the app window.
