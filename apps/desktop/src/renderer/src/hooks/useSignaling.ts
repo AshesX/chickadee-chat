@@ -222,6 +222,12 @@ export function useSignaling(url: string): Signaling {
             peers: prev.peers.map((p) => (p.id === msg.from ? { ...p, game: msg.game } : p)),
           }));
           break;
+        case 'deafen-state':
+          setState((prev) => ({
+            ...prev,
+            peers: prev.peers.map((p) => (p.id === msg.from ? { ...p, deafened: msg.deafened } : p)),
+          }));
+          break;
         case 'room-full':
           shouldReconnectRef.current = false;
           clearTimers();

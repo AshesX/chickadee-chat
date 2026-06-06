@@ -1578,3 +1578,16 @@ button {
   color: var(--text);
 }
 
+/* ── Settings slider ──────────────────────────────────────── */
+.settings-slider {
+  width: 96px;
+  flex-shrink: 0;
+  accent-color: #8b5cf6;
+  background: transparent;
+  cursor: pointer;
+}
+.settings-slider:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+

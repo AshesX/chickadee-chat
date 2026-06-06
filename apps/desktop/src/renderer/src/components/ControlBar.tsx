@@ -9,6 +9,8 @@ import {
   Radio,
   Volume2,
   PhoneOff,
+  Headphones,
+  HeadphoneOff,
 } from 'lucide-react';
 
 type ButtonState = 'default' | 'active' | 'danger' | 'fade';
@@ -55,6 +57,8 @@ interface ControlBarProps {
   transmitting: boolean;
   onVolume: () => void;
   onLeave: () => void;
+  deafened: boolean;
+  onToggleDeafen: () => void;
 }
 
 export function ControlBar({
@@ -70,6 +74,8 @@ export function ControlBar({
   transmitting,
   onVolume,
   onLeave,
+  deafened,
+  onToggleDeafen,
 }: ControlBarProps): React.JSX.Element {
   return (
     <footer className="control-bar">
@@ -80,6 +86,12 @@ export function ControlBar({
         disabled={!hasMic}
         title={hasMic ? '' : 'No microphone'}
         onClick={onToggleMic}
+      />
+      <ControlButton
+        icon={deafened ? HeadphoneOff : Headphones}
+        label={deafened ? 'Undeafen' : 'Deafen'}
+        state={deafened ? 'danger' : 'default'}
+        onClick={onToggleDeafen}
       />
       <ControlButton
         icon={cameraEnabled ? VideoOff : Video}

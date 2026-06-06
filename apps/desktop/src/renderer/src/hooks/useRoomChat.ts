@@ -3,6 +3,8 @@ import type { Peer, PeerId } from '@chickadee/shared';
 import type { ChatMessage } from '../components/ChatPanel';
 import { SELF_COLOR } from '../lib/userColors';
 import type { MessageListener, Signaling } from './useSignaling';
+import { playSfx } from '../lib/sfx';
+import { store } from '../lib/settings';
 
 export interface FloatReaction {
   id: number;
@@ -68,6 +70,11 @@ export function useRoomChat({ signaling, displayName, colors, roomId }: UseRoomC
   useEffect(() => {
     const handle: MessageListener = (msg) => {
       if (msg.type !== 'chat') return;
+
+      if (store.getSfxEnabled()) {
+        playSfx('chat', store.getSfxVolume());
+      }
+
       const peer = peersRef.current.find((p) => p.id === msg.from);
       const message: ChatMessage = {
         id: nextId(),

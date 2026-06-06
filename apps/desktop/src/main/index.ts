@@ -392,6 +392,7 @@ function rebuildTrayMenu(): void {
       { label: trayRoom ? `Room: ${trayRoom}` : 'Not in a room', enabled: false },
       { type: 'separator' },
       { label: 'Toggle mic', click: () => mainWindow?.webContents.send('chickadee:tray-mute') },
+      { label: 'Toggle deafen', click: () => mainWindow?.webContents.send('chickadee:tray-deafen') },
       { type: 'separator' },
       { label: 'Quit', click: () => app.quit() },
     ]),

@@ -73,6 +73,10 @@ export const store = {
   setPushToTalkKey: (pushToTalkKey: string): void => persist({ pushToTalkKey }),
   getPttMode: (): 'hold' | 'toggle' => cache.pttMode,
   setPttMode: (pttMode: 'hold' | 'toggle'): void => persist({ pttMode }),
+  getSfxEnabled: (): boolean => cache.sfxEnabled ?? true,
+  setSfxEnabled: (sfxEnabled: boolean): void => persist({ sfxEnabled }),
+  getSfxVolume: (): number => cache.sfxVolume ?? 0.25,
+  setSfxVolume: (sfxVolume: number): void => persist({ sfxVolume }),
 };
 
 const FRIEND_PALETTE = [

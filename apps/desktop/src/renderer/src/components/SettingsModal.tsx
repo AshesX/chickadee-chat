@@ -12,6 +12,10 @@ interface SettingsModalProps {
   onChangePushToTalkKey: (key: string) => void;
   pttMode: 'hold' | 'toggle';
   onChangePttMode: (mode: 'hold' | 'toggle') => void;
+  sfxEnabled: boolean;
+  onChangeSfxEnabled: (on: boolean) => void;
+  sfxVolume: number;
+  onChangeSfxVolume: (vol: number) => void;
   onClose: () => void;
 }
 
@@ -54,6 +58,10 @@ export function SettingsModal({
   onChangePushToTalkKey,
   pttMode,
   onChangePttMode,
+  sfxEnabled,
+  onChangeSfxEnabled,
+  sfxVolume,
+  onChangeSfxVolume,
   onClose,
 }: SettingsModalProps): React.JSX.Element {
   const [name, setName] = useState(displayName);
@@ -92,6 +100,31 @@ export function SettingsModal({
           <span className="settings-row__hint">Chromium built-in mic noise removal.</span>
         </div>
         <Toggle on={noiseSuppression} onClick={() => onChangeNoiseSuppression(!noiseSuppression)} />
+      </div>
+
+      <div className="settings-row">
+        <div className="settings-row__label">
+          <span>Sound effects</span>
+          <span className="settings-row__hint">Audio cues for room join/leave, mute, and chat.</span>
+        </div>
+        <Toggle on={sfxEnabled} onClick={() => onChangeSfxEnabled(!sfxEnabled)} />
+      </div>
+
+      <div className="settings-row">
+        <div className="settings-row__label">
+          <span>SFX volume</span>
+          <span className="settings-row__hint">Adjust volume level of sound effects.</span>
+        </div>
+        <input
+          type="range"
+          min="0"
+          max="1"
+          step="0.05"
+          value={sfxVolume}
+          disabled={!sfxEnabled}
+          onChange={(e) => onChangeSfxVolume(parseFloat(e.target.value))}
+          className="settings-slider"
+        />
       </div>
 
       <div className="settings-row">

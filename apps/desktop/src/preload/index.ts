@@ -96,6 +96,11 @@ const api = {
     ipcRenderer.on('chickadee:tray-mute', listener);
     return () => ipcRenderer.removeListener('chickadee:tray-mute', listener);
   },
+  onTrayDeafen: (cb: () => void): (() => void) => {
+    const listener = (): void => cb();
+    ipcRenderer.on('chickadee:tray-deafen', listener);
+    return () => ipcRenderer.removeListener('chickadee:tray-deafen', listener);
+  },
 };
 
 contextBridge.exposeInMainWorld('chickadee', api);

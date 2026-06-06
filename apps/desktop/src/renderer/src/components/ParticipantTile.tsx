@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { MicOff } from 'lucide-react';
+import { MicOff, VolumeX } from 'lucide-react';
 import { useAudioActivity } from '../hooks/useAudioActivity';
 
 export interface ParticipantTileProps {
@@ -20,6 +20,8 @@ export interface ParticipantTileProps {
   transmitting?: boolean;
   /** Remote only: output volume 0–1 (default 1). */
   volume?: number;
+  /** Whether this participant is currently deafened. */
+  deafened?: boolean;
 }
 
 const CONN_LABEL: Partial<Record<RTCPeerConnectionState, string>> = {
@@ -41,6 +43,7 @@ export function ParticipantTile({
   gameTag,
   transmitting,
   volume,
+  deafened,
 }: ParticipantTileProps): React.JSX.Element {
   const videoRef = useRef<HTMLVideoElement>(null);
   const speaking = useAudioActivity(muted ? null : cameraStream);
@@ -106,11 +109,15 @@ export function ParticipantTile({
             }}
           >
             {initial}
-            {muted && (
+            {deafened ? (
+              <span className="tile__avatar-mute">
+                <VolumeX size={11} strokeWidth={2.5} />
+              </span>
+            ) : muted ? (
               <span className="tile__avatar-mute">
                 <MicOff size={11} strokeWidth={2.5} />
               </span>
-            )}
+            ) : null}
           </div>
         </div>
       )}
@@ -127,7 +134,8 @@ export function ParticipantTile({
           {isSelf && ' (you)'}
         </span>
         {transmitting && <span className="tile__transmitting">🎙 Transmitting…</span>}
-        {muted && cameraOn && <MicOff size={12} className="tile__badge-mute" />}
+        {deafened && cameraOn && <VolumeX size={12} className="tile__badge-mute" />}
+        {!deafened && muted && cameraOn && <MicOff size={12} className="tile__badge-mute" />}
       </div>
 
       {gameTag && <div className="tile__gametag">🎮 {gameTag}</div>}

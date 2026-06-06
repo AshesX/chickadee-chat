@@ -29,6 +29,8 @@ export interface Peer {
   screenStreamId: string | null;
   /** Short tag for the game this peer is playing (e.g. "DRG"), or null. */
   game: string | null;
+  /** Whether this peer is currently deafened. */
+  deafened: boolean;
 }
 
 /** A sidebar room entry (local; the server uses arbitrary room ids). */
@@ -66,6 +68,8 @@ export interface PersistedSettings {
   pushToTalkKey: string;
   /** 'hold' = mic live while key held; 'toggle' = press to unmute/mute. */
   pttMode: 'hold' | 'toggle';
+  sfxEnabled: boolean;
+  sfxVolume: number;
 }
 
 export const DEFAULT_ROOMS: Room[] = [
@@ -87,6 +91,8 @@ export function defaultSettings(): PersistedSettings {
     // Default to F8 — captured system-wide, so Space would swallow the spacebar in-game.
     pushToTalkKey: 'F8',
     pttMode: 'hold',
+    sfxEnabled: true,
+    sfxVolume: 0.25,
   };
 }
 
@@ -111,6 +117,7 @@ export type ClientMessage =
   | { type: 'cam-state'; on: boolean }
   | { type: 'screen-state'; streamId: string | null }
   | { type: 'game-state'; game: string | null }
+  | { type: 'deafen-state'; deafened: boolean }
   // Broadcast room list changes to the active space.
   | { type: 'update-rooms'; spaceId: string; rooms: Room[] }
   // Ephemeral room chat (a reaction is a chat with `reaction: true`).
@@ -140,6 +147,8 @@ export type ServerMessage =
   | { type: 'screen-state'; from: PeerId; streamId: string | null }
   // A peer's detected game changed (null = none).
   | { type: 'game-state'; from: PeerId; game: string | null }
+  // A peer toggled their deafen state; broadcast to everyone else in the room.
+  | { type: 'deafen-state'; from: PeerId; deafened: boolean }
   // Broadcast room list changes to the active space.
   | { type: 'rooms-updated'; spaceId: string; rooms: Room[] }
   // Relayed room chat / reaction.

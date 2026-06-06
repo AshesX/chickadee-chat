@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DEFAULT_ICE_SERVERS, MAX_PEERS_PER_ROOM, type Room, type SpaceInfo, DEFAULT_ROOMS } from '@chickadee/shared';
 import { useSignaling } from './hooks/useSignaling';
 import { usePeerMesh } from './hooks/usePeerMesh';
@@ -21,6 +21,7 @@ import { SettingsModal } from './components/SettingsModal';
 import { Logo } from './components/Logo';
 import { generateTrayIcon } from './lib/trayIcon';
 import { Modal } from './components/Modal';
+import { playSfx } from './lib/sfx';
 
 interface ActiveScreen {
   key: string;
@@ -65,6 +66,14 @@ export function App(): React.JSX.Element {
   const [game, setGame] = useState<{ name: string; short: string } | null>(null);
   const [volumes, setVolumes] = useState<Record<string, number>>({});
   const [volumeOpen, setVolumeOpen] = useState(false);
+  const [sfxEnabled, setSfxEnabled] = useState(() => store.getSfxEnabled());
+  const [sfxVolume, setSfxVolume] = useState(() => store.getSfxVolume());
+  const [deafened, setDeafened] = useState(false);
+  const preDeafenMicRef = useRef<boolean>(true);
+  const micEnabledRef = useRef(mesh.micEnabled);
+  useEffect(() => {
+    micEnabledRef.current = mesh.micEnabled;
+  }, [mesh.micEnabled]);
 
   // New Space modals
   const [createSpaceOpen, setCreateSpaceOpen] = useState(false);
@@ -215,6 +224,100 @@ export function App(): React.JSX.Element {
     store.setPttMode(mode);
   }
 
+  function applySfxEnabled(on: boolean): void {
+    setSfxEnabled(on);
+    store.setSfxEnabled(on);
+  }
+
+  function applySfxVolume(vol: number): void {
+    setSfxVolume(vol);
+    store.setSfxVolume(vol);
+  }
+
+  const toggleDeafen = useCallback(() => {
+    setDeafened((d) => {
+      const nextDeaf = !d;
+      if (store.getSfxEnabled()) {
+        playSfx(nextDeaf ? 'deafen' : 'undeafen', store.getSfxVolume());
+      }
+      if (signaling.status === 'connected') {
+        signaling.send({ type: 'deafen-state', deafened: nextDeaf });
+      }
+      if (nextDeaf) {
+        preDeafenMicRef.current = micEnabledRef.current;
+        if (micEnabledRef.current) {
+          mesh.setMicEnabled(false);
+        }
+      } else {
+        mesh.setMicEnabled(preDeafenMicRef.current);
+      }
+      return nextDeaf;
+    });
+  }, [signaling.status, signaling.send, mesh.setMicEnabled]);
+
+  const handleToggleMic = useCallback(() => {
+    if (deafened) {
+      toggleDeafen();
+    } else {
+      mesh.toggleMic();
+    }
+  }, [deafened, toggleDeafen, mesh.toggleMic]);
+
+  // Keep track of peers in room to play join/leave sounds
+  const peerIdsStr = useMemo(() => signaling.peers.map((p) => p.id).sort().join(','), [signaling.peers]);
+  const prevPeerIdsRef = useRef<string>('');
+  const prevRoomIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!sfxEnabled) {
+      prevPeerIdsRef.current = peerIdsStr;
+      prevRoomIdRef.current = currentRoomId;
+      return;
+    }
+
+    // 1. Room join/leave for the local user
+    if (currentRoomId !== prevRoomIdRef.current) {
+      if (currentRoomId && !prevRoomIdRef.current) {
+        playSfx('join', sfxVolume);
+      } else if (!currentRoomId && prevRoomIdRef.current) {
+        playSfx('leave', sfxVolume);
+      }
+      prevRoomIdRef.current = currentRoomId;
+      prevPeerIdsRef.current = peerIdsStr;
+      return;
+    }
+
+    // 2. Peer join/leave for others (only if we are currently in a room)
+    if (currentRoomId) {
+      const prevPeers = prevPeerIdsRef.current ? prevPeerIdsRef.current.split(',').filter(Boolean) : [];
+      const currentPeers = peerIdsStr ? peerIdsStr.split(',').filter(Boolean) : [];
+
+      if (currentPeers.length > prevPeers.length) {
+        playSfx('join', sfxVolume);
+      } else if (currentPeers.length < prevPeers.length) {
+        playSfx('leave', sfxVolume);
+      }
+    }
+
+    prevPeerIdsRef.current = peerIdsStr;
+    prevRoomIdRef.current = currentRoomId;
+  }, [currentRoomId, peerIdsStr, sfxEnabled, sfxVolume]);
+
+  const prevMicEnabledRef = useRef<boolean | null>(null);
+
+  useEffect(() => {
+    if (prevMicEnabledRef.current === null) {
+      prevMicEnabledRef.current = mesh.micEnabled;
+      return;
+    }
+    if (mesh.micEnabled !== prevMicEnabledRef.current) {
+      if (inRoom && sfxEnabled) {
+        playSfx(mesh.micEnabled ? 'unmute' : 'mute', sfxVolume);
+      }
+      prevMicEnabledRef.current = mesh.micEnabled;
+    }
+  }, [mesh.micEnabled, inRoom, sfxEnabled, sfxVolume]);
+
   // (Un)register the global PTT hotkey whenever enabled/key/mode changes.
   useEffect(() => {
     void window.chickadee?.setPushToTalk?.({ enabled: pttEnabled, key: pushToTalkKey, mode: pttMode });
@@ -244,12 +347,15 @@ export function App(): React.JSX.Element {
     return window.chickadee?.onGameDetected?.((g) => setGame(g));
   }, []);
 
-  // Broadcast our game short-tag to the room (re-announces on join/reconnect).
+  // Broadcast our game short-tag and deafen state to the room (re-announces on join/reconnect).
   useEffect(() => {
     if (signaling.status === 'connected') {
       signaling.send({ type: 'game-state', game: game?.short ?? null });
+      if (deafened) {
+        signaling.send({ type: 'deafen-state', deafened: true });
+      }
     }
-  }, [game, currentRoomId, signaling.status, signaling.send]);
+  }, [game, currentRoomId, signaling.status, signaling.send, deafened]);
 
   // Keep local rooms in sync with the signaling server's room list for this Space
   useEffect(() => {
@@ -269,8 +375,11 @@ export function App(): React.JSX.Element {
     window.chickadee?.setTrayRoom?.(currentRoom?.label ?? null);
   }, [currentRoom?.label]);
   useEffect(() => {
-    return window.chickadee?.onTrayMute?.(() => mesh.toggleMic());
-  }, [mesh.toggleMic]);
+    return window.chickadee?.onTrayMute?.(() => handleToggleMic());
+  }, [handleToggleMic]);
+  useEffect(() => {
+    return window.chickadee?.onTrayDeafen?.(() => toggleDeafen());
+  }, [toggleDeafen]);
 
   // Camera tiles (self + peers), reused in grid and filmstrip layouts.
   const tiles = inRoom && (
@@ -284,6 +393,7 @@ export function App(): React.JSX.Element {
         color={SELF_COLOR}
         transmitting={transmitting}
         gameTag={game?.short}
+        deafened={deafened}
       />
       {signaling.peers.map((peer) => {
         const media = mesh.remote[peer.id];
@@ -298,7 +408,8 @@ export function App(): React.JSX.Element {
             color={colors[peer.id] ?? SELF_COLOR}
             connectionState={media?.connectionState ?? 'new'}
             gameTag={peer.game ?? undefined}
-            volume={volumes[peer.id] ?? 1}
+            volume={deafened ? 0 : (volumes[peer.id] ?? 1)}
+            deafened={peer.deafened}
           />
         );
       })}
@@ -390,7 +501,7 @@ export function App(): React.JSX.Element {
             <ControlBar
               micEnabled={mesh.micEnabled}
               hasMic={!!mesh.localStream}
-              onToggleMic={mesh.toggleMic}
+              onToggleMic={handleToggleMic}
               cameraEnabled={mesh.cameraEnabled}
               onToggleCamera={mesh.toggleCamera}
               sharingScreen={mesh.sharingScreen}
@@ -402,6 +513,8 @@ export function App(): React.JSX.Element {
               transmitting={transmitting}
               onVolume={() => setVolumeOpen((v) => !v)}
               onLeave={leaveRoom}
+              deafened={deafened}
+              onToggleDeafen={toggleDeafen}
             />
 
             {volumeOpen && (
@@ -579,6 +692,10 @@ export function App(): React.JSX.Element {
           onChangePushToTalkKey={applyPushToTalkKey}
           pttMode={pttMode}
           onChangePttMode={applyPttMode}
+          sfxEnabled={sfxEnabled}
+          onChangeSfxEnabled={applySfxEnabled}
+          sfxVolume={sfxVolume}
+          onChangeSfxVolume={applySfxVolume}
           onClose={() => setSettingsOpen(false)}
         />
       )}

@@ -61,6 +61,7 @@ function handleJoin(socket: WebSocket, msg: Extract<ClientMessage, { type: 'join
     cameraOn: false,
     screenStreamId: null,
     game: null,
+    deafened: false,
   };
   const conn: Connection = { socket, peer, space: msg.spaceId, room: fullRoomId };
 
@@ -126,6 +127,12 @@ function handleScreenState(conn: Connection, streamId: string | null): void {
 function handleGameState(conn: Connection, game: string | null): void {
   conn.peer.game = game ? game.slice(0, 24) : null;
   broadcast(conn.room, { type: 'game-state', from: conn.peer.id, game: conn.peer.game }, conn.peer.id);
+}
+
+/** Record a peer's new deafen state and tell everyone else in the room (mirror pattern). */
+function handleDeafenState(conn: Connection, deafened: boolean): void {
+  conn.peer.deafened = deafened;
+  broadcast(conn.room, { type: 'deafen-state', from: conn.peer.id, deafened }, conn.peer.id);
 }
 
 function handleUpdateRooms(spaceId: string, roomsList: Room[]): void {
@@ -218,6 +225,8 @@ wss.on('connection', (socket) => {
       handleScreenState(conn, msg.streamId);
     } else if (msg.type === 'game-state') {
       handleGameState(conn, msg.game);
+    } else if (msg.type === 'deafen-state') {
+      handleDeafenState(conn, msg.deafened);
     } else if (msg.type === 'update-rooms') {
       handleUpdateRooms(msg.spaceId, msg.rooms);
     } else if (msg.type === 'chat') {
