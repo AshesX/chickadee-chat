@@ -101,6 +101,8 @@ const api = {
     ipcRenderer.on('chickadee:tray-deafen', listener);
     return () => ipcRenderer.removeListener('chickadee:tray-deafen', listener);
   },
+  setBadge: (count: number, dataUrl: string | null): Promise<void> =>
+    ipcRenderer.invoke('chickadee:set-badge', count, dataUrl),
 };
 
 contextBridge.exposeInMainWorld('chickadee', api);

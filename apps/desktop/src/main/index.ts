@@ -515,6 +515,21 @@ app.whenReady().then(() => {
   ipcMain.handle('chickadee:write-clipboard', (_e, text: string) => {
     clipboard.writeText(text);
   });
+  ipcMain.handle('chickadee:set-badge', (_e, count: number, dataUrl: string | null) => {
+    if (process.platform === 'darwin') {
+      app.setBadgeCount(count);
+    }
+    if (process.platform === 'win32') {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        if (count > 0 && dataUrl) {
+          const image = nativeImage.createFromDataURL(dataUrl);
+          mainWindow.setOverlayIcon(image, `${count} unread messages`);
+        } else {
+          mainWindow.setOverlayIcon(null, '');
+        }
+      }
+    }
+  });
   configureMediaPermissions();
   configureScreenShare();
   registerWindowControls();

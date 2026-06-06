@@ -19,7 +19,7 @@ import { WelcomeWizard } from './components/WelcomeWizard';
 import { RoomModal } from './components/RoomModal';
 import { SettingsModal } from './components/SettingsModal';
 import { Logo } from './components/Logo';
-import { generateTrayIcon } from './lib/trayIcon';
+import { generateTrayIcon, generateBadgeOverlay } from './lib/trayIcon';
 import { Modal } from './components/Modal';
 import { playSfx } from './lib/sfx';
 
@@ -74,6 +74,14 @@ export function App(): React.JSX.Element {
   useEffect(() => {
     micEnabledRef.current = mesh.micEnabled;
   }, [mesh.micEnabled]);
+  const [badgeNotificationsEnabled, setBadgeNotificationsEnabled] = useState(() => store.getBadgeNotificationsEnabled());
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const handleNewMessage = useCallback(() => {
+    if (!document.hasFocus()) {
+      setUnreadCount((c) => c + 1);
+    }
+  }, []);
 
   // New Space modals
   const [createSpaceOpen, setCreateSpaceOpen] = useState(false);
@@ -81,7 +89,13 @@ export function App(): React.JSX.Element {
   const [newSpaceName, setNewSpaceName] = useState('');
   const [inviteCodeInput, setInviteCodeInput] = useState('');
 
-  const chat = useRoomChat({ signaling, displayName, colors, roomId: currentRoomId });
+  const chat = useRoomChat({
+    signaling,
+    displayName,
+    colors,
+    roomId: currentRoomId,
+    onNewMessage: handleNewMessage,
+  });
   const transmitting = pttEnabled && mesh.micEnabled;
 
   const onboardingNeeded = !displayName || !currentSpaceId;
@@ -233,6 +247,32 @@ export function App(): React.JSX.Element {
     setSfxVolume(vol);
     store.setSfxVolume(vol);
   }
+
+  function applyBadgeNotificationsEnabled(on: boolean): void {
+    setBadgeNotificationsEnabled(on);
+    store.setBadgeNotificationsEnabled(on);
+  }
+
+  // Reset unread count when window gets focus
+  useEffect(() => {
+    const handleFocus = () => {
+      setUnreadCount(0);
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, []);
+
+  // Update Electron badge count when unreadCount or badge setting changes
+  useEffect(() => {
+    if (window.chickadee?.setBadge) {
+      if (badgeNotificationsEnabled && unreadCount > 0) {
+        const dataUrl = generateBadgeOverlay(unreadCount);
+        void window.chickadee.setBadge(unreadCount, dataUrl);
+      } else {
+        void window.chickadee.setBadge(0, null);
+      }
+    }
+  }, [unreadCount, badgeNotificationsEnabled]);
 
   const toggleDeafen = useCallback(() => {
     setDeafened((d) => {
@@ -696,6 +736,8 @@ export function App(): React.JSX.Element {
           onChangeSfxEnabled={applySfxEnabled}
           sfxVolume={sfxVolume}
           onChangeSfxVolume={applySfxVolume}
+          badgeNotificationsEnabled={badgeNotificationsEnabled}
+          onChangeBadgeNotificationsEnabled={applyBadgeNotificationsEnabled}
           onClose={() => setSettingsOpen(false)}
         />
       )}

@@ -18,6 +18,7 @@ interface UseRoomChatArgs {
   colors: Record<PeerId, string>;
   /** Current room id; chat is ephemeral and clears when it changes. */
   roomId: string | null;
+  onNewMessage?: (msg: ChatMessage) => void;
 }
 
 export interface RoomChat {
@@ -37,7 +38,7 @@ function nowTime(): string {
  * sender's name + accent color, and reactions also spawn a floating emoji.
  * Chat is ephemeral — cleared whenever the room changes.
  */
-export function useRoomChat({ signaling, displayName, colors, roomId }: UseRoomChatArgs): RoomChat {
+export function useRoomChat({ signaling, displayName, colors, roomId, onNewMessage }: UseRoomChatArgs): RoomChat {
   const { subscribe, send } = signaling;
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -50,6 +51,8 @@ export function useRoomChat({ signaling, displayName, colors, roomId }: UseRoomC
   colorsRef.current = colors;
   const nameRef = useRef(displayName);
   nameRef.current = displayName;
+  const onNewMessageRef = useRef(onNewMessage);
+  onNewMessageRef.current = onNewMessage;
   const idRef = useRef(0);
 
   const nextId = (): number => (idRef.current += 1);
@@ -86,6 +89,7 @@ export function useRoomChat({ signaling, displayName, colors, roomId }: UseRoomC
       };
       setMessages((m) => [...m, message]);
       if (msg.reaction) spawnFloat(msg.text);
+      onNewMessageRef.current?.(message);
     };
     return subscribe(handle);
   }, [subscribe, spawnFloat]);

@@ -70,6 +70,7 @@ export interface PersistedSettings {
   pttMode: 'hold' | 'toggle';
   sfxEnabled: boolean;
   sfxVolume: number;
+  badgeNotificationsEnabled: boolean;
 }
 
 export const DEFAULT_ROOMS: Room[] = [
@@ -93,6 +94,7 @@ export function defaultSettings(): PersistedSettings {
     pttMode: 'hold',
     sfxEnabled: true,
     sfxVolume: 0.25,
+    badgeNotificationsEnabled: true,
   };
 }
 

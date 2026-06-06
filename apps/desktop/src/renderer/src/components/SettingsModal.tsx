@@ -16,6 +16,8 @@ interface SettingsModalProps {
   onChangeSfxEnabled: (on: boolean) => void;
   sfxVolume: number;
   onChangeSfxVolume: (vol: number) => void;
+  badgeNotificationsEnabled: boolean;
+  onChangeBadgeNotificationsEnabled: (on: boolean) => void;
   onClose: () => void;
 }
 
@@ -62,6 +64,8 @@ export function SettingsModal({
   onChangeSfxEnabled,
   sfxVolume,
   onChangeSfxVolume,
+  badgeNotificationsEnabled,
+  onChangeBadgeNotificationsEnabled,
   onClose,
 }: SettingsModalProps): React.JSX.Element {
   const [name, setName] = useState(displayName);
@@ -126,7 +130,13 @@ export function SettingsModal({
           className="settings-slider"
         />
       </div>
-
+      <div className="settings-row">
+        <div className="settings-row__label">
+          <span>Taskbar unread badge</span>
+          <span className="settings-row__hint">Show count of unread messages on the app icon when unfocused.</span>
+        </div>
+        <Toggle on={badgeNotificationsEnabled} onClick={() => onChangeBadgeNotificationsEnabled(!badgeNotificationsEnabled)} />
+      </div>
       <div className="settings-row">
         <div className="settings-row__label">
           <span>Push-to-talk</span>
