@@ -45,7 +45,8 @@ export function App(): React.JSX.Element {
   const iceServers = useMemo(() => window.chickadee?.iceServers ?? DEFAULT_ICE_SERVERS, []);
   const signaling = useSignaling(signalingUrl);
   const [noiseSuppression, setNoiseSuppression] = useState(() => store.getNoiseSuppression());
-  const mesh = usePeerMesh(signaling, iceServers, noiseSuppression);
+  const [micVolume, setMicVolume] = useState(() => store.getMicVolume());
+  const mesh = usePeerMesh(signaling, iceServers, noiseSuppression, micVolume);
   const colors = useUserColors(signaling.peers.map((p) => p.id));
   const timer = useSessionTimer(signaling.status === 'connected');
 
@@ -232,6 +233,11 @@ export function App(): React.JSX.Element {
     mesh.setNoiseSuppression(on);
   }
 
+  const applyMicVolume = useCallback((vol: number) => {
+    setMicVolume(vol);
+    store.setMicVolume(vol);
+  }, []);
+
   function applyPttEnabled(on: boolean): void {
     setPttEnabled(on);
     store.setPttEnabled(on);
@@ -371,6 +377,17 @@ export function App(): React.JSX.Element {
   useEffect(() => {
     void window.chickadee?.setPushToTalk?.({ enabled: pttEnabled, key: pushToTalkKey, mode: pttMode });
   }, [pttEnabled, pushToTalkKey, pttMode]);
+
+  // Acquire mic for test when settings is open, release if not in room when closed
+  useEffect(() => {
+    if (settingsOpen) {
+      mesh.prepareMedia();
+    } else {
+      if (!inRoom) {
+        mesh.teardown();
+      }
+    }
+  }, [settingsOpen, inRoom, mesh.prepareMedia, mesh.teardown]);
 
   // In PTT mode the mic starts muted until the hotkey activates it.
   useEffect(() => {
@@ -750,6 +767,9 @@ export function App(): React.JSX.Element {
           onChangeSfxVolume={applySfxVolume}
           badgeNotificationsEnabled={badgeNotificationsEnabled}
           onChangeBadgeNotificationsEnabled={applyBadgeNotificationsEnabled}
+          micVolume={micVolume}
+          onChangeMicVolume={applyMicVolume}
+          analyserNode={mesh.analyserNode}
           onClose={() => setSettingsOpen(false)}
         />
       )}

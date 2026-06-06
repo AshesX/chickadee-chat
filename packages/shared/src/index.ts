@@ -74,6 +74,7 @@ export interface PersistedSettings {
   sfxVolume: number;
   badgeNotificationsEnabled: boolean;
   status: 'online' | 'idle' | 'dnd';
+  micVolume: number;
 }
 
 export const DEFAULT_ROOMS: Room[] = [
@@ -99,6 +100,7 @@ export function defaultSettings(): PersistedSettings {
     sfxVolume: 0.25,
     badgeNotificationsEnabled: true,
     status: 'online',
+    micVolume: 1.0,
   };
 }
 

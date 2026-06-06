@@ -40,6 +40,8 @@ export interface PeerMesh {
   /** Begin sharing the chosen desktop source (optionally with system audio). */
   startScreenShare: (sourceId: string, withAudio: boolean) => void;
   stopScreenShare: () => void;
+  analyserNode: AnalyserNode | null;
+  teardown: () => void;
 }
 
 const TERMINAL_STATUSES = new Set(['idle', 'closed', 'error', 'room-full']);
@@ -59,6 +61,7 @@ export function usePeerMesh(
   signaling: Signaling,
   iceServers: RTCIceServer[],
   noiseSuppression: boolean,
+  micVolume: number,
 ): PeerMesh {
   const { subscribe, send, status } = signaling;
 
@@ -67,6 +70,15 @@ export function usePeerMesh(
   iceServersRef.current = iceServers;
   const nsRef = useRef(noiseSuppression);
   nsRef.current = noiseSuppression;
+  const micVolumeRef = useRef(micVolume);
+  micVolumeRef.current = micVolume;
+
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const gainNodeRef = useRef<GainNode | null>(null);
+  const analyserNodeRef = useRef<AnalyserNode | null>(null);
+  const rawStreamRef = useRef<MediaStream | null>(null);
+
+  const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
 
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [localScreenStream, setLocalScreenStream] = useState<MediaStream | null>(null);
@@ -109,17 +121,41 @@ export function usePeerMesh(
           for (const track of stream.getTracks()) track.stop();
           return null;
         }
-        localStreamRef.current = stream;
-        for (const track of stream.getAudioTracks()) track.enabled = micEnabledRef.current;
+
+        rawStreamRef.current = stream;
+
+        // Set up Web Audio processing graph
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const source = audioContext.createMediaStreamSource(stream);
+        const gainNode = audioContext.createGain();
+        gainNode.gain.value = micVolumeRef.current;
+        const analyserNodeObj = audioContext.createAnalyser();
+        analyserNodeObj.fftSize = 256;
+        const destination = audioContext.createMediaStreamDestination();
+
+        source.connect(gainNode);
+        gainNode.connect(analyserNodeObj);
+        gainNode.connect(destination);
+
+        audioContextRef.current = audioContext;
+        gainNodeRef.current = gainNode;
+        analyserNodeRef.current = analyserNodeObj;
+
+        const processedStream = destination.stream;
+        localStreamRef.current = processedStream;
+
+        for (const track of processedStream.getAudioTracks()) track.enabled = micEnabledRef.current;
         // Upgrade links created before the mic was ready (listen-only → sending).
         // Audio only — video is managed separately via setLocalVideoTrack.
         for (const link of linksRef.current.values()) {
           if (link.pc.getSenders().length === 0) {
-            for (const track of stream.getAudioTracks()) link.pc.addTrack(track, stream);
+            for (const track of processedStream.getAudioTracks()) link.pc.addTrack(track, processedStream);
           }
         }
-        setLocalStream(stream);
-        return stream;
+        
+        setAnalyserNode(analyserNodeObj);
+        setLocalStream(processedStream);
+        return processedStream;
       })
       .catch((err) => {
         console.error('getUserMedia failed', err);
@@ -127,12 +163,19 @@ export function usePeerMesh(
         setMicEnabled(false);
         micEnabledRef.current = false;
         localStreamRef.current = null;
+        setAnalyserNode(null);
         return null;
       });
 
     localStreamPromiseRef.current = promise;
     return promise;
   }, []);
+
+  useEffect(() => {
+    if (gainNodeRef.current) {
+      gainNodeRef.current.gain.value = micVolume;
+    }
+  }, [micVolume]);
 
   const prepareMedia = useCallback(() => {
     void ensureLocalStream();
@@ -240,10 +283,22 @@ export function usePeerMesh(
     disposedRef.current = true;
     for (const link of linksRef.current.values()) link.close();
     linksRef.current.clear();
+    const rawStream = rawStreamRef.current;
+    if (rawStream) for (const track of rawStream.getTracks()) track.stop();
     const stream = localStreamRef.current;
     if (stream) for (const track of stream.getTracks()) track.stop();
     const screen = screenStreamRef.current;
     if (screen) for (const track of screen.getTracks()) track.stop();
+    
+    if (audioContextRef.current) {
+      void audioContextRef.current.close().catch(() => {});
+      audioContextRef.current = null;
+    }
+    gainNodeRef.current = null;
+    analyserNodeRef.current = null;
+    rawStreamRef.current = null;
+    setAnalyserNode(null);
+
     localStreamRef.current = null;
     localStreamPromiseRef.current = null;
     selfIdRef.current = null;
@@ -491,5 +546,7 @@ export function usePeerMesh(
     toggleCamera,
     startScreenShare,
     stopScreenShare,
+    analyserNode,
+    teardown,
   };
 }

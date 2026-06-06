@@ -81,6 +81,8 @@ export const store = {
   setBadgeNotificationsEnabled: (badgeNotificationsEnabled: boolean): void => persist({ badgeNotificationsEnabled }),
   getStatus: (): 'online' | 'idle' | 'dnd' => cache.status ?? 'online',
   setStatus: (status: 'online' | 'idle' | 'dnd'): void => persist({ status }),
+  getMicVolume: (): number => cache.micVolume ?? 1.0,
+  setMicVolume: (micVolume: number): void => persist({ micVolume }),
 };
 
 const FRIEND_PALETTE = [
