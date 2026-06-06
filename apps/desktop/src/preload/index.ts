@@ -44,6 +44,9 @@ const api = {
   /** Merge + persist a partial settings update to userData. */
   saveSettings: (partial: Partial<PersistedSettings>): Promise<void> =>
     ipcRenderer.invoke('chickadee:save-settings', partial),
+  /** Write text to system clipboard. */
+  writeClipboard: (text: string): Promise<void> =>
+    ipcRenderer.invoke('chickadee:write-clipboard', text),
   platform: process.platform,
   /** List the shareable screens and windows for the screen-share picker. */
   getScreenSources: (): Promise<ScreenSource[]> =>

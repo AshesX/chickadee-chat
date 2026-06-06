@@ -13,6 +13,7 @@ import {
   session,
   shell,
   Tray,
+  clipboard,
 } from 'electron';
 import { uIOhook, UiohookKey } from 'uiohook-napi';
 import {
@@ -81,6 +82,23 @@ function loadSettings(): void {
     console.error('failed to read settings.json', err);
   }
   currentSettings = { ...defaultSettings(), ...stored };
+
+  // Migrate legacy settings containing 'rooms' list into a new private Space
+  const legacyRooms = (stored as any).rooms;
+  if (legacyRooms && Array.isArray(legacyRooms) && legacyRooms.length > 0) {
+    const defaultSpaceId = `my-space-${randomUUID().slice(0, 5)}`;
+    currentSettings.spaces = [
+      {
+        id: defaultSpaceId,
+        name: 'My Space',
+        rooms: legacyRooms,
+      },
+    ];
+    currentSettings.activeSpaceId = defaultSpaceId;
+    delete (currentSettings as any).rooms;
+    persistSettings();
+  }
+
   if (!currentSettings.userId) {
     currentSettings.userId = randomUUID();
     persistSettings();
@@ -493,6 +511,9 @@ app.whenReady().then(() => {
   ipcMain.handle('chickadee:save-settings', (_e, partial: Partial<PersistedSettings>) =>
     saveSettings(partial),
   );
+  ipcMain.handle('chickadee:write-clipboard', (_e, text: string) => {
+    clipboard.writeText(text);
+  });
   configureMediaPermissions();
   configureScreenShare();
   registerWindowControls();

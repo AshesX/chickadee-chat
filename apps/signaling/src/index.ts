@@ -6,6 +6,7 @@ import {
   type ClientMessage,
   type Peer,
   type PeerId,
+  type Room,
   type RoomId,
   type ServerMessage,
 } from '@chickadee/shared';
@@ -16,11 +17,15 @@ const PORT = Number(process.env.PORT ?? 8080);
 interface Connection {
   socket: WebSocket;
   peer: Peer;
+  space: string;
   room: RoomId;
 }
 
 /** room id -> (peer id -> connection). In-memory only; restart clears all state. */
 const rooms = new Map<RoomId, Map<PeerId, Connection>>();
+
+/** space id -> Room[] list. In-memory only; cleared when no users remain in the space. */
+const spaces = new Map<string, Room[]>();
 
 function send(socket: WebSocket, message: ServerMessage): void {
   if (socket.readyState === socket.OPEN) {
@@ -38,7 +43,8 @@ function broadcast(room: RoomId, message: ServerMessage, exceptId?: PeerId): voi
 }
 
 function handleJoin(socket: WebSocket, msg: Extract<ClientMessage, { type: 'join' }>): Connection | null {
-  const members = rooms.get(msg.room) ?? new Map<PeerId, Connection>();
+  const fullRoomId = `${msg.spaceId}:${msg.room}`;
+  const members = rooms.get(fullRoomId) ?? new Map<PeerId, Connection>();
 
   if (members.size >= MAX_PEERS_PER_ROOM) {
     send(socket, { type: 'room-full', room: msg.room });
@@ -56,20 +62,26 @@ function handleJoin(socket: WebSocket, msg: Extract<ClientMessage, { type: 'join
     screenStreamId: null,
     game: null,
   };
-  const conn: Connection = { socket, peer, room: msg.room };
+  const conn: Connection = { socket, peer, space: msg.spaceId, room: fullRoomId };
+
+  // Track/sync rooms for the space
+  if (!spaces.has(msg.spaceId) && msg.rooms && msg.rooms.length > 0) {
+    spaces.set(msg.spaceId, msg.rooms);
+  }
+  const spaceRooms = spaces.get(msg.spaceId) ?? msg.rooms ?? [];
 
   // Snapshot existing peers before adding the newcomer.
   const existingPeers: Peer[] = [...members.values()].map((c) => c.peer);
 
   members.set(peer.id, conn);
-  rooms.set(msg.room, members);
+  rooms.set(fullRoomId, members);
 
-  // Tell the newcomer who is already here (newcomer will initiate offers in Phase 2).
-  send(socket, { type: 'welcome', selfId: peer.id, peers: existingPeers });
+  // Tell the newcomer who is already here (newcomer will initiate offers in Phase 2) and the current room list.
+  send(socket, { type: 'welcome', selfId: peer.id, peers: existingPeers, rooms: spaceRooms });
   // Tell everyone else about the newcomer.
-  broadcast(msg.room, { type: 'peer-joined', peer }, peer.id);
+  broadcast(fullRoomId, { type: 'peer-joined', peer }, peer.id);
 
-  console.log(`[join] ${peer.displayName} (${peer.id}) -> room "${msg.room}" (${members.size}/${MAX_PEERS_PER_ROOM})`);
+  console.log(`[join] ${peer.displayName} (${peer.id}) -> room "${fullRoomId}" (${members.size}/${MAX_PEERS_PER_ROOM})`);
   return conn;
 }
 
@@ -116,6 +128,19 @@ function handleGameState(conn: Connection, game: string | null): void {
   broadcast(conn.room, { type: 'game-state', from: conn.peer.id, game: conn.peer.game }, conn.peer.id);
 }
 
+function handleUpdateRooms(spaceId: string, roomsList: Room[]): void {
+  spaces.set(spaceId, roomsList);
+  // Broadcast update to everyone in this Space (across all rooms of that Space)
+  for (const roomMap of rooms.values()) {
+    for (const conn of roomMap.values()) {
+      if (conn.space === spaceId) {
+        send(conn.socket, { type: 'rooms-updated', spaceId, rooms: roomsList });
+      }
+    }
+  }
+  console.log(`[rooms-update] space "${spaceId}" rooms updated; broadcasted to members`);
+}
+
 const CHAT_MAX_LEN = 500;
 
 /** Relay an ephemeral chat message / reaction to the rest of the room. */
@@ -136,6 +161,22 @@ function handleDisconnect(conn: Connection): void {
   broadcast(conn.room, { type: 'peer-left', peerId: conn.peer.id });
   console.log(`[leave] ${conn.peer.displayName} (${conn.peer.id}) <- room "${conn.room}" (${members.size}/${MAX_PEERS_PER_ROOM})`);
   if (members.size === 0) rooms.delete(conn.room);
+
+  // Clean up Space from memory if no connections are left in the entire Space
+  let spaceHasUsers = false;
+  for (const roomMap of rooms.values()) {
+    for (const c of roomMap.values()) {
+      if (c.space === conn.space) {
+        spaceHasUsers = true;
+        break;
+      }
+    }
+    if (spaceHasUsers) break;
+  }
+  if (!spaceHasUsers) {
+    spaces.delete(conn.space);
+    console.log(`[space-cleanup] space "${conn.space}" is now empty; removed from server memory`);
+  }
 }
 
 const wss = new WebSocketServer({ port: PORT });
@@ -177,6 +218,8 @@ wss.on('connection', (socket) => {
       handleScreenState(conn, msg.streamId);
     } else if (msg.type === 'game-state') {
       handleGameState(conn, msg.game);
+    } else if (msg.type === 'update-rooms') {
+      handleUpdateRooms(msg.spaceId, msg.rooms);
     } else if (msg.type === 'chat') {
       handleChat(conn, msg.text, msg.reaction);
     }

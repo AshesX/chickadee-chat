@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { Pencil, Plus, Settings, Trash2 } from 'lucide-react';
-import type { Room } from '@chickadee/shared';
-import { Logo } from './Logo';
+import { Pencil, Plus, Settings, Trash2, ChevronDown, Copy, Check } from 'lucide-react';
+import type { Room, SpaceInfo } from '@chickadee/shared';
 
 export interface Friend {
   name: string;
@@ -26,6 +25,14 @@ interface SidebarProps {
   online: boolean;
   selfGame?: string;
   onOpenSettings: () => void;
+
+  // Space additions
+  spaces: SpaceInfo[];
+  activeSpaceId: string | null;
+  onSelectSpace: (id: string) => void;
+  onCreateSpace: () => void;
+  onJoinSpace: () => void;
+  onDeleteSpace: (id: string, name: string) => void;
 }
 
 export function Sidebar({
@@ -42,19 +49,114 @@ export function Sidebar({
   online,
   selfGame,
   onOpenSettings,
+
+  spaces,
+  activeSpaceId,
+  onSelectSpace,
+  onCreateSpace,
+  onJoinSpace,
+  onDeleteSpace,
 }: SidebarProps): React.JSX.Element {
   const onlineCount = friends.filter((f) => f.status !== 'offline').length;
   const selfInitial = selfName.trim().charAt(0).toUpperCase() || 'Y';
   const [menu, setMenu] = useState<{ room: Room; x: number; y: number } | null>(null);
+  
+  // Space switcher states
+  const [switcherOpen, setSwitcherOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const activeSpace = spaces.find((s) => s.id === activeSpaceId);
+
+  function copySpaceCode(): void {
+    if (!activeSpace) return;
+    if (window.chickadee?.writeClipboard) {
+      void window.chickadee.writeClipboard(activeSpace.id);
+    } else {
+      navigator.clipboard.writeText(activeSpace.id);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
 
   return (
     <nav className="sidebar">
-      <div className="sidebar__logo">
-        <Logo size={24} className="sidebar__bird" />
-        <span className="sidebar__wordmark">
-          Chickadee <span className="sidebar__wordmark-accent">CHAT</span>
-        </span>
+      <div className="sidebar__space-header">
+        <div className="space-info-wrap">
+          <button className="space-switcher-btn" onClick={() => setSwitcherOpen(!switcherOpen)}>
+            <div className="space-switcher-btn__meta">
+              <span className="space-switcher-btn__name">{activeSpace?.name || 'Loading...'}</span>
+              {activeSpace && <span className="space-switcher-btn__code">#{activeSpace.id}</span>}
+            </div>
+            <ChevronDown size={12} className={`space-switcher-btn__chevron${switcherOpen ? ' space-switcher-btn__chevron--open' : ''}`} />
+          </button>
+        </div>
+        {activeSpace && (
+          <button 
+            className="space-copy-btn" 
+            onClick={copySpaceCode} 
+            title="Copy Space Code"
+          >
+            {copied ? <Check size={13} style={{ color: '#4ade80' }} /> : <Copy size={13} />}
+          </button>
+        )}
       </div>
+
+      {switcherOpen && (
+        <div className="space-dropdown-backdrop" onClick={() => setSwitcherOpen(false)}>
+          <div className="space-dropdown" onClick={(e) => e.stopPropagation()}>
+            <div className="space-dropdown__list">
+              {spaces.map((s) => {
+                const isActive = s.id === activeSpaceId;
+                return (
+                  <div key={s.id} className={`space-dropdown__row${isActive ? ' space-dropdown__row--active' : ''}`}>
+                    <button
+                      className="space-dropdown__item-select"
+                      onClick={() => {
+                        onSelectSpace(s.id);
+                        setSwitcherOpen(false);
+                      }}
+                    >
+                      <span className="space-dropdown__item-name">{s.name}</span>
+                      {isActive && <span className="space-dropdown__item-dot" />}
+                    </button>
+                    <button
+                      className="space-dropdown__item-delete"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteSpace(s.id, s.name);
+                      }}
+                      title="Delete Space"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="space-dropdown__actions">
+              <button
+                className="space-dropdown__action-btn"
+                onClick={() => {
+                  onCreateSpace();
+                  setSwitcherOpen(false);
+                }}
+              >
+                <Plus size={12} />
+                <span>Create Space</span>
+              </button>
+              <button
+                className="space-dropdown__action-btn"
+                onClick={() => {
+                  onJoinSpace();
+                  setSwitcherOpen(false);
+                }}
+              >
+                <Plus size={12} />
+                <span>Join Space</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="sidebar__scroll">
         <p className="sidebar__label">ROOMS</p>

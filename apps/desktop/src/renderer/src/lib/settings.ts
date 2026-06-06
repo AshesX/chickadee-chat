@@ -3,10 +3,11 @@ import {
   defaultSettings,
   type PersistedSettings,
   type Room,
+  type SpaceInfo,
   type StoredFriend,
 } from '@chickadee/shared';
 
-export type { Room, StoredFriend };
+export type { Room, SpaceInfo, StoredFriend };
 export { DEFAULT_ROOMS };
 
 /**
@@ -46,8 +47,20 @@ export const store = {
   getUserId: (): string => cache.userId,
   getName: (): string => cache.displayName,
   setName: (displayName: string): void => persist({ displayName }),
-  getRooms: (): Room[] => cache.rooms,
-  setRooms: (rooms: Room[]): void => persist({ rooms }),
+  getSpaces: (): SpaceInfo[] => cache.spaces,
+  setSpaces: (spaces: SpaceInfo[]): void => persist({ spaces }),
+  getActiveSpaceId: (): string | null => cache.activeSpaceId,
+  setActiveSpaceId: (id: string | null): void => persist({ activeSpaceId: id }),
+  getRooms: (): Room[] => {
+    const active = cache.spaces.find((s) => s.id === cache.activeSpaceId);
+    return active ? active.rooms : [];
+  },
+  setRooms: (rooms: Room[]): void => {
+    const nextSpaces = cache.spaces.map((s) =>
+      s.id === cache.activeSpaceId ? { ...s, rooms } : s
+    );
+    persist({ spaces: nextSpaces });
+  },
   getFriends: (): StoredFriend[] => cache.friends,
   setFriends: (friends: StoredFriend[]): void => persist({ friends }),
   getChatVisible: (): boolean => cache.chatVisible,

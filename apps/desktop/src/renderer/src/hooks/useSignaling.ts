@@ -4,6 +4,7 @@ import {
   type ClientMessage,
   type Peer,
   type PeerId,
+  type Room,
   type ServerMessage,
 } from '@chickadee/shared';
 
@@ -26,10 +27,12 @@ export interface SignalingState {
   /** Other peers currently in the room (excludes self). */
   peers: Peer[];
   error: string | null;
+  /** Synced list of rooms for the active Space. */
+  rooms: Room[];
 }
 
 export interface Signaling extends SignalingState {
-  join: (room: string, displayName: string, userId: string) => void;
+  join: (spaceId: string, room: string, displayName: string, userId: string, rooms: Room[]) => void;
   leave: () => void;
   /** Send a message to the server (used by WebRTC negotiation + mic-state). */
   send: (message: ClientMessage) => void;
@@ -42,6 +45,7 @@ const INITIAL: SignalingState = {
   selfId: null,
   peers: [],
   error: null,
+  rooms: [],
 };
 
 // Reconnection + heartbeat tuning.
@@ -63,9 +67,11 @@ export function useSignaling(url: string): Signaling {
   const socketRef = useRef<WebSocket | null>(null);
   const listenersRef = useRef<Set<MessageListener>>(new Set());
 
+  const spaceIdRef = useRef('');
   const roomRef = useRef('');
   const nameRef = useRef('');
   const userIdRef = useRef('');
+  const roomsRef = useRef<Room[]>([]);
   const shouldReconnectRef = useRef(false);
   const attemptsRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -127,9 +133,11 @@ export function useSignaling(url: string): Signaling {
       socket.send(
         JSON.stringify({
           type: 'join',
+          spaceId: spaceIdRef.current,
           room: roomRef.current,
           displayName: nameRef.current,
           userId: userIdRef.current,
+          rooms: roomsRef.current,
         }),
       );
       // Heartbeat: ping periodically; if pongs stop, force-close → reconnect.
@@ -166,6 +174,13 @@ export function useSignaling(url: string): Signaling {
             error: null,
             selfId: msg.selfId,
             peers: msg.peers,
+            rooms: msg.rooms || prev.rooms,
+          }));
+          break;
+        case 'rooms-updated':
+          setState((prev) => ({
+            ...prev,
+            rooms: msg.rooms,
           }));
           break;
         case 'peer-joined':
@@ -247,15 +262,17 @@ export function useSignaling(url: string): Signaling {
   }, [connect]);
 
   const join = useCallback(
-    (room: string, displayName: string, userId: string) => {
+    (spaceId: string, room: string, displayName: string, userId: string, roomsList: Room[]) => {
       closeSocket();
       clearTimers();
       shouldReconnectRef.current = true;
       attemptsRef.current = 0;
+      spaceIdRef.current = spaceId;
       roomRef.current = room;
       nameRef.current = displayName;
       userIdRef.current = userId;
-      setState({ ...INITIAL, status: 'connecting' });
+      roomsRef.current = roomsList;
+      setState({ ...INITIAL, status: 'connecting', rooms: roomsList });
       connect();
     },
     [closeSocket, clearTimers, connect],

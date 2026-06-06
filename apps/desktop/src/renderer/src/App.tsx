@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { DEFAULT_ICE_SERVERS, MAX_PEERS_PER_ROOM, type Room } from '@chickadee/shared';
+import { DEFAULT_ICE_SERVERS, MAX_PEERS_PER_ROOM, type Room, type SpaceInfo, DEFAULT_ROOMS } from '@chickadee/shared';
 import { useSignaling } from './hooks/useSignaling';
 import { usePeerMesh } from './hooks/usePeerMesh';
 import { useSessionTimer } from './hooks/useSessionTimer';
@@ -15,11 +15,12 @@ import { ScreenView } from './components/ScreenView';
 import { ScreenSharePicker } from './components/ScreenSharePicker';
 import { ChatPanel } from './components/ChatPanel';
 import { VolumePopover } from './components/VolumePopover';
-import { NameModal } from './components/NameModal';
+import { WelcomeWizard } from './components/WelcomeWizard';
 import { RoomModal } from './components/RoomModal';
 import { SettingsModal } from './components/SettingsModal';
 import { Logo } from './components/Logo';
 import { generateTrayIcon } from './lib/trayIcon';
+import { Modal } from './components/Modal';
 
 interface ActiveScreen {
   key: string;
@@ -30,6 +31,12 @@ interface ActiveScreen {
 
 function slugify(label: string): string {
   return label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'room';
+}
+
+function generateSpaceId(name: string): string {
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'space';
+  const suffix = Math.random().toString(36).substring(2, 7);
+  return `${slug}-${suffix}`;
 }
 
 export function App(): React.JSX.Element {
@@ -43,6 +50,8 @@ export function App(): React.JSX.Element {
 
   const userId = useMemo(() => store.getUserId(), []);
   const [displayName, setDisplayName] = useState(() => store.getName());
+  const [spaces, setSpaces] = useState<SpaceInfo[]>(() => store.getSpaces());
+  const [currentSpaceId, setCurrentSpaceId] = useState<string | null>(() => store.getActiveSpaceId());
   const [rooms, setRooms] = useState<Room[]>(() => store.getRooms());
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(() => store.getChatVisible());
@@ -57,20 +66,26 @@ export function App(): React.JSX.Element {
   const [volumes, setVolumes] = useState<Record<string, number>>({});
   const [volumeOpen, setVolumeOpen] = useState(false);
 
+  // New Space modals
+  const [createSpaceOpen, setCreateSpaceOpen] = useState(false);
+  const [joinSpaceOpen, setJoinSpaceOpen] = useState(false);
+  const [newSpaceName, setNewSpaceName] = useState('');
+  const [inviteCodeInput, setInviteCodeInput] = useState('');
+
   const chat = useRoomChat({ signaling, displayName, colors, roomId: currentRoomId });
   const transmitting = pttEnabled && mesh.micEnabled;
 
-  const nameNeeded = !displayName;
+  const onboardingNeeded = !displayName || !currentSpaceId;
   const inRoom = currentRoomId !== null;
   const currentRoom = rooms.find((r) => r.id === currentRoomId) ?? null;
   const totalInRoom = inRoom ? signaling.peers.length + 1 : 0;
   const friends = useFriends(signaling.peers, userId, currentRoom?.label ?? null);
 
   function joinRoom(id: string): void {
-    if (id === currentRoomId) return;
+    if (id === currentRoomId || !currentSpaceId) return;
     setCurrentRoomId(id);
     mesh.prepareMedia();
-    signaling.join(id, displayName, userId);
+    signaling.join(currentSpaceId, id, displayName, userId, rooms);
   }
 
   function leaveRoom(): void {
@@ -80,32 +95,91 @@ export function App(): React.JSX.Element {
 
   function createRoom(label: string, icon: string): void {
     const id = slugify(label);
-    setRooms((prev) => {
-      const next = prev.some((r) => r.id === id) ? prev : [...prev, { id, label, icon }];
-      store.setRooms(next);
-      return next;
-    });
+    const next = rooms.some((r) => r.id === id) ? rooms : [...rooms, { id, label, icon }];
+    setRooms(next);
+    store.setRooms(next);
     setCreateOpen(false);
+    if (signaling.status === 'connected' && currentSpaceId) {
+      signaling.send({ type: 'update-rooms', spaceId: currentSpaceId, rooms: next });
+    }
     joinRoom(id);
   }
 
   // Rename is cosmetic — the room `id` (signaling room) stays stable.
   function renameRoom(id: string, label: string, icon: string): void {
-    setRooms((prev) => {
-      const next = prev.map((r) => (r.id === id ? { ...r, label, icon } : r));
-      store.setRooms(next);
-      return next;
-    });
+    const next = rooms.map((r) => (r.id === id ? { ...r, label, icon } : r));
+    setRooms(next);
+    store.setRooms(next);
     setRenameTarget(null);
+    if (signaling.status === 'connected' && currentSpaceId) {
+      signaling.send({ type: 'update-rooms', spaceId: currentSpaceId, rooms: next });
+    }
   }
 
   function removeRoom(id: string): void {
-    setRooms((prev) => {
-      const next = prev.filter((r) => r.id !== id);
-      store.setRooms(next);
-      return next;
-    });
+    const next = rooms.filter((r) => r.id !== id);
+    setRooms(next);
+    store.setRooms(next);
+    if (signaling.status === 'connected' && currentSpaceId) {
+      signaling.send({ type: 'update-rooms', spaceId: currentSpaceId, rooms: next });
+    }
     if (id === currentRoomId) leaveRoom();
+  }
+
+  function switchSpace(spaceId: string): void {
+    leaveRoom();
+    store.setActiveSpaceId(spaceId);
+    setCurrentSpaceId(spaceId);
+    
+    // Update local state rooms list for the newly selected Space
+    const active = store.getSpaces().find((s) => s.id === spaceId);
+    const nextRooms = active ? active.rooms : [];
+    setRooms(nextRooms);
+  }
+
+  function handleOnboardingSubmit(name: string, val: string, action: 'create' | 'join'): void {
+    store.setName(name);
+    setDisplayName(name);
+
+    let spaceId = val;
+    let spaceName = val;
+    if (action === 'create') {
+      spaceId = generateSpaceId(val);
+    } else {
+      let parsedName = val.split('-').slice(0, -1).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      if (!parsedName) parsedName = 'Joined Space';
+      spaceName = parsedName;
+    }
+
+    const newSpace: SpaceInfo = { id: spaceId, name: spaceName, rooms: DEFAULT_ROOMS };
+    const nextSpaces = [newSpace];
+    store.setSpaces(nextSpaces);
+    setSpaces(nextSpaces);
+    
+    store.setActiveSpaceId(spaceId);
+    setCurrentSpaceId(spaceId);
+    setRooms(DEFAULT_ROOMS);
+  }
+
+  function deleteSpace(spaceId: string, spaceName: string): void {
+    const confirmDelete = window.confirm(`Are you sure you want to delete the Space "${spaceName}"? All customized rooms and history will be lost locally.`);
+    if (!confirmDelete) return;
+
+    const nextSpaces = spaces.filter((s) => s.id !== spaceId);
+    store.setSpaces(nextSpaces);
+    setSpaces(nextSpaces);
+
+    if (spaceId === currentSpaceId) {
+      if (nextSpaces.length > 0) {
+        switchSpace(nextSpaces[0].id);
+      } else {
+        // No spaces left, trigger onboarding
+        leaveRoom();
+        store.setActiveSpaceId(null);
+        setCurrentSpaceId(null);
+        setRooms([]);
+      }
+    }
   }
 
   function toggleChat(): void {
@@ -176,6 +250,14 @@ export function App(): React.JSX.Element {
       signaling.send({ type: 'game-state', game: game?.short ?? null });
     }
   }, [game, currentRoomId, signaling.status, signaling.send]);
+
+  // Keep local rooms in sync with the signaling server's room list for this Space
+  useEffect(() => {
+    if (signaling.status === 'connected' && signaling.rooms) {
+      setRooms(signaling.rooms);
+      store.setRooms(signaling.rooms);
+    }
+  }, [signaling.rooms, signaling.status]);
 
   // Tray: generate the icon once, keep the room label current, and wire mute.
   useEffect(() => {
@@ -260,6 +342,12 @@ export function App(): React.JSX.Element {
         online={inRoom && signaling.status === 'connected'}
         selfGame={game?.name}
         onOpenSettings={() => setSettingsOpen(true)}
+        spaces={spaces}
+        activeSpaceId={currentSpaceId}
+        onSelectSpace={switchSpace}
+        onCreateSpace={() => setCreateSpaceOpen(true)}
+        onJoinSpace={() => setJoinSpaceOpen(true)}
+        onDeleteSpace={deleteSpace}
       />
 
       <div className="main">
@@ -357,7 +445,110 @@ export function App(): React.JSX.Element {
         />
       )}
 
-      {nameNeeded && <NameModal onSubmit={saveName} />}
+      {onboardingNeeded && <WelcomeWizard onSubmit={handleOnboardingSubmit} />}
+
+      {createSpaceOpen && (
+        <Modal title="Create a Space" onClose={() => setCreateSpaceOpen(false)}>
+          <div className="field">
+            <label className="field-label">Space Name</label>
+            <input
+              className="welcome__input"
+              value={newSpaceName}
+              onChange={(e) => setNewSpaceName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && newSpaceName.trim()) {
+                  const name = newSpaceName.trim();
+                  const spaceId = generateSpaceId(name);
+                  const newSpace: SpaceInfo = { id: spaceId, name, rooms: DEFAULT_ROOMS };
+                  const nextSpaces = [...spaces, newSpace];
+                  store.setSpaces(nextSpaces);
+                  setSpaces(nextSpaces);
+                  switchSpace(spaceId);
+                  setNewSpaceName('');
+                  setCreateSpaceOpen(false);
+                }
+              }}
+              placeholder="e.g. Midnight Lounge"
+              autoFocus
+              maxLength={32}
+            />
+          </div>
+          <button
+            className="modal-action"
+            onClick={() => {
+              const name = newSpaceName.trim();
+              if (!name) return;
+              const spaceId = generateSpaceId(name);
+              const newSpace: SpaceInfo = { id: spaceId, name, rooms: DEFAULT_ROOMS };
+              const nextSpaces = [...spaces, newSpace];
+              store.setSpaces(nextSpaces);
+              setSpaces(nextSpaces);
+              switchSpace(spaceId);
+              setNewSpaceName('');
+              setCreateSpaceOpen(false);
+            }}
+            disabled={!newSpaceName.trim()}
+          >
+            Create Space
+          </button>
+        </Modal>
+      )}
+
+      {joinSpaceOpen && (
+        <Modal title="Join a Space" onClose={() => setJoinSpaceOpen(false)}>
+          <div className="field">
+            <label className="field-label">Invite Code / Space ID</label>
+            <input
+              className="welcome__input"
+              value={inviteCodeInput}
+              onChange={(e) => setInviteCodeInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && inviteCodeInput.trim()) {
+                  const code = inviteCodeInput.trim();
+                  let parsedName = code.split('-').slice(0, -1).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                  if (!parsedName) parsedName = 'Joined Space';
+                  if (spaces.some(s => s.id === code)) {
+                    switchSpace(code);
+                  } else {
+                    const newSpace: SpaceInfo = { id: code, name: parsedName, rooms: DEFAULT_ROOMS };
+                    const nextSpaces = [...spaces, newSpace];
+                    store.setSpaces(nextSpaces);
+                    setSpaces(nextSpaces);
+                    switchSpace(code);
+                  }
+                  setInviteCodeInput('');
+                  setJoinSpaceOpen(false);
+                }
+              }}
+              placeholder="e.g. midnight-lounge-7f8a3"
+              autoFocus
+            />
+          </div>
+          <button
+            className="modal-action"
+            onClick={() => {
+              const code = inviteCodeInput.trim();
+              if (!code) return;
+              let parsedName = code.split('-').slice(0, -1).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+              if (!parsedName) parsedName = 'Joined Space';
+              if (spaces.some(s => s.id === code)) {
+                switchSpace(code);
+              } else {
+                const newSpace: SpaceInfo = { id: code, name: parsedName, rooms: DEFAULT_ROOMS };
+                const nextSpaces = [...spaces, newSpace];
+                store.setSpaces(nextSpaces);
+                setSpaces(nextSpaces);
+                switchSpace(code);
+              }
+              setInviteCodeInput('');
+              setJoinSpaceOpen(false);
+            }}
+            disabled={!inviteCodeInput.trim()}
+          >
+            Join Space
+          </button>
+        </Modal>
+      )}
       {createOpen && (
         <RoomModal
           title="Create a room"

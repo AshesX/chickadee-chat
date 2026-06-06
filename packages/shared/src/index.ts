@@ -45,12 +45,19 @@ export interface StoredFriend {
   color: string;
 }
 
+export interface SpaceInfo {
+  id: string;
+  name: string;
+  rooms: Room[];
+}
+
 /** Settings persisted to Electron userData (the renderer reads/writes via IPC). */
 export interface PersistedSettings {
   /** Stable per-user id; generated once in main if missing. */
   userId: string;
   displayName: string;
-  rooms: Room[];
+  spaces: SpaceInfo[];
+  activeSpaceId: string | null;
   friends: StoredFriend[];
   chatVisible: boolean;
   noiseSuppression: boolean;
@@ -71,7 +78,8 @@ export function defaultSettings(): PersistedSettings {
   return {
     userId: '',
     displayName: '',
-    rooms: DEFAULT_ROOMS,
+    spaces: [],
+    activeSpaceId: null,
     friends: [],
     chatVisible: false,
     noiseSuppression: true,
@@ -94,7 +102,7 @@ export interface ScreenSource {
 
 /** Messages sent from a client up to the signaling server. */
 export type ClientMessage =
-  | { type: 'join'; room: RoomId; displayName: string; userId: string }
+  | { type: 'join'; spaceId: string; room: RoomId; displayName: string; userId: string; rooms: Room[] }
   | { type: 'offer'; to: PeerId; sdp: RTCSessionDescriptionInit }
   | { type: 'answer'; to: PeerId; sdp: RTCSessionDescriptionInit }
   | { type: 'ice-candidate'; to: PeerId; candidate: RTCIceCandidateInit }
@@ -103,6 +111,8 @@ export type ClientMessage =
   | { type: 'cam-state'; on: boolean }
   | { type: 'screen-state'; streamId: string | null }
   | { type: 'game-state'; game: string | null }
+  // Broadcast room list changes to the active space.
+  | { type: 'update-rooms'; spaceId: string; rooms: Room[] }
   // Ephemeral room chat (a reaction is a chat with `reaction: true`).
   | { type: 'chat'; text: string; reaction?: boolean }
   // Liveness check so the client can detect a dead/half-open connection.
@@ -111,7 +121,7 @@ export type ClientMessage =
 /** Messages sent from the signaling server down to a client. */
 export type ServerMessage =
   // Sent to the newcomer right after a successful join.
-  | { type: 'welcome'; selfId: PeerId; peers: Peer[] }
+  | { type: 'welcome'; selfId: PeerId; peers: Peer[]; rooms: Room[] }
   // Sent to existing peers when someone new joins.
   | { type: 'peer-joined'; peer: Peer }
   // Sent to remaining peers when someone disconnects.
@@ -130,6 +140,8 @@ export type ServerMessage =
   | { type: 'screen-state'; from: PeerId; streamId: string | null }
   // A peer's detected game changed (null = none).
   | { type: 'game-state'; from: PeerId; game: string | null }
+  // Broadcast room list changes to the active space.
+  | { type: 'rooms-updated'; spaceId: string; rooms: Room[] }
   // Relayed room chat / reaction.
   | { type: 'chat'; from: PeerId; text: string; reaction?: boolean }
   // Reply to a client ping.
