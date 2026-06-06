@@ -1,24 +1,36 @@
 import { useState } from 'react';
 import { Modal } from './Modal';
 
-interface CreateRoomModalProps {
-  onCreate: (label: string, icon: string) => void;
+interface RoomModalProps {
+  title: string;
+  submitLabel: string;
+  initialLabel?: string;
+  initialIcon?: string;
+  onSubmit: (label: string, icon: string) => void;
   onClose: () => void;
 }
 
 const ROOM_ICONS = ['🏠', '⚔️', '🎮', '🔥', '🌙', '🚀', '🎯', '🏆', '👾', '🍕', '🛸', '🐉'];
 
-export function CreateRoomModal({ onCreate, onClose }: CreateRoomModalProps): React.JSX.Element {
-  const [label, setLabel] = useState('');
-  const [icon, setIcon] = useState(ROOM_ICONS[0]);
+/** Create-or-rename a room: name input + emoji icon picker. */
+export function RoomModal({
+  title,
+  submitLabel,
+  initialLabel = '',
+  initialIcon = ROOM_ICONS[0],
+  onSubmit,
+  onClose,
+}: RoomModalProps): React.JSX.Element {
+  const [label, setLabel] = useState(initialLabel);
+  const [icon, setIcon] = useState(initialIcon);
 
   function submit(): void {
     const trimmed = label.trim();
-    if (trimmed) onCreate(trimmed, icon);
+    if (trimmed) onSubmit(trimmed, icon);
   }
 
   return (
-    <Modal title="Create a room" onClose={onClose}>
+    <Modal title={title} onClose={onClose}>
       <label className="field">
         <span>Room name</span>
         <input
@@ -45,7 +57,7 @@ export function CreateRoomModal({ onCreate, onClose }: CreateRoomModalProps): Re
       </div>
 
       <button className="modal-action" onClick={submit} disabled={!label.trim()}>
-        Create room
+        {submitLabel}
       </button>
     </Modal>
   );

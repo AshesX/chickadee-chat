@@ -8,7 +8,6 @@ import {
   ScreenShareOff,
   Radio,
   Volume2,
-  Settings,
   PhoneOff,
 } from 'lucide-react';
 
@@ -55,7 +54,6 @@ interface ControlBarProps {
   /** True while transmitting in push-to-talk mode (Mute button glows active). */
   transmitting: boolean;
   onVolume: () => void;
-  onSettings: () => void;
   onLeave: () => void;
 }
 
@@ -71,7 +69,6 @@ export function ControlBar({
   onTogglePtt,
   transmitting,
   onVolume,
-  onSettings,
   onLeave,
 }: ControlBarProps): React.JSX.Element {
   return (
@@ -100,11 +97,9 @@ export function ControlBar({
         icon={Radio}
         label={pttOn ? 'PTT On' : 'Push-Talk'}
         state={pttOn ? 'active' : 'default'}
-        title="Push-to-talk (coming soon)"
         onClick={onTogglePtt}
       />
-      <ControlButton icon={Volume2} label="Volume" onClick={onVolume} title="Coming soon" />
-      <ControlButton icon={Settings} label="Settings" state="fade" onClick={onSettings} />
+      <ControlButton icon={Volume2} label="Volume" onClick={onVolume} />
 
       <div className="control-bar__divider" />
 

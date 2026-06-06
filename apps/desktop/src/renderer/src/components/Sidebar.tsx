@@ -1,4 +1,5 @@
-import { Plus, Settings } from 'lucide-react';
+import { useState } from 'react';
+import { Pencil, Plus, Settings, Trash2 } from 'lucide-react';
 import type { Room } from '@chickadee/shared';
 import { Logo } from './Logo';
 
@@ -17,6 +18,8 @@ interface SidebarProps {
   currentRoomCount: number;
   onSelectRoom: (id: string) => void;
   onCreateRoom: () => void;
+  onRequestRename: (room: Room) => void;
+  onRemoveRoom: (id: string) => void;
   friends: Friend[];
   selfName: string;
   selfColor: string;
@@ -31,6 +34,8 @@ export function Sidebar({
   currentRoomCount,
   onSelectRoom,
   onCreateRoom,
+  onRequestRename,
+  onRemoveRoom,
   friends,
   selfName,
   selfColor,
@@ -40,6 +45,7 @@ export function Sidebar({
 }: SidebarProps): React.JSX.Element {
   const onlineCount = friends.filter((f) => f.status !== 'offline').length;
   const selfInitial = selfName.trim().charAt(0).toUpperCase() || 'Y';
+  const [menu, setMenu] = useState<{ room: Room; x: number; y: number } | null>(null);
 
   return (
     <nav className="sidebar">
@@ -59,6 +65,10 @@ export function Sidebar({
               key={r.id}
               className={`room-row${active ? ' room-row--active' : ''}`}
               onClick={() => onSelectRoom(r.id)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setMenu({ room: r, x: e.clientX, y: e.clientY });
+              }}
             >
               <span className="room-row__icon">{r.icon}</span>
               <span className="room-row__name">{r.label}</span>
@@ -116,6 +126,44 @@ export function Sidebar({
           <Settings size={15} />
         </button>
       </div>
+
+      {menu && (
+        <div
+          className="ctx-backdrop"
+          onClick={() => setMenu(null)}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            setMenu(null);
+          }}
+        >
+          <div
+            className="ctx-menu"
+            style={{ left: menu.x, top: menu.y }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              className="ctx-menu__item"
+              onClick={() => {
+                onRequestRename(menu.room);
+                setMenu(null);
+              }}
+            >
+              <Pencil size={13} />
+              Rename
+            </button>
+            <button
+              className="ctx-menu__item ctx-menu__item--danger"
+              onClick={() => {
+                onRemoveRoom(menu.room.id);
+                setMenu(null);
+              }}
+            >
+              <Trash2 size={13} />
+              Remove
+            </button>
+          </div>
+        </div>
+      )}
     </nav>
   );
 }

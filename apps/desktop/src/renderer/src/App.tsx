@@ -16,7 +16,7 @@ import { ScreenSharePicker } from './components/ScreenSharePicker';
 import { ChatPanel } from './components/ChatPanel';
 import { VolumePopover } from './components/VolumePopover';
 import { NameModal } from './components/NameModal';
-import { CreateRoomModal } from './components/CreateRoomModal';
+import { RoomModal } from './components/RoomModal';
 import { SettingsModal } from './components/SettingsModal';
 import { Logo } from './components/Logo';
 import { generateTrayIcon } from './lib/trayIcon';
@@ -47,6 +47,7 @@ export function App(): React.JSX.Element {
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(() => store.getChatVisible());
   const [createOpen, setCreateOpen] = useState(false);
+  const [renameTarget, setRenameTarget] = useState<Room | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pttEnabled, setPttEnabled] = useState(() => store.getPttEnabled());
@@ -85,6 +86,25 @@ export function App(): React.JSX.Element {
     });
     setCreateOpen(false);
     joinRoom(id);
+  }
+
+  // Rename is cosmetic — the room `id` (signaling room) stays stable.
+  function renameRoom(id: string, label: string, icon: string): void {
+    setRooms((prev) => {
+      const next = prev.map((r) => (r.id === id ? { ...r, label, icon } : r));
+      store.setRooms(next);
+      return next;
+    });
+    setRenameTarget(null);
+  }
+
+  function removeRoom(id: string): void {
+    setRooms((prev) => {
+      const next = prev.filter((r) => r.id !== id);
+      store.setRooms(next);
+      return next;
+    });
+    if (id === currentRoomId) leaveRoom();
   }
 
   function toggleChat(): void {
@@ -217,6 +237,8 @@ export function App(): React.JSX.Element {
         currentRoomCount={totalInRoom}
         onSelectRoom={joinRoom}
         onCreateRoom={() => setCreateOpen(true)}
+        onRequestRename={(room) => setRenameTarget(room)}
+        onRemoveRoom={removeRoom}
         friends={friends}
         selfName={displayName}
         selfColor={SELF_COLOR}
@@ -276,7 +298,6 @@ export function App(): React.JSX.Element {
               onTogglePtt={() => applyPttEnabled(!pttEnabled)}
               transmitting={transmitting}
               onVolume={() => setVolumeOpen((v) => !v)}
-              onSettings={() => setSettingsOpen(true)}
               onLeave={leaveRoom}
             />
 
@@ -322,7 +343,24 @@ export function App(): React.JSX.Element {
       )}
 
       {nameNeeded && <NameModal onSubmit={saveName} />}
-      {createOpen && <CreateRoomModal onCreate={createRoom} onClose={() => setCreateOpen(false)} />}
+      {createOpen && (
+        <RoomModal
+          title="Create a room"
+          submitLabel="Create room"
+          onSubmit={createRoom}
+          onClose={() => setCreateOpen(false)}
+        />
+      )}
+      {renameTarget && (
+        <RoomModal
+          title="Rename room"
+          submitLabel="Save"
+          initialLabel={renameTarget.label}
+          initialIcon={renameTarget.icon}
+          onSubmit={(label, icon) => renameRoom(renameTarget.id, label, icon)}
+          onClose={() => setRenameTarget(null)}
+        />
+      )}
       {settingsOpen && (
         <SettingsModal
           displayName={displayName}

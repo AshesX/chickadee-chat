@@ -1112,6 +1112,46 @@ button {
   accent-color: #8b5cf6;
 }
 
+/* ── Room right-click context menu ────────────────────────── */
+.ctx-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+}
+.ctx-menu {
+  position: fixed;
+  min-width: 140px;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-badge);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.55);
+  animation: msgIn 0.12s ease;
+}
+.ctx-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  text-align: left;
+  transition: background 0.12s ease;
+}
+.ctx-menu__item:hover {
+  background: rgba(139, 92, 246, 0.16);
+}
+.ctx-menu__item--danger {
+  color: #f87171;
+}
+.ctx-menu__item--danger:hover {
+  background: rgba(239, 68, 68, 0.16);
+}
+
 /* Welcome / first-run name modal */
 .modal-panel--welcome {
   max-width: 380px;
