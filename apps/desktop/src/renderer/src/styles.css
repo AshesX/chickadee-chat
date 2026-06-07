@@ -1690,7 +1690,6 @@ button {
 
 .mic-slider-tick {
   position: absolute;
-  left: 25%;
   top: 50%;
   transform: translate(-50%, -50%);
   width: 2px;
@@ -1714,7 +1713,6 @@ button {
 
 .mic-slider-labels__center {
   position: absolute;
-  left: 25%;
   transform: translateX(-50%);
   white-space: nowrap;
 }

@@ -44,7 +44,11 @@ export function App(): React.JSX.Element {
   const signaling = useSignaling(signalingUrl);
   const [noiseSuppression, setNoiseSuppression] = useState(() => store.getNoiseSuppression());
   const [micVolume, setMicVolume] = useState(() => store.getMicVolume());
-  const mesh = usePeerMesh(signaling, iceServers, noiseSuppression, micVolume);
+  const [cameraResolution, setCameraResolution] = useState(() => store.getCameraResolution());
+  const [cameraFramerate, setCameraFramerate] = useState(() => store.getCameraFramerate());
+  const [screenResolution, setScreenResolution] = useState(() => store.getScreenResolution());
+  const [screenFramerate, setScreenFramerate] = useState(() => store.getScreenFramerate());
+  const mesh = usePeerMesh(signaling, iceServers, noiseSuppression, micVolume, cameraResolution, cameraFramerate, screenResolution, screenFramerate);
   const colors = useUserColors(signaling.peers.map((p) => p.id));
   const timer = useSessionTimer(signaling.status === 'connected');
 
@@ -82,6 +86,12 @@ export function App(): React.JSX.Element {
   const [badgeNotificationsEnabled, setBadgeNotificationsEnabled] = useState(() => store.getBadgeNotificationsEnabled());
   const [unreadCount, setUnreadCount] = useState(0);
   const [selfStatus, setSelfStatus] = useState<'online' | 'idle' | 'dnd'>(() => store.getStatus());
+  const [uiScale, setUiScale] = useState(() => store.getUiScale());
+
+  // Apply initial UI scale and whenever it changes
+  useEffect(() => {
+    window.chickadee?.setZoomFactor?.(uiScale);
+  }, [uiScale]);
 
   const handleNewMessage = useCallback(() => {
     if (!document.hasFocus()) {
@@ -181,6 +191,31 @@ export function App(): React.JSX.Element {
   const applyMicVolume = useCallback((vol: number) => {
     setMicVolume(vol);
     store.setMicVolume(vol);
+  }, []);
+
+  const applyCameraResolution = useCallback((res: string) => {
+    setCameraResolution(res);
+    store.setCameraResolution(res);
+  }, []);
+
+  const applyCameraFramerate = useCallback((fps: string) => {
+    setCameraFramerate(fps);
+    store.setCameraFramerate(fps);
+  }, []);
+
+  const applyScreenResolution = useCallback((res: string) => {
+    setScreenResolution(res);
+    store.setScreenResolution(res);
+  }, []);
+
+  const applyScreenFramerate = useCallback((fps: string) => {
+    setScreenFramerate(fps);
+    store.setScreenFramerate(fps);
+  }, []);
+
+  const applyUiScale = useCallback((scale: number) => {
+    setUiScale(scale);
+    store.setUiScale(scale);
   }, []);
 
   function applyPttEnabled(on: boolean): void {
@@ -610,6 +645,16 @@ export function App(): React.JSX.Element {
           onChangeBadgeNotificationsEnabled={applyBadgeNotificationsEnabled}
           micVolume={micVolume}
           onChangeMicVolume={applyMicVolume}
+          cameraResolution={cameraResolution}
+          onChangeCameraResolution={applyCameraResolution}
+          cameraFramerate={cameraFramerate}
+          onChangeCameraFramerate={applyCameraFramerate}
+          screenResolution={screenResolution}
+          onChangeScreenResolution={applyScreenResolution}
+          screenFramerate={screenFramerate}
+          onChangeScreenFramerate={applyScreenFramerate}
+          uiScale={uiScale}
+          onChangeUiScale={applyUiScale}
           analyserNode={mesh.analyserNode}
           onClose={() => setSettingsOpen(false)}
         />

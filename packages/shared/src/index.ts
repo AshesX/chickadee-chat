@@ -77,6 +77,11 @@ export interface PersistedSettings {
   micVolume: number;
   muteKey: string;
   muteMode: 'hold' | 'toggle';
+  cameraResolution: string;
+  cameraFramerate: string;
+  screenResolution: string;
+  screenFramerate: string;
+  uiScale: number;
 }
 
 export const DEFAULT_ROOMS: Room[] = [
@@ -105,6 +110,11 @@ export function defaultSettings(): PersistedSettings {
     micVolume: 1.0,
     muteKey: '',
     muteMode: 'toggle',
+    cameraResolution: '720p',
+    cameraFramerate: '30',
+    screenResolution: '1080p',
+    screenFramerate: '30',
+    uiScale: 1.0,
   };
 }
 

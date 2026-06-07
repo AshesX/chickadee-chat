@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { User, Mic, Volume2, Keyboard, Sliders, X } from 'lucide-react';
+import { User, Mic, Volume2, Keyboard, Sliders, X, Video, Monitor } from 'lucide-react';
 import { useKeyCapture } from '../hooks/useKeyCapture';
 
 interface SettingsModalProps {
@@ -23,10 +23,125 @@ interface SettingsModalProps {
   onChangeBadgeNotificationsEnabled: (on: boolean) => void;
   micVolume: number;
   onChangeMicVolume: (vol: number) => void;
+  cameraResolution: string;
+  onChangeCameraResolution: (res: string) => void;
+  cameraFramerate: string;
+  onChangeCameraFramerate: (fps: string) => void;
+  screenResolution: string;
+  onChangeScreenResolution: (res: string) => void;
+  screenFramerate: string;
+  onChangeScreenFramerate: (fps: string) => void;
+  uiScale: number;
+  onChangeUiScale: (scale: number) => void;
   analyserNode: AnalyserNode | null;
   onClose: () => void;
 }
 
+function SettingsSlider({
+  min,
+  max,
+  step,
+  value,
+  onChange,
+  markers,
+  labels,
+  snapThreshold = 0.03,
+  commitOnRelease = false,
+}: {
+  min: number;
+  max: number;
+  step: number;
+  value: number;
+  onChange: (val: number) => void;
+  markers: number[];
+  labels: { value: number; text: string }[];
+  snapThreshold?: number;
+  commitOnRelease?: boolean;
+}): React.JSX.Element {
+  const [localValue, setLocalValue] = useState(value);
+
+  useEffect(() => {
+    if (commitOnRelease) {
+      setLocalValue(value);
+    }
+  }, [value, commitOnRelease]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = parseFloat(e.target.value);
+    
+    // Magnetic snap
+    for (const m of markers) {
+      if (Math.abs(m - val) <= snapThreshold) {
+        val = m;
+        break;
+      }
+    }
+
+    if (commitOnRelease) {
+      setLocalValue(val);
+    } else {
+      onChange(val);
+    }
+  };
+
+  const handleCommit = () => {
+    if (commitOnRelease && localValue !== value) {
+      onChange(localValue);
+    }
+  };
+
+  const handleKeyUp = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (commitOnRelease && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'].includes(e.key)) {
+      handleCommit();
+    }
+  };
+
+  return (
+    <div style={{ width: '100%' }}>
+      <div className="mic-slider-container">
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={commitOnRelease ? localValue : value}
+          onChange={handleChange}
+          onPointerUp={commitOnRelease ? handleCommit : undefined}
+          onKeyUp={commitOnRelease ? handleKeyUp : undefined}
+          onBlur={commitOnRelease ? handleCommit : undefined}
+          className="settings-slider"
+        />
+        {markers.map((m) => {
+          const percent = ((m - min) / (max - min)) * 100;
+          // Thumb is ~16px diameter (8px radius)
+          const leftCalc = `calc(${percent}% + ${8 - (percent / 100) * 16}px)`;
+          return (
+            <div
+              key={m}
+              className="mic-slider-tick"
+              style={{ left: leftCalc }}
+            />
+          );
+        })}
+      </div>
+      <div className="mic-slider-labels" style={{ position: 'relative', height: '14px', marginTop: '-6px' }}>
+        {labels.map((l) => {
+          const percent = ((l.value - min) / (max - min)) * 100;
+          const leftCalc = `calc(${percent}% + ${8 - (percent / 100) * 16}px)`;
+          return (
+            <span
+              key={l.value}
+              className="mic-slider-labels__center"
+              style={{ left: leftCalc }}
+            >
+              {l.text}
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function Toggle({
   on,
@@ -121,12 +236,22 @@ export function SettingsModal({
   onChangeBadgeNotificationsEnabled,
   micVolume,
   onChangeMicVolume,
+  cameraResolution,
+  onChangeCameraResolution,
+  cameraFramerate,
+  onChangeCameraFramerate,
+  screenResolution,
+  onChangeScreenResolution,
+  screenFramerate,
+  onChangeScreenFramerate,
+  uiScale,
+  onChangeUiScale,
   analyserNode,
   onClose,
 }: SettingsModalProps): React.JSX.Element {
   const [name, setName] = useState(displayName);
   const { capturing, startCapture, onRebindKey } = useKeyCapture();
-  const [activeTab, setActiveTab] = useState<'profile' | 'audio' | 'sfx' | 'keybinds' | 'app'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'audio' | 'video' | 'sfx' | 'ui' | 'keybinds' | 'app'>('profile');
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
@@ -165,11 +290,25 @@ export function SettingsModal({
             <span>Voice & Audio</span>
           </button>
           <button
+            className={`settings-sidebar__item${activeTab === 'video' ? ' settings-sidebar__item--active' : ''}`}
+            onClick={() => setActiveTab('video')}
+          >
+            <Video size={15} />
+            <span>Video & Screen Share</span>
+          </button>
+          <button
             className={`settings-sidebar__item${activeTab === 'sfx' ? ' settings-sidebar__item--active' : ''}`}
             onClick={() => setActiveTab('sfx')}
           >
             <Volume2 size={15} />
             <span>Sound Effects</span>
+          </button>
+          <button
+            className={`settings-sidebar__item${activeTab === 'ui' ? ' settings-sidebar__item--active' : ''}`}
+            onClick={() => setActiveTab('ui')}
+          >
+            <Monitor size={15} />
+            <span>User Interface</span>
           </button>
           <button
             className={`settings-sidebar__item${activeTab === 'keybinds' ? ' settings-sidebar__item--active' : ''}`}
@@ -193,7 +332,9 @@ export function SettingsModal({
             <h2 className="settings-content__title">
               {activeTab === 'profile' && 'My Profile'}
               {activeTab === 'audio' && 'Voice & Audio'}
+              {activeTab === 'video' && 'Video & Screen Share'}
               {activeTab === 'sfx' && 'Sound Effects'}
+              {activeTab === 'ui' && 'User Interface'}
               {activeTab === 'keybinds' && 'Push-to-talk/Mute'}
               {activeTab === 'app' && 'App Settings'}
             </h2>
@@ -225,23 +366,22 @@ export function SettingsModal({
                     <span className="settings-row__hint">Adjust sensitivity. Levels above 100% act as a gain boost.</span>
                   </div>
                   <div className="mic-control-wrap">
-                    <div className="mic-slider-container">
-                      <input
-                        type="range"
-                        min="0"
-                        max="4"
-                        step="0.1"
-                        value={micVolume}
-                        onChange={(e) => onChangeMicVolume(parseFloat(e.target.value))}
-                        className="settings-slider"
-                      />
-                      <div className="mic-slider-tick" />
-                    </div>
-                    <div className="mic-slider-labels">
-                      <span>0%</span>
-                      <span className="mic-slider-labels__center">100% (Normal)</span>
-                      <span>400% (Boosted)</span>
-                    </div>
+                    <SettingsSlider
+                      min={0}
+                      max={4}
+                      step={0.05}
+                      value={micVolume}
+                      onChange={onChangeMicVolume}
+                      markers={[0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0]}
+                      labels={[
+                        { value: 0, text: '0%' },
+                        { value: 1.0, text: '100% (Normal)' },
+                        { value: 2.0, text: '200%' },
+                        { value: 3.0, text: '300%' },
+                        { value: 4.0, text: '400%' }
+                      ]}
+                      snapThreshold={0.08}
+                    />
                     <MicLevelMeter analyserNode={analyserNode} />
                   </div>
                 </div>
@@ -252,6 +392,86 @@ export function SettingsModal({
                     <span className="settings-row__hint">Chromium built-in mic noise removal.</span>
                   </div>
                   <Toggle on={noiseSuppression} onClick={() => onChangeNoiseSuppression(!noiseSuppression)} />
+                </div>
+              </>
+            )}
+
+            {activeTab === 'video' && (
+              <>
+                <div className="settings-subdivision">Camera Constraints</div>
+                
+                <div className="settings-row">
+                  <div className="settings-row__label">
+                    <span>Streaming resolution</span>
+                    <span className="settings-row__hint">Higher resolutions require significantly more bandwidth.</span>
+                  </div>
+                  <select 
+                    className="welcome__input" 
+                    value={cameraResolution} 
+                    onChange={(e) => onChangeCameraResolution(e.target.value)}
+                    style={{ width: 'auto', padding: '6px 12px' }}
+                  >
+                    <option value="480p">480p</option>
+                    <option value="720p">720p</option>
+                    <option value="1080p">1080p</option>
+                    <option value="1440p">1440p</option>
+                    <option value="4K">4K</option>
+                  </select>
+                </div>
+
+                <div className="settings-row">
+                  <div className="settings-row__label">
+                    <span>Framerate</span>
+                    <span className="settings-row__hint">Frames per second for your camera stream.</span>
+                  </div>
+                  <select 
+                    className="welcome__input" 
+                    value={cameraFramerate} 
+                    onChange={(e) => onChangeCameraFramerate(e.target.value)}
+                    style={{ width: 'auto', padding: '6px 12px' }}
+                  >
+                    <option value="15">15 fps</option>
+                    <option value="30">30 fps</option>
+                    <option value="60">60 fps</option>
+                  </select>
+                </div>
+
+                <hr className="settings-divider" />
+                <div className="settings-subdivision">Screen Share Constraints</div>
+
+                <div className="settings-row">
+                  <div className="settings-row__label">
+                    <span>Screen resolution limit</span>
+                    <span className="settings-row__hint">Cap the maximum resolution when sharing your screen.</span>
+                  </div>
+                  <select 
+                    className="welcome__input" 
+                    value={screenResolution} 
+                    onChange={(e) => onChangeScreenResolution(e.target.value)}
+                    style={{ width: 'auto', padding: '6px 12px' }}
+                  >
+                    <option value="720p">720p</option>
+                    <option value="1080p">1080p</option>
+                    <option value="1440p">1440p</option>
+                    <option value="4K">Unlimited (4K)</option>
+                  </select>
+                </div>
+
+                <div className="settings-row">
+                  <div className="settings-row__label">
+                    <span>Screen framerate limit</span>
+                    <span className="settings-row__hint">Max frames per second for screen sharing.</span>
+                  </div>
+                  <select 
+                    className="welcome__input" 
+                    value={screenFramerate} 
+                    onChange={(e) => onChangeScreenFramerate(e.target.value)}
+                    style={{ width: 'auto', padding: '6px 12px' }}
+                  >
+                    <option value="15">15 fps</option>
+                    <option value="30">30 fps</option>
+                    <option value="60">60 fps</option>
+                  </select>
                 </div>
               </>
             )}
@@ -283,6 +503,33 @@ export function SettingsModal({
                   />
                 </div>
               </>
+            )}
+
+            {activeTab === 'ui' && (
+              <div className="settings-row">
+                <div className="settings-row__label">
+                  <span>UI Scale Slider</span>
+                  <span className="settings-row__hint">Scale the size of all application elements.</span>
+                </div>
+                <div className="mic-control-wrap" style={{ marginTop: '12px' }}>
+                  <SettingsSlider
+                    min={0.8}
+                    max={1.5}
+                    step={0.1}
+                    value={uiScale}
+                    onChange={onChangeUiScale}
+                    markers={[0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5]}
+                    labels={[
+                      { value: 0.8, text: '80%' },
+                      { value: 1.0, text: '100% (Default)' },
+                      { value: 1.2, text: '120%' },
+                      { value: 1.5, text: '150%' }
+                    ]}
+                    snapThreshold={0.05}
+                    commitOnRelease={true}
+                  />
+                </div>
+              </div>
             )}
 
             {activeTab === 'keybinds' && (

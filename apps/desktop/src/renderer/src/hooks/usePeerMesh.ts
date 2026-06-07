@@ -47,10 +47,12 @@ export interface PeerMesh {
 
 const TERMINAL_STATUSES = new Set(['idle', 'closed', 'error', 'room-full']);
 
-const VIDEO_CONSTRAINTS: MediaTrackConstraints = {
-  width: { ideal: 1280 },
-  height: { ideal: 720 },
-  frameRate: { ideal: 30 },
+const RESOLUTION_MAP: Record<string, { width: number; height: number }> = {
+  '480p': { width: 854, height: 480 },
+  '720p': { width: 1280, height: 720 },
+  '1080p': { width: 1920, height: 1080 },
+  '1440p': { width: 2560, height: 1440 },
+  '4K': { width: 3840, height: 2160 },
 };
 
 const MIC_ANALYSER_FFT_SIZE = 256;
@@ -84,6 +86,10 @@ export function usePeerMesh(
   iceServers: RTCIceServer[],
   noiseSuppression: boolean,
   micVolume: number,
+  cameraResolution: string,
+  cameraFramerate: string,
+  screenResolution: string,
+  screenFramerate: string,
 ): PeerMesh {
   const { subscribe, send, status } = signaling;
 
@@ -389,7 +395,15 @@ export function usePeerMesh(
     setCameraError(null);
     void (async () => {
       try {
-        const camStream = await navigator.mediaDevices.getUserMedia({ video: VIDEO_CONSTRAINTS });
+        const res = RESOLUTION_MAP[cameraResolution] || RESOLUTION_MAP['720p'];
+        const fps = parseInt(cameraFramerate, 10) || 30;
+        const camStream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            width: { ideal: res.width }, 
+            height: { ideal: res.height }, 
+            frameRate: { ideal: fps } 
+          } 
+        });
         const videoTrack = camStream.getVideoTracks()[0];
         if (!videoTrack) return;
 
@@ -446,8 +460,15 @@ export function usePeerMesh(
 
           let screen: MediaStream;
           try {
+            const res = RESOLUTION_MAP[screenResolution] || RESOLUTION_MAP['1080p'];
+            const fps = parseInt(screenFramerate, 10) || 30;
+            const videoConstraints = {
+              width: { ideal: res.width },
+              height: { ideal: res.height },
+              frameRate: { ideal: fps }
+            };
             screen = await navigator.mediaDevices.getDisplayMedia({
-              video: true,
+              video: videoConstraints,
               audio: withAudio,
             });
           } catch (audioErr) {
@@ -455,7 +476,16 @@ export function usePeerMesh(
             // System-audio capture can fail (e.g. some window shares); retry video-only.
             console.warn('screen audio capture failed, retrying video-only', audioErr);
             await window.chickadee.setShareSource(sourceId, false);
-            screen = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+            const res = RESOLUTION_MAP[screenResolution] || RESOLUTION_MAP['1080p'];
+            const fps = parseInt(screenFramerate, 10) || 30;
+            screen = await navigator.mediaDevices.getDisplayMedia({ 
+              video: {
+                width: { ideal: res.width },
+                height: { ideal: res.height },
+                frameRate: { ideal: fps }
+              }, 
+              audio: false 
+            });
           }
 
           if (disposedRef.current) {

@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webFrame } from 'electron';
 import {
   DEFAULT_ICE_SERVERS,
   defaultSettings,
@@ -124,6 +124,8 @@ const api = {
   },
   setBadge: (count: number, dataUrl: string | null): Promise<void> =>
     ipcRenderer.invoke('chickadee:set-badge', count, dataUrl),
+  /** Adjust the UI zoom factor */
+  setZoomFactor: (factor: number): void => webFrame.setZoomFactor(factor),
 };
 
 contextBridge.exposeInMainWorld('chickadee', api);

@@ -87,6 +87,16 @@ export const store = {
   setMuteKey: (muteKey: string): void => persist({ muteKey }),
   getMuteMode: (): 'hold' | 'toggle' => cache.muteMode ?? 'toggle',
   setMuteMode: (muteMode: 'hold' | 'toggle'): void => persist({ muteMode }),
+  getCameraResolution: (): string => cache.cameraResolution ?? '720p',
+  setCameraResolution: (cameraResolution: string): void => persist({ cameraResolution }),
+  getCameraFramerate: (): string => cache.cameraFramerate ?? '30',
+  setCameraFramerate: (cameraFramerate: string): void => persist({ cameraFramerate }),
+  getScreenResolution: (): string => cache.screenResolution ?? '1080p',
+  setScreenResolution: (screenResolution: string): void => persist({ screenResolution }),
+  getScreenFramerate: (): string => cache.screenFramerate ?? '30',
+  setScreenFramerate: (screenFramerate: string): void => persist({ screenFramerate }),
+  getUiScale: (): number => cache.uiScale ?? 1.0,
+  setUiScale: (uiScale: number): void => persist({ uiScale }),
 };
 
 const FRIEND_PALETTE = [
