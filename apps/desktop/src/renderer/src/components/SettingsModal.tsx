@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { User, Mic, Volume2, Keyboard, Sliders, X } from 'lucide-react';
+import { useKeyCapture } from '../hooks/useKeyCapture';
 
 interface SettingsModalProps {
   displayName: string;
@@ -26,19 +27,6 @@ interface SettingsModalProps {
   onClose: () => void;
 }
 
-/** Convert a keydown into an Electron accelerator (single keys only). */
-function toAccelerator(e: React.KeyboardEvent): string | null {
-  const k = e.key;
-  if (k === ' ' || k === 'Spacebar') return 'Space';
-  if (/^F([1-9]|1[0-9]|2[0-4])$/.test(k)) return k;
-  if (/^[a-zA-Z0-9]$/.test(k)) return k.toUpperCase();
-  if (k === 'ArrowUp') return 'Up';
-  if (k === 'ArrowDown') return 'Down';
-  if (k === 'ArrowLeft') return 'Left';
-  if (k === 'ArrowRight') return 'Right';
-  if (k === 'Tab' || k === 'Insert' || k === 'Delete' || k === 'Home' || k === 'End') return k;
-  return null;
-}
 
 function Toggle({
   on,
@@ -137,7 +125,7 @@ export function SettingsModal({
   onClose,
 }: SettingsModalProps): React.JSX.Element {
   const [name, setName] = useState(displayName);
-  const [capturing, setCapturing] = useState<'ptt' | 'mute' | null>(null);
+  const { capturing, startCapture, onRebindKey } = useKeyCapture();
   const [activeTab, setActiveTab] = useState<'profile' | 'audio' | 'sfx' | 'keybinds' | 'app'>('profile');
 
   useEffect(() => {
@@ -151,19 +139,6 @@ export function SettingsModal({
   function commitName(): void {
     const trimmed = name.trim();
     if (trimmed) onChangeName(trimmed);
-  }
-
-  function onRebindKey(e: React.KeyboardEvent): void {
-    e.preventDefault();
-    const accel = toAccelerator(e);
-    if (accel) {
-      if (capturing === 'ptt') {
-        onChangePushToTalkKey(accel);
-      } else if (capturing === 'mute') {
-        onChangeMuteKey(accel);
-      }
-      setCapturing(null);
-    }
   }
 
   return (
@@ -340,8 +315,8 @@ export function SettingsModal({
                   <div className="keybind-row">
                     <button
                       className={`rebind${capturing === 'ptt' ? ' rebind--active' : ''}`}
-                      onClick={() => setCapturing('ptt')}
-                      onKeyDown={capturing === 'ptt' ? onRebindKey : undefined}
+                      onClick={() => startCapture('ptt')}
+                      onKeyDown={capturing === 'ptt' ? (e) => onRebindKey(e, onChangePushToTalkKey, onChangeMuteKey) : undefined}
                     >
                       {capturing === 'ptt' ? 'Press a key…' : (pushToTalkKey || 'Unbound')}
                     </button>
@@ -389,8 +364,8 @@ export function SettingsModal({
                   <div className="keybind-row">
                     <button
                       className={`rebind${capturing === 'mute' ? ' rebind--active' : ''}`}
-                      onClick={() => setCapturing('mute')}
-                      onKeyDown={capturing === 'mute' ? onRebindKey : undefined}
+                      onClick={() => startCapture('mute')}
+                      onKeyDown={capturing === 'mute' ? (e) => onRebindKey(e, onChangePushToTalkKey, onChangeMuteKey) : undefined}
                     >
                       {capturing === 'mute' ? 'Press a key…' : (muteKey || 'Unbound')}
                     </button>

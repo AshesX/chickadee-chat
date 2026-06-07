@@ -1,0 +1,118 @@
+import { useCallback, useState } from 'react';
+import { DEFAULT_ROOMS, type SpaceInfo, type Room } from '@chickadee/shared';
+import { store } from '../lib/settings';
+
+function generateSpaceId(name: string): string {
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'space';
+  const suffix = Math.random().toString(36).substring(2, 7);
+  return `${slug}-${suffix}`;
+}
+
+function parseSpaceName(code: string): string {
+  const parsed = code
+    .split('-')
+    .slice(0, -1)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+  return parsed || 'Joined Space';
+}
+
+export interface UseSpacesResult {
+  spaces: SpaceInfo[];
+  currentSpaceId: string | null;
+  rooms: Room[];
+  switchSpace: (spaceId: string) => void;
+  /** Consolidated create/join handler for the space modals. */
+  addSpace: (val: string, type: 'create' | 'join') => void;
+  deleteSpace: (spaceId: string, spaceName: string) => void;
+  /** Initializes the first space during onboarding. */
+  initFirstSpace: (val: string, action: 'create' | 'join') => void;
+  /** Updates room list in state + persisted store. Used by createRoom/renameRoom/removeRoom/signaling sync. */
+  updateRooms: (rooms: Room[]) => void;
+}
+
+export function useSpaces(clearRoom: () => void): UseSpacesResult {
+  const [spaces, setSpaces] = useState<SpaceInfo[]>(() => store.getSpaces());
+  const [currentSpaceId, setCurrentSpaceId] = useState<string | null>(() => store.getActiveSpaceId());
+  const [rooms, setRooms] = useState<Room[]>(() => store.getRooms());
+
+  function switchSpace(spaceId: string): void {
+    clearRoom();
+    store.setActiveSpaceId(spaceId);
+    setCurrentSpaceId(spaceId);
+    const active = store.getSpaces().find((s) => s.id === spaceId);
+    setRooms(active ? active.rooms : []);
+  }
+
+  function addSpace(val: string, type: 'create' | 'join'): void {
+    let spaceId: string;
+    let spaceName: string;
+
+    if (type === 'create') {
+      const name = val.trim();
+      if (!name) return;
+      spaceId = generateSpaceId(name);
+      spaceName = name;
+    } else {
+      spaceId = val.trim();
+      if (!spaceId) return;
+      // If the space already exists, just switch to it.
+      if (spaces.some((s) => s.id === spaceId)) {
+        switchSpace(spaceId);
+        return;
+      }
+      spaceName = parseSpaceName(spaceId);
+    }
+
+    const newSpace: SpaceInfo = { id: spaceId, name: spaceName, rooms: DEFAULT_ROOMS };
+    const nextSpaces = [...spaces, newSpace];
+    store.setSpaces(nextSpaces);
+    setSpaces(nextSpaces);
+    switchSpace(spaceId);
+  }
+
+  function deleteSpace(spaceId: string, spaceName: string): void {
+    const confirmed = window.confirm(
+      `Are you sure you want to delete the Space "${spaceName}"? All customized rooms and history will be lost locally.`,
+    );
+    if (!confirmed) return;
+
+    const nextSpaces = spaces.filter((s) => s.id !== spaceId);
+    store.setSpaces(nextSpaces);
+    setSpaces(nextSpaces);
+
+    if (spaceId === currentSpaceId) {
+      if (nextSpaces.length > 0) {
+        switchSpace(nextSpaces[0].id);
+      } else {
+        clearRoom();
+        store.setActiveSpaceId(null);
+        setCurrentSpaceId(null);
+        setRooms([]);
+      }
+    }
+  }
+
+  function initFirstSpace(val: string, action: 'create' | 'join'): void {
+    let spaceId = val;
+    let spaceName = val;
+    if (action === 'create') {
+      spaceId = generateSpaceId(val);
+    } else {
+      spaceName = parseSpaceName(val);
+    }
+    const newSpace: SpaceInfo = { id: spaceId, name: spaceName, rooms: DEFAULT_ROOMS };
+    store.setSpaces([newSpace]);
+    store.setActiveSpaceId(spaceId);
+    setSpaces([newSpace]);
+    setCurrentSpaceId(spaceId);
+    setRooms(DEFAULT_ROOMS);
+  }
+
+  const updateRooms = useCallback((nextRooms: Room[]): void => {
+    setRooms(nextRooms);
+    store.setRooms(nextRooms);
+  }, []);
+
+  return { spaces, currentSpaceId, rooms, switchSpace, addSpace, deleteSpace, initFirstSpace, updateRooms };
+}

@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { DEFAULT_ICE_SERVERS, MAX_PEERS_PER_ROOM, type Room, type SpaceInfo, DEFAULT_ROOMS } from '@chickadee/shared';
+import { DEFAULT_ICE_SERVERS, MAX_PEERS_PER_ROOM, type Room } from '@chickadee/shared';
 import { useSignaling } from './hooks/useSignaling';
 import { usePeerMesh } from './hooks/usePeerMesh';
 import { useSessionTimer } from './hooks/useSessionTimer';
 import { useRoomChat } from './hooks/useRoomChat';
 import { useFriends } from './hooks/useFriends';
+import { useSpaces } from './hooks/useSpaces';
+import { useKeybindSync } from './hooks/useKeybindSync';
+import { useSfxEvents } from './hooks/useSfxEvents';
+import { useTraySync } from './hooks/useTraySync';
 import { SELF_COLOR, useUserColors } from './lib/userColors';
 import { store } from './lib/settings';
 import { Sidebar } from './components/Sidebar';
@@ -19,7 +23,7 @@ import { WelcomeWizard } from './components/WelcomeWizard';
 import { RoomModal } from './components/RoomModal';
 import { SettingsModal } from './components/SettingsModal';
 import { Logo } from './components/Logo';
-import { generateTrayIcon, generateBadgeOverlay } from './lib/trayIcon';
+import { generateBadgeOverlay } from './lib/trayIcon';
 import { Modal } from './components/Modal';
 import { playSfx } from './lib/sfx';
 
@@ -34,12 +38,6 @@ function slugify(label: string): string {
   return label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'room';
 }
 
-function generateSpaceId(name: string): string {
-  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'space';
-  const suffix = Math.random().toString(36).substring(2, 7);
-  return `${slug}-${suffix}`;
-}
-
 export function App(): React.JSX.Element {
   const signalingUrl = useMemo(() => window.chickadee?.signalingUrl ?? 'ws://localhost:8080', []);
   const iceServers = useMemo(() => window.chickadee?.iceServers ?? DEFAULT_ICE_SERVERS, []);
@@ -52,10 +50,14 @@ export function App(): React.JSX.Element {
 
   const userId = useMemo(() => store.getUserId(), []);
   const [displayName, setDisplayName] = useState(() => store.getName());
-  const [spaces, setSpaces] = useState<SpaceInfo[]>(() => store.getSpaces());
-  const [currentSpaceId, setCurrentSpaceId] = useState<string | null>(() => store.getActiveSpaceId());
-  const [rooms, setRooms] = useState<Room[]>(() => store.getRooms());
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(null);
+  const leaveRoom = useCallback(() => {
+    signaling.leave();
+    setCurrentRoomId(null);
+  }, [signaling.leave]);
+  const { spaces, currentSpaceId, rooms, switchSpace, addSpace, deleteSpace, initFirstSpace, updateRooms } =
+    useSpaces(leaveRoom);
+
   const [chatOpen, setChatOpen] = useState(() => store.getChatVisible());
   const [createOpen, setCreateOpen] = useState(false);
   const [renameTarget, setRenameTarget] = useState<Room | null>(null);
@@ -87,7 +89,6 @@ export function App(): React.JSX.Element {
     }
   }, []);
 
-  // New Space modals
   const [createSpaceOpen, setCreateSpaceOpen] = useState(false);
   const [joinSpaceOpen, setJoinSpaceOpen] = useState(false);
   const [newSpaceName, setNewSpaceName] = useState('');
@@ -123,16 +124,10 @@ export function App(): React.JSX.Element {
     signaling.join(currentSpaceId, id, displayName, userId, rooms, selfStatus);
   }
 
-  function leaveRoom(): void {
-    signaling.leave();
-    setCurrentRoomId(null);
-  }
-
   function createRoom(label: string, icon: string): void {
     const id = slugify(label);
     const next = rooms.some((r) => r.id === id) ? rooms : [...rooms, { id, label, icon }];
-    setRooms(next);
-    store.setRooms(next);
+    updateRooms(next);
     setCreateOpen(false);
     if (signaling.status === 'connected' && currentSpaceId) {
       signaling.send({ type: 'update-rooms', spaceId: currentSpaceId, rooms: next });
@@ -143,8 +138,7 @@ export function App(): React.JSX.Element {
   // Rename is cosmetic — the room `id` (signaling room) stays stable.
   function renameRoom(id: string, label: string, icon: string): void {
     const next = rooms.map((r) => (r.id === id ? { ...r, label, icon } : r));
-    setRooms(next);
-    store.setRooms(next);
+    updateRooms(next);
     setRenameTarget(null);
     if (signaling.status === 'connected' && currentSpaceId) {
       signaling.send({ type: 'update-rooms', spaceId: currentSpaceId, rooms: next });
@@ -153,68 +147,17 @@ export function App(): React.JSX.Element {
 
   function removeRoom(id: string): void {
     const next = rooms.filter((r) => r.id !== id);
-    setRooms(next);
-    store.setRooms(next);
+    updateRooms(next);
     if (signaling.status === 'connected' && currentSpaceId) {
       signaling.send({ type: 'update-rooms', spaceId: currentSpaceId, rooms: next });
     }
     if (id === currentRoomId) leaveRoom();
   }
 
-  function switchSpace(spaceId: string): void {
-    leaveRoom();
-    store.setActiveSpaceId(spaceId);
-    setCurrentSpaceId(spaceId);
-    
-    // Update local state rooms list for the newly selected Space
-    const active = store.getSpaces().find((s) => s.id === spaceId);
-    const nextRooms = active ? active.rooms : [];
-    setRooms(nextRooms);
-  }
-
   function handleOnboardingSubmit(name: string, val: string, action: 'create' | 'join'): void {
     store.setName(name);
     setDisplayName(name);
-
-    let spaceId = val;
-    let spaceName = val;
-    if (action === 'create') {
-      spaceId = generateSpaceId(val);
-    } else {
-      let parsedName = val.split('-').slice(0, -1).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-      if (!parsedName) parsedName = 'Joined Space';
-      spaceName = parsedName;
-    }
-
-    const newSpace: SpaceInfo = { id: spaceId, name: spaceName, rooms: DEFAULT_ROOMS };
-    const nextSpaces = [newSpace];
-    store.setSpaces(nextSpaces);
-    setSpaces(nextSpaces);
-    
-    store.setActiveSpaceId(spaceId);
-    setCurrentSpaceId(spaceId);
-    setRooms(DEFAULT_ROOMS);
-  }
-
-  function deleteSpace(spaceId: string, spaceName: string): void {
-    const confirmDelete = window.confirm(`Are you sure you want to delete the Space "${spaceName}"? All customized rooms and history will be lost locally.`);
-    if (!confirmDelete) return;
-
-    const nextSpaces = spaces.filter((s) => s.id !== spaceId);
-    store.setSpaces(nextSpaces);
-    setSpaces(nextSpaces);
-
-    if (spaceId === currentSpaceId) {
-      if (nextSpaces.length > 0) {
-        switchSpace(nextSpaces[0].id);
-      } else {
-        // No spaces left, trigger onboarding
-        leaveRoom();
-        store.setActiveSpaceId(null);
-        setCurrentSpaceId(null);
-        setRooms([]);
-      }
-    }
+    initFirstSpace(val, action);
   }
 
   function toggleChat(): void {
@@ -280,16 +223,14 @@ export function App(): React.JSX.Element {
     store.setBadgeNotificationsEnabled(on);
   }
 
-  // Reset unread count when window gets focus
+  // Reset unread count when window gets focus.
   useEffect(() => {
-    const handleFocus = () => {
-      setUnreadCount(0);
-    };
+    const handleFocus = (): void => { setUnreadCount(0); };
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
   }, []);
 
-  // Update Electron badge count when unreadCount or badge setting changes
+  // Update Electron badge count when unreadCount or badge setting changes.
   useEffect(() => {
     if (window.chickadee?.setBadge) {
       if (badgeNotificationsEnabled && unreadCount > 0) {
@@ -330,72 +271,7 @@ export function App(): React.JSX.Element {
     }
   }, [deafened, toggleDeafen, mesh.toggleMic]);
 
-  // Keep track of peers in room to play join/leave sounds
-  const peerIdsStr = useMemo(() => signaling.peers.map((p) => p.id).sort().join(','), [signaling.peers]);
-  const prevPeerIdsRef = useRef<string>('');
-  const prevRoomIdRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    if (!sfxEnabled) {
-      prevPeerIdsRef.current = peerIdsStr;
-      prevRoomIdRef.current = currentRoomId;
-      return;
-    }
-
-    // 1. Room join/leave for the local user
-    if (currentRoomId !== prevRoomIdRef.current) {
-      if (currentRoomId && !prevRoomIdRef.current) {
-        playSfx('join', sfxVolume);
-      } else if (!currentRoomId && prevRoomIdRef.current) {
-        playSfx('leave', sfxVolume);
-      }
-      prevRoomIdRef.current = currentRoomId;
-      prevPeerIdsRef.current = peerIdsStr;
-      return;
-    }
-
-    // 2. Peer join/leave for others (only if we are currently in a room)
-    if (currentRoomId) {
-      const prevPeers = prevPeerIdsRef.current ? prevPeerIdsRef.current.split(',').filter(Boolean) : [];
-      const currentPeers = peerIdsStr ? peerIdsStr.split(',').filter(Boolean) : [];
-
-      if (currentPeers.length > prevPeers.length) {
-        playSfx('join', sfxVolume);
-      } else if (currentPeers.length < prevPeers.length) {
-        playSfx('leave', sfxVolume);
-      }
-    }
-
-    prevPeerIdsRef.current = peerIdsStr;
-    prevRoomIdRef.current = currentRoomId;
-  }, [currentRoomId, peerIdsStr, sfxEnabled, sfxVolume]);
-
-  const prevMicEnabledRef = useRef<boolean | null>(null);
-
-  useEffect(() => {
-    if (prevMicEnabledRef.current === null) {
-      prevMicEnabledRef.current = mesh.micEnabled;
-      return;
-    }
-    if (mesh.micEnabled !== prevMicEnabledRef.current) {
-      if (inRoom && sfxEnabled) {
-        playSfx(mesh.micEnabled ? 'unmute' : 'mute', sfxVolume);
-      }
-      prevMicEnabledRef.current = mesh.micEnabled;
-    }
-  }, [mesh.micEnabled, inRoom, sfxEnabled, sfxVolume]);
-
-  // (Un)register the global PTT hotkey whenever enabled/key/mode changes.
-  useEffect(() => {
-    void window.chickadee?.setPushToTalk?.({ enabled: pttEnabled && pushToTalkKey !== '', key: pushToTalkKey, mode: pttMode });
-  }, [pttEnabled, pushToTalkKey, pttMode]);
-
-  // (Un)register the global Mute hotkey whenever key/mode changes.
-  useEffect(() => {
-    void window.chickadee?.setMuteKeybind?.({ enabled: muteKey !== '', key: muteKey, mode: muteMode });
-  }, [muteKey, muteMode]);
-
-  // Acquire mic for test when settings is open, release if not in room when closed
+  // Acquire mic for test when settings is open, release if not in room when closed.
   useEffect(() => {
     if (settingsOpen) {
       mesh.prepareMedia();
@@ -405,39 +281,6 @@ export function App(): React.JSX.Element {
       }
     }
   }, [settingsOpen, inRoom, mesh.prepareMedia, mesh.teardown]);
-
-  // In PTT mode the mic starts muted until the hotkey activates it.
-  useEffect(() => {
-    if (pttEnabled && mesh.localStream) mesh.setMicEnabled(false);
-  }, [pttEnabled, mesh.localStream, mesh.setMicEnabled]);
-
-  // Toggle mode: each key press flips mic on/off.
-  useEffect(() => {
-    if (pttMode !== 'toggle') return;
-    return window.chickadee?.onPushToTalk?.(() => mesh.toggleMic());
-  }, [pttMode, mesh.toggleMic]);
-
-  // Hold mode: mic on while key held, off on release.
-  useEffect(() => {
-    if (pttMode !== 'hold') return;
-    const unsubStart = window.chickadee?.onPttStart?.(() => mesh.setMicEnabled(true));
-    const unsubStop = window.chickadee?.onPttStop?.(() => mesh.setMicEnabled(false));
-    return () => { unsubStart?.(); unsubStop?.(); };
-  }, [pttMode, mesh.setMicEnabled]);
-
-  // Mute Toggle mode: each key press toggles mic on/off.
-  useEffect(() => {
-    if (muteMode !== 'toggle') return;
-    return window.chickadee?.onMuteToggle?.(() => mesh.toggleMic());
-  }, [muteMode, mesh.toggleMic]);
-
-  // Mute Hold mode: mic off while key held, on on release.
-  useEffect(() => {
-    if (muteMode !== 'hold') return;
-    const unsubStart = window.chickadee?.onMuteStart?.(() => mesh.setMicEnabled(false));
-    const unsubStop = window.chickadee?.onMuteStop?.(() => mesh.setMicEnabled(true));
-    return () => { unsubStart?.(); unsubStop?.(); };
-  }, [muteMode, mesh.setMicEnabled]);
 
   // Detected game (from the main-process scanner).
   useEffect(() => {
@@ -455,29 +298,29 @@ export function App(): React.JSX.Element {
     }
   }, [game, currentRoomId, signaling.status, signaling.send, deafened, selfStatus]);
 
-  // Keep local rooms in sync with the signaling server's room list for this Space
+  // Keep local rooms in sync with the signaling server's room list for this Space.
   useEffect(() => {
     if (signaling.status === 'connected' && signaling.rooms) {
-      setRooms(signaling.rooms);
-      store.setRooms(signaling.rooms);
+      updateRooms(signaling.rooms);
     }
-  }, [signaling.rooms, signaling.status]);
+  }, [signaling.rooms, signaling.status, updateRooms]);
 
-  // Tray: generate the icon once, keep the room label current, and wire mute.
-  useEffect(() => {
-    void generateTrayIcon().then((url) => {
-      if (url) window.chickadee?.setTrayIcon?.(url);
-    });
-  }, []);
-  useEffect(() => {
-    window.chickadee?.setTrayRoom?.(currentRoom?.label ?? null);
-  }, [currentRoom?.label]);
-  useEffect(() => {
-    return window.chickadee?.onTrayMute?.(() => handleToggleMic());
-  }, [handleToggleMic]);
-  useEffect(() => {
-    return window.chickadee?.onTrayDeafen?.(() => toggleDeafen());
-  }, [toggleDeafen]);
+  const peerIdsStr = useMemo(() => signaling.peers.map((p) => p.id).sort().join(','), [signaling.peers]);
+
+  useSfxEvents({ sfxEnabled, sfxVolume, currentRoomId, peerIdsStr, micEnabled: mesh.micEnabled, inRoom });
+
+  useKeybindSync({
+    pttEnabled,
+    pushToTalkKey,
+    pttMode,
+    muteKey,
+    muteMode,
+    setMicEnabled: mesh.setMicEnabled,
+    toggleMic: mesh.toggleMic,
+    localStream: mesh.localStream,
+  });
+
+  useTraySync({ currentRoomLabel: currentRoom?.label ?? null, handleToggleMic, toggleDeafen });
 
   // Camera tiles (self + peers), reused in grid and filmstrip layouts.
   const tiles = inRoom && (
@@ -670,13 +513,7 @@ export function App(): React.JSX.Element {
               onChange={(e) => setNewSpaceName(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && newSpaceName.trim()) {
-                  const name = newSpaceName.trim();
-                  const spaceId = generateSpaceId(name);
-                  const newSpace: SpaceInfo = { id: spaceId, name, rooms: DEFAULT_ROOMS };
-                  const nextSpaces = [...spaces, newSpace];
-                  store.setSpaces(nextSpaces);
-                  setSpaces(nextSpaces);
-                  switchSpace(spaceId);
+                  addSpace(newSpaceName, 'create');
                   setNewSpaceName('');
                   setCreateSpaceOpen(false);
                 }
@@ -689,14 +526,7 @@ export function App(): React.JSX.Element {
           <button
             className="modal-action"
             onClick={() => {
-              const name = newSpaceName.trim();
-              if (!name) return;
-              const spaceId = generateSpaceId(name);
-              const newSpace: SpaceInfo = { id: spaceId, name, rooms: DEFAULT_ROOMS };
-              const nextSpaces = [...spaces, newSpace];
-              store.setSpaces(nextSpaces);
-              setSpaces(nextSpaces);
-              switchSpace(spaceId);
+              addSpace(newSpaceName, 'create');
               setNewSpaceName('');
               setCreateSpaceOpen(false);
             }}
@@ -717,18 +547,7 @@ export function App(): React.JSX.Element {
               onChange={(e) => setInviteCodeInput(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && inviteCodeInput.trim()) {
-                  const code = inviteCodeInput.trim();
-                  let parsedName = code.split('-').slice(0, -1).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-                  if (!parsedName) parsedName = 'Joined Space';
-                  if (spaces.some(s => s.id === code)) {
-                    switchSpace(code);
-                  } else {
-                    const newSpace: SpaceInfo = { id: code, name: parsedName, rooms: DEFAULT_ROOMS };
-                    const nextSpaces = [...spaces, newSpace];
-                    store.setSpaces(nextSpaces);
-                    setSpaces(nextSpaces);
-                    switchSpace(code);
-                  }
+                  addSpace(inviteCodeInput, 'join');
                   setInviteCodeInput('');
                   setJoinSpaceOpen(false);
                 }
@@ -740,19 +559,7 @@ export function App(): React.JSX.Element {
           <button
             className="modal-action"
             onClick={() => {
-              const code = inviteCodeInput.trim();
-              if (!code) return;
-              let parsedName = code.split('-').slice(0, -1).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-              if (!parsedName) parsedName = 'Joined Space';
-              if (spaces.some(s => s.id === code)) {
-                switchSpace(code);
-              } else {
-                const newSpace: SpaceInfo = { id: code, name: parsedName, rooms: DEFAULT_ROOMS };
-                const nextSpaces = [...spaces, newSpace];
-                store.setSpaces(nextSpaces);
-                setSpaces(nextSpaces);
-                switchSpace(code);
-              }
+              addSpace(inviteCodeInput, 'join');
               setInviteCodeInput('');
               setJoinSpaceOpen(false);
             }}
@@ -762,6 +569,7 @@ export function App(): React.JSX.Element {
           </button>
         </Modal>
       )}
+
       {createOpen && (
         <RoomModal
           title="Create a room"

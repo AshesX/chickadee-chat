@@ -48,6 +48,71 @@ const INITIAL: SignalingState = {
   rooms: [],
 };
 
+/** Pure reducer: maps an inbound server message to a new SignalingState. */
+function applyPresenceUpdate(state: SignalingState, msg: ServerMessage): SignalingState {
+  switch (msg.type) {
+    case 'welcome':
+      return {
+        ...state,
+        status: 'connected',
+        error: null,
+        selfId: msg.selfId,
+        peers: msg.peers,
+        rooms: msg.rooms || state.rooms,
+      };
+    case 'rooms-updated':
+      return { ...state, rooms: msg.rooms };
+    case 'peer-joined':
+      return state.peers.some((p) => p.id === msg.peer.id)
+        ? state
+        : { ...state, peers: [...state.peers, msg.peer] };
+    case 'peer-left':
+      return { ...state, peers: state.peers.filter((p) => p.id !== msg.peerId) };
+    case 'mic-state':
+      return {
+        ...state,
+        peers: state.peers.map((p) => (p.id === msg.from ? { ...p, muted: msg.muted } : p)),
+      };
+    case 'cam-state':
+      return {
+        ...state,
+        peers: state.peers.map((p) => (p.id === msg.from ? { ...p, cameraOn: msg.on } : p)),
+      };
+    case 'screen-state':
+      return {
+        ...state,
+        peers: state.peers.map((p) =>
+          p.id === msg.from ? { ...p, screenStreamId: msg.streamId } : p,
+        ),
+      };
+    case 'game-state':
+      return {
+        ...state,
+        peers: state.peers.map((p) => (p.id === msg.from ? { ...p, game: msg.game } : p)),
+      };
+    case 'deafen-state':
+      return {
+        ...state,
+        peers: state.peers.map((p) =>
+          p.id === msg.from ? { ...p, deafened: msg.deafened } : p,
+        ),
+      };
+    case 'status-state':
+      return {
+        ...state,
+        peers: state.peers.map((p) => (p.id === msg.from ? { ...p, status: msg.status } : p)),
+      };
+    case 'room-full':
+      return {
+        ...state,
+        status: 'room-full',
+        error: `Room "${msg.room}" is full (max 4).`,
+      };
+    default:
+      return state;
+  }
+}
+
 // Reconnection + heartbeat tuning.
 const PING_INTERVAL_MS = 15_000;
 const PONG_TIMEOUT_MS = 35_000;
@@ -159,93 +224,26 @@ export function useSignaling(url: string): Signaling {
       const msg = parseServerMessage(String(event.data));
       if (!msg) return;
 
+      // 1. Pong: update heartbeat timestamp and return early.
       if (msg.type === 'pong') {
         lastPongRef.current = Date.now();
         return;
       }
 
-      // Fan out to the WebRTC layer before updating presence state.
+      // 2. Fan out to the WebRTC layer before updating presence state.
       for (const listener of listenersRef.current) listener(msg);
 
-      switch (msg.type) {
-        case 'welcome':
-          attemptsRef.current = 0;
-          setState((prev) => ({
-            ...prev,
-            status: 'connected',
-            error: null,
-            selfId: msg.selfId,
-            peers: msg.peers,
-            rooms: msg.rooms || prev.rooms,
-          }));
-          break;
-        case 'rooms-updated':
-          setState((prev) => ({
-            ...prev,
-            rooms: msg.rooms,
-          }));
-          break;
-        case 'peer-joined':
-          setState((prev) =>
-            prev.peers.some((p) => p.id === msg.peer.id)
-              ? prev
-              : { ...prev, peers: [...prev.peers, msg.peer] },
-          );
-          break;
-        case 'peer-left':
-          setState((prev) => ({
-            ...prev,
-            peers: prev.peers.filter((p) => p.id !== msg.peerId),
-          }));
-          break;
-        case 'mic-state':
-          setState((prev) => ({
-            ...prev,
-            peers: prev.peers.map((p) => (p.id === msg.from ? { ...p, muted: msg.muted } : p)),
-          }));
-          break;
-        case 'cam-state':
-          setState((prev) => ({
-            ...prev,
-            peers: prev.peers.map((p) => (p.id === msg.from ? { ...p, cameraOn: msg.on } : p)),
-          }));
-          break;
-        case 'screen-state':
-          setState((prev) => ({
-            ...prev,
-            peers: prev.peers.map((p) =>
-              p.id === msg.from ? { ...p, screenStreamId: msg.streamId } : p,
-            ),
-          }));
-          break;
-        case 'game-state':
-          setState((prev) => ({
-            ...prev,
-            peers: prev.peers.map((p) => (p.id === msg.from ? { ...p, game: msg.game } : p)),
-          }));
-          break;
-        case 'deafen-state':
-          setState((prev) => ({
-            ...prev,
-            peers: prev.peers.map((p) => (p.id === msg.from ? { ...p, deafened: msg.deafened } : p)),
-          }));
-          break;
-        case 'status-state':
-          setState((prev) => ({
-            ...prev,
-            peers: prev.peers.map((p) => (p.id === msg.from ? { ...p, status: msg.status } : p)),
-          }));
-          break;
-        case 'room-full':
-          shouldReconnectRef.current = false;
-          clearTimers();
-          setState((prev) => ({
-            ...prev,
-            status: 'room-full',
-            error: `Room "${msg.room}" is full (max 4).`,
-          }));
-          closeSocket();
-          break;
+      // 3. Side effect: reset attempt counter on successful (re)connect.
+      if (msg.type === 'welcome') attemptsRef.current = 0;
+
+      // 4. Apply the presence state update.
+      setState((prev) => applyPresenceUpdate(prev, msg));
+
+      // 5. Side effects for terminal cases: room-full ends the session.
+      if (msg.type === 'room-full') {
+        shouldReconnectRef.current = false;
+        clearTimers();
+        closeSocket();
       }
     };
 

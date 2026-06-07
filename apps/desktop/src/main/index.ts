@@ -1,28 +1,25 @@
 import { dirname, join } from 'node:path';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { randomUUID } from 'node:crypto';
-import { exec } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
 import {
   app,
   BrowserWindow,
-  desktopCapturer,
+  clipboard,
   globalShortcut,
   ipcMain,
-  Menu,
   nativeImage,
   session,
   shell,
-  Tray,
-  clipboard,
 } from 'electron';
-import { uIOhook, UiohookKey } from 'uiohook-napi';
 import {
   PUBLIC_TURN_SERVERS,
   STUN_SERVERS,
-  defaultSettings,
   type PersistedSettings,
-  type ScreenSource,
 } from '@chickadee/shared';
+import { loadSettings, saveSettings, getSettings } from './settings';
+import { loadGamesList, startGameDetection } from './gameDetection';
+import { registerPushToTalk, handleBeforeInput, setHotkeyMainWindow, stopHotkeys } from './hotkeys';
+import { configureTray, setTrayMainWindow, destroyTray } from './tray';
+import { configureScreenShare } from './screenShare';
 
 // In dev, override userData per "instance slot" (default 0) so settings persist
 // across restarts (a fixed dir) while two instances stay isolated — run a second
@@ -65,61 +62,6 @@ interface AppConfig {
   settings: PersistedSettings;
 }
 
-// Persisted settings live in userData/settings.json; held in memory after load.
-let currentSettings: PersistedSettings = defaultSettings();
-
-function settingsPath(): string {
-  return join(app.getPath('userData'), 'settings.json');
-}
-
-/** Load settings (merged over defaults), minting a stable userId on first run. */
-function loadSettings(): void {
-  let stored: Partial<PersistedSettings> = {};
-  try {
-    const path = settingsPath();
-    if (existsSync(path)) stored = JSON.parse(readFileSync(path, 'utf8')) as Partial<PersistedSettings>;
-  } catch (err) {
-    console.error('failed to read settings.json', err);
-  }
-  currentSettings = { ...defaultSettings(), ...stored };
-
-  // Migrate legacy settings containing 'rooms' list into a new private Space
-  const legacyRooms = (stored as any).rooms;
-  if (legacyRooms && Array.isArray(legacyRooms) && legacyRooms.length > 0) {
-    const defaultSpaceId = `my-space-${randomUUID().slice(0, 5)}`;
-    currentSettings.spaces = [
-      {
-        id: defaultSpaceId,
-        name: 'My Space',
-        rooms: legacyRooms,
-      },
-    ];
-    currentSettings.activeSpaceId = defaultSpaceId;
-    delete (currentSettings as any).rooms;
-    persistSettings();
-  }
-
-  if (!currentSettings.userId) {
-    currentSettings.userId = randomUUID();
-    persistSettings();
-  }
-}
-
-function persistSettings(): void {
-  try {
-    writeFileSync(settingsPath(), JSON.stringify(currentSettings, null, 2));
-  } catch (err) {
-    console.error('failed to write settings.json', err);
-  }
-}
-
-/** Merge a partial settings update from the renderer and persist it. */
-function saveSettings(partial: Partial<PersistedSettings>): void {
-  currentSettings = { ...currentSettings, ...partial };
-  persistSettings();
-}
-
-/** Build runtime config from env: signaling URL + ICE servers (STUN + TURN). */
 function buildConfig(): AppConfig {
   const signalingUrl =
     process.env.CHICKADEE_SIGNALING_URL ??
@@ -129,7 +71,6 @@ function buildConfig(): AppConfig {
   const iceServers: RTCIceServer[] = [...STUN_SERVERS];
   const turnUrl = process.env.CHICKADEE_TURN_URL;
   if (turnUrl) {
-    // Custom TURN replaces the public default.
     iceServers.push({
       urls: turnUrl.split(',').map((u) => u.trim()).filter(Boolean),
       username: process.env.CHICKADEE_TURN_USERNAME,
@@ -138,16 +79,11 @@ function buildConfig(): AppConfig {
   } else {
     iceServers.push(...PUBLIC_TURN_SERVERS);
   }
-  return { signalingUrl, iceServers, settings: currentSettings };
+  return { signalingUrl, iceServers, settings: getSettings() };
 }
 
 loadDotEnv();
 
-/**
- * Permissions the renderer is allowed to use. `media` covers microphone and
- * camera; `display-capture` covers screen share. Without this, getUserMedia /
- * getDisplayMedia are silently denied in Electron.
- */
 const GRANTED_PERMISSIONS = new Set(['media', 'display-capture']);
 
 function configureMediaPermissions(): void {
@@ -157,312 +93,6 @@ function configureMediaPermissions(): void {
   session.defaultSession.setPermissionCheckHandler((_wc, permission) =>
     GRANTED_PERMISSIONS.has(permission),
   );
-}
-
-// The source the renderer's picker selected, consumed by the next
-// getDisplayMedia() request. `audio` requests Windows loopback (game audio).
-let pendingShare: { sourceId: string; audio: boolean } | null = null;
-
-/**
- * Screen sharing uses the modern getDisplayMedia path: the renderer picks a
- * source in our custom React picker, tells main which one (set-share-source),
- * then calls getDisplayMedia — and this handler fulfils it with the chosen
- * desktopCapturer source. This is far more reliable on modern Electron than the
- * legacy getUserMedia({ chromeMediaSource }) approach, and `audio: 'loopback'`
- * gives real system/game audio on Windows.
- */
-function configureScreenShare(): void {
-  // The picker lists sources (with thumbnails) for the renderer.
-  ipcMain.handle('chickadee:get-screen-sources', async (): Promise<ScreenSource[]> => {
-    const sources = await desktopCapturer.getSources({
-      types: ['screen', 'window'],
-      thumbnailSize: { width: 320, height: 180 },
-      fetchWindowIcons: true,
-    });
-    return sources.map((source) => ({
-      id: source.id,
-      name: source.name,
-      thumbnail: source.thumbnail.toDataURL(),
-      appIcon: source.appIcon && !source.appIcon.isEmpty() ? source.appIcon.toDataURL() : null,
-    }));
-  });
-
-  // The renderer records its selection just before calling getDisplayMedia.
-  ipcMain.handle('chickadee:set-share-source', (_e, sourceId: string, audio: boolean) => {
-    pendingShare = { sourceId, audio };
-  });
-
-  session.defaultSession.setDisplayMediaRequestHandler(
-    (_request, callback) => {
-      const wanted = pendingShare;
-      pendingShare = null;
-      desktopCapturer
-        .getSources({ types: ['screen', 'window'] })
-        .then((sources) => {
-          const source = sources.find((s) => s.id === wanted?.sourceId) ?? sources[0];
-          if (!source) {
-            // Deny: nothing to share.
-            callback({});
-            return;
-          }
-          callback({ video: source, audio: wanted?.audio ? 'loopback' : undefined });
-        })
-        .catch(() => callback({}));
-    },
-    // We render our own picker, so don't show the OS picker.
-    { useSystemPicker: false },
-  );
-}
-
-// ── Push-to-talk & Mute Mic (uiohook-napi for out-of-focus + before-input-event for in-focus) ─
-let pttKeyCode: number | null = null;      // uiohook keycode
-let pttInputCode: string | null = null;    // DOM input.code for before-input-event
-let pttCurrentMode: 'hold' | 'toggle' = 'hold';
-let pttIsHeld = false; // shared flag: whichever source fires first owns the press
-
-let muteKeyCode: number | null = null;      // uiohook keycode
-let muteInputCode: string | null = null;    // DOM input.code for before-input-event
-let muteCurrentMode: 'hold' | 'toggle' = 'toggle';
-let muteIsHeld = false; // shared flag
-
-let uiohookRunning = false;
-
-// Maps Electron accelerator strings to uiohook keycodes (for global/out-of-focus PTT).
-function acceleratorToUiohookCode(accel: string): number | null {
-  const arrowMap: Record<string, number> = {
-    Up: UiohookKey.ArrowUp,
-    Down: UiohookKey.ArrowDown,
-    Left: UiohookKey.ArrowLeft,
-    Right: UiohookKey.ArrowRight,
-  };
-  if (accel in arrowMap) return arrowMap[accel]!;
-  const code = (UiohookKey as unknown as Record<string, number | undefined>)[accel];
-  return code ?? null;
-}
-
-// Maps Electron accelerator strings to DOM input.code format (for before-input-event).
-function acceleratorToInputCode(accel: string): string {
-  if (/^[A-Z]$/.test(accel)) return `Key${accel}`;
-  if (/^[0-9]$/.test(accel)) return `Digit${accel}`;
-  if (accel === 'Up') return 'ArrowUp';
-  if (accel === 'Down') return 'ArrowDown';
-  if (accel === 'Left') return 'ArrowLeft';
-  if (accel === 'Right') return 'ArrowRight';
-  return accel; // F1-F24, Space, Tab, Insert, Delete, Home, End match as-is
-}
-
-function updateUiohookState(): void {
-  const needsUiohook = (pttKeyCode !== null) || (muteKeyCode !== null);
-  if (needsUiohook && !uiohookRunning) {
-    try {
-      uIOhook.start();
-      uiohookRunning = true;
-    } catch (err) {
-      console.error('failed to start uIOhook', err);
-    }
-  } else if (!needsUiohook && uiohookRunning) {
-    try {
-      uIOhook.stop();
-      uiohookRunning = false;
-    } catch (err) {
-      console.error('failed to stop uIOhook', err);
-    }
-  }
-}
-
-function registerPushToTalk(): void {
-  // Listeners are registered once; the pttKeyCode / muteKeyCode guard filters the target key.
-  uIOhook.on('keydown', (e) => {
-    // Push-to-talk
-    if (pttKeyCode !== null && e.keycode === pttKeyCode && !pttIsHeld) {
-      pttIsHeld = true; // suppress OS key-repeat: only fire on the first keydown
-      mainWindow?.webContents.send(
-        pttCurrentMode === 'hold' ? 'chickadee:ptt-start' : 'chickadee:ptt-toggle',
-      );
-    }
-    // Mute mic
-    if (muteKeyCode !== null && e.keycode === muteKeyCode && !muteIsHeld) {
-      muteIsHeld = true; // suppress OS key-repeat
-      mainWindow?.webContents.send(
-        muteCurrentMode === 'hold' ? 'chickadee:mute-start' : 'chickadee:mute-toggle',
-      );
-    }
-  });
-
-  uIOhook.on('keyup', (e) => {
-    // Push-to-talk
-    if (pttKeyCode !== null && e.keycode === pttKeyCode && pttIsHeld) {
-      pttIsHeld = false;
-      if (pttCurrentMode === 'hold') mainWindow?.webContents.send('chickadee:ptt-stop');
-    }
-    // Mute mic
-    if (muteKeyCode !== null && e.keycode === muteKeyCode && muteIsHeld) {
-      muteIsHeld = false;
-      if (muteCurrentMode === 'hold') mainWindow?.webContents.send('chickadee:mute-stop');
-    }
-  });
-
-  ipcMain.handle(
-    'chickadee:set-ptt',
-    (_e, opts: { enabled: boolean; key: string; mode: 'hold' | 'toggle' }) => {
-      pttKeyCode = opts.enabled ? acceleratorToUiohookCode(opts.key) : null;
-      pttInputCode = opts.enabled ? acceleratorToInputCode(opts.key) : null;
-      pttCurrentMode = opts.mode ?? 'hold';
-      pttIsHeld = false;
-
-      updateUiohookState();
-
-      if (opts.enabled && pttKeyCode === null) {
-        console.warn('push-to-talk: key not mapped to uiohook code:', opts.key);
-      }
-    },
-  );
-
-  ipcMain.handle(
-    'chickadee:set-mute-keybind',
-    (_e, opts: { enabled: boolean; key: string; mode: 'hold' | 'toggle' }) => {
-      muteKeyCode = opts.enabled ? acceleratorToUiohookCode(opts.key) : null;
-      muteInputCode = opts.enabled ? acceleratorToInputCode(opts.key) : null;
-      muteCurrentMode = opts.mode ?? 'toggle';
-      muteIsHeld = false;
-
-      updateUiohookState();
-
-      if (opts.enabled && muteKeyCode === null) {
-        console.warn('mute-mic: key not mapped to uiohook code:', opts.key);
-      }
-    },
-  );
-}
-
-// The primary window, used by tray actions and game-detection broadcasts.
-let mainWindow: BrowserWindow | null = null;
-
-// ── Game detection (Windows tasklist; zero-dependency) ───────────────────────
-interface GameDef {
-  name: string;
-  short: string;
-  processName: string;
-}
-
-const DEFAULT_GAMES: GameDef[] = [
-  { name: 'Deep Rock Galactic', short: 'DRG', processName: 'fsd-win64' },
-  { name: 'Helldivers 2', short: 'HD2', processName: 'helldivers2' },
-  { name: 'Valheim', short: 'VLH', processName: 'valheim' },
-  { name: 'Counter-Strike 2', short: 'CS2', processName: 'cs2' },
-  { name: 'Elden Ring', short: 'ELD', processName: 'eldenring' },
-  { name: 'Apex Legends', short: 'APX', processName: 'r5apex' },
-  { name: 'Rocket League', short: 'RL', processName: 'rocketleague' },
-  { name: 'Minecraft', short: 'MC', processName: 'javaw' },
-  { name: 'Fortnite', short: 'FN', processName: 'fortniteclient-win64-shipping' },
-  { name: 'Overwatch 2', short: 'OW', processName: 'overwatch' },
-  { name: 'Stardew Valley', short: 'SDV', processName: 'stardew valley' },
-  { name: 'Terraria', short: 'TER', processName: 'terraria' },
-];
-
-let gamesList: GameDef[] = DEFAULT_GAMES;
-let lastGameShort: string | null = null;
-
-function loadGamesList(): void {
-  const path = join(app.getPath('userData'), 'games.json');
-  try {
-    if (existsSync(path)) {
-      gamesList = JSON.parse(readFileSync(path, 'utf8')) as GameDef[];
-      return;
-    }
-    writeFileSync(path, JSON.stringify(DEFAULT_GAMES, null, 2));
-  } catch (err) {
-    console.error('games.json failed; using defaults', err);
-    gamesList = DEFAULT_GAMES;
-  }
-}
-
-/** Lowercased base names (no .exe) of running processes; Windows-only. */
-function runningProcessNames(): Promise<Set<string>> {
-  return new Promise((resolve) => {
-    if (process.platform !== 'win32') return resolve(new Set());
-    exec('tasklist /fo csv /nh', { windowsHide: true, maxBuffer: 8 * 1024 * 1024 }, (err, stdout) => {
-      if (err) return resolve(new Set());
-      const names = new Set<string>();
-      for (const line of stdout.split(/\r?\n/)) {
-        const m = /^"([^"]+)"/.exec(line);
-        if (!m) continue;
-        let n = m[1].toLowerCase();
-        if (n.endsWith('.exe')) n = n.slice(0, -4);
-        names.add(n);
-      }
-      resolve(names);
-    });
-  });
-}
-
-async function detectGame(): Promise<{ name: string; short: string } | null> {
-  const names = await runningProcessNames();
-  if (names.size === 0) return null;
-  for (const g of gamesList) {
-    const pn = g.processName.toLowerCase();
-    for (const n of names) {
-      if (n.includes(pn)) return { name: g.name, short: g.short };
-    }
-  }
-  return null;
-}
-
-function startGameDetection(window: BrowserWindow): void {
-  const scan = async (): Promise<void> => {
-    const game = await detectGame();
-    const short = game?.short ?? null;
-    if (short !== lastGameShort) {
-      lastGameShort = short;
-      if (!window.isDestroyed()) window.webContents.send('chickadee:game-detected', game);
-    }
-  };
-  setTimeout(() => void scan(), 4000);
-  const interval = setInterval(() => void scan(), 30_000);
-  window.on('closed', () => clearInterval(interval));
-}
-
-// ── Tray ─────────────────────────────────────────────────────────────────────
-let tray: Tray | null = null;
-let trayRoom: string | null = null;
-
-function rebuildTrayMenu(): void {
-  if (!tray) return;
-  tray.setToolTip(trayRoom ? `Chickadee — ${trayRoom}` : 'Chickadee Chat');
-  tray.setContextMenu(
-    Menu.buildFromTemplate([
-      {
-        label: 'Show Chickadee',
-        click: () => {
-          if (!mainWindow) return;
-          if (mainWindow.isMinimized()) mainWindow.restore();
-          mainWindow.show();
-          mainWindow.focus();
-        },
-      },
-      { label: trayRoom ? `Room: ${trayRoom}` : 'Not in a room', enabled: false },
-      { type: 'separator' },
-      { label: 'Toggle mic', click: () => mainWindow?.webContents.send('chickadee:tray-mute') },
-      { label: 'Toggle deafen', click: () => mainWindow?.webContents.send('chickadee:tray-deafen') },
-      { type: 'separator' },
-      { label: 'Quit', click: () => app.quit() },
-    ]),
-  );
-}
-
-function configureTray(): void {
-  ipcMain.handle('chickadee:set-tray-icon', (_e, dataUrl: string) => {
-    const image = nativeImage.createFromDataURL(dataUrl);
-    if (tray) tray.setImage(image);
-    else {
-      tray = new Tray(image);
-      rebuildTrayMenu();
-    }
-  });
-  ipcMain.handle('chickadee:set-tray-room', (_e, label: string | null) => {
-    trayRoom = label;
-    rebuildTrayMenu();
-  });
 }
 
 function registerWindowControls(): void {
@@ -475,6 +105,8 @@ function registerWindowControls(): void {
   });
   ipcMain.on('chickadee:window-close', (e) => BrowserWindow.fromWebContents(e.sender)?.close());
 }
+
+let mainWindow: BrowserWindow | null = null;
 
 function createWindow(): void {
   const config = buildConfig();
@@ -516,37 +148,7 @@ function createWindow(): void {
   // covers the in-focus case. pttIsHeld and muteIsHeld coordinate between the two
   // sources so only one sends the IPC message per physical press.
   window.webContents.on('before-input-event', (_event, input) => {
-    // Push-to-talk
-    if (pttInputCode && input.code === pttInputCode) {
-      if (input.type === 'keyDown') {
-        if (pttIsHeld) return; // uiohook fired first, or key is already held (OS repeat)
-        if (input.isAutoRepeat) return; // belt-and-suspenders: suppress OS key-repeat
-        pttIsHeld = true;
-        window.webContents.send(
-          pttCurrentMode === 'hold' ? 'chickadee:ptt-start' : 'chickadee:ptt-toggle',
-        );
-      } else if (input.type === 'keyUp') {
-        if (!pttIsHeld) return; // uiohook already handled this keyup
-        pttIsHeld = false;
-        if (pttCurrentMode === 'hold') window.webContents.send('chickadee:ptt-stop');
-      }
-    }
-
-    // Mute mic
-    if (muteInputCode && input.code === muteInputCode) {
-      if (input.type === 'keyDown') {
-        if (muteIsHeld) return;
-        if (input.isAutoRepeat) return;
-        muteIsHeld = true;
-        window.webContents.send(
-          muteCurrentMode === 'hold' ? 'chickadee:mute-start' : 'chickadee:mute-toggle',
-        );
-      } else if (input.type === 'keyUp') {
-        if (!muteIsHeld) return;
-        muteIsHeld = false;
-        if (muteCurrentMode === 'hold') window.webContents.send('chickadee:mute-stop');
-      }
-    }
+    handleBeforeInput(window, input);
   });
 
   // Open external links in the user's browser, never inside the app window.
@@ -555,8 +157,6 @@ function createWindow(): void {
     return { action: 'deny' };
   });
 
-  // electron-vite injects the dev server URL in development; load the built
-  // file in production.
   if (process.env['ELECTRON_RENDERER_URL']) {
     void window.loadURL(process.env['ELECTRON_RENDERER_URL']);
   } else {
@@ -566,11 +166,15 @@ function createWindow(): void {
   mainWindow = window;
   window.on('closed', () => {
     if (mainWindow === window) mainWindow = null;
+    setHotkeyMainWindow(null);
+    setTrayMainWindow(null);
   });
+
+  setHotkeyMainWindow(window);
+  setTrayMainWindow(window);
   startGameDetection(window);
 }
 
-// Log renderer crashes so a white-screen never goes unexplained.
 app.on('render-process-gone', (_e, _wc, details) => {
   console.error('render-process-gone', details);
 });
@@ -578,6 +182,7 @@ app.on('render-process-gone', (_e, _wc, details) => {
 app.whenReady().then(() => {
   loadSettings();
   loadGamesList();
+
   ipcMain.handle('chickadee:save-settings', (_e, partial: Partial<PersistedSettings>) =>
     saveSettings(partial),
   );
@@ -599,6 +204,7 @@ app.whenReady().then(() => {
       }
     }
   });
+
   configureMediaPermissions();
   configureScreenShare();
   registerWindowControls();
@@ -607,15 +213,14 @@ app.whenReady().then(() => {
   createWindow();
 
   app.on('activate', () => {
-    // macOS: re-create a window when the dock icon is clicked and none are open.
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
 
 app.on('will-quit', () => {
-  if (uiohookRunning) uIOhook.stop();
+  stopHotkeys();
   globalShortcut.unregisterAll();
-  tray?.destroy();
+  destroyTray();
 });
 
 app.on('window-all-closed', () => {

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { PeerId } from '@chickadee/shared';
 import { createPeerLink, type PeerLink } from '../webrtc/peerLink';
 import type { MessageListener, Signaling } from './useSignaling';
+import { getSharedAudioContext } from '../lib/audioContext';
 
 export interface RemoteMedia {
   /** The peer's camera+mic stream (mic audio + optional camera video). */
@@ -51,6 +52,27 @@ const VIDEO_CONSTRAINTS: MediaTrackConstraints = {
   height: { ideal: 720 },
   frameRate: { ideal: 30 },
 };
+
+const MIC_ANALYSER_FFT_SIZE = 256;
+
+function createMicProcessingGraph(
+  ctx: AudioContext,
+  rawStream: MediaStream,
+  volume: number,
+): { gainNode: GainNode; analyserNode: AnalyserNode; processedStream: MediaStream } {
+  const source = ctx.createMediaStreamSource(rawStream);
+  const gainNode = ctx.createGain();
+  gainNode.gain.value = volume;
+  const analyserNode = ctx.createAnalyser();
+  analyserNode.fftSize = MIC_ANALYSER_FFT_SIZE;
+  const destination = ctx.createMediaStreamDestination();
+
+  source.connect(gainNode);
+  gainNode.connect(analyserNode);
+  gainNode.connect(destination);
+
+  return { gainNode, analyserNode, processedStream: destination.stream };
+}
 
 /**
  * Owns the local mic stream and one RTCPeerConnection (peerLink) per remote
@@ -124,24 +146,21 @@ export function usePeerMesh(
 
         rawStreamRef.current = stream;
 
-        // Set up Web Audio processing graph
-        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const source = audioContext.createMediaStreamSource(stream);
-        const gainNode = audioContext.createGain();
-        gainNode.gain.value = micVolumeRef.current;
-        const analyserNodeObj = audioContext.createAnalyser();
-        analyserNodeObj.fftSize = 256;
-        const destination = audioContext.createMediaStreamDestination();
+        const ctx = getSharedAudioContext();
+        if (!ctx) {
+          // AudioContext unavailable; fall back to raw stream (no volume control or analysis).
+          localStreamRef.current = stream;
+          setAnalyserNode(null);
+          setLocalStream(stream);
+          return stream;
+        }
 
-        source.connect(gainNode);
-        gainNode.connect(analyserNodeObj);
-        gainNode.connect(destination);
+        const { gainNode, analyserNode: analyserNodeObj, processedStream } =
+          createMicProcessingGraph(ctx, stream, micVolumeRef.current);
 
-        audioContextRef.current = audioContext;
+        audioContextRef.current = ctx;
         gainNodeRef.current = gainNode;
         analyserNodeRef.current = analyserNodeObj;
-
-        const processedStream = destination.stream;
         localStreamRef.current = processedStream;
 
         for (const track of processedStream.getAudioTracks()) track.enabled = micEnabledRef.current;
@@ -290,12 +309,11 @@ export function usePeerMesh(
     const screen = screenStreamRef.current;
     if (screen) for (const track of screen.getTracks()) track.stop();
     
-    if (audioContextRef.current) {
-      void audioContextRef.current.close().catch(() => {});
-      audioContextRef.current = null;
-    }
-    gainNodeRef.current = null;
-    analyserNodeRef.current = null;
+    // Disconnect mic processing nodes but do not close the shared AudioContext —
+    // it is owned by lib/audioContext.ts and shared with sfx.ts across join/leave cycles.
+    if (gainNodeRef.current) { gainNodeRef.current.disconnect(); gainNodeRef.current = null; }
+    if (analyserNodeRef.current) { analyserNodeRef.current.disconnect(); analyserNodeRef.current = null; }
+    audioContextRef.current = null;
     rawStreamRef.current = null;
     setAnalyserNode(null);
 

@@ -1,23 +1,7 @@
-let audioCtx: AudioContext | null = null;
-
-function getAudioContext(): AudioContext | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    if (!audioCtx) {
-      audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    }
-    if (audioCtx.state === 'suspended') {
-      void audioCtx.resume();
-    }
-    return audioCtx;
-  } catch (e) {
-    console.error('Failed to create AudioContext:', e);
-    return null;
-  }
-}
+import { getSharedAudioContext } from './audioContext';
 
 export function playSfx(type: 'join' | 'leave' | 'mute' | 'unmute' | 'chat' | 'deafen' | 'undeafen', volume: number): void {
-  const ctx = getAudioContext();
+  const ctx = getSharedAudioContext();
   if (!ctx) return;
 
   const now = ctx.currentTime;
