@@ -16,7 +16,7 @@ import {
   type PersistedSettings,
 } from '@chickadee/shared';
 import { loadSettings, saveSettings, getSettings } from './settings';
-import { loadGamesList, startGameDetection } from './gameDetection';
+import { loadGamesList, startGameDetection, configureGameDetection } from './gameDetection';
 import { registerPushToTalk, handleBeforeInput, setHotkeyMainWindow, stopHotkeys } from './hotkeys';
 import { configureTray, setTrayMainWindow, destroyTray } from './tray';
 import { configureScreenShare } from './screenShare';
@@ -107,6 +107,9 @@ function registerWindowControls(): void {
 }
 
 let mainWindow: BrowserWindow | null = null;
+// Set when the app is genuinely quitting, so the close-to-tray handler knows to
+// let the window actually close (vs. hiding it on a normal 'X' click).
+let isQuitting = false;
 
 function createWindow(): void {
   const config = buildConfig();
@@ -119,6 +122,7 @@ function createWindow(): void {
     show: false,
     frame: false,
     autoHideMenuBar: true,
+    alwaysOnTop: config.settings.alwaysOnTop,
     backgroundColor: '#06060f',
     title: 'Chickadee Chat',
     webPreferences: {
@@ -137,6 +141,16 @@ function createWindow(): void {
   });
 
   window.on('ready-to-show', () => window.show());
+
+  // Close-to-tray: when the user's preference is 'tray' and we aren't quitting,
+  // hide the window instead of closing it so voice stays connected in the
+  // background. getSettings() reflects live changes from the renderer.
+  window.on('close', (e) => {
+    if (!isQuitting && getSettings().closeBehavior === 'tray') {
+      e.preventDefault();
+      window.hide();
+    }
+  });
 
   // Surface preload load failures (they would otherwise be silent).
   window.webContents.on('preload-error', (_e, preloadPath, error) => {
@@ -183,9 +197,18 @@ app.whenReady().then(() => {
   loadSettings();
   loadGamesList();
 
+  // Reconcile OS-level prefs with the persisted settings on launch.
+  app.setLoginItemSettings({ openAtLogin: getSettings().launchOnStartup });
+
   ipcMain.handle('chickadee:save-settings', (_e, partial: Partial<PersistedSettings>) =>
     saveSettings(partial),
   );
+  ipcMain.handle('chickadee:set-login-item', (_e, openAtLogin: boolean) => {
+    app.setLoginItemSettings({ openAtLogin });
+  });
+  ipcMain.handle('chickadee:set-always-on-top', (_e, on: boolean) => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.setAlwaysOnTop(on);
+  });
   ipcMain.handle('chickadee:write-clipboard', (_e, text: string) => {
     clipboard.writeText(text);
   });
@@ -207,6 +230,7 @@ app.whenReady().then(() => {
 
   configureMediaPermissions();
   configureScreenShare();
+  configureGameDetection();
   registerWindowControls();
   registerPushToTalk();
   configureTray();
@@ -215,6 +239,10 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
+});
+
+app.on('before-quit', () => {
+  isQuitting = true;
 });
 
 app.on('will-quit', () => {

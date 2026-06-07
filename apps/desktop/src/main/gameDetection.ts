@@ -2,35 +2,19 @@ import { join } from 'node:path';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { exec } from 'node:child_process';
 import type { BrowserWindow } from 'electron';
-import { app } from 'electron';
-
-interface GameDef {
-  name: string;
-  short: string;
-  processName: string;
-}
-
-const DEFAULT_GAMES: GameDef[] = [
-  { name: 'Deep Rock Galactic', short: 'DRG', processName: 'fsd-win64' },
-  { name: 'Helldivers 2', short: 'HD2', processName: 'helldivers2' },
-  { name: 'Valheim', short: 'VLH', processName: 'valheim' },
-  { name: 'Counter-Strike 2', short: 'CS2', processName: 'cs2' },
-  { name: 'Elden Ring', short: 'ELD', processName: 'eldenring' },
-  { name: 'Apex Legends', short: 'APX', processName: 'r5apex' },
-  { name: 'Rocket League', short: 'RL', processName: 'rocketleague' },
-  { name: 'Minecraft', short: 'MC', processName: 'javaw' },
-  { name: 'Fortnite', short: 'FN', processName: 'fortniteclient-win64-shipping' },
-  { name: 'Overwatch 2', short: 'OW', processName: 'overwatch' },
-  { name: 'Stardew Valley', short: 'SDV', processName: 'stardew valley' },
-  { name: 'Terraria', short: 'TER', processName: 'terraria' },
-];
+import { app, ipcMain } from 'electron';
+import { DEFAULT_GAMES, type GameDef } from '@chickadee/shared';
 
 let gamesList: GameDef[] = DEFAULT_GAMES;
 let lastGameShort: string | null = null;
 
+function gamesPath(): string {
+  return join(app.getPath('userData'), 'games.json');
+}
+
 export function loadGamesList(): void {
-  const path = join(app.getPath('userData'), 'games.json');
   try {
+    const path = gamesPath();
     if (existsSync(path)) {
       gamesList = JSON.parse(readFileSync(path, 'utf8')) as GameDef[];
       return;
@@ -40,6 +24,19 @@ export function loadGamesList(): void {
     console.error('games.json failed; using defaults', err);
     gamesList = DEFAULT_GAMES;
   }
+}
+
+/** IPC for the settings UI to read the current list and persist edits live. */
+export function configureGameDetection(): void {
+  ipcMain.handle('chickadee:get-games', () => gamesList);
+  ipcMain.handle('chickadee:save-games', (_e, games: GameDef[]) => {
+    gamesList = games;
+    try {
+      writeFileSync(gamesPath(), JSON.stringify(games, null, 2));
+    } catch (err) {
+      console.error('failed to write games.json', err);
+    }
+  });
 }
 
 function runningProcessNames(): Promise<Set<string>> {

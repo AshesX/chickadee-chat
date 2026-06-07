@@ -45,6 +45,12 @@ export interface PeerLink {
    */
   setLocalVideoTrack: (track: MediaStreamTrack | null, stream: MediaStream) => void;
   /**
+   * Swap the outgoing mic audio track (used when the user changes input
+   * device). Creates the sender on first use, else replaceTrack — no
+   * renegotiation when swapping.
+   */
+  setLocalAudioTrack: (track: MediaStreamTrack | null, stream: MediaStream) => void;
+  /**
    * Add, swap, or clear the outgoing screen share (its video + optional system
    * audio track). First call per kind creates the sender (one renegotiation);
    * later calls use replaceTrack. Pass null to stop sharing (keeps the m-lines).
@@ -72,6 +78,7 @@ export function createPeerLink(opts: PeerLinkOptions): PeerLink {
   let isSettingRemoteAnswerPending = false;
 
   // Outgoing senders, created lazily on first use so toggles can replaceTrack.
+  let audioSender: RTCRtpSender | null = null;
   let videoSender: RTCRtpSender | null = null;
   let screenVideoSender: RTCRtpSender | null = null;
   let screenAudioSender: RTCRtpSender | null = null;
@@ -128,8 +135,12 @@ export function createPeerLink(opts: PeerLinkOptions): PeerLink {
   // Adding a track triggers onnegotiationneeded → the initial offer.
   if (localStream) {
     for (const track of localStream.getAudioTracks()) {
-      pc.addTrack(track, localStream);
+      audioSender = pc.addTrack(track, localStream);
     }
+  }
+
+  function setLocalAudioTrack(track: MediaStreamTrack | null, stream: MediaStream): void {
+    audioSender = applyTrack(audioSender, track, stream);
   }
 
   function setLocalVideoTrack(track: MediaStreamTrack | null, stream: MediaStream): void {
@@ -209,5 +220,5 @@ export function createPeerLink(opts: PeerLinkOptions): PeerLink {
     pc.close();
   }
 
-  return { pc, handleSignal, setLocalVideoTrack, setLocalScreenStream, close };
+  return { pc, handleSignal, setLocalAudioTrack, setLocalVideoTrack, setLocalScreenStream, close };
 }

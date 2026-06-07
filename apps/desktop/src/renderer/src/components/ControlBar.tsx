@@ -51,9 +51,10 @@ interface ControlBarProps {
   onToggleCamera: () => void;
   sharingScreen: boolean;
   onToggleShare: () => void;
-  pttOn: boolean;
-  onTogglePtt: () => void;
-  /** True while transmitting in push-to-talk mode (Mute button glows active). */
+  inputMode: 'open' | 'voice' | 'ptt';
+  /** Cycle Open Mic → Voice Activation → Push-to-Talk. */
+  onCycleInputMode: () => void;
+  /** True while actively transmitting (gated modes; Mute button glows active). */
   transmitting: boolean;
   onVolume: () => void;
   onLeave: () => void;
@@ -69,8 +70,8 @@ export function ControlBar({
   onToggleCamera,
   sharingScreen,
   onToggleShare,
-  pttOn,
-  onTogglePtt,
+  inputMode,
+  onCycleInputMode,
   transmitting,
   onVolume,
   onLeave,
@@ -107,9 +108,10 @@ export function ControlBar({
       />
       <ControlButton
         icon={Radio}
-        label={pttOn ? 'PTT On' : 'Push-Talk'}
-        state={pttOn ? 'active' : 'default'}
-        onClick={onTogglePtt}
+        label={inputMode === 'ptt' ? 'Push-Talk' : inputMode === 'voice' ? 'Voice' : 'Open Mic'}
+        state={inputMode === 'open' ? 'default' : 'active'}
+        title="Click to cycle: Open Mic → Voice Activation → Push-to-Talk"
+        onClick={onCycleInputMode}
       />
       <ControlButton icon={Volume2} label="Volume" onClick={onVolume} />
 

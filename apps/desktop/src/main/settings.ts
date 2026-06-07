@@ -29,6 +29,13 @@ export function loadSettings(): void {
   // Migrate: old settings had a top-level 'rooms' array before Spaces were introduced.
   const legacyRooms = storedObj.rooms;
   delete storedObj.rooms;
+
+  // Migrate: 'pttEnabled' boolean → 'inputMode' enum (true → 'ptt', else 'open').
+  if (storedObj.inputMode === undefined && storedObj.pttEnabled !== undefined) {
+    storedObj.inputMode = storedObj.pttEnabled ? 'ptt' : 'open';
+  }
+  delete storedObj.pttEnabled;
+
   currentSettings = { ...defaultSettings(), ...(storedObj as Partial<PersistedSettings>) };
 
   if (legacyRooms && Array.isArray(legacyRooms) && legacyRooms.length > 0) {

@@ -55,6 +55,15 @@ export interface SpaceInfo {
   rooms: Room[];
 }
 
+/** A game the detector scans for (process name → display + short tag). */
+export interface GameDef {
+  name: string;
+  short: string;
+  processName: string;
+  /** True for user-added games; built-in defaults omit this (locked in the UI). */
+  isCustom?: boolean;
+}
+
 /** Settings persisted to Electron userData (the renderer reads/writes via IPC). */
 export interface PersistedSettings {
   /** Stable per-user id; generated once in main if missing. */
@@ -65,7 +74,22 @@ export interface PersistedSettings {
   friends: StoredFriend[];
   chatVisible: boolean;
   noiseSuppression: boolean;
-  pttEnabled: boolean;
+  /** Chromium echo-cancellation constraint on the local mic. */
+  echoCancellation: boolean;
+  /** Chromium automatic-gain-control constraint on the local mic. */
+  autoGainControl: boolean;
+  /**
+   * How the mic transmits: 'open' = always live, 'voice' = gated by VAD
+   * threshold, 'ptt' = push-to-talk via the hotkey. Replaces the old
+   * `pttEnabled` boolean (migrated in main: pttEnabled true → 'ptt').
+   */
+  inputMode: 'open' | 'voice' | 'ptt';
+  /** RMS gate level (0..1) for voice-activation mode. */
+  vadThreshold: number;
+  /** Preferred mic deviceId, or '' for the system default. */
+  inputDeviceId: string;
+  /** Preferred speaker deviceId (setSinkId), or '' for the system default. */
+  outputDeviceId: string;
   /** Electron accelerator for the global push-to-talk hotkey. */
   pushToTalkKey: string;
   /** 'hold' = mic live while key held; 'toggle' = press to unmute/mute. */
@@ -82,7 +106,31 @@ export interface PersistedSettings {
   screenResolution: string;
   screenFramerate: string;
   uiScale: number;
+  /** Open the app automatically when the OS starts (packaged builds). */
+  launchOnStartup: boolean;
+  /** What the window 'X' does: 'quit' the app or hide to 'tray'. */
+  closeBehavior: 'quit' | 'tray';
+  /** Pin the window above all other apps. */
+  alwaysOnTop: boolean;
+  /** Active color theme. */
+  theme: 'midnight' | 'classic' | 'oled';
 }
+
+/** Built-in games the detector ships with (process names are lower-cased, .exe-less). */
+export const DEFAULT_GAMES: GameDef[] = [
+  { name: 'Deep Rock Galactic', short: 'DRG', processName: 'fsd-win64' },
+  { name: 'Helldivers 2', short: 'HD2', processName: 'helldivers2' },
+  { name: 'Valheim', short: 'VLH', processName: 'valheim' },
+  { name: 'Counter-Strike 2', short: 'CS2', processName: 'cs2' },
+  { name: 'Elden Ring', short: 'ELD', processName: 'eldenring' },
+  { name: 'Apex Legends', short: 'APX', processName: 'r5apex' },
+  { name: 'Rocket League', short: 'RL', processName: 'rocketleague' },
+  { name: 'Minecraft', short: 'MC', processName: 'javaw' },
+  { name: 'Fortnite', short: 'FN', processName: 'fortniteclient-win64-shipping' },
+  { name: 'Overwatch 2', short: 'OW', processName: 'overwatch' },
+  { name: 'Stardew Valley', short: 'SDV', processName: 'stardew valley' },
+  { name: 'Terraria', short: 'TER', processName: 'terraria' },
+];
 
 export const DEFAULT_ROOMS: Room[] = [
   { id: 'lobby', label: 'Lobby', icon: '🏠' },
@@ -99,7 +147,12 @@ export function defaultSettings(): PersistedSettings {
     friends: [],
     chatVisible: false,
     noiseSuppression: true,
-    pttEnabled: false,
+    echoCancellation: true,
+    autoGainControl: true,
+    inputMode: 'open',
+    vadThreshold: 0.04,
+    inputDeviceId: '',
+    outputDeviceId: '',
     // Default to F8 — captured system-wide, so Space would swallow the spacebar in-game.
     pushToTalkKey: 'F8',
     pttMode: 'hold',
@@ -115,6 +168,10 @@ export function defaultSettings(): PersistedSettings {
     screenResolution: '1080p',
     screenFramerate: '30',
     uiScale: 1.0,
+    launchOnStartup: false,
+    closeBehavior: 'quit',
+    alwaysOnTop: false,
+    theme: 'midnight',
   };
 }
 

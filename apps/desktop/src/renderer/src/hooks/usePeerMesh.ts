@@ -37,6 +37,12 @@ export interface PeerMesh {
   setMicEnabled: (on: boolean) => void;
   /** Apply Chromium's noise-suppression constraint to the local mic. */
   setNoiseSuppression: (on: boolean) => void;
+  /** Apply Chromium's echo-cancellation constraint to the local mic. */
+  setEchoCancellation: (on: boolean) => void;
+  /** Apply Chromium's automatic-gain-control constraint to the local mic. */
+  setAutoGainControl: (on: boolean) => void;
+  /** Switch the mic input device, re-acquiring the stream and swapping senders. */
+  setInputDevice: (deviceId: string) => void;
   toggleCamera: () => void;
   /** Begin sharing the chosen desktop source (optionally with system audio). */
   startScreenShare: (sourceId: string, withAudio: boolean) => void;
@@ -90,6 +96,9 @@ export function usePeerMesh(
   cameraFramerate: string,
   screenResolution: string,
   screenFramerate: string,
+  echoCancellation: boolean,
+  autoGainControl: boolean,
+  inputDeviceId: string,
 ): PeerMesh {
   const { subscribe, send, status } = signaling;
 
@@ -98,6 +107,12 @@ export function usePeerMesh(
   iceServersRef.current = iceServers;
   const nsRef = useRef(noiseSuppression);
   nsRef.current = noiseSuppression;
+  const ecRef = useRef(echoCancellation);
+  ecRef.current = echoCancellation;
+  const agcRef = useRef(autoGainControl);
+  agcRef.current = autoGainControl;
+  const inputDeviceIdRef = useRef(inputDeviceId);
+  inputDeviceIdRef.current = inputDeviceId;
   const micVolumeRef = useRef(micVolume);
   micVolumeRef.current = micVolume;
 
@@ -139,7 +154,12 @@ export function usePeerMesh(
 
     const promise = navigator.mediaDevices
       .getUserMedia({
-        audio: { echoCancellation: true, autoGainControl: true, noiseSuppression: nsRef.current },
+        audio: {
+          deviceId: inputDeviceIdRef.current ? { exact: inputDeviceIdRef.current } : undefined,
+          echoCancellation: ecRef.current,
+          autoGainControl: agcRef.current,
+          noiseSuppression: nsRef.current,
+        },
         video: false,
       })
       .then((stream) => {
@@ -361,15 +381,100 @@ export function usePeerMesh(
     setMicEnabledExt(!micEnabledRef.current);
   }, [setMicEnabledExt]);
 
-  const setNoiseSuppression = useCallback((on: boolean) => {
-    nsRef.current = on;
-    const stream = localStreamRef.current;
-    if (!stream) return;
-    for (const track of stream.getAudioTracks()) {
-      void track.applyConstraints({ noiseSuppression: on }).catch(() => {
-        /* best-effort; fully applies on next mic acquisition */
+  // Apply a device-level audio constraint live to the raw mic track (the
+  // processed/destination track ignores these); best-effort, fully applies on
+  // the next mic acquisition.
+  const applyMicConstraint = useCallback((constraint: MediaTrackConstraints) => {
+    const raw = rawStreamRef.current;
+    if (!raw) return;
+    for (const track of raw.getAudioTracks()) {
+      void track.applyConstraints(constraint).catch(() => {
+        /* best-effort */
       });
     }
+  }, []);
+
+  const setNoiseSuppression = useCallback((on: boolean) => {
+    nsRef.current = on;
+    applyMicConstraint({ noiseSuppression: on });
+  }, [applyMicConstraint]);
+
+  const setEchoCancellation = useCallback((on: boolean) => {
+    ecRef.current = on;
+    applyMicConstraint({ echoCancellation: on });
+  }, [applyMicConstraint]);
+
+  const setAutoGainControl = useCallback((on: boolean) => {
+    agcRef.current = on;
+    applyMicConstraint({ autoGainControl: on });
+  }, [applyMicConstraint]);
+
+  // Switch the mic input device: acquire a new device stream, rebuild the
+  // processing graph, carry over any camera video track, swap the audio track
+  // on every live link, then dispose the old device + graph.
+  const setInputDevice = useCallback((deviceId: string) => {
+    inputDeviceIdRef.current = deviceId;
+    const oldRaw = rawStreamRef.current;
+    if (!oldRaw) return; // not yet acquired — applies on next ensureLocalStream
+    void (async () => {
+      try {
+        const newRaw = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            deviceId: deviceId ? { exact: deviceId } : undefined,
+            echoCancellation: ecRef.current,
+            autoGainControl: agcRef.current,
+            noiseSuppression: nsRef.current,
+          },
+          video: false,
+        });
+        if (disposedRef.current) {
+          for (const t of newRaw.getTracks()) t.stop();
+          return;
+        }
+
+        const ctx = getSharedAudioContext();
+        const videoTrack = videoTrackRef.current;
+        const oldProcessed = localStreamRef.current;
+
+        let nextStream: MediaStream;
+        if (ctx) {
+          const { gainNode, analyserNode: newAnalyser, processedStream } =
+            createMicProcessingGraph(ctx, newRaw, micVolumeRef.current);
+          if (gainNodeRef.current) gainNodeRef.current.disconnect();
+          if (analyserNodeRef.current) analyserNodeRef.current.disconnect();
+          gainNodeRef.current = gainNode;
+          analyserNodeRef.current = newAnalyser;
+          setAnalyserNode(newAnalyser);
+          nextStream = processedStream;
+        } else {
+          setAnalyserNode(null);
+          nextStream = newRaw;
+        }
+
+        if (videoTrack) nextStream.addTrack(videoTrack);
+        for (const track of nextStream.getAudioTracks()) track.enabled = micEnabledRef.current;
+
+        for (const link of linksRef.current.values()) {
+          if (link.pc.getSenders().length === 0) {
+            for (const track of nextStream.getAudioTracks()) link.pc.addTrack(track, nextStream);
+          } else {
+            for (const track of nextStream.getAudioTracks()) link.setLocalAudioTrack(track, nextStream);
+          }
+        }
+
+        for (const t of oldRaw.getTracks()) t.stop();
+        if (oldProcessed && oldProcessed !== newRaw) {
+          for (const t of oldProcessed.getAudioTracks()) t.stop();
+        }
+
+        rawStreamRef.current = newRaw;
+        localStreamRef.current = nextStream;
+        localStreamPromiseRef.current = Promise.resolve(nextStream);
+        setLocalStream(nextStream);
+      } catch (err) {
+        console.error('input device switch failed', err);
+      }
+    })();
   }, []);
 
   const stopCamera = useCallback(() => {
@@ -591,6 +696,9 @@ export function usePeerMesh(
     toggleMic,
     setMicEnabled: setMicEnabledExt,
     setNoiseSuppression,
+    setEchoCancellation,
+    setAutoGainControl,
+    setInputDevice,
     toggleCamera,
     startScreenShare,
     stopScreenShare,

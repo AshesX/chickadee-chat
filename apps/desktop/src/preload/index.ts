@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer, webFrame } from 'electron';
 import {
   DEFAULT_ICE_SERVERS,
   defaultSettings,
+  type GameDef,
   type PersistedSettings,
   type ScreenSource,
 } from '@chickadee/shared';
@@ -126,6 +127,17 @@ const api = {
     ipcRenderer.invoke('chickadee:set-badge', count, dataUrl),
   /** Adjust the UI zoom factor */
   setZoomFactor: (factor: number): void => webFrame.setZoomFactor(factor),
+  /** Toggle launch-on-system-startup (packaged builds). */
+  setLoginItem: (open: boolean): Promise<void> =>
+    ipcRenderer.invoke('chickadee:set-login-item', open),
+  /** Pin/unpin the window above all other apps. */
+  setAlwaysOnTop: (on: boolean): Promise<void> =>
+    ipcRenderer.invoke('chickadee:set-always-on-top', on),
+  /** Read the current game-detection list. */
+  getGames: (): Promise<GameDef[]> => ipcRenderer.invoke('chickadee:get-games'),
+  /** Persist the game-detection list (applies to the next scan live). */
+  saveGames: (games: GameDef[]): Promise<void> =>
+    ipcRenderer.invoke('chickadee:save-games', games),
 };
 
 contextBridge.exposeInMainWorld('chickadee', api);

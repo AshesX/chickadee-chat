@@ -34,6 +34,11 @@
   --user-3: #3b82f6;
   --user-4: #ec4899;
 
+  /* Misc surfaces driven by the theme */
+  --scrollbar: #22224e;
+  --placeholder: #22225a;
+  --glow: rgba(139, 92, 246, 0.07);
+
   /* Radius & spacing */
   --radius-tile: 16px;
   --radius-panel: 14px;
@@ -42,6 +47,47 @@
   --radius-btn: 10px;
   --gap-grid: 10px;
   --gap-layout: 14px;
+}
+
+/* ── Theme variants (data-theme on <html>) ──────────────────── */
+
+/* Classic Dark — neutral slate/blue, less purple. */
+:root[data-theme='classic'] {
+  --bg: #0d0d12;
+  --panel: #15151c;
+  --card: #1b1b26;
+  --border: #2a2a38;
+  --dim: #8a8aa0;
+  --text: #e8e8f0;
+  --text-sub: #b4b4c4;
+  --gradient: linear-gradient(135deg, #4f6bed, #3b82f6);
+  --active-bg: rgba(79, 107, 237, 0.18);
+  --active-border: rgba(79, 107, 237, 0.4);
+  --active-text: #aec3ff;
+  --scrollbar: #303044;
+  --placeholder: #3a3a4e;
+  --glow: rgba(79, 107, 237, 0.05);
+}
+
+/* OLED Black — pure black, high contrast for accessibility. */
+:root[data-theme='oled'] {
+  --bg: #000000;
+  --panel: #050505;
+  --card: #0b0b0b;
+  --border: #333333;
+  --dim: #b8b8b8;
+  --text: #ffffff;
+  --text-sub: #d0d0d0;
+  --gradient: linear-gradient(135deg, #a855f7, #60a5fa);
+  --active-bg: rgba(168, 85, 247, 0.28);
+  --active-border: rgba(168, 85, 247, 0.6);
+  --active-text: #e9d5ff;
+  --online: #2ee65f;
+  --idle: #ffb020;
+  --dnd: #ff4d4d;
+  --scrollbar: #444444;
+  --placeholder: #555555;
+  --glow: transparent;
 }
 
 * {
@@ -73,7 +119,7 @@ body::before {
   inset: 0;
   background: radial-gradient(
     ellipse 55% 50% at 32% 48%,
-    rgba(139, 92, 246, 0.07) 0%,
+    var(--glow) 0%,
     transparent 70%
   );
   pointer-events: none;
@@ -88,12 +134,12 @@ body::before {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #22224e;
+  background: var(--scrollbar);
   border-radius: var(--radius-pill);
 }
 
 input::placeholder {
-  color: #22225a;
+  color: var(--placeholder);
 }
 input:focus {
   outline: none;

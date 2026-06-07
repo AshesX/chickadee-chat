@@ -22,6 +22,8 @@ export interface ParticipantTileProps {
   volume?: number;
   /** Whether this participant is currently deafened. */
   deafened?: boolean;
+  /** Preferred speaker deviceId (setSinkId), or '' for the system default. */
+  outputDeviceId?: string;
 }
 
 const CONN_LABEL: Partial<Record<RTCPeerConnectionState, string>> = {
@@ -44,6 +46,7 @@ export function ParticipantTile({
   transmitting,
   volume,
   deafened,
+  outputDeviceId,
 }: ParticipantTileProps): React.JSX.Element {
   const videoRef = useRef<HTMLVideoElement>(null);
   const speaking = useAudioActivity(muted ? null : cameraStream);
@@ -59,6 +62,16 @@ export function ParticipantTile({
     const el = videoRef.current;
     if (el && !isSelf) el.volume = Math.max(0, Math.min(1, volume ?? 1));
   }, [volume, isSelf, cameraStream]);
+
+  // Route remote audio to the chosen output device (remote tiles only).
+  useEffect(() => {
+    const el = videoRef.current as (HTMLVideoElement & { setSinkId?: (id: string) => Promise<void> }) | null;
+    if (el && !isSelf && typeof el.setSinkId === 'function') {
+      void el.setSinkId(outputDeviceId ?? '').catch(() => {
+        /* device may be gone; falls back to default */
+      });
+    }
+  }, [outputDeviceId, isSelf, cameraStream]);
 
   const connNote = !isSelf && connectionState ? CONN_LABEL[connectionState] : undefined;
   const initial = displayName.trim().charAt(0).toUpperCase() || '?';

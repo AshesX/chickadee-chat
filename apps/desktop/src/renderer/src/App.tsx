@@ -7,6 +7,8 @@ import { useRoomChat } from './hooks/useRoomChat';
 import { useFriends } from './hooks/useFriends';
 import { useSpaces } from './hooks/useSpaces';
 import { useKeybindSync } from './hooks/useKeybindSync';
+import { useVoiceActivation } from './hooks/useVoiceActivation';
+import { useMediaDevices } from './hooks/useMediaDevices';
 import { useSfxEvents } from './hooks/useSfxEvents';
 import { useTraySync } from './hooks/useTraySync';
 import { SELF_COLOR, useUserColors } from './lib/userColors';
@@ -43,12 +45,16 @@ export function App(): React.JSX.Element {
   const iceServers = useMemo(() => window.chickadee?.iceServers ?? DEFAULT_ICE_SERVERS, []);
   const signaling = useSignaling(signalingUrl);
   const [noiseSuppression, setNoiseSuppression] = useState(() => store.getNoiseSuppression());
+  const [echoCancellation, setEchoCancellation] = useState(() => store.getEchoCancellation());
+  const [autoGainControl, setAutoGainControl] = useState(() => store.getAutoGainControl());
+  const [inputDeviceId, setInputDeviceId] = useState(() => store.getInputDeviceId());
+  const [outputDeviceId, setOutputDeviceId] = useState(() => store.getOutputDeviceId());
   const [micVolume, setMicVolume] = useState(() => store.getMicVolume());
   const [cameraResolution, setCameraResolution] = useState(() => store.getCameraResolution());
   const [cameraFramerate, setCameraFramerate] = useState(() => store.getCameraFramerate());
   const [screenResolution, setScreenResolution] = useState(() => store.getScreenResolution());
   const [screenFramerate, setScreenFramerate] = useState(() => store.getScreenFramerate());
-  const mesh = usePeerMesh(signaling, iceServers, noiseSuppression, micVolume, cameraResolution, cameraFramerate, screenResolution, screenFramerate);
+  const mesh = usePeerMesh(signaling, iceServers, noiseSuppression, micVolume, cameraResolution, cameraFramerate, screenResolution, screenFramerate, echoCancellation, autoGainControl, inputDeviceId);
   const colors = useUserColors(signaling.peers.map((p) => p.id));
   const timer = useSessionTimer(signaling.status === 'connected');
 
@@ -67,7 +73,10 @@ export function App(): React.JSX.Element {
   const [renameTarget, setRenameTarget] = useState<Room | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [pttEnabled, setPttEnabled] = useState(() => store.getPttEnabled());
+  const [inputMode, setInputMode] = useState<'open' | 'voice' | 'ptt'>(() => store.getInputMode());
+  const [vadThreshold, setVadThreshold] = useState(() => store.getVadThreshold());
+  // In voice mode the mic button pauses VAD (master mute) rather than toggling directly.
+  const [voiceMuted, setVoiceMuted] = useState(false);
   const [pushToTalkKey, setPushToTalkKey] = useState(() => store.getPushToTalkKey());
   const [pttMode, setPttMode] = useState<'hold' | 'toggle'>(() => store.getPttMode());
   const [muteKey, setMuteKey] = useState(() => store.getMuteKey());
@@ -87,11 +96,25 @@ export function App(): React.JSX.Element {
   const [unreadCount, setUnreadCount] = useState(0);
   const [selfStatus, setSelfStatus] = useState<'online' | 'idle' | 'dnd'>(() => store.getStatus());
   const [uiScale, setUiScale] = useState(() => store.getUiScale());
+  const [theme, setTheme] = useState<'midnight' | 'classic' | 'oled'>(() => store.getTheme());
+  const [launchOnStartup, setLaunchOnStartup] = useState(() => store.getLaunchOnStartup());
+  const [closeBehavior, setCloseBehavior] = useState<'quit' | 'tray'>(() => store.getCloseBehavior());
+  const [alwaysOnTop, setAlwaysOnTop] = useState(() => store.getAlwaysOnTop());
 
   // Apply initial UI scale and whenever it changes
   useEffect(() => {
     window.chickadee?.setZoomFactor?.(uiScale);
   }, [uiScale]);
+
+  // Apply theme by toggling the data-theme attribute on <html>.
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
+
+  // Apply always-on-top on mount and whenever it changes.
+  useEffect(() => {
+    void window.chickadee?.setAlwaysOnTop?.(alwaysOnTop);
+  }, [alwaysOnTop]);
 
   const handleNewMessage = useCallback(() => {
     if (!document.hasFocus()) {
@@ -111,7 +134,10 @@ export function App(): React.JSX.Element {
     roomId: currentRoomId,
     onNewMessage: handleNewMessage,
   });
-  const transmitting = pttEnabled && mesh.micEnabled;
+  // In gated modes (PTT / voice activation) a live mic means we're transmitting.
+  const transmitting = inputMode !== 'open' && mesh.micEnabled;
+  // What the mic button reflects: in voice mode it's the master-pause state.
+  const micButtonOn = inputMode === 'voice' ? !voiceMuted : mesh.micEnabled;
 
   const onboardingNeeded = !displayName || !currentSpaceId;
   const inRoom = currentRoomId !== null;
@@ -188,6 +214,29 @@ export function App(): React.JSX.Element {
     mesh.setNoiseSuppression(on);
   }
 
+  function applyEchoCancellation(on: boolean): void {
+    setEchoCancellation(on);
+    store.setEchoCancellation(on);
+    mesh.setEchoCancellation(on);
+  }
+
+  function applyAutoGainControl(on: boolean): void {
+    setAutoGainControl(on);
+    store.setAutoGainControl(on);
+    mesh.setAutoGainControl(on);
+  }
+
+  const applyInputDevice = useCallback((id: string) => {
+    setInputDeviceId(id);
+    store.setInputDeviceId(id);
+    mesh.setInputDevice(id);
+  }, [mesh.setInputDevice]);
+
+  const applyOutputDevice = useCallback((id: string) => {
+    setOutputDeviceId(id);
+    store.setOutputDeviceId(id);
+  }, []);
+
   const applyMicVolume = useCallback((vol: number) => {
     setMicVolume(vol);
     store.setMicVolume(vol);
@@ -218,10 +267,21 @@ export function App(): React.JSX.Element {
     store.setUiScale(scale);
   }, []);
 
-  function applyPttEnabled(on: boolean): void {
-    setPttEnabled(on);
-    store.setPttEnabled(on);
-  }
+  const applyInputMode = useCallback((mode: 'open' | 'voice' | 'ptt') => {
+    setInputMode(mode);
+    store.setInputMode(mode);
+    setVoiceMuted(false); // reset the voice-mode pause when switching modes
+  }, []);
+
+  const cycleInputMode = useCallback(() => {
+    const order = ['open', 'voice', 'ptt'] as const;
+    applyInputMode(order[(order.indexOf(inputMode) + 1) % order.length]);
+  }, [inputMode, applyInputMode]);
+
+  const applyVadThreshold = useCallback((threshold: number) => {
+    setVadThreshold(threshold);
+    store.setVadThreshold(threshold);
+  }, []);
 
   function applyPushToTalkKey(key: string): void {
     setPushToTalkKey(key);
@@ -256,6 +316,28 @@ export function App(): React.JSX.Element {
   function applyBadgeNotificationsEnabled(on: boolean): void {
     setBadgeNotificationsEnabled(on);
     store.setBadgeNotificationsEnabled(on);
+  }
+
+  function applyTheme(next: 'midnight' | 'classic' | 'oled'): void {
+    setTheme(next);
+    store.setTheme(next);
+  }
+
+  function applyLaunchOnStartup(on: boolean): void {
+    setLaunchOnStartup(on);
+    store.setLaunchOnStartup(on);
+    void window.chickadee?.setLoginItem?.(on);
+  }
+
+  function applyCloseBehavior(next: 'quit' | 'tray'): void {
+    setCloseBehavior(next);
+    store.setCloseBehavior(next);
+  }
+
+  function applyAlwaysOnTop(on: boolean): void {
+    setAlwaysOnTop(on);
+    store.setAlwaysOnTop(on);
+    void window.chickadee?.setAlwaysOnTop?.(on);
   }
 
   // Reset unread count when window gets focus.
@@ -301,10 +383,19 @@ export function App(): React.JSX.Element {
   const handleToggleMic = useCallback(() => {
     if (deafened) {
       toggleDeafen();
-    } else {
-      mesh.toggleMic();
+      return;
     }
-  }, [deafened, toggleDeafen, mesh.toggleMic]);
+    if (inputMode === 'voice') {
+      // Master mute: pause/resume the VAD gate instead of toggling directly.
+      setVoiceMuted((m) => {
+        const next = !m;
+        if (next) mesh.setMicEnabled(false);
+        return next;
+      });
+      return;
+    }
+    mesh.toggleMic();
+  }, [deafened, toggleDeafen, mesh.toggleMic, mesh.setMicEnabled, inputMode]);
 
   // Acquire mic for test when settings is open, release if not in room when closed.
   useEffect(() => {
@@ -345,7 +436,7 @@ export function App(): React.JSX.Element {
   useSfxEvents({ sfxEnabled, sfxVolume, currentRoomId, peerIdsStr, micEnabled: mesh.micEnabled, inRoom });
 
   useKeybindSync({
-    pttEnabled,
+    inputMode,
     pushToTalkKey,
     pttMode,
     muteKey,
@@ -354,6 +445,18 @@ export function App(): React.JSX.Element {
     toggleMic: mesh.toggleMic,
     localStream: mesh.localStream,
   });
+
+  // Voice-activation gate (open-mic mode). Paused while manually muted/deafened.
+  // Reads the pre-gate analyser so it sees the live mic even while muted.
+  useVoiceActivation({
+    active: inputMode === 'voice' && inRoom && !deafened && !voiceMuted,
+    threshold: vadThreshold,
+    analyserNode: mesh.analyserNode,
+    setMicEnabled: mesh.setMicEnabled,
+  });
+
+  // Audio device lists for the Settings dropdowns (only enumerate while open).
+  const audioDevices = useMediaDevices(settingsOpen);
 
   useTraySync({ currentRoomLabel: currentRoom?.label ?? null, handleToggleMic, toggleDeafen });
 
@@ -386,6 +489,7 @@ export function App(): React.JSX.Element {
             gameTag={peer.game ?? undefined}
             volume={deafened ? 0 : (volumes[peer.id] ?? 1)}
             deafened={peer.deafened}
+            outputDeviceId={outputDeviceId}
           />
         );
       })}
@@ -460,7 +564,7 @@ export function App(): React.JSX.Element {
                 <div className="presentation">
                   <div className="stage" data-count={Math.min(activeScreens.length, 4)}>
                     {activeScreens.map((s) => (
-                      <ScreenView key={s.key} displayName={s.displayName} isSelf={s.isSelf} stream={s.stream} />
+                      <ScreenView key={s.key} displayName={s.displayName} isSelf={s.isSelf} stream={s.stream} outputDeviceId={outputDeviceId} />
                     ))}
                   </div>
                   <ul className="filmstrip">{tiles}</ul>
@@ -477,7 +581,7 @@ export function App(): React.JSX.Element {
             </div>
 
             <ControlBar
-              micEnabled={mesh.micEnabled}
+              micEnabled={micButtonOn}
               hasMic={!!mesh.localStream}
               onToggleMic={handleToggleMic}
               cameraEnabled={mesh.cameraEnabled}
@@ -486,8 +590,8 @@ export function App(): React.JSX.Element {
               onToggleShare={() =>
                 mesh.sharingScreen ? mesh.stopScreenShare() : setPickerOpen(true)
               }
-              pttOn={pttEnabled}
-              onTogglePtt={() => applyPttEnabled(!pttEnabled)}
+              inputMode={inputMode}
+              onCycleInputMode={cycleInputMode}
               transmitting={transmitting}
               onVolume={() => setVolumeOpen((v) => !v)}
               onLeave={leaveRoom}
@@ -629,6 +733,28 @@ export function App(): React.JSX.Element {
           onChangeName={saveName}
           noiseSuppression={noiseSuppression}
           onChangeNoiseSuppression={applyNoiseSuppression}
+          echoCancellation={echoCancellation}
+          onChangeEchoCancellation={applyEchoCancellation}
+          autoGainControl={autoGainControl}
+          onChangeAutoGainControl={applyAutoGainControl}
+          inputDevices={audioDevices.inputs}
+          outputDevices={audioDevices.outputs}
+          inputDeviceId={inputDeviceId}
+          onChangeInputDevice={applyInputDevice}
+          outputDeviceId={outputDeviceId}
+          onChangeOutputDevice={applyOutputDevice}
+          inputMode={inputMode}
+          onChangeInputMode={applyInputMode}
+          vadThreshold={vadThreshold}
+          onChangeVadThreshold={applyVadThreshold}
+          theme={theme}
+          onChangeTheme={applyTheme}
+          launchOnStartup={launchOnStartup}
+          onChangeLaunchOnStartup={applyLaunchOnStartup}
+          closeBehavior={closeBehavior}
+          onChangeCloseBehavior={applyCloseBehavior}
+          alwaysOnTop={alwaysOnTop}
+          onChangeAlwaysOnTop={applyAlwaysOnTop}
           pushToTalkKey={pushToTalkKey}
           onChangePushToTalkKey={applyPushToTalkKey}
           pttMode={pttMode}

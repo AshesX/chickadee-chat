@@ -1,12 +1,36 @@
 import { useState, useEffect, useRef } from 'react';
-import { User, Mic, Volume2, Keyboard, Sliders, X, Video, Monitor } from 'lucide-react';
+import { User, Mic, Volume2, Keyboard, Sliders, X, Video, Monitor, Gamepad2, Plus, Trash2 } from 'lucide-react';
+import type { GameDef } from '@chickadee/shared';
 import { useKeyCapture } from '../hooks/useKeyCapture';
+import type { MediaDeviceOption } from '../hooks/useMediaDevices';
 
 interface SettingsModalProps {
   displayName: string;
   onChangeName: (name: string) => void;
   noiseSuppression: boolean;
   onChangeNoiseSuppression: (on: boolean) => void;
+  echoCancellation: boolean;
+  onChangeEchoCancellation: (on: boolean) => void;
+  autoGainControl: boolean;
+  onChangeAutoGainControl: (on: boolean) => void;
+  inputDevices: MediaDeviceOption[];
+  outputDevices: MediaDeviceOption[];
+  inputDeviceId: string;
+  onChangeInputDevice: (id: string) => void;
+  outputDeviceId: string;
+  onChangeOutputDevice: (id: string) => void;
+  inputMode: 'open' | 'voice' | 'ptt';
+  onChangeInputMode: (mode: 'open' | 'voice' | 'ptt') => void;
+  vadThreshold: number;
+  onChangeVadThreshold: (v: number) => void;
+  theme: 'midnight' | 'classic' | 'oled';
+  onChangeTheme: (t: 'midnight' | 'classic' | 'oled') => void;
+  launchOnStartup: boolean;
+  onChangeLaunchOnStartup: (on: boolean) => void;
+  closeBehavior: 'quit' | 'tray';
+  onChangeCloseBehavior: (b: 'quit' | 'tray') => void;
+  alwaysOnTop: boolean;
+  onChangeAlwaysOnTop: (on: boolean) => void;
   pushToTalkKey: string;
   onChangePushToTalkKey: (key: string) => void;
   pttMode: 'hold' | 'toggle';
@@ -157,16 +181,22 @@ function Toggle({
   );
 }
 
-function MicLevelMeter({
-  analyserNode,
-}: {
-  analyserNode: AnalyserNode | null;
-}): React.JSX.Element {
-  const barRef = useRef<HTMLDivElement>(null);
-
+/**
+ * A single rAF loop reads `analyserNode.getByteFrequencyData` once per frame and
+ * writes the level to every registered meter bar. This avoids having multiple
+ * `MicLevelMeter`s each poll the same AnalyserNode — two `getByteFrequencyData`
+ * readers on one node starve each other (the second reads zeros), which is why
+ * the voice meter previously stayed empty while the mic-volume meter worked.
+ */
+function useSharedMicMeter(
+  analyserNode: AnalyserNode | null,
+  bars: React.MutableRefObject<Set<HTMLDivElement>>,
+): void {
   useEffect(() => {
     if (!analyserNode) {
-      if (barRef.current) barRef.current.style.width = '0%';
+      bars.current.forEach((b) => {
+        b.style.width = '0%';
+      });
       return;
     }
 
@@ -184,14 +214,15 @@ function MicLevelMeter({
 
       // Normalize average (which typically lands between 0 and 110 for speech)
       const percentage = Math.min(100, Math.round((average / 110) * 100));
+      // Clip warning if boosted audio is excessively high (frequency amplitude clipping)
+      const className = `mic-meter__fill${average > 195 ? ' mic-meter__fill--clipping' : ''}`;
 
-      if (barRef.current) {
-        barRef.current.style.width = `${percentage}%`;
-
-        // Clip warning if boosted audio is excessively high (frequency amplitude clipping)
-        const isClipping = average > 195;
-        barRef.current.className = `mic-meter__fill${isClipping ? ' mic-meter__fill--clipping' : ''}`;
-      }
+      // Read the live Set each frame so a meter that mounts later (the
+      // conditional voice section) is picked up immediately.
+      bars.current.forEach((b) => {
+        b.style.width = `${percentage}%`;
+        b.className = className;
+      });
 
       animationFrameId = requestAnimationFrame(updateMeter);
     };
@@ -201,7 +232,28 @@ function MicLevelMeter({
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [analyserNode]);
+  }, [analyserNode, bars]);
+}
+
+/** Renders one meter bar and registers it with the shared reader above. */
+function MicLevelMeter({
+  bars,
+  online,
+}: {
+  bars: React.MutableRefObject<Set<HTMLDivElement>>;
+  online: boolean;
+}): React.JSX.Element {
+  const barRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = barRef.current;
+    if (!el) return;
+    const set = bars.current;
+    set.add(el);
+    return () => {
+      set.delete(el);
+    };
+  }, [bars]);
 
   return (
     <div className="mic-meter">
@@ -209,9 +261,116 @@ function MicLevelMeter({
         <div ref={barRef} className="mic-meter__fill" />
       </div>
       <span className="mic-meter__label">
-        {analyserNode ? 'Live input' : 'Mic offline'}
+        {online ? 'Live input' : 'Mic offline'}
       </span>
     </div>
+  );
+}
+
+/** Game-detection list editor: built-ins are read-only; custom rows removable. */
+function GamesPanel(): React.JSX.Element {
+  const [games, setGames] = useState<GameDef[]>([]);
+  const [name, setName] = useState('');
+  const [short, setShort] = useState('');
+  const [proc, setProc] = useState('');
+
+  useEffect(() => {
+    void window.chickadee?.getGames?.().then((g) => setGames(g ?? []));
+  }, []);
+
+  function persist(next: GameDef[]): void {
+    setGames(next);
+    void window.chickadee?.saveGames?.(next);
+  }
+
+  function addGame(): void {
+    const n = name.trim();
+    const p = proc.trim().toLowerCase().replace(/\.exe$/, '');
+    if (!n || !p) return;
+    const s = (short.trim() || n.slice(0, 3)).toUpperCase();
+    persist([...games, { name: n, short: s, processName: p, isCustom: true }]);
+    setName('');
+    setShort('');
+    setProc('');
+  }
+
+  const builtIns = games.filter((g) => !g.isCustom);
+  const customs = games.map((g, i) => ({ g, i })).filter(({ g }) => g.isCustom);
+
+  return (
+    <>
+      <span className="settings-row__hint" style={{ marginBottom: '10px', display: 'block' }}>
+        Chickadee shows a tag on your tile when a known game is running (Windows only).
+        Add your own by entering its process name (e.g. <code>mygame.exe</code>).
+      </span>
+
+      <div className="settings-subdivision">Your games</div>
+      {customs.length === 0 && (
+        <span className="settings-row__hint">No custom games yet.</span>
+      )}
+      {customs.map(({ g, i }) => (
+        <div className="settings-row" key={`${g.processName}-${i}`}>
+          <div className="settings-row__label">
+            <span>{g.name} · {g.short}</span>
+            <span className="settings-row__hint">{g.processName}</span>
+          </div>
+          <button
+            className="unbind-btn"
+            onClick={() => persist(games.filter((_, idx) => idx !== i))}
+            title="Remove game"
+            aria-label={`Remove ${g.name}`}
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
+      ))}
+
+      <div className="settings-row" style={{ alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        <input
+          className="welcome__input"
+          style={{ flex: '2 1 120px', padding: '6px 10px', margin: 0, textAlign: 'left' }}
+          placeholder="Display name"
+          value={name}
+          maxLength={32}
+          onChange={(e) => setName(e.target.value)}
+        />
+        <input
+          className="welcome__input"
+          style={{ flex: '1 1 60px', padding: '6px 10px', margin: 0, textAlign: 'left' }}
+          placeholder="Tag"
+          value={short}
+          maxLength={5}
+          onChange={(e) => setShort(e.target.value)}
+        />
+        <input
+          className="welcome__input"
+          style={{ flex: '2 1 120px', padding: '6px 10px', margin: 0, textAlign: 'left' }}
+          placeholder="process.exe"
+          value={proc}
+          onChange={(e) => setProc(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && addGame()}
+        />
+        <button
+          className="seg-btn"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '8px 12px', borderRadius: 'var(--radius-badge)' }}
+          onClick={addGame}
+          disabled={!name.trim() || !proc.trim()}
+        >
+          <Plus size={14} /> Add
+        </button>
+      </div>
+
+      <hr className="settings-divider" />
+      <div className="settings-subdivision">Built-in games</div>
+      {builtIns.map((g) => (
+        <div className="settings-row" key={g.processName}>
+          <div className="settings-row__label">
+            <span>{g.name} · {g.short}</span>
+            <span className="settings-row__hint">{g.processName}</span>
+          </div>
+        </div>
+      ))}
+    </>
   );
 }
 
@@ -220,6 +379,28 @@ export function SettingsModal({
   onChangeName,
   noiseSuppression,
   onChangeNoiseSuppression,
+  echoCancellation,
+  onChangeEchoCancellation,
+  autoGainControl,
+  onChangeAutoGainControl,
+  inputDevices,
+  outputDevices,
+  inputDeviceId,
+  onChangeInputDevice,
+  outputDeviceId,
+  onChangeOutputDevice,
+  inputMode,
+  onChangeInputMode,
+  vadThreshold,
+  onChangeVadThreshold,
+  theme,
+  onChangeTheme,
+  launchOnStartup,
+  onChangeLaunchOnStartup,
+  closeBehavior,
+  onChangeCloseBehavior,
+  alwaysOnTop,
+  onChangeAlwaysOnTop,
   pushToTalkKey,
   onChangePushToTalkKey,
   pttMode,
@@ -251,7 +432,11 @@ export function SettingsModal({
 }: SettingsModalProps): React.JSX.Element {
   const [name, setName] = useState(displayName);
   const { capturing, startCapture, onRebindKey } = useKeyCapture();
-  const [activeTab, setActiveTab] = useState<'profile' | 'audio' | 'video' | 'sfx' | 'ui' | 'keybinds' | 'app'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'audio' | 'video' | 'sfx' | 'ui' | 'keybinds' | 'games' | 'app'>('profile');
+
+  // One shared analyser reader feeds every mic-level bar (see useSharedMicMeter).
+  const micBars = useRef<Set<HTMLDivElement>>(new Set());
+  useSharedMicMeter(activeTab === 'audio' ? analyserNode : null, micBars);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
@@ -318,6 +503,13 @@ export function SettingsModal({
             <span>Push-to-talk/Mute</span>
           </button>
           <button
+            className={`settings-sidebar__item${activeTab === 'games' ? ' settings-sidebar__item--active' : ''}`}
+            onClick={() => setActiveTab('games')}
+          >
+            <Gamepad2 size={15} />
+            <span>Game Detection</span>
+          </button>
+          <button
             className={`settings-sidebar__item${activeTab === 'app' ? ' settings-sidebar__item--active' : ''}`}
             onClick={() => setActiveTab('app')}
           >
@@ -336,6 +528,7 @@ export function SettingsModal({
               {activeTab === 'sfx' && 'Sound Effects'}
               {activeTab === 'ui' && 'User Interface'}
               {activeTab === 'keybinds' && 'Push-to-talk/Mute'}
+              {activeTab === 'games' && 'Game Detection'}
               {activeTab === 'app' && 'App Settings'}
             </h2>
             <button className="settings-content__close" onClick={onClose} aria-label="Close settings">
@@ -360,6 +553,97 @@ export function SettingsModal({
 
             {activeTab === 'audio' && (
               <>
+                <div className="settings-subdivision">Devices</div>
+
+                <div className="settings-row">
+                  <div className="settings-row__label">
+                    <span>Input device (microphone)</span>
+                    <span className="settings-row__hint">Switches your mic live without dropping the call.</span>
+                  </div>
+                  <select
+                    className="welcome__input"
+                    value={inputDeviceId}
+                    onChange={(e) => onChangeInputDevice(e.target.value)}
+                    style={{ width: 'auto', maxWidth: '230px', padding: '6px 12px' }}
+                  >
+                    <option value="">System Default</option>
+                    {inputDevices.map((d) => (
+                      <option key={d.deviceId} value={d.deviceId}>{d.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="settings-row">
+                  <div className="settings-row__label">
+                    <span>Output device (speakers)</span>
+                    <span className="settings-row__hint">Where other people's audio plays.</span>
+                  </div>
+                  <select
+                    className="welcome__input"
+                    value={outputDeviceId}
+                    onChange={(e) => onChangeOutputDevice(e.target.value)}
+                    style={{ width: 'auto', maxWidth: '230px', padding: '6px 12px' }}
+                  >
+                    <option value="">System Default</option>
+                    {outputDevices.map((d) => (
+                      <option key={d.deviceId} value={d.deviceId}>{d.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <hr className="settings-divider" />
+                <div className="settings-subdivision">Input Mode</div>
+
+                <div className="settings-row">
+                  <div className="settings-row__label">
+                    <span>How your mic transmits</span>
+                    <span className="settings-row__hint">Open Mic: always live. Voice Activation: opens when you speak. Push-to-Talk: only while the key is held/toggled.</span>
+                  </div>
+                  <div className="seg-group">
+                    <button
+                      className={`seg-btn${inputMode === 'open' ? ' seg-btn--active' : ''}`}
+                      onClick={() => onChangeInputMode('open')}
+                    >Open Mic</button>
+                    <button
+                      className={`seg-btn${inputMode === 'voice' ? ' seg-btn--active' : ''}`}
+                      onClick={() => onChangeInputMode('voice')}
+                    >Voice</button>
+                    <button
+                      className={`seg-btn${inputMode === 'ptt' ? ' seg-btn--active' : ''}`}
+                      onClick={() => onChangeInputMode('ptt')}
+                    >Push-to-Talk</button>
+                  </div>
+                </div>
+
+                {inputMode === 'voice' && (
+                  <div className="settings-row">
+                    <div className="settings-row__label">
+                      <span>Voice sensitivity</span>
+                      <span className="settings-row__hint">Speak normally and adjust until the meter consistently crosses the gate. Higher = needs louder sound to transmit.</span>
+                    </div>
+                    <div className="mic-control-wrap">
+                      <SettingsSlider
+                        min={0.01}
+                        max={0.2}
+                        step={0.005}
+                        value={vadThreshold}
+                        onChange={onChangeVadThreshold}
+                        markers={[0.01, 0.05, 0.1, 0.15, 0.2]}
+                        labels={[
+                          { value: 0.01, text: 'Low' },
+                          { value: 0.1, text: 'Medium' },
+                          { value: 0.2, text: 'High' },
+                        ]}
+                        snapThreshold={0.004}
+                      />
+                      <MicLevelMeter bars={micBars} online={!!analyserNode} />
+                    </div>
+                  </div>
+                )}
+
+                <hr className="settings-divider" />
+                <div className="settings-subdivision">Processing</div>
+
                 <div className="settings-row">
                   <div className="settings-row__label">
                     <span>Mic volume</span>
@@ -382,7 +666,7 @@ export function SettingsModal({
                       ]}
                       snapThreshold={0.08}
                     />
-                    <MicLevelMeter analyserNode={analyserNode} />
+                    <MicLevelMeter bars={micBars} online={!!analyserNode} />
                   </div>
                 </div>
 
@@ -392,6 +676,22 @@ export function SettingsModal({
                     <span className="settings-row__hint">Chromium built-in mic noise removal.</span>
                   </div>
                   <Toggle on={noiseSuppression} onClick={() => onChangeNoiseSuppression(!noiseSuppression)} />
+                </div>
+
+                <div className="settings-row">
+                  <div className="settings-row__label">
+                    <span>Echo cancellation</span>
+                    <span className="settings-row__hint">Removes speaker echo picked up by the mic. Turn off if using headphones with a dedicated mic.</span>
+                  </div>
+                  <Toggle on={echoCancellation} onClick={() => onChangeEchoCancellation(!echoCancellation)} />
+                </div>
+
+                <div className="settings-row">
+                  <div className="settings-row__label">
+                    <span>Automatic gain control</span>
+                    <span className="settings-row__hint">Auto-levels your mic volume. Turn off if you prefer manual control.</span>
+                  </div>
+                  <Toggle on={autoGainControl} onClick={() => onChangeAutoGainControl(!autoGainControl)} />
                 </div>
               </>
             )}
@@ -506,6 +806,28 @@ export function SettingsModal({
             )}
 
             {activeTab === 'ui' && (
+              <>
+              <div className="settings-row">
+                <div className="settings-row__label">
+                  <span>Theme</span>
+                  <span className="settings-row__hint">Pick a color theme for the whole app.</span>
+                </div>
+                <div className="seg-group">
+                  <button
+                    className={`seg-btn${theme === 'midnight' ? ' seg-btn--active' : ''}`}
+                    onClick={() => onChangeTheme('midnight')}
+                  >Midnight</button>
+                  <button
+                    className={`seg-btn${theme === 'classic' ? ' seg-btn--active' : ''}`}
+                    onClick={() => onChangeTheme('classic')}
+                  >Classic Dark</button>
+                  <button
+                    className={`seg-btn${theme === 'oled' ? ' seg-btn--active' : ''}`}
+                    onClick={() => onChangeTheme('oled')}
+                  >OLED Black</button>
+                </div>
+              </div>
+
               <div className="settings-row">
                 <div className="settings-row__label">
                   <span>UI Scale Slider</span>
@@ -530,6 +852,7 @@ export function SettingsModal({
                   />
                 </div>
               </div>
+              </>
             )}
 
             {activeTab === 'keybinds' && (
@@ -631,14 +954,51 @@ export function SettingsModal({
               </>
             )}
 
+            {activeTab === 'games' && <GamesPanel />}
+
             {activeTab === 'app' && (
-              <div className="settings-row">
-                <div className="settings-row__label">
-                  <span>Taskbar unread badge</span>
-                  <span className="settings-row__hint">Show count of unread messages on the app icon when unfocused.</span>
+              <>
+                <div className="settings-row">
+                  <div className="settings-row__label">
+                    <span>Launch on startup</span>
+                    <span className="settings-row__hint">Open Chickadee automatically when Windows boots.</span>
+                  </div>
+                  <Toggle on={launchOnStartup} onClick={() => onChangeLaunchOnStartup(!launchOnStartup)} />
                 </div>
-                <Toggle on={badgeNotificationsEnabled} onClick={() => onChangeBadgeNotificationsEnabled(!badgeNotificationsEnabled)} />
-              </div>
+
+                <div className="settings-row">
+                  <div className="settings-row__label">
+                    <span>When closing the window</span>
+                    <span className="settings-row__hint">Minimize to tray keeps you connected to voice in the background.</span>
+                  </div>
+                  <div className="seg-group">
+                    <button
+                      className={`seg-btn${closeBehavior === 'quit' ? ' seg-btn--active' : ''}`}
+                      onClick={() => onChangeCloseBehavior('quit')}
+                    >Quit app</button>
+                    <button
+                      className={`seg-btn${closeBehavior === 'tray' ? ' seg-btn--active' : ''}`}
+                      onClick={() => onChangeCloseBehavior('tray')}
+                    >Minimize to tray</button>
+                  </div>
+                </div>
+
+                <div className="settings-row">
+                  <div className="settings-row__label">
+                    <span>Always on top</span>
+                    <span className="settings-row__hint">Pin the window above other apps — handy on a single monitor.</span>
+                  </div>
+                  <Toggle on={alwaysOnTop} onClick={() => onChangeAlwaysOnTop(!alwaysOnTop)} />
+                </div>
+
+                <div className="settings-row">
+                  <div className="settings-row__label">
+                    <span>Taskbar unread badge</span>
+                    <span className="settings-row__hint">Show count of unread messages on the app icon when unfocused.</span>
+                  </div>
+                  <Toggle on={badgeNotificationsEnabled} onClick={() => onChangeBadgeNotificationsEnabled(!badgeNotificationsEnabled)} />
+                </div>
+              </>
             )}
           </div>
 

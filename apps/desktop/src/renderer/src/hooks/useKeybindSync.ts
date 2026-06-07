@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 
 interface UseKeybindSyncOpts {
-  pttEnabled: boolean;
+  inputMode: 'open' | 'voice' | 'ptt';
   pushToTalkKey: string;
   pttMode: 'hold' | 'toggle';
   muteKey: string;
@@ -12,7 +12,7 @@ interface UseKeybindSyncOpts {
 }
 
 export function useKeybindSync({
-  pttEnabled,
+  inputMode,
   pushToTalkKey,
   pttMode,
   muteKey,
@@ -21,6 +21,8 @@ export function useKeybindSync({
   toggleMic,
   localStream,
 }: UseKeybindSyncOpts): void {
+  const pttEnabled = inputMode === 'ptt';
+
   useEffect(() => {
     void window.chickadee?.setPushToTalk?.({
       enabled: pttEnabled && pushToTalkKey !== '',
@@ -33,24 +35,27 @@ export function useKeybindSync({
     void window.chickadee?.setMuteKeybind?.({ enabled: muteKey !== '', key: muteKey, mode: muteMode });
   }, [muteKey, muteMode]);
 
-  // In PTT mode the mic starts muted until the hotkey activates it.
+  // Baseline mic gating per input mode. PTT starts muted (the key opens it);
+  // Open Mic is always live; Voice Activation is managed by useVoiceActivation.
   useEffect(() => {
-    if (pttEnabled && localStream) setMicEnabled(false);
-  }, [pttEnabled, localStream, setMicEnabled]);
+    if (!localStream) return;
+    if (inputMode === 'ptt') setMicEnabled(false);
+    else if (inputMode === 'open') setMicEnabled(true);
+  }, [inputMode, localStream, setMicEnabled]);
 
-  // Toggle mode: each key press flips mic on/off.
+  // PTT toggle mode: each key press flips mic on/off.
   useEffect(() => {
-    if (pttMode !== 'toggle') return;
+    if (!pttEnabled || pttMode !== 'toggle') return;
     return window.chickadee?.onPushToTalk?.(() => toggleMic());
-  }, [pttMode, toggleMic]);
+  }, [pttEnabled, pttMode, toggleMic]);
 
-  // Hold mode: mic on while key held, off on release.
+  // PTT hold mode: mic on while key held, off on release.
   useEffect(() => {
-    if (pttMode !== 'hold') return;
+    if (!pttEnabled || pttMode !== 'hold') return;
     const unsubStart = window.chickadee?.onPttStart?.(() => setMicEnabled(true));
     const unsubStop = window.chickadee?.onPttStop?.(() => setMicEnabled(false));
     return () => { unsubStart?.(); unsubStop?.(); };
-  }, [pttMode, setMicEnabled]);
+  }, [pttEnabled, pttMode, setMicEnabled]);
 
   // Mute toggle mode: each key press toggles mic on/off.
   useEffect(() => {
