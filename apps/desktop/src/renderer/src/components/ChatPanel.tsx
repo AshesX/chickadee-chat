@@ -16,9 +16,10 @@ interface ChatPanelProps {
   messages: ChatMessage[];
   onSend: (text: string) => void;
   onReact: (emoji: string) => void;
+  chatFontScale?: number;
 }
 
-export function ChatPanel({ messages, onSend, onReact }: ChatPanelProps): React.JSX.Element {
+export function ChatPanel({ messages, onSend, onReact, chatFontScale }: ChatPanelProps): React.JSX.Element {
   const [input, setInput] = useState('');
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -34,7 +35,7 @@ export function ChatPanel({ messages, onSend, onReact }: ChatPanelProps): React.
   }
 
   return (
-    <div className="chat-panel">
+    <div className="chat-panel" style={{ '--chat-font-scale': chatFontScale } as React.CSSProperties}>
       <div className="chat-panel__head">ROOM CHAT</div>
 
       <div className="chat-panel__scroll">

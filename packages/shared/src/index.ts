@@ -114,6 +114,8 @@ export interface PersistedSettings {
   alwaysOnTop: boolean;
   /** Active color theme. */
   theme: 'midnight' | 'classic' | 'oled';
+  /** Chat Font Scale (relative to normal, e.g. 0.5 to 2.0). */
+  chatFontScale: number;
 }
 
 /** Built-in games the detector ships with (process names are lower-cased, .exe-less). */
@@ -172,6 +174,7 @@ export function defaultSettings(): PersistedSettings {
     closeBehavior: 'quit',
     alwaysOnTop: false,
     theme: 'midnight',
+    chatFontScale: 1.0,
   };
 }
 

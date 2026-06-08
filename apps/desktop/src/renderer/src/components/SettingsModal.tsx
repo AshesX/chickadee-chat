@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { User, Mic, Volume2, Keyboard, Sliders, X, Video, Monitor, Gamepad2, Plus, Trash2 } from 'lucide-react';
+import { User, Mic, Volume2, Keyboard, Sliders, X, Video, Monitor, Gamepad2, Plus, Trash2, MessageSquare } from 'lucide-react';
 import type { GameDef } from '@chickadee/shared';
 import { useKeyCapture } from '../hooks/useKeyCapture';
 import type { MediaDeviceOption } from '../hooks/useMediaDevices';
@@ -57,6 +57,8 @@ interface SettingsModalProps {
   onChangeScreenFramerate: (fps: string) => void;
   uiScale: number;
   onChangeUiScale: (scale: number) => void;
+  chatFontScale: number;
+  onChangeChatFontScale: (scale: number) => void;
   analyserNode: AnalyserNode | null;
   onClose: () => void;
 }
@@ -427,12 +429,14 @@ export function SettingsModal({
   onChangeScreenFramerate,
   uiScale,
   onChangeUiScale,
+  chatFontScale,
+  onChangeChatFontScale,
   analyserNode,
   onClose,
 }: SettingsModalProps): React.JSX.Element {
   const [name, setName] = useState(displayName);
   const { capturing, startCapture, onRebindKey } = useKeyCapture();
-  const [activeTab, setActiveTab] = useState<'profile' | 'audio' | 'video' | 'sfx' | 'ui' | 'keybinds' | 'games' | 'app'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'audio' | 'video' | 'sfx' | 'chat' | 'ui' | 'keybinds' | 'games' | 'app'>('profile');
 
   // One shared analyser reader feeds every mic-level bar (see useSharedMicMeter).
   const micBars = useRef<Set<HTMLDivElement>>(new Set());
@@ -489,6 +493,13 @@ export function SettingsModal({
             <span>Sound Effects</span>
           </button>
           <button
+            className={`settings-sidebar__item${activeTab === 'chat' ? ' settings-sidebar__item--active' : ''}`}
+            onClick={() => setActiveTab('chat')}
+          >
+            <MessageSquare size={15} />
+            <span>Chat Settings</span>
+          </button>
+          <button
             className={`settings-sidebar__item${activeTab === 'ui' ? ' settings-sidebar__item--active' : ''}`}
             onClick={() => setActiveTab('ui')}
           >
@@ -526,6 +537,7 @@ export function SettingsModal({
               {activeTab === 'audio' && 'Voice & Audio'}
               {activeTab === 'video' && 'Video & Screen Share'}
               {activeTab === 'sfx' && 'Sound Effects'}
+              {activeTab === 'chat' && 'Chat Settings'}
               {activeTab === 'ui' && 'User Interface'}
               {activeTab === 'keybinds' && 'Push-to-talk/Mute'}
               {activeTab === 'games' && 'Game Detection'}
@@ -849,6 +861,37 @@ export function SettingsModal({
                     ]}
                     snapThreshold={0.05}
                     commitOnRelease={true}
+                  />
+                </div>
+              </div>
+              </>
+            )}
+
+            {activeTab === 'chat' && (
+              <>
+              <div className="settings-subdivision">Chat Settings</div>
+
+              <div className="settings-row">
+                <div className="settings-row__label">
+                  <span>Chat Font Scale</span>
+                  <span className="settings-row__hint">Adjust the size of the text messages in the chat panel.</span>
+                </div>
+                <div className="mic-control-wrap">
+                  <SettingsSlider
+                    min={0.5}
+                    max={2.0}
+                    step={0.1}
+                    value={chatFontScale}
+                    onChange={onChangeChatFontScale}
+                    markers={[0.5, 1.0, 1.5, 2.0]}
+                    labels={[
+                      { value: 0.5, text: '50%' },
+                      { value: 1.0, text: '100% (Default)' },
+                      { value: 1.5, text: '150%' },
+                      { value: 2.0, text: '200%' }
+                    ]}
+                    snapThreshold={0.08}
+                    commitOnRelease={false}
                   />
                 </div>
               </div>

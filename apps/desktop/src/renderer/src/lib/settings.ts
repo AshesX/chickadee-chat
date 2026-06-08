@@ -115,6 +115,8 @@ export const store = {
   setAlwaysOnTop: (alwaysOnTop: boolean): void => persist({ alwaysOnTop }),
   getTheme: (): 'midnight' | 'classic' | 'oled' => cache.theme ?? 'midnight',
   setTheme: (theme: 'midnight' | 'classic' | 'oled'): void => persist({ theme }),
+  getChatFontScale: (): number => cache.chatFontScale ?? 1.0,
+  setChatFontScale: (chatFontScale: number): void => persist({ chatFontScale }),
 };
 
 const FRIEND_PALETTE = [

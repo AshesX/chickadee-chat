@@ -96,6 +96,7 @@ export function App(): React.JSX.Element {
   const [unreadCount, setUnreadCount] = useState(0);
   const [selfStatus, setSelfStatus] = useState<'online' | 'idle' | 'dnd'>(() => store.getStatus());
   const [uiScale, setUiScale] = useState(() => store.getUiScale());
+  const [chatFontScale, setChatFontScale] = useState(() => store.getChatFontScale());
   const [theme, setTheme] = useState<'midnight' | 'classic' | 'oled'>(() => store.getTheme());
   const [launchOnStartup, setLaunchOnStartup] = useState(() => store.getLaunchOnStartup());
   const [closeBehavior, setCloseBehavior] = useState<'quit' | 'tray'>(() => store.getCloseBehavior());
@@ -265,6 +266,11 @@ export function App(): React.JSX.Element {
   const applyUiScale = useCallback((scale: number) => {
     setUiScale(scale);
     store.setUiScale(scale);
+  }, []);
+
+  const applyChatFontScale = useCallback((scale: number) => {
+    setChatFontScale(scale);
+    store.setChatFontScale(scale);
   }, []);
 
   const applyInputMode = useCallback((mode: 'open' | 'voice' | 'ptt') => {
@@ -576,7 +582,7 @@ export function App(): React.JSX.Element {
               )}
 
               {chatOpen && (
-                <ChatPanel messages={chat.messages} onSend={chat.sendChat} onReact={chat.react} />
+                <ChatPanel messages={chat.messages} onSend={chat.sendChat} onReact={chat.react} chatFontScale={chatFontScale} />
               )}
             </div>
 
@@ -781,6 +787,8 @@ export function App(): React.JSX.Element {
           onChangeScreenFramerate={applyScreenFramerate}
           uiScale={uiScale}
           onChangeUiScale={applyUiScale}
+          chatFontScale={chatFontScale}
+          onChangeChatFontScale={applyChatFontScale}
           analyserNode={mesh.analyserNode}
           onClose={() => setSettingsOpen(false)}
         />

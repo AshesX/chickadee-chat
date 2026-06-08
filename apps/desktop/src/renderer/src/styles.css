@@ -818,21 +818,21 @@ button {
   margin-bottom: 1px;
 }
 .chat-msg__name {
-  font-size: 11px;
+  font-size: calc(11px * var(--chat-font-scale, 1));
   font-weight: 700;
 }
 .chat-msg__time {
-  font-size: 9px;
+  font-size: calc(9px * var(--chat-font-scale, 1));
   color: #1a1a4a;
 }
 .chat-msg__text {
-  font-size: 12px;
+  font-size: calc(12px * var(--chat-font-scale, 1));
   color: var(--text-sub);
   line-height: 1.5;
   word-break: break-word;
 }
 .chat-msg__text--rx {
-  font-size: 22px;
+  font-size: calc(22px * var(--chat-font-scale, 1));
 }
 .chat-panel__reactions {
   display: flex;
@@ -843,7 +843,7 @@ button {
 .reaction {
   border-radius: 6px;
   padding: 3px 5px;
-  font-size: 15px;
+  font-size: calc(15px * var(--chat-font-scale, 1));
   background: rgba(255, 255, 255, 0.04);
   transition: all 0.12s ease;
 }
@@ -864,7 +864,7 @@ button {
   border-radius: var(--radius-badge);
   padding: 5px 9px;
   color: var(--text);
-  font-size: 12px;
+  font-size: calc(12px * var(--chat-font-scale, 1));
 }
 .send-btn {
   width: 28px;
