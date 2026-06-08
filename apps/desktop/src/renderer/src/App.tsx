@@ -97,6 +97,8 @@ export function App(): React.JSX.Element {
   const [selfStatus, setSelfStatus] = useState<'online' | 'idle' | 'dnd'>(() => store.getStatus());
   const [uiScale, setUiScale] = useState(() => store.getUiScale());
   const [chatFontScale, setChatFontScale] = useState(() => store.getChatFontScale());
+  const [chatPosition, setChatPosition] = useState(() => store.getChatPosition());
+  const [chatWidthScale, setChatWidthScale] = useState(() => store.getChatWidthScale());
   const [theme, setTheme] = useState<'midnight' | 'classic' | 'oled'>(() => store.getTheme());
   const [launchOnStartup, setLaunchOnStartup] = useState(() => store.getLaunchOnStartup());
   const [closeBehavior, setCloseBehavior] = useState<'quit' | 'tray'>(() => store.getCloseBehavior());
@@ -271,6 +273,16 @@ export function App(): React.JSX.Element {
   const applyChatFontScale = useCallback((scale: number) => {
     setChatFontScale(scale);
     store.setChatFontScale(scale);
+  }, []);
+
+  const applyChatPosition = useCallback((pos: 'left' | 'right') => {
+    setChatPosition(pos);
+    store.setChatPosition(pos);
+  }, []);
+
+  const applyChatWidthScale = useCallback((scale: number) => {
+    setChatWidthScale(scale);
+    store.setChatWidthScale(scale);
   }, []);
 
   const applyInputMode = useCallback((mode: 'open' | 'voice' | 'ptt') => {
@@ -566,6 +578,10 @@ export function App(): React.JSX.Element {
         {inRoom ? (
           <>
             <div className="content-area">
+              {chatOpen && chatPosition === 'left' && (
+                <ChatPanel messages={chat.messages} onSend={chat.sendChat} onReact={chat.react} chatFontScale={chatFontScale} chatPosition={chatPosition} chatWidthScale={chatWidthScale} />
+              )}
+
               {presenting ? (
                 <div className="presentation">
                   <div className="stage" data-count={Math.min(activeScreens.length, 4)}>
@@ -581,8 +597,8 @@ export function App(): React.JSX.Element {
                 </ul>
               )}
 
-              {chatOpen && (
-                <ChatPanel messages={chat.messages} onSend={chat.sendChat} onReact={chat.react} chatFontScale={chatFontScale} />
+              {chatOpen && chatPosition === 'right' && (
+                <ChatPanel messages={chat.messages} onSend={chat.sendChat} onReact={chat.react} chatFontScale={chatFontScale} chatPosition={chatPosition} chatWidthScale={chatWidthScale} />
               )}
             </div>
 
@@ -789,6 +805,10 @@ export function App(): React.JSX.Element {
           onChangeUiScale={applyUiScale}
           chatFontScale={chatFontScale}
           onChangeChatFontScale={applyChatFontScale}
+          chatPosition={chatPosition}
+          onChangeChatPosition={applyChatPosition}
+          chatWidthScale={chatWidthScale}
+          onChangeChatWidthScale={applyChatWidthScale}
           analyserNode={mesh.analyserNode}
           onClose={() => setSettingsOpen(false)}
         />

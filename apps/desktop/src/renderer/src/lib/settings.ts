@@ -117,6 +117,10 @@ export const store = {
   setTheme: (theme: 'midnight' | 'classic' | 'oled'): void => persist({ theme }),
   getChatFontScale: (): number => cache.chatFontScale ?? 1.0,
   setChatFontScale: (chatFontScale: number): void => persist({ chatFontScale }),
+  getChatPosition: (): 'left' | 'right' => cache.chatPosition ?? 'right',
+  setChatPosition: (chatPosition: 'left' | 'right'): void => persist({ chatPosition }),
+  getChatWidthScale: (): number => cache.chatWidthScale ?? 1.0,
+  setChatWidthScale: (chatWidthScale: number): void => persist({ chatWidthScale }),
 };
 
 const FRIEND_PALETTE = [

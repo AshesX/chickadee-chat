@@ -116,6 +116,10 @@ export interface PersistedSettings {
   theme: 'midnight' | 'classic' | 'oled';
   /** Chat Font Scale (relative to normal, e.g. 0.5 to 2.0). */
   chatFontScale: number;
+  /** Chat Panel Position (left or right). */
+  chatPosition: 'left' | 'right';
+  /** Chat Width Scale (relative to normal, e.g. 1.0 to 2.0). */
+  chatWidthScale: number;
 }
 
 /** Built-in games the detector ships with (process names are lower-cased, .exe-less). */
@@ -175,6 +179,8 @@ export function defaultSettings(): PersistedSettings {
     alwaysOnTop: false,
     theme: 'midnight',
     chatFontScale: 1.0,
+    chatPosition: 'right',
+    chatWidthScale: 1.0,
   };
 }
 
