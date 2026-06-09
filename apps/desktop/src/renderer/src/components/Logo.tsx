@@ -12,8 +12,8 @@ const EYE_RIGHT = { cx: 252.46, cy: 170.59 };
 // Radius of the path the pupil centers rotate along
 const ROTATION_RADIUS = 24.324389; // Math.sqrt(17.2^2 + 17.2^2)
 
-// Original angle (top right: dx = 17.2, dy = -17.2)
-const BASE_ANGLE = -Math.PI / 4;
+// Original angle (top left: dx = -17.2, dy = -17.2)
+const BASE_ANGLE = -3 * Math.PI / 4;
 
 /** The Chickadee Chat brand logo. */
 export function Logo({ size = 24, className }: LogoProps): React.JSX.Element {
