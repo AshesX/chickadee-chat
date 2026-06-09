@@ -56,11 +56,17 @@ export function Logo({ size = 24, className }: LogoProps): React.JSX.Element {
 
     const handleMouseMove = (e: MouseEvent) => {
       const sidebarEl = document.querySelector('.sidebar');
+      const onboardingEl = document.querySelector('.modal-panel--welcome');
       let active = false;
       let targetX = 0;
       let targetY = 0;
 
-      if (sidebarEl) {
+      if (onboardingEl) {
+        // Onboarding Screens (Welcome / Name Modal): track globally
+        active = true;
+        targetX = e.clientX;
+        targetY = e.clientY;
+      } else if (sidebarEl) {
         // Main Screen: track only inside the sidebar boundaries
         const rect = sidebarEl.getBoundingClientRect();
         if (
@@ -74,7 +80,7 @@ export function Logo({ size = 24, className }: LogoProps): React.JSX.Element {
           targetY = e.clientY;
         }
       } else {
-        // Onboarding Screens (Welcome / Name Modal): track globally
+        // Fallback: track globally
         active = true;
         targetX = e.clientX;
         targetY = e.clientY;
