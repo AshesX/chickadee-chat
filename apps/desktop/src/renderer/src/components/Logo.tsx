@@ -148,7 +148,7 @@ export function Logo({ size = 24, className }: LogoProps): React.JSX.Element {
       height={size}
       viewBox="-20.255 0 390 390"
       className={className}
-      style={{ display: 'block' }}
+      style={{ display: 'inline-block' }}
     >
       <circle id="eye-left" fill="#e8e8f0" cx={EYE_LEFT.cx} cy={EYE_LEFT.cy} r="34.4" />
       <circle id="eye-right" fill="#e8e8f0" cx={EYE_RIGHT.cx} cy={EYE_RIGHT.cy} r="34.4" />
