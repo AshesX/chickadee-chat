@@ -1980,7 +1980,7 @@ button {
 /* ─── Avatar images in existing circles ──────────────────────────────────── */
 
 .tile__avatar {
-  overflow: hidden;
+  overflow: visible;
 }
 
 .tile__avatar-img {
