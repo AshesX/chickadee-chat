@@ -23,7 +23,7 @@ Phases 1–5 complete (media core): presence, mesh **audio**, **video**, **scree
 - **Electron** (via electron-vite) — desktop shell, main/preload/renderer split
 - **React + TypeScript** — renderer UI
 - **WebRTC** — full-mesh P2P media (no SFU). Up to 4 peers = ≤3 connections each
-- **Node + ws** — minimal WebSocket signaling server (brokers the handshake only; never touches media)
+- **Bun + ws** — minimal WebSocket signaling server (brokers the handshake only; never touches media)
 
 ## Architecture
 
@@ -57,7 +57,7 @@ Renderer layers (each builds on the one below):
 
 ```
 packages/shared/      @chickadee/shared — signaling protocol + shared types (ESM, type-only on the desktop side)
-apps/signaling/       @chickadee/signaling — ws server (tsx, in-memory rooms, 4-peer cap)
+apps/signaling/       @chickadee/signaling — ws server (bun, in-memory rooms, 4-peer cap)
 apps/desktop/         @chickadee/desktop — Electron + React (CommonJS main/preload, ESM renderer)
 scripts/smoke-test.mjs  automated signaling-protocol test
 ```
