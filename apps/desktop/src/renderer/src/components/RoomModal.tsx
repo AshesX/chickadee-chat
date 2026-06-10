@@ -10,7 +10,7 @@ interface RoomModalProps {
   onClose: () => void;
 }
 
-const ROOM_ICONS = ['🏠', '⚔️', '🎮', '🔥', '🌙', '🚀', '🎯', '🏆', '👾', '🍕', '🛸', '🐉'];
+const ROOM_ICONS = ['💬', '🎮', '🛋️', '🏠', '⚔️', '🔥', '🌙', '🚀', '🎯', '🏆', '👾', '🍕', '🛸', '🐉'];
 
 /** Create-or-rename a room: name input + emoji icon picker. */
 export function RoomModal({

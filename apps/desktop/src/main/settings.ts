@@ -26,28 +26,7 @@ export function loadSettings(): void {
   if (typeof rawStored !== 'object' || rawStored === null) rawStored = {};
   const storedObj = rawStored as Record<string, unknown>;
 
-  // Migrate: old settings had a top-level 'rooms' array before Spaces were introduced.
-  const legacyRooms = storedObj.rooms;
-  delete storedObj.rooms;
-
-  // Migrate: 'pttEnabled' boolean → 'inputMode' enum (true → 'ptt', else 'open').
-  if (storedObj.inputMode === undefined && storedObj.pttEnabled !== undefined) {
-    storedObj.inputMode = storedObj.pttEnabled ? 'ptt' : 'open';
-  }
-  delete storedObj.pttEnabled;
-
   currentSettings = { ...defaultSettings(), ...(storedObj as Partial<PersistedSettings>) };
-
-  if (legacyRooms && Array.isArray(legacyRooms) && legacyRooms.length > 0) {
-    const defaultSpaceId = `my-space-${randomUUID().slice(0, 5)}`;
-    currentSettings.spaces = [{
-      id: defaultSpaceId,
-      name: 'My Space',
-      rooms: legacyRooms as PersistedSettings['spaces'][number]['rooms'],
-    }];
-    currentSettings.activeSpaceId = defaultSpaceId;
-    persistSettings();
-  }
 
   if (!currentSettings.userId) {
     currentSettings.userId = randomUUID();

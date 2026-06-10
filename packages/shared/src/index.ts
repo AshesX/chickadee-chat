@@ -139,9 +139,9 @@ export const DEFAULT_GAMES: GameDef[] = [
 ];
 
 export const DEFAULT_ROOMS: Room[] = [
-  { id: 'lobby', label: 'Lobby', icon: '🏠' },
-  { id: 'dungeon', label: 'Dungeon Run', icon: '⚔️' },
-  { id: 'chill', label: 'Chill Zone', icon: '🎮' },
+  { id: 'general', label: 'General', icon: '💬' },
+  { id: 'gaming', label: 'Gaming', icon: '🎮' },
+  { id: 'lounge', label: 'Lounge', icon: '🛋️' },
 ];
 
 export function defaultSettings(): PersistedSettings {
