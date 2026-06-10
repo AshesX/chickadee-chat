@@ -76,10 +76,12 @@ interface AppConfig {
 }
 
 function buildConfig(): AppConfig {
+  // Packaged builds default to the hosted signaling server; dev defaults to a
+  // local server (npm run dev). Either can be overridden via env / a .env file.
   const signalingUrl =
     process.env.CHICKADEE_SIGNALING_URL ??
     process.env.VITE_SIGNALING_URL ??
-    'ws://localhost:8080';
+    (app.isPackaged ? 'wss://chickadee-signaling.onrender.com' : 'ws://localhost:8080');
 
   const iceServers: RTCIceServer[] = [...STUN_SERVERS];
   const turnUrl = process.env.CHICKADEE_TURN_URL;

@@ -32,9 +32,12 @@ Notes:
 
 ## Connecting to a signaling server
 
-The desktop app needs a signaling server to broker the WebRTC handshake (it never relays media). By default it connects to `ws://localhost:8080` — fine when you run `npm run dev`, but a distributed `.exe` needs a reachable server.
+The desktop app needs a signaling server to broker the WebRTC handshake (it never relays media):
 
-Deploy the server from `apps/signaling/` (a `Dockerfile` is provided — build from the repo root). Then point the app at it with **either**:
+- **Packaged `.exe`** connects to the hosted server `wss://chickadee-signaling.onrender.com` by default.
+- **Dev** (`npm run dev`) uses a local server at `ws://localhost:8080`.
+
+To use a different server, override the URL with **either**:
 
 - a system environment variable: `CHICKADEE_SIGNALING_URL=wss://your-host`, **or**
 - a `.env` file placed **next to the `.exe`** (the portable build also searches parent dirs):
@@ -47,7 +50,7 @@ Deploy the server from `apps/signaling/` (a `Dockerfile` is provided — build f
   CHICKADEE_TURN_CREDENTIAL=pass
   ```
 
-See [.env.example](.env.example) for all supported keys.
+To self-host, deploy from `apps/signaling/` (a `Dockerfile` is provided — build from the repo root; runs on Bun). See [.env.example](.env.example) for all supported keys.
 
 ### Play over the internet
 
