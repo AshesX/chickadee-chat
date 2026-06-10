@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # Chickadee Chat
 
 Lightweight P2P desktop **voice / video / screen-share** app — "Discord Lite" — for small groups of **up to 4 users per room**. Built to call friends and share a game screen.
@@ -44,7 +48,10 @@ Renderer layers (each builds on the one below):
   - `hooks/useTraySync.ts` — tray icon (once on mount), room label sync, mute/deafen IPC.
   - `hooks/useKeyCapture.ts` + `lib/accelerator.ts` — keybind capture state and DOM key → Electron accelerator string, used by `SettingsModal`.
   - `lib/audioContext.ts` — shared `AudioContext` singleton used by `sfx.ts` and `usePeerMesh`.
-  Components: `Sidebar.tsx` (rooms/friends/self-status; right-click context menu for rename/remove), `RoomHeader.tsx` (status badge, toggles, `WindowControls`), grid (`ParticipantTile`) vs. `ScreenView` presentation, `ControlBar.tsx`, `ChatPanel.tsx`, `VolumePopover`, `WelcomeWizard`, `RoomModal` (create + rename), `SettingsModal` (via sidebar cog only), `Modal`, `ErrorBoundary`. Design tokens in `theme.css`; `lib/userColors.ts` (per-session accent colors, self always gold), `lib/settings.ts` (Electron `userData` via the config bridge), `hooks/useSessionTimer.ts`.
+  - `hooks/useSpacePresence.ts` — maps `signaling.spacePresence` (raw server data) to `SpaceUser[]` for the sidebar friends list: resolves room labels, derives offline/online status from `leftAt`, sorts online-first.
+  - `hooks/useVoiceActivation.ts` — RMS-based VAD gate for `inputMode: 'voice'`; reads from the analyser node before the transmit GainNode (so it sees audio even when the gate is closed). Uses hysteresis + hangtime to avoid clipping speech at pauses.
+  - `hooks/useMediaDevices.ts` — enumerates audio inputs/outputs, refreshes on `devicechange`. Labels only populate after mic permission is granted.
+  Components: `Sidebar.tsx` (rooms/friends/self-status; right-click context menu for rename/remove), `RoomHeader.tsx` (status badge, toggles, `WindowControls`), grid (`ParticipantTile`) vs. `ScreenView` presentation, `ControlBar.tsx`, `ChatPanel.tsx`, `VolumePopover`, `WelcomeWizard`, `RoomModal` (create + rename), `SettingsModal` (via sidebar cog only), `ScreenSharePicker` (source picker fed by `getScreenSources` IPC), `Modal`, `ErrorBoundary`. Design tokens in `theme.css`; `lib/userColors.ts` (per-session accent colors, self always gold), `lib/settings.ts` (Electron `userData` via the config bridge), `hooks/useSessionTimer.ts`.
 
 ## Repo layout (npm workspaces)
 
@@ -93,6 +100,7 @@ Existing examples: `muted` (mic-state), `cameraOn` (cam-state), `screenStreamId`
 - **Frameless window (6A):** `BrowserWindow({ frame: false })`; the sidebar logo + room header are drag regions (`-webkit-app-region: drag`) with `no-drag` on interactive children (`.pill`, `.winctl`); `window.chickadee.windowControls` → IPC → minimize/maximize/close. **Entry flow:** no join form — a first-run `NameModal` (name persisted in `userData` settings), then clicking a sidebar room calls `signaling.join(room, name, userId)` (switching rooms just re-joins; the server allows arbitrary room ids). Sidebar room counts are only known for the room you're in.
 - **Shared AudioContext — do not close it in usePeerMesh:** `lib/audioContext.ts` holds the one `AudioContext` singleton shared between `sfx.ts` and `usePeerMesh`. When `usePeerMesh` tears down (leave/reconnect), it disconnects the `GainNode`/`AnalyserNode` but **must not call `audioCtx.close()`** — the SFX system needs the context to survive join/leave cycles. `useAudioActivity.ts` has its own separate singleton (speech detection; intentionally not merged).
 - **Main-process module boundaries:** `main/index.ts` is now an orchestrator only — PTT/mute state lives in `main/hotkeys.ts`, tray in `main/tray.ts`, game scanning in `main/gameDetection.ts`. Each exports a `set*MainWindow(w)` setter called from `createWindow()` after the BrowserWindow is created; this is how the modules reference the window without circular imports.
+- **Spaces vs rooms — composite room IDs on the server:** The server namespaces every room under its space: the in-memory key is `${spaceId}:${roomId}` (e.g. `abc123:gaming`). The `join` message carries `spaceId`; clients only see bare `roomId` strings in `Room` objects. `spacePresence` / `spaceConnections` track all peers in a space regardless of room for the friends sidebar. Space metadata is cleared server-side when the last peer leaves.
 - **`useSpaces` is the single writer for room persistence:** all room list mutations (`createRoom`, `renameRoom`, `removeRoom`, and the signaling `rooms-updated` sync effect) route through `useSpaces.updateRooms(next)`, which calls both `setRooms` (React state) and `store.setRooms` (disk). Do not call `store.setRooms` directly from App.tsx.
 - **Phase 6 feature set is fully real.** Intentionally still absent: friends "invite to room" (needs a presence channel beyond the in-room model). Game detection is **Windows-only** (`tasklist`); other OSes report no game. PTT key is captured system-wide — pick a key not used in-game.
 - **Branding:** the real logo lives at `apps/desktop/src/renderer/src/assets/chickadee-logo.svg` (bundled by Vite); shown via `components/Logo.tsx` in the sidebar, name modal, and empty-lounge, and rasterized to the system tray by `lib/trayIcon.ts` (canvas → PNG data URL → main `Tray`). No more placeholder emoji.
