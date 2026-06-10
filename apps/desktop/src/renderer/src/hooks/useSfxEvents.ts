@@ -21,6 +21,7 @@ export function useSfxEvents({
   const prevPeerIdsRef = useRef<string>('');
   const prevRoomIdRef = useRef<string | null>(null);
   const prevMicEnabledRef = useRef<boolean | null>(null);
+  const lastJoinTimeRef = useRef<number>(0);
 
   // Peer join/leave sounds + local room join/leave sounds.
   useEffect(() => {
@@ -34,6 +35,7 @@ export function useSfxEvents({
     if (currentRoomId !== prevRoomIdRef.current) {
       if (currentRoomId) {
         playSfx('join', sfxVolume);
+        lastJoinTimeRef.current = Date.now();
       } else if (prevRoomIdRef.current) {
         playSfx('leave', sfxVolume);
       }
@@ -61,7 +63,10 @@ export function useSfxEvents({
       return;
     }
     if (micEnabled !== prevMicEnabledRef.current) {
-      if (inRoom && sfxEnabled) {
+      // Only play mute/unmute if we're in a room and it's been more than 1 second since joining.
+      // This suppresses the mute/unmute sounds that trigger during media setup/re-negotiation on join.
+      const timeSinceJoin = Date.now() - lastJoinTimeRef.current;
+      if (inRoom && timeSinceJoin > 1000 && sfxEnabled) {
         playSfx(micEnabled ? 'unmute' : 'mute', sfxVolume);
       }
       prevMicEnabledRef.current = micEnabled;
