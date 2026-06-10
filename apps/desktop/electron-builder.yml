@@ -1,0 +1,23 @@
+appId: com.chickadee.chat
+productName: Chickadee Chat
+# In this npm-workspaces monorepo, electron is hoisted to the repo-root
+# node_modules, so electron-builder can't auto-detect the installed version from
+# apps/desktop. Pin it explicitly — keep in sync with devDependencies.electron.
+electronVersion: 33.4.11
+directories:
+  output: release
+files:
+  - out/**
+  - package.json
+asar: true
+# uiohook-napi ships a native .node binary that can't be loaded from inside the
+# asar archive, so unpack it to the filesystem.
+asarUnpack:
+  - "**/node_modules/uiohook-napi/**"
+# uiohook-napi is N-API (ABI-stable) and ships a prebuilt binary that works under
+# Electron, so skip the native rebuild (which would need a C++ toolchain).
+npmRebuild: false
+win:
+  target: portable
+  icon: resources/icon.ico
+  artifactName: ${productName}-${version}-portable.${ext}

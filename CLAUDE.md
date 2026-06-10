@@ -17,7 +17,7 @@ Phases 1–5 complete (media core): presence, mesh **audio**, **video**, **scree
 - **6D-i — done (voice controls):** true **push-to-talk** + **mute mic** global hotkeys with **hold** or **toggle** mode (persisted). Hold: mic live only while key physically held; toggle: press to unmute/mute. Powered by `uiohook-napi` (global OS hook, fires when app is out-of-focus/minimized) + Electron's `before-input-event` (fires when window is in focus — Chromium consumes keys before the OS hook fires). Both sources orchestrate via `updateUiohookState` in main to handle multiple binds gracefully. `backgroundThrottling:false` keeps the renderer responsive while minimized. Also: **noise suppression** via Chromium's `noiseSuppression` constraint, **mic volume + boost** via `GainNode` and live audio visualizer via `AnalyserNode`, and a **responsive Settings modal** (redesigned layout, subdivisions, key unbind affordance).
 - **6D-ii — done (awareness/output):** **game detection** (main scans via Windows `tasklist` against `userData/games.json` → `game-detected` IPC → renderer broadcasts `game-state`; tile short tags + self-status/header full name), **per-peer volume** sliders (`VolumePopover`), **Deafen Mode** (mutes all incoming peer audio), **manual status overrides** (Online, Idle, DND broadcast via `status-state`), **taskbar/tray badges** and **desktop notifications** for unread chat messages when unfocused, and a **tray** (logo rasterized via canvas → main `Tray`; menu = show / current room / toggle mic / quit). **Phase 6 complete.**
 - **Post-Phase-6 — done (avatars):** customizable user avatars. Users import any image; a canvas-based circular crop tool (`AvatarCropModal.tsx`) lets them reposition + zoom before saving. Avatar stored as 128×128 WebP/JPEG base64 in `userData/settings.json` (`PersistedSettings.avatarDataUrl`). **Synced space-wide via the signaling relay** — `Peer.avatarDataUrl` is part of the `Peer` object, sent in `join`, included in `welcome`/`peer-joined`/`space-presence`/`space-peer-update`, and live-updated via the new `avatar-state` mirror message. On reconnect, `reannounceLocalState` in `usePeerMesh` re-sends `avatar-state` so the fresh server peer record is correct. Avatars display as round images in `ParticipantTile`, the sidebar self-section, and the friends list.
-- **Later** — packaging to `.exe` (electron-builder); intentionally deferred.
+- **Post-Phase-6 — done (packaging):** portable Windows `.exe` via **electron-builder** (`apps/desktop/electron-builder.yml`, `win.target: portable`). `npm run dist` (root) or `npm run dist:win` (desktop) → `apps/desktop/release/Chickadee Chat-<version>-portable.exe`. App icon generated from the logo SVG into `apps/desktop/resources/icon.ico` (committed; regenerate with `npm run icons`). `uiohook-napi`'s native binary is `asarUnpack`'d and `npmRebuild:false` (N-API prebuild). Desktop runtime deps trimmed to just `uiohook-napi` (everything else is bundled), so electron-builder packs only the native module. **Unsigned** (SmartScreen warning).
 
 ## Tech stack
 
@@ -61,6 +61,7 @@ packages/shared/      @chickadee/shared — signaling protocol + shared types (E
 apps/signaling/       @chickadee/signaling — ws server (bun, in-memory rooms, 4-peer cap)
 apps/desktop/         @chickadee/desktop — Electron + React (CommonJS main/preload, ESM renderer)
 scripts/smoke-test.mjs  automated signaling-protocol test
+scripts/generate-icons.mjs  regenerates the app icon (resources/icon.ico) from the logo SVG
 ```
 
 ## Commands
@@ -71,6 +72,7 @@ npm run dev            # signaling server + desktop app together
 npm run dev:signaling  # server only (ws://localhost:8080)
 npm run dev:desktop    # app only
 npm run build          # build all workspaces
+npm run dist           # build a portable Windows .exe → apps/desktop/release/
 npm run typecheck      # type-check all workspaces
 node scripts/smoke-test.mjs   # protocol test — start the server first
 ```
@@ -108,7 +110,7 @@ Existing examples: `muted` (mic-state), `cameraOn` (cam-state), `screenStreamId`
 - **Phase 6 feature set is fully real.** Intentionally still absent: friends "invite to room" (needs a presence channel beyond the in-room model). Game detection is **Windows-only** (`tasklist`); other OSes report no game. PTT key is captured system-wide — pick a key not used in-game.
 - **Branding:** the real logo lives at `apps/desktop/src/renderer/src/assets/chickadee-logo.svg` (bundled by Vite); shown via `components/Logo.tsx` in the sidebar, name modal, and empty-lounge, and rasterized to the system tray by `lib/trayIcon.ts` (canvas → PNG data URL → main `Tray`). No more placeholder emoji.
 - **Avatar system — sync is signaling-only, not DataChannel.** `Peer.avatarDataUrl` flows through the signaling server: sent in the `join` message, stored per-peer, included in every `welcome`/`peer-joined`/`space-presence`/`space-peer-update`. Live changes go via `{ type: 'avatar-state', avatarDataUrl }` (client → server → room broadcast + space-peer-update). On reconnect, `reannounceLocalState` in `usePeerMesh` re-sends it. **Do not add DataChannels for avatar transfer** — the signaling relay works space-wide (across rooms) while DataChannels are room-only. The local avatar is always read from `store.getAvatarDataUrl()` / `localAvatarUrl` state in App.tsx as the immediate ground truth; the signaling copy lags by one round-trip.
-- **Remaining (post-Phase-6):** packaging/distribution to `.exe` (electron-builder); the window/taskbar/app icons (separate from the in-app + tray logo) are part of that packaging step.
+- **Remaining (post-Phase-6):** a **portable Windows `.exe`** now builds (electron-builder — see Status). Still deferred: code-signing (needs a cert; users currently get a SmartScreen warning), an NSIS installer + auto-update, and macOS/Linux builds. The packaged app reads its signaling/TURN config from env or a `.env` beside the exe (see README); there is no in-app field for it yet.
 
 ## Testing
 
