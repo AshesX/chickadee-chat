@@ -1443,6 +1443,11 @@ button {
 }
 
 /* ── Space Switcher ───────────────────────────────────────── */
+.sidebar__space-header-container {
+  position: relative;
+  width: 100%;
+}
+
 .sidebar__space-header {
   display: flex;
   align-items: center;
@@ -1530,10 +1535,45 @@ button {
   color: var(--text);
 }
 
-.space-dropdown-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
+.space-copy-btn__tooltip {
+  position: absolute;
+  top: 44px;
+  right: 12px;
+  max-width: 176px;
+  white-space: normal;
+  word-break: break-word;
+  text-align: center;
+  background: rgba(15, 15, 27, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  padding: 5px 9px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #ffffff;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-4px) scale(0.96);
+  transition: opacity 0.15s ease, transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 1000;
+}
+
+.space-copy-btn:hover .space-copy-btn__tooltip {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+@keyframes spaceDropdownIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .space-dropdown {
@@ -1549,7 +1589,7 @@ button {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: msgIn 0.14s ease;
+  animation: spaceDropdownIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .space-dropdown__list {
@@ -1618,14 +1658,10 @@ button {
   height: 22px;
   border-radius: 6px;
   color: var(--dim);
-  opacity: 0;
+  opacity: 0.5;
   transition: all 0.15s ease;
   cursor: pointer;
   flex-shrink: 0;
-}
-
-.space-dropdown__row:hover .space-dropdown__item-delete {
-  opacity: 0.5;
 }
 
 .space-dropdown__item-delete:hover {

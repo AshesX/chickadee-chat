@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Pencil, Plus, Settings, Trash2, ChevronDown, Copy, Check } from 'lucide-react';
 import type { Room, SpaceInfo } from '@chickadee/shared';
 
@@ -67,6 +67,50 @@ export function Sidebar({
   const [copied, setCopied] = useState(false);
   const activeSpace = spaces.find((s) => s.id === activeSpaceId);
 
+  const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function startCloseTimeout(): void {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+    }
+    closeTimeoutRef.current = setTimeout(() => {
+      setSwitcherOpen(false);
+    }, 1000);
+  }
+
+  function cancelCloseTimeout(): void {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+  }
+
+  // Clear timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (closeTimeoutRef.current) {
+        clearTimeout(closeTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Close when clicking outside of the switcher container
+  useEffect(() => {
+    if (!switcherOpen) return;
+
+    function handleOutsideClick(e: MouseEvent): void {
+      const container = document.getElementById('sidebar-space-header-container');
+      if (container && !container.contains(e.target as Node)) {
+        setSwitcherOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+    };
+  }, [switcherOpen]);
+
   function copySpaceCode(): void {
     if (!activeSpace) return;
     if (window.chickadee?.writeClipboard) {
@@ -80,29 +124,35 @@ export function Sidebar({
 
   return (
     <nav className="sidebar">
-      <div className="sidebar__space-header">
-        <div className="space-info-wrap">
-          <button className="space-switcher-btn" onClick={() => setSwitcherOpen(!switcherOpen)}>
-            <div className="space-switcher-btn__meta">
-              <span className="space-switcher-btn__name">{activeSpace?.name || 'Loading...'}</span>
-              {activeSpace && <span className="space-switcher-btn__code">#{activeSpace.id}</span>}
-            </div>
-            <ChevronDown size={12} className={`space-switcher-btn__chevron${switcherOpen ? ' space-switcher-btn__chevron--open' : ''}`} />
-          </button>
+      <div 
+        id="sidebar-space-header-container"
+        className="sidebar__space-header-container"
+        onMouseLeave={startCloseTimeout}
+        onMouseEnter={cancelCloseTimeout}
+      >
+        <div className="sidebar__space-header">
+          <div className="space-info-wrap">
+            <button className="space-switcher-btn" onClick={() => setSwitcherOpen(!switcherOpen)}>
+              <div className="space-switcher-btn__meta">
+                <span className="space-switcher-btn__name">{activeSpace?.name || 'Loading...'}</span>
+              </div>
+              <ChevronDown size={12} className={`space-switcher-btn__chevron${switcherOpen ? ' space-switcher-btn__chevron--open' : ''}`} />
+            </button>
+          </div>
+          {activeSpace && (
+            <button 
+              className="space-copy-btn" 
+              onClick={copySpaceCode} 
+            >
+              {copied ? <Check size={13} style={{ color: '#4ade80' }} /> : <Copy size={13} />}
+              <span className="space-copy-btn__tooltip">
+                {copied ? 'Copied!' : `Copy Space Code (#${activeSpace.id})`}
+              </span>
+            </button>
+          )}
         </div>
-        {activeSpace && (
-          <button 
-            className="space-copy-btn" 
-            onClick={copySpaceCode} 
-            title="Copy Space Code"
-          >
-            {copied ? <Check size={13} style={{ color: '#4ade80' }} /> : <Copy size={13} />}
-          </button>
-        )}
-      </div>
 
-      {switcherOpen && (
-        <div className="space-dropdown-backdrop" onClick={() => setSwitcherOpen(false)}>
+        {switcherOpen && (
           <div className="space-dropdown" onClick={(e) => e.stopPropagation()}>
             <div className="space-dropdown__list">
               {spaces.map((s) => {
@@ -156,8 +206,8 @@ export function Sidebar({
               </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="sidebar__scroll">
         <p className="sidebar__label">ROOMS</p>
