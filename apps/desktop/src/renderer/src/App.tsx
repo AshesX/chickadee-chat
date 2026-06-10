@@ -90,6 +90,7 @@ export function App(): React.JSX.Element {
   const [deafened, setDeafened] = useState(false);
   const preDeafenMicRef = useRef<boolean>(true);
   const micEnabledRef = useRef(mesh.micEnabled);
+  const lastJoinTimeRef = useRef<number>(0);
   useEffect(() => {
     micEnabledRef.current = mesh.micEnabled;
   }, [mesh.micEnabled]);
@@ -191,7 +192,17 @@ export function App(): React.JSX.Element {
   }, [signaling.status, signaling.send]);
 
   function joinRoom(id: string): void {
-    if (id === currentRoomId || !currentSpaceId) return;
+    if (!currentSpaceId) return;
+
+    if (id === currentRoomId) {
+      if (Date.now() - lastJoinTimeRef.current < 600) {
+        return;
+      }
+      leaveRoom();
+      return;
+    }
+
+    lastJoinTimeRef.current = Date.now();
     setCurrentRoomId(id);
     mesh.prepareMedia();
     signaling.joinRoom(id);
@@ -603,11 +614,8 @@ export function App(): React.JSX.Element {
           room={currentRoom}
           count={totalInRoom}
           maxCount={MAX_PEERS_PER_ROOM}
-          status={signaling.status}
           timer={timer}
           game={game?.name}
-          noiseSuppressed={noiseSuppression}
-          onToggleNoise={() => applyNoiseSuppression(!noiseSuppression)}
           chatOpen={chatOpen}
           onToggleChat={toggleChat}
         />

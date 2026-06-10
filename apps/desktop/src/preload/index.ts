@@ -11,6 +11,7 @@ interface AppConfig {
   signalingUrl: string;
   iceServers: RTCIceServer[];
   settings: PersistedSettings;
+  appVersion: string;
 }
 
 /** Main passes runtime config synchronously via --chickadee-config=<json>. */
@@ -19,6 +20,7 @@ function readConfig(): AppConfig {
     signalingUrl: 'ws://localhost:8080',
     iceServers: DEFAULT_ICE_SERVERS,
     settings: defaultSettings(),
+    appVersion: '0.1.0',
   };
   const arg = process.argv.find((a) => a.startsWith('--chickadee-config='));
   if (!arg) return fallback;
@@ -42,6 +44,8 @@ const api = {
   iceServers: config.iceServers,
   /** Persisted settings (name, rooms, friends, userId, prefs). */
   settings: config.settings,
+  /** App version */
+  appVersion: config.appVersion,
   /** Merge + persist a partial settings update to userData. */
   saveSettings: (partial: Partial<PersistedSettings>): Promise<void> =>
     ipcRenderer.invoke('chickadee:save-settings', partial),

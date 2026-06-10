@@ -30,11 +30,11 @@ export function useSfxEvents({
       return;
     }
 
-    // Local user join/leave.
+    // Local user join/leave/switch.
     if (currentRoomId !== prevRoomIdRef.current) {
-      if (currentRoomId && !prevRoomIdRef.current) {
+      if (currentRoomId) {
         playSfx('join', sfxVolume);
-      } else if (!currentRoomId && prevRoomIdRef.current) {
+      } else if (prevRoomIdRef.current) {
         playSfx('leave', sfxVolume);
       }
       prevRoomIdRef.current = currentRoomId;

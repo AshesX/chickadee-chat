@@ -60,6 +60,7 @@ interface AppConfig {
   signalingUrl: string;
   iceServers: RTCIceServer[];
   settings: PersistedSettings;
+  appVersion: string;
 }
 
 function buildConfig(): AppConfig {
@@ -79,7 +80,7 @@ function buildConfig(): AppConfig {
   } else {
     iceServers.push(...PUBLIC_TURN_SERVERS);
   }
-  return { signalingUrl, iceServers, settings: getSettings() };
+  return { signalingUrl, iceServers, settings: getSettings(), appVersion: app.getVersion() };
 }
 
 loadDotEnv();

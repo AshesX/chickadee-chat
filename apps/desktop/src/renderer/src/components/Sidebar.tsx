@@ -146,7 +146,14 @@ export function Sidebar({
             >
               {copied ? <Check size={13} style={{ color: '#4ade80' }} /> : <Copy size={13} />}
               <span className="space-copy-btn__tooltip">
-                {copied ? 'Copied!' : `Copy Space Code (#${activeSpace.id})`}
+                {copied ? (
+                  'Copied!'
+                ) : (
+                  <>
+                    <span className="space-copy-btn__tooltip-action">Copy Space Code</span>
+                    <span className="space-copy-btn__tooltip-code">#{activeSpace.id}</span>
+                  </>
+                )}
               </span>
             </button>
           )}

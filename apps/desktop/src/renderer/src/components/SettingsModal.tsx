@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { User, Mic, Volume2, Keyboard, Sliders, X, Video, Monitor, Gamepad2, Plus, Trash2, MessageSquare } from 'lucide-react';
-import type { GameDef } from '@chickadee/shared';
+import { defaultSettings, type GameDef } from '@chickadee/shared';
 import { useKeyCapture } from '../hooks/useKeyCapture';
 import type { MediaDeviceOption } from '../hooks/useMediaDevices';
 import { AvatarCropModal } from './AvatarCropModal';
@@ -453,6 +453,18 @@ export function SettingsModal({
   const [cropOpen, setCropOpen] = useState(false);
   const { capturing, startCapture, onRebindKey } = useKeyCapture();
   const [activeTab, setActiveTab] = useState<'profile' | 'audio' | 'video' | 'sfx' | 'chat' | 'ui' | 'keybinds' | 'games' | 'app'>('profile');
+  const [versionCopied, setVersionCopied] = useState(false);
+  const version = window.chickadee?.appVersion || '0.1.0';
+
+  function copyVersion(): void {
+    if (window.chickadee?.writeClipboard) {
+      void window.chickadee.writeClipboard(version);
+    } else {
+      void navigator.clipboard.writeText(version);
+    }
+    setVersionCopied(true);
+    setTimeout(() => setVersionCopied(false), 1500);
+  }
 
   // One shared analyser reader feeds every mic-level bar (see useSharedMicMeter).
   const micBars = useRef<Set<HTMLDivElement>>(new Set());
@@ -469,6 +481,37 @@ export function SettingsModal({
   function commitName(): void {
     const trimmed = name.trim();
     if (trimmed) onChangeName(trimmed);
+  }
+
+  function resetAppSettings(): void {
+    const defaults = defaultSettings();
+    onChangeNoiseSuppression(defaults.noiseSuppression);
+    onChangeEchoCancellation(defaults.echoCancellation);
+    onChangeAutoGainControl(defaults.autoGainControl);
+    onChangeInputDevice(defaults.inputDeviceId);
+    onChangeOutputDevice(defaults.outputDeviceId);
+    onChangeInputMode(defaults.inputMode);
+    onChangeVadThreshold(defaults.vadThreshold);
+    onChangeTheme(defaults.theme);
+    onChangeLaunchOnStartup(defaults.launchOnStartup);
+    onChangeCloseBehavior(defaults.closeBehavior);
+    onChangeAlwaysOnTop(defaults.alwaysOnTop);
+    onChangePushToTalkKey(defaults.pushToTalkKey);
+    onChangePttMode(defaults.pttMode);
+    onChangeMuteKey(defaults.muteKey);
+    onChangeMuteMode(defaults.muteMode);
+    onChangeSfxEnabled(defaults.sfxEnabled);
+    onChangeSfxVolume(defaults.sfxVolume);
+    onChangeBadgeNotificationsEnabled(defaults.badgeNotificationsEnabled);
+    onChangeMicVolume(defaults.micVolume);
+    onChangeCameraResolution(defaults.cameraResolution);
+    onChangeCameraFramerate(defaults.cameraFramerate);
+    onChangeScreenResolution(defaults.screenResolution);
+    onChangeScreenFramerate(defaults.screenFramerate);
+    onChangeUiScale(defaults.uiScale);
+    onChangeChatFontScale(defaults.chatFontScale);
+    onChangeChatPosition(defaults.chatPosition);
+    onChangeChatWidthScale(defaults.chatWidthScale);
   }
 
   return (
@@ -543,6 +586,16 @@ export function SettingsModal({
             <Sliders size={15} />
             <span>App Settings</span>
           </button>
+
+          <div className="settings-sidebar__footer">
+            <button
+              className="settings-sidebar__version-btn"
+              onClick={copyVersion}
+              title="Copy Version"
+            >
+              {versionCopied ? 'Copied!' : `v${version}`}
+            </button>
+          </div>
         </div>
 
         {/* Right Content Panel */}
@@ -1144,6 +1197,21 @@ export function SettingsModal({
                     <span className="settings-row__hint">Show count of unread messages on the app icon when unfocused.</span>
                   </div>
                   <Toggle on={badgeNotificationsEnabled} onClick={() => onChangeBadgeNotificationsEnabled(!badgeNotificationsEnabled)} />
+                </div>
+
+                <hr className="settings-divider" />
+
+                <div className="settings-row" style={{ marginTop: '10px' }}>
+                  <div className="settings-row__label">
+                    <span style={{ color: '#f87171', fontWeight: 600 }}>Reset Application Settings</span>
+                    <span className="settings-row__hint">Restore all settings (audio, video, hotkeys, UI) to default. Profile and Spaces are kept.</span>
+                  </div>
+                  <button
+                    className="danger-action-btn"
+                    onClick={resetAppSettings}
+                  >
+                    Reset Settings
+                  </button>
                 </div>
               </>
             )}
