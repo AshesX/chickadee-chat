@@ -2,13 +2,7 @@ import { useState } from 'react';
 import { Pencil, Plus, Settings, Trash2, ChevronDown, Copy, Check } from 'lucide-react';
 import type { Room, SpaceInfo } from '@chickadee/shared';
 
-export interface Friend {
-  name: string;
-  initial: string;
-  color: string;
-  status: 'online' | 'idle' | 'dnd' | 'offline';
-  where: string;
-}
+import type { SpaceUser } from '../hooks/useSpacePresence';
 
 interface SidebarProps {
   rooms: Room[];
@@ -19,7 +13,7 @@ interface SidebarProps {
   onCreateRoom: () => void;
   onRequestRename: (room: Room) => void;
   onRemoveRoom: (id: string) => void;
-  friends: Friend[];
+  users: SpaceUser[];
   selfName: string;
   selfColor: string;
   online: boolean;
@@ -45,7 +39,7 @@ export function Sidebar({
   onCreateRoom,
   onRequestRename,
   onRemoveRoom,
-  friends,
+  users,
   selfName,
   selfColor,
   online,
@@ -61,7 +55,7 @@ export function Sidebar({
   onJoinSpace,
   onDeleteSpace,
 }: SidebarProps): React.JSX.Element {
-  const onlineCount = friends.filter((f) => f.status !== 'offline').length;
+  const onlineCount = users.filter((u) => u.status !== 'offline').length;
   const selfInitial = selfName.trim().charAt(0).toUpperCase() || 'Y';
   const [menu, setMenu] = useState<{ room: Room; x: number; y: number } | null>(null);
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
@@ -191,25 +185,25 @@ export function Sidebar({
         </button>
 
         <p className="sidebar__label">
-          FRIENDS{friends.length > 0 ? ` — ${onlineCount} online` : ''}
+          USERS{users.length > 0 ? ` — ${onlineCount} online` : ''}
         </p>
-        {friends.length === 0 && <p className="sidebar__hint">No friends yet</p>}
-        {friends.map((f) => (
-          <div key={f.name} className="friend-row">
+        {users.length === 0 && <p className="sidebar__hint">No users yet</p>}
+        {users.map((u) => (
+          <div key={u.id} className="friend-row">
             <div className="friend-row__avatar-wrap">
               <div
                 className="friend-row__avatar"
-                style={{ background: `linear-gradient(135deg, ${f.color}, ${f.color}66)` }}
+                style={{ background: `linear-gradient(135deg, ${u.color}, ${u.color}66)` }}
               >
-                {f.initial}
+                {u.initial}
               </div>
-              <span className={`presence-dot presence-dot--${f.status}`} />
+              <span className={`presence-dot presence-dot--${u.status}`} />
             </div>
             <div className="friend-row__meta">
-              <div className={`friend-row__name${f.status === 'offline' ? ' friend-row__name--off' : ''}`}>
-                {f.name}
+              <div className={`friend-row__name${u.status === 'offline' ? ' friend-row__name--off' : ''}`}>
+                {u.name}
               </div>
-              <div className="friend-row__where">{f.where}</div>
+              <div className="friend-row__where">{u.where}</div>
             </div>
           </div>
         ))}

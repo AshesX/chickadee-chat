@@ -6,6 +6,7 @@ import {
   type PeerId,
   type Room,
   type ServerMessage,
+  type SpacePresence,
 } from '@chickadee/shared';
 
 /** A listener invoked for every inbound server message (used by the WebRTC layer). */
@@ -29,11 +30,14 @@ export interface SignalingState {
   error: string | null;
   /** Synced list of rooms for the active Space. */
   rooms: Room[];
+  /** Synced space presence. */
+  spacePresence: SpacePresence[];
 }
 
 export interface Signaling extends SignalingState {
-  join: (spaceId: string, room: string, displayName: string, userId: string, rooms: Room[], status: 'online' | 'idle' | 'dnd') => void;
+  join: (spaceId: string, room: string | null, displayName: string, userId: string, rooms: Room[], status: 'online' | 'idle' | 'dnd') => void;
   leave: () => void;
+  joinRoom: (room: string | null) => void;
   /** Send a message to the server (used by WebRTC negotiation + mic-state). */
   send: (message: ClientMessage) => void;
   /** Subscribe to raw inbound server messages; returns an unsubscribe fn. */
@@ -46,6 +50,7 @@ const INITIAL: SignalingState = {
   peers: [],
   error: null,
   rooms: [],
+  spacePresence: [],
 };
 
 /** Pure reducer: maps an inbound server message to a new SignalingState. */
@@ -59,6 +64,22 @@ function applyPresenceUpdate(state: SignalingState, msg: ServerMessage): Signali
         selfId: msg.selfId,
         peers: msg.peers,
         rooms: msg.rooms || state.rooms,
+      };
+    case 'space-presence':
+      return { ...state, spacePresence: msg.presence };
+    case 'space-peer-update': {
+      const idx = state.spacePresence.findIndex((p) => p.peer.userId === msg.presence.peer.userId);
+      if (idx >= 0) {
+        const next = [...state.spacePresence];
+        next[idx] = msg.presence;
+        return { ...state, spacePresence: next };
+      }
+      return { ...state, spacePresence: [...state.spacePresence, msg.presence] };
+    }
+    case 'space-peer-remove':
+      return {
+        ...state,
+        spacePresence: state.spacePresence.filter((p) => p.peer.userId !== msg.userId),
       };
     case 'rooms-updated':
       return { ...state, rooms: msg.rooms };
@@ -133,7 +154,7 @@ export function useSignaling(url: string): Signaling {
   const listenersRef = useRef<Set<MessageListener>>(new Set());
 
   const spaceIdRef = useRef('');
-  const roomRef = useRef('');
+  const roomRef = useRef<string | null>(null);
   const nameRef = useRef('');
   const userIdRef = useRef('');
   const roomsRef = useRef<Room[]>([]);
@@ -274,7 +295,7 @@ export function useSignaling(url: string): Signaling {
   }, [connect]);
 
   const join = useCallback(
-    (spaceId: string, room: string, displayName: string, userId: string, roomsList: Room[], status: 'online' | 'idle' | 'dnd') => {
+    (spaceId: string, room: string | null, displayName: string, userId: string, roomsList: Room[], status: 'online' | 'idle' | 'dnd') => {
       closeSocket();
       clearTimers();
       shouldReconnectRef.current = true;
@@ -291,19 +312,27 @@ export function useSignaling(url: string): Signaling {
     [closeSocket, clearTimers, connect],
   );
 
-  const leave = useCallback(() => {
-    shouldReconnectRef.current = false;
-    clearTimers();
-    closeSocket();
-    setState(INITIAL);
-  }, [clearTimers, closeSocket]);
-
   const send = useCallback((message: ClientMessage) => {
     const socket = socketRef.current;
     if (socket && socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify(message));
     }
   }, []);
+
+  const joinRoom = useCallback(
+    (room: string | null) => {
+      roomRef.current = room;
+      send({ type: 'join-room', room });
+    },
+    [send],
+  );
+
+  const leave = useCallback(() => {
+    shouldReconnectRef.current = false;
+    clearTimers();
+    closeSocket();
+    setState(INITIAL);
+  }, [clearTimers, closeSocket]);
 
   // Clean up timers + socket if the component unmounts mid-call.
   useEffect(() => {
@@ -314,5 +343,5 @@ export function useSignaling(url: string): Signaling {
     };
   }, [clearTimers, closeSocket]);
 
-  return { ...state, join, leave, send, subscribe };
+  return { ...state, join, leave, joinRoom, send, subscribe };
 }

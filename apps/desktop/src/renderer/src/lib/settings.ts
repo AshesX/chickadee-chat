@@ -4,10 +4,9 @@ import {
   type PersistedSettings,
   type Room,
   type SpaceInfo,
-  type StoredFriend,
 } from '@chickadee/shared';
 
-export type { Room, SpaceInfo, StoredFriend };
+export type { Room, SpaceInfo };
 export { DEFAULT_ROOMS };
 
 /**
@@ -18,13 +17,27 @@ export { DEFAULT_ROOMS };
 function initialSettings(): PersistedSettings {
   const fromBridge = window.chickadee?.settings;
   if (fromBridge) return fromBridge;
+  let settings = defaultSettings();
   try {
     const raw = localStorage.getItem('chickadee.settings');
-    if (raw) return { ...defaultSettings(), ...(JSON.parse(raw) as Partial<PersistedSettings>) };
+    if (raw) {
+      settings = { ...settings, ...(JSON.parse(raw) as Partial<PersistedSettings>) };
+    }
   } catch {
     /* ignore */
   }
-  return defaultSettings();
+
+  if (!settings.userId) {
+    settings.userId = typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    try {
+      localStorage.setItem('chickadee.settings', JSON.stringify(settings));
+    } catch {
+      /* ignore */
+    }
+  }
+  return settings;
 }
 
 let cache = initialSettings();
@@ -61,8 +74,6 @@ export const store = {
     );
     persist({ spaces: nextSpaces });
   },
-  getFriends: (): StoredFriend[] => cache.friends,
-  setFriends: (friends: StoredFriend[]): void => persist({ friends }),
   getChatVisible: (): boolean => cache.chatVisible,
   setChatVisible: (chatVisible: boolean): void => persist({ chatVisible }),
   getNoiseSuppression: (): boolean => cache.noiseSuppression,
@@ -134,8 +145,8 @@ const FRIEND_PALETTE = [
   '#ef4444',
 ];
 
-/** Deterministic, stable avatar color for a friend (hashed from their userId). */
-export function friendColor(seed: string): string {
+/** Deterministic, stable avatar color for a user (hashed from their userId). */
+export function userColor(seed: string): string {
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
   return FRIEND_PALETTE[h % FRIEND_PALETTE.length];

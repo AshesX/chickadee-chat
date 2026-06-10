@@ -133,6 +133,33 @@ check(
 f1.ws.close();
 f2.ws.close();
 
+// Space presence and room switching tests
+const clientA = client('SpaceAlpha', { room: null, userId: 'uid-s-alpha' });
+const wa_space = await clientA.ready;
+check('SpaceAlpha joins space with room null -> welcome with 0 peers', wa_space.type === 'welcome' && wa_space.peers.length === 0);
+
+clientA.ws.send(JSON.stringify({ type: 'join-room', room: 'room-1' }));
+await wait(150);
+check('SpaceAlpha receives space-presence snapshot', clientA.events.some((ev) => ev.type === 'space-presence'));
+const welcomeEvents = clientA.events.filter((ev) => ev.type === 'welcome');
+check('SpaceAlpha receives welcome for room-1 after join-room', welcomeEvents.length === 2 && welcomeEvents[1].peers.length === 0);
+
+const clientB = client('SpaceBravo', { room: 'room-1', userId: 'uid-s-bravo' });
+const wb_space = await clientB.ready;
+check('SpaceBravo joins room-1 directly -> welcome lists SpaceAlpha', wb_space.type === 'welcome' && wb_space.peers.length === 1 && wb_space.peers[0].displayName === 'SpaceAlpha');
+
+await wait(150);
+check('SpaceAlpha notified SpaceBravo joined room-1', clientA.events.some((ev) => ev.type === 'peer-joined' && ev.peer.displayName === 'SpaceBravo'));
+
+clientA.ws.send(JSON.stringify({ type: 'join-room', room: null }));
+await wait(150);
+check('SpaceBravo notified SpaceAlpha left room-1', clientB.events.some((ev) => ev.type === 'peer-left'));
+const welcomeEventsA = clientA.events.filter((ev) => ev.type === 'welcome');
+check('SpaceAlpha receives empty welcome after leaving room', welcomeEventsA.length === 3 && welcomeEventsA[2].peers.length === 0);
+
+clientA.ws.close();
+clientB.ws.close();
+
 for (const cl of [a, c, d, e]) cl.ws.close();
 await wait(100);
 

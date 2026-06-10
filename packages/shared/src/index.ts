@@ -42,12 +42,7 @@ export interface Room {
   icon: string;
 }
 
-/** A remembered friend, keyed by stable userId. */
-export interface StoredFriend {
-  userId: string;
-  name: string;
-  color: string;
-}
+
 
 export interface SpaceInfo {
   id: string;
@@ -71,7 +66,6 @@ export interface PersistedSettings {
   displayName: string;
   spaces: SpaceInfo[];
   activeSpaceId: string | null;
-  friends: StoredFriend[];
   chatVisible: boolean;
   noiseSuppression: boolean;
   /** Chromium echo-cancellation constraint on the local mic. */
@@ -150,7 +144,6 @@ export function defaultSettings(): PersistedSettings {
     displayName: '',
     spaces: [],
     activeSpaceId: null,
-    friends: [],
     chatVisible: false,
     noiseSuppression: true,
     echoCancellation: true,
@@ -196,7 +189,8 @@ export interface ScreenSource {
 
 /** Messages sent from a client up to the signaling server. */
 export type ClientMessage =
-  | { type: 'join'; spaceId: string; room: RoomId; displayName: string; userId: string; rooms: Room[]; status?: 'online' | 'idle' | 'dnd' }
+  | { type: 'join'; spaceId: string; room: RoomId | null; displayName: string; userId: string; rooms: Room[]; status?: 'online' | 'idle' | 'dnd' }
+  | { type: 'join-room'; room: RoomId | null }
   | { type: 'offer'; to: PeerId; sdp: RTCSessionDescriptionInit }
   | { type: 'answer'; to: PeerId; sdp: RTCSessionDescriptionInit }
   | { type: 'ice-candidate'; to: PeerId; candidate: RTCIceCandidateInit }
@@ -214,10 +208,19 @@ export type ClientMessage =
   // Liveness check so the client can detect a dead/half-open connection.
   | { type: 'ping' };
 
+export interface SpacePresence {
+  peer: Peer;
+  roomId: RoomId | null;
+  leftAt?: number;
+}
+
 /** Messages sent from the signaling server down to a client. */
 export type ServerMessage =
+  | { type: 'space-presence'; presence: SpacePresence[] }
+  | { type: 'space-peer-update'; presence: SpacePresence }
+  | { type: 'space-peer-remove'; userId: string }
   // Sent to the newcomer right after a successful join.
-  | { type: 'welcome'; selfId: PeerId; peers: Peer[]; rooms: Room[] }
+  | { type: 'welcome'; selfId: PeerId; peers: Peer[]; rooms: Room[]; wasEmpty?: boolean }
   // Sent to existing peers when someone new joins.
   | { type: 'peer-joined'; peer: Peer }
   // Sent to remaining peers when someone disconnects.

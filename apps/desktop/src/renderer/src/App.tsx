@@ -4,7 +4,7 @@ import { useSignaling } from './hooks/useSignaling';
 import { usePeerMesh } from './hooks/usePeerMesh';
 import { useSessionTimer } from './hooks/useSessionTimer';
 import { useRoomChat } from './hooks/useRoomChat';
-import { useFriends } from './hooks/useFriends';
+import { useSpacePresence } from './hooks/useSpacePresence';
 import { useSpaces } from './hooks/useSpaces';
 import { useKeybindSync } from './hooks/useKeybindSync';
 import { useVoiceActivation } from './hooks/useVoiceActivation';
@@ -62,9 +62,9 @@ export function App(): React.JSX.Element {
   const [displayName, setDisplayName] = useState(() => store.getName());
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(null);
   const leaveRoom = useCallback(() => {
-    signaling.leave();
+    signaling.joinRoom(null);
     setCurrentRoomId(null);
-  }, [signaling.leave]);
+  }, [signaling.joinRoom]);
   const { spaces, currentSpaceId, rooms, switchSpace, addSpace, deleteSpace, initFirstSpace, updateRooms } =
     useSpaces(leaveRoom);
 
@@ -146,7 +146,19 @@ export function App(): React.JSX.Element {
   const inRoom = currentRoomId !== null;
   const currentRoom = rooms.find((r) => r.id === currentRoomId) ?? null;
   const totalInRoom = inRoom ? signaling.peers.length + 1 : 0;
-  const friends = useFriends(signaling.peers, userId, currentRoom?.label ?? null);
+  const users = useSpacePresence(signaling, signaling.rooms);
+
+  // Maintain a continuous space-level WebSocket connection to the signaling server
+  useEffect(() => {
+    if (currentSpaceId && displayName && userId) {
+      signaling.join(currentSpaceId, currentRoomId, displayName, userId, rooms, selfStatus);
+    } else {
+      signaling.leave();
+    }
+    // We only want to re-establish the connection if the space, user, or name changes.
+    // Room movement and status updates are sent dynamically over the active socket.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSpaceId, userId, displayName]);
 
   const applyStatus = useCallback((status: 'online' | 'idle' | 'dnd') => {
     setSelfStatus(status);
@@ -160,7 +172,7 @@ export function App(): React.JSX.Element {
     if (id === currentRoomId || !currentSpaceId) return;
     setCurrentRoomId(id);
     mesh.prepareMedia();
-    signaling.join(currentSpaceId, id, displayName, userId, rooms, selfStatus);
+    signaling.joinRoom(id);
   }
 
   function createRoom(label: string, icon: string): void {
@@ -545,7 +557,7 @@ export function App(): React.JSX.Element {
         onCreateRoom={() => setCreateOpen(true)}
         onRequestRename={(room) => setRenameTarget(room)}
         onRemoveRoom={removeRoom}
-        friends={friends}
+        users={users}
         selfName={displayName}
         selfColor={SELF_COLOR}
         online={inRoom && signaling.status === 'connected'}

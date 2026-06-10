@@ -9,6 +9,7 @@ import {
   type Room,
   type RoomId,
   type ServerMessage,
+  type SpacePresence,
 } from '@chickadee/shared';
 
 const PORT = Number(process.env.PORT ?? 8080);
@@ -18,7 +19,7 @@ interface Connection {
   socket: WebSocket;
   peer: Peer;
   space: string;
-  room: RoomId;
+  room: RoomId | null;
 }
 
 /** room id -> (peer id -> connection). In-memory only; restart clears all state. */
@@ -27,6 +28,25 @@ const rooms = new Map<RoomId, Map<PeerId, Connection>>();
 /** space id -> Room[] list. In-memory only; cleared when no users remain in the space. */
 const spaces = new Map<string, Room[]>();
 
+/** space id -> userId -> SpacePresence */
+const spacePresence = new Map<string, Map<string, SpacePresence>>();
+
+/** space id -> userId -> Timeout */
+const spaceTimeouts = new Map<string, Map<string, ReturnType<typeof setTimeout>>>();
+
+/** space id -> (peer id -> connection). In-memory only; cleared when no users remain in the space. */
+const spaceConnections = new Map<string, Map<PeerId, Connection>>();
+
+function broadcastSpace(spaceId: string, message: ServerMessage, exceptConn?: Connection): void {
+  const conns = spaceConnections.get(spaceId);
+  if (!conns) return;
+  for (const conn of conns.values()) {
+    if (conn !== exceptConn) {
+      send(conn.socket, message);
+    }
+  }
+}
+
 function send(socket: WebSocket, message: ServerMessage): void {
   if (socket.readyState === socket.OPEN) {
     socket.send(JSON.stringify(message));
@@ -34,7 +54,8 @@ function send(socket: WebSocket, message: ServerMessage): void {
 }
 
 /** Send a message to every peer in a room except `exceptId`. */
-function broadcast(room: RoomId, message: ServerMessage, exceptId?: PeerId): void {
+function broadcast(room: RoomId | null, message: ServerMessage, exceptId?: PeerId): void {
+  if (!room) return;
   const members = rooms.get(room);
   if (!members) return;
   for (const [peerId, conn] of members) {
@@ -43,11 +64,11 @@ function broadcast(room: RoomId, message: ServerMessage, exceptId?: PeerId): voi
 }
 
 function handleJoin(socket: WebSocket, msg: Extract<ClientMessage, { type: 'join' }>): Connection | null {
-  const fullRoomId = `${msg.spaceId}:${msg.room}`;
-  const members = rooms.get(fullRoomId) ?? new Map<PeerId, Connection>();
+  const fullRoomId = msg.room ? `${msg.spaceId}:${msg.room}` : null;
+  const members = fullRoomId ? (rooms.get(fullRoomId) ?? new Map<PeerId, Connection>()) : null;
 
-  if (members.size >= MAX_PEERS_PER_ROOM) {
-    send(socket, { type: 'room-full', room: msg.room });
+  if (members && members.size >= MAX_PEERS_PER_ROOM) {
+    send(socket, { type: 'room-full', room: msg.room! });
     return null;
   }
 
@@ -66,29 +87,132 @@ function handleJoin(socket: WebSocket, msg: Extract<ClientMessage, { type: 'join
   };
   const conn: Connection = { socket, peer, space: msg.spaceId, room: fullRoomId };
 
+  const wasEmpty = !spaces.has(msg.spaceId);
+
   // Track/sync rooms for the space
-  if (!spaces.has(msg.spaceId) && msg.rooms && msg.rooms.length > 0) {
+  if (wasEmpty && msg.rooms && msg.rooms.length > 0) {
     spaces.set(msg.spaceId, msg.rooms);
   }
   const spaceRooms = spaces.get(msg.spaceId) ?? msg.rooms ?? [];
 
   // Snapshot existing peers before adding the newcomer.
-  const existingPeers: Peer[] = [...members.values()].map((c) => c.peer);
+  const existingPeers: Peer[] = members ? [...members.values()].map((c) => c.peer) : [];
 
-  members.set(peer.id, conn);
-  rooms.set(fullRoomId, members);
+  if (fullRoomId && members) {
+    members.set(peer.id, conn);
+    rooms.set(fullRoomId, members);
+  }
+
+  // Add to spaceConnections
+  const spaceConns = spaceConnections.get(msg.spaceId) ?? new Map<PeerId, Connection>();
+  spaceConns.set(peer.id, conn);
+  spaceConnections.set(msg.spaceId, spaceConns);
 
   // Tell the newcomer who is already here (newcomer will initiate offers in Phase 2) and the current room list.
-  send(socket, { type: 'welcome', selfId: peer.id, peers: existingPeers, rooms: spaceRooms });
-  // Tell everyone else about the newcomer.
-  broadcast(fullRoomId, { type: 'peer-joined', peer }, peer.id);
+  send(socket, { type: 'welcome', selfId: peer.id, peers: existingPeers, rooms: spaceRooms, wasEmpty });
 
-  console.log(`[join] ${peer.displayName} (${peer.id}) -> room "${fullRoomId}" (${members.size}/${MAX_PEERS_PER_ROOM})`);
+  // Update space presence
+  const presenceMap = spacePresence.get(msg.spaceId) ?? new Map<string, SpacePresence>();
+  const presence: SpacePresence = {
+    peer,
+    roomId: msg.room,
+  };
+  presenceMap.set(peer.userId, presence);
+  spacePresence.set(msg.spaceId, presenceMap);
+
+  // Clear timeout if any
+  const timeouts = spaceTimeouts.get(msg.spaceId);
+  if (timeouts) {
+    const timer = timeouts.get(peer.userId);
+    if (timer) {
+      clearTimeout(timer);
+      timeouts.delete(peer.userId);
+    }
+  }
+
+  // Send the full space-presence to newcomer
+  const allSpacePresence = Array.from(presenceMap.values());
+  send(socket, { type: 'space-presence', presence: allSpacePresence });
+
+  // Broadcast update to space (except newcomer)
+  broadcastSpace(msg.spaceId, { type: 'space-peer-update', presence }, conn);
+
+  // Tell everyone else about the newcomer.
+  if (fullRoomId) {
+    broadcast(fullRoomId, { type: 'peer-joined', peer }, peer.id);
+    console.log(`[join] ${peer.displayName} (${peer.id}) -> room "${fullRoomId}" (${members!.size}/${MAX_PEERS_PER_ROOM})`);
+  } else {
+    console.log(`[join] ${peer.displayName} (${peer.id}) -> Space "${msg.spaceId}" (no room)`);
+  }
+
   return conn;
+}
+
+function handleJoinRoom(conn: Connection, newRoom: RoomId | null): void {
+  const oldFullRoomId = conn.room;
+  const newFullRoomId = newRoom ? `${conn.space}:${newRoom}` : null;
+  if (oldFullRoomId === newFullRoomId) return;
+
+  // 1. Leave old room if in one
+  if (oldFullRoomId) {
+    const members = rooms.get(oldFullRoomId);
+    if (members) {
+      members.delete(conn.peer.id);
+      broadcast(oldFullRoomId, { type: 'peer-left', peerId: conn.peer.id });
+      console.log(`[leave-room] ${conn.peer.displayName} (${conn.peer.id}) <- room "${oldFullRoomId}" (${members.size}/${MAX_PEERS_PER_ROOM})`);
+      if (members.size === 0) rooms.delete(oldFullRoomId);
+    }
+  }
+
+  // 2. Clear room-specific media flags if leaving room
+  if (!newRoom) {
+    conn.peer.cameraOn = false;
+    conn.peer.screenStreamId = null;
+  }
+
+  // 3. Join new room if not null
+  if (newRoom && newFullRoomId) {
+    const members = rooms.get(newFullRoomId) ?? new Map<PeerId, Connection>();
+    if (members.size >= MAX_PEERS_PER_ROOM) {
+      send(conn.socket, { type: 'room-full', room: newRoom });
+      conn.room = null;
+    } else {
+      conn.room = newFullRoomId;
+      const existingPeers = [...members.values()].map((c) => c.peer);
+      members.set(conn.peer.id, conn);
+      rooms.set(newFullRoomId, members);
+
+      // Send welcome to newcomer
+      const spaceRooms = spaces.get(conn.space) ?? [];
+      send(conn.socket, { type: 'welcome', selfId: conn.peer.id, peers: existingPeers, rooms: spaceRooms });
+
+      // Broadcast peer-joined to new room
+      broadcast(newFullRoomId, { type: 'peer-joined', peer: conn.peer }, conn.peer.id);
+      console.log(`[join-room] ${conn.peer.displayName} (${conn.peer.id}) -> room "${newFullRoomId}" (${members.size}/${MAX_PEERS_PER_ROOM})`);
+    }
+  } else {
+    conn.room = null;
+    // Send welcome with empty peers to newcomer to clear their peer mesh
+    const spaceRooms = spaces.get(conn.space) ?? [];
+    send(conn.socket, { type: 'welcome', selfId: conn.peer.id, peers: [], rooms: spaceRooms });
+    console.log(`[leave-room-complete] ${conn.peer.displayName} (${conn.peer.id}) -> no room`);
+  }
+
+  // 4. Update space presence
+  const presenceMap = spacePresence.get(conn.space);
+  if (presenceMap) {
+    const p = presenceMap.get(conn.peer.userId);
+    if (p) {
+      p.roomId = newRoom;
+      p.peer = conn.peer;
+      broadcastSpace(conn.space, { type: 'space-peer-update', presence: p });
+    }
+  }
 }
 
 /** Relay a directed WebRTC message to its target peer in the same room, stamping `from`. */
 function relay(conn: Connection, msg: ClientMessage & { to: PeerId }): void {
+  if (!conn.room) return;
   const members = rooms.get(conn.room);
   const target = members?.get(msg.to);
   if (!target) return;
@@ -128,6 +252,12 @@ function handleScreenState(conn: Connection, streamId: string | null): void {
 function handleGameState(conn: Connection, game: string | null): void {
   conn.peer.game = game ? game.slice(0, 24) : null;
   broadcast(conn.room, { type: 'game-state', from: conn.peer.id, game: conn.peer.game }, conn.peer.id);
+
+  const pMap = spacePresence.get(conn.space);
+  if (pMap) {
+    const p = pMap.get(conn.peer.userId);
+    if (p) broadcastSpace(conn.space, { type: 'space-peer-update', presence: p }, conn);
+  }
 }
 
 /** Record a peer's new deafen state and tell everyone else in the room (mirror pattern). */
@@ -140,6 +270,12 @@ function handleDeafenState(conn: Connection, deafened: boolean): void {
 function handleStatusState(conn: Connection, status: 'online' | 'idle' | 'dnd'): void {
   conn.peer.status = status;
   broadcast(conn.room, { type: 'status-state', from: conn.peer.id, status }, conn.peer.id);
+
+  const pMap = spacePresence.get(conn.space);
+  if (pMap) {
+    const p = pMap.get(conn.peer.userId);
+    if (p) broadcastSpace(conn.space, { type: 'space-peer-update', presence: p }, conn);
+  }
 }
 
 function handleUpdateRooms(spaceId: string, roomsList: Room[]): void {
@@ -169,26 +305,59 @@ function handleChat(conn: Connection, text: string, reaction: boolean | undefine
 }
 
 function handleDisconnect(conn: Connection): void {
-  const members = rooms.get(conn.room);
-  if (!members) return;
-  members.delete(conn.peer.id);
-  broadcast(conn.room, { type: 'peer-left', peerId: conn.peer.id });
-  console.log(`[leave] ${conn.peer.displayName} (${conn.peer.id}) <- room "${conn.room}" (${members.size}/${MAX_PEERS_PER_ROOM})`);
-  if (members.size === 0) rooms.delete(conn.room);
-
-  // Clean up Space from memory if no connections are left in the entire Space
-  let spaceHasUsers = false;
-  for (const roomMap of rooms.values()) {
-    for (const c of roomMap.values()) {
-      if (c.space === conn.space) {
-        spaceHasUsers = true;
-        break;
-      }
+  if (conn.room) {
+    const members = rooms.get(conn.room);
+    if (members) {
+      members.delete(conn.peer.id);
+      broadcast(conn.room, { type: 'peer-left', peerId: conn.peer.id });
+      console.log(`[leave] ${conn.peer.displayName} (${conn.peer.id}) <- room "${conn.room}" (${members.size}/${MAX_PEERS_PER_ROOM})`);
+      if (members.size === 0) rooms.delete(conn.room);
     }
-    if (spaceHasUsers) break;
   }
+
+  // Remove from spaceConnections
+  const spaceConns = spaceConnections.get(conn.space);
+  if (spaceConns) {
+    spaceConns.delete(conn.peer.id);
+    if (spaceConns.size === 0) spaceConnections.delete(conn.space);
+  }
+
+  const spaceHasUsers = spaceConnections.has(conn.space);
+
+  // Update space presence to offline
+  const presenceMap = spacePresence.get(conn.space);
+  if (presenceMap) {
+    const p = presenceMap.get(conn.peer.userId);
+    // Only set offline if this exact connection's peer id matches (prevents ghosting if they already rejoined on another socket)
+    if (p && p.peer.id === conn.peer.id) {
+      p.roomId = null;
+      p.leftAt = Date.now();
+      broadcastSpace(conn.space, { type: 'space-peer-update', presence: p });
+      
+      const timeouts = spaceTimeouts.get(conn.space) ?? new Map<string, ReturnType<typeof setTimeout>>();
+      spaceTimeouts.set(conn.space, timeouts);
+      const timer = setTimeout(() => {
+        const currentP = presenceMap.get(conn.peer.userId);
+        if (currentP && currentP.leftAt === p.leftAt) {
+          presenceMap.delete(conn.peer.userId);
+          broadcastSpace(conn.space, { type: 'space-peer-remove', userId: conn.peer.userId });
+        }
+      }, 10 * 60 * 1000);
+      timeouts.set(conn.peer.userId, timer);
+    }
+  }
+
   if (!spaceHasUsers) {
     spaces.delete(conn.space);
+    spacePresence.delete(conn.space);
+    
+    // Clear any dangling timeouts for this space
+    const timeouts = spaceTimeouts.get(conn.space);
+    if (timeouts) {
+      for (const t of timeouts.values()) clearTimeout(t);
+      spaceTimeouts.delete(conn.space);
+    }
+
     console.log(`[space-cleanup] space "${conn.space}" is now empty; removed from server memory`);
   }
 }
@@ -221,6 +390,11 @@ wss.on('connection', (socket) => {
     }
 
     if (!conn) return; // must join before doing anything else
+
+    if (msg.type === 'join-room') {
+      handleJoinRoom(conn, msg.room);
+      return;
+    }
 
     if (msg.type === 'offer' || msg.type === 'answer' || msg.type === 'ice-candidate') {
       relay(conn, msg);
