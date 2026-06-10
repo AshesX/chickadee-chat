@@ -636,7 +636,7 @@ export function App(): React.JSX.Element {
             <div className="empty-lounge__card">
               <Logo size={72} className="empty-lounge__bird" />
               <h2>Pick a room to start</h2>
-              <p>Choose a room from the sidebar — or create your own — to drop into the lounge.</p>
+              <p>Choose a room from the sidebar — or create your own.</p>
             </div>
           </div>
         )}
