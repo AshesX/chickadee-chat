@@ -24,6 +24,8 @@ export interface ParticipantTileProps {
   deafened?: boolean;
   /** Preferred speaker deviceId (setSinkId), or '' for the system default. */
   outputDeviceId?: string;
+  /** Custom avatar data URL; shown instead of the letter initial when set. */
+  avatarUrl?: string | null;
 }
 
 const CONN_LABEL: Partial<Record<RTCPeerConnectionState, string>> = {
@@ -47,6 +49,7 @@ export function ParticipantTile({
   volume,
   deafened,
   outputDeviceId,
+  avatarUrl,
 }: ParticipantTileProps): React.JSX.Element {
   const videoRef = useRef<HTMLVideoElement>(null);
   const speaking = useAudioActivity(muted ? null : cameraStream);
@@ -117,11 +120,15 @@ export function ParticipantTile({
           <div
             className="tile__avatar"
             style={{
-              background: `linear-gradient(145deg, ${color}ee, ${color}66)`,
+              background: avatarUrl ? undefined : `linear-gradient(145deg, ${color}ee, ${color}66)`,
               boxShadow: speaking ? `0 0 34px ${color}70` : '0 4px 22px rgba(0,0,0,.55)',
             }}
           >
-            {initial}
+            {avatarUrl ? (
+              <img src={avatarUrl} alt={displayName} className="tile__avatar-img" />
+            ) : (
+              initial
+            )}
             {deafened ? (
               <span className="tile__avatar-mute">
                 <VolumeX size={11} strokeWidth={2.5} />

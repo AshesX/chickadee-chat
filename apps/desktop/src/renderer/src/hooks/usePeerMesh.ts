@@ -99,6 +99,7 @@ export function usePeerMesh(
   echoCancellation: boolean,
   autoGainControl: boolean,
   inputDeviceId: string,
+  localAvatarUrl: string | null,
 ): PeerMesh {
   const { subscribe, send, status } = signaling;
 
@@ -122,6 +123,9 @@ export function usePeerMesh(
   const rawStreamRef = useRef<MediaStream | null>(null);
 
   const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
+
+  const localAvatarUrlRef = useRef<string | null>(localAvatarUrl);
+  localAvatarUrlRef.current = localAvatarUrl;
 
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [localScreenStream, setLocalScreenStream] = useState<MediaStream | null>(null);
@@ -625,6 +629,8 @@ export function usePeerMesh(
     if (sharingScreenRef.current && screenStreamRef.current) {
       send({ type: 'screen-state', streamId: screenStreamRef.current.id });
     }
+    // Re-broadcast avatar so the server's fresh peer record reflects the current avatar.
+    send({ type: 'avatar-state', avatarDataUrl: localAvatarUrlRef.current });
   }, [send]);
 
   // React to signaling messages: set up / tear down links and route negotiation.

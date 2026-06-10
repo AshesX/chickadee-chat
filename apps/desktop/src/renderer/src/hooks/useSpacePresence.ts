@@ -9,6 +9,8 @@ export interface SpaceUser {
   color: string;
   status: 'online' | 'idle' | 'dnd' | 'offline';
   where: string;
+  /** Custom avatar data URL, if the peer has shared one. */
+  avatarUrl?: string;
 }
 
 export function useSpacePresence(signaling: Signaling, rooms: Room[]): SpaceUser[] {
@@ -30,6 +32,7 @@ export function useSpacePresence(signaling: Signaling, rooms: Room[]): SpaceUser
       color: userColor(p.peer.userId),
       status: isOffline ? 'offline' : p.peer.status,
       where,
+      avatarUrl: p.peer.avatarDataUrl ?? undefined,
     };
   });
 

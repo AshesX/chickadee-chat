@@ -84,6 +84,7 @@ function handleJoin(socket: WebSocket, msg: Extract<ClientMessage, { type: 'join
     game: null,
     deafened: false,
     status: msg.status || 'online',
+    avatarDataUrl: msg.avatarDataUrl ?? null,
   };
   const conn: Connection = { socket, peer, space: msg.spaceId, room: fullRoomId };
 
@@ -256,7 +257,7 @@ function handleGameState(conn: Connection, game: string | null): void {
   const pMap = spacePresence.get(conn.space);
   if (pMap) {
     const p = pMap.get(conn.peer.userId);
-    if (p) broadcastSpace(conn.space, { type: 'space-peer-update', presence: p }, conn);
+    if (p) broadcastSpace(conn.space, { type: 'space-peer-update', presence: p });
   }
 }
 
@@ -264,6 +265,19 @@ function handleGameState(conn: Connection, game: string | null): void {
 function handleDeafenState(conn: Connection, deafened: boolean): void {
   conn.peer.deafened = deafened;
   broadcast(conn.room, { type: 'deafen-state', from: conn.peer.id, deafened }, conn.peer.id);
+}
+
+/** Record a peer's avatar and broadcast to all space members (avatar syncs space-wide, not just the room). */
+function handleAvatarState(conn: Connection, avatarDataUrl: string | null): void {
+  conn.peer.avatarDataUrl = avatarDataUrl;
+  // Broadcast the raw avatar-state message to room members so their peer tiles update immediately.
+  broadcast(conn.room, { type: 'avatar-state', from: conn.peer.id, avatarDataUrl }, conn.peer.id);
+  // Also broadcast space-peer-update so all space members (across rooms) get the updated Peer.
+  const pMap = spacePresence.get(conn.space);
+  if (pMap) {
+    const p = pMap.get(conn.peer.userId);
+    if (p) broadcastSpace(conn.space, { type: 'space-peer-update', presence: p }, conn);
+  }
 }
 
 /** Record a peer's presence status and tell the room (mirror pattern). */
@@ -274,7 +288,7 @@ function handleStatusState(conn: Connection, status: 'online' | 'idle' | 'dnd'):
   const pMap = spacePresence.get(conn.space);
   if (pMap) {
     const p = pMap.get(conn.peer.userId);
-    if (p) broadcastSpace(conn.space, { type: 'space-peer-update', presence: p }, conn);
+    if (p) broadcastSpace(conn.space, { type: 'space-peer-update', presence: p });
   }
 }
 
@@ -410,6 +424,8 @@ wss.on('connection', (socket) => {
       handleDeafenState(conn, msg.deafened);
     } else if (msg.type === 'status-state') {
       handleStatusState(conn, msg.status);
+    } else if (msg.type === 'avatar-state') {
+      handleAvatarState(conn, msg.avatarDataUrl);
     } else if (msg.type === 'update-rooms') {
       handleUpdateRooms(msg.spaceId, msg.rooms);
     } else if (msg.type === 'chat') {

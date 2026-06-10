@@ -1977,3 +1977,251 @@ button {
   transform: scale(0.95);
 }
 
+/* ─── Avatar images in existing circles ──────────────────────────────────── */
+
+.tile__avatar {
+  overflow: hidden;
+}
+
+.tile__avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+}
+
+.friend-row__avatar,
+.self__avatar {
+  overflow: hidden;
+}
+
+.friend-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+}
+
+/* ─── Settings profile – avatar section ──────────────────────────────────── */
+
+.avatar-settings-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 4px 0 8px;
+}
+
+.avatar-settings-preview {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.45);
+}
+
+.avatar-settings-preview__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+}
+
+.avatar-settings-preview__initial {
+  font-size: 28px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.avatar-settings-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.avatar-settings-remove {
+  opacity: 0.7;
+}
+.avatar-settings-remove:hover {
+  opacity: 1;
+  color: var(--danger, #f87171);
+  border-color: rgba(239,68,68,0.35);
+}
+
+/* ─── AvatarCropModal ─────────────────────────────────────────────────────── */
+
+.avatar-crop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: rgba(0,0,0,0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.avatar-crop-modal {
+  background: var(--surface, #1a1730);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.7);
+  padding: 24px;
+  width: 340px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  user-select: none;
+}
+
+.avatar-crop-modal__title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.01em;
+}
+
+.avatar-crop-modal__hint {
+  font-size: 11px;
+  color: rgba(255,255,255,0.45);
+  text-align: center;
+  margin-top: -6px;
+}
+
+.avatar-crop-dropzone {
+  width: 288px;
+  height: 288px;
+  border-radius: 12px;
+  border: 2px dashed rgba(255,255,255,0.18);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: border-color 0.18s, background 0.18s;
+}
+.avatar-crop-dropzone:hover {
+  border-color: rgba(255,255,255,0.4);
+  background: rgba(255,255,255,0.04);
+}
+
+.avatar-crop-dropzone__icon {
+  font-size: 32px;
+}
+
+.avatar-crop-dropzone__text {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.75);
+}
+
+.avatar-crop-dropzone__subtext {
+  font-size: 11px;
+  color: rgba(255,255,255,0.35);
+}
+
+.avatar-crop-canvas {
+  width: 288px;
+  height: 288px;
+  border-radius: 12px;
+  display: block;
+  touch-action: none;
+}
+
+.avatar-crop-zoom-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 288px;
+}
+
+.avatar-crop-zoom-label {
+  font-size: 16px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.45);
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.avatar-crop-zoom {
+  flex: 1;
+  height: 4px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255,255,255,0.12);
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+}
+.avatar-crop-zoom::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+  cursor: grab;
+}
+.avatar-crop-zoom::-webkit-slider-thumb:active {
+  cursor: grabbing;
+}
+
+.avatar-crop-change-link {
+  font-size: 12px;
+  color: rgba(255,255,255,0.45);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 0.15s;
+}
+.avatar-crop-change-link:hover {
+  color: rgba(255,255,255,0.75);
+}
+
+.avatar-crop-actions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  justify-content: flex-end;
+}
+
+.avatar-crop-btn {
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.15s, transform 0.12s;
+}
+.avatar-crop-btn:active {
+  transform: scale(0.96);
+}
+
+.avatar-crop-btn--cancel {
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.65);
+}
+.avatar-crop-btn--cancel:hover {
+  background: rgba(255,255,255,0.13);
+  color: #fff;
+}
+
+.avatar-crop-btn--save {
+  background: var(--accent, #7c5fe6);
+  color: #fff;
+  box-shadow: 0 2px 12px rgba(124,95,230,0.4);
+}
+.avatar-crop-btn--save:hover {
+  opacity: 0.92;
+}
+

@@ -3,6 +3,7 @@ import { User, Mic, Volume2, Keyboard, Sliders, X, Video, Monitor, Gamepad2, Plu
 import type { GameDef } from '@chickadee/shared';
 import { useKeyCapture } from '../hooks/useKeyCapture';
 import type { MediaDeviceOption } from '../hooks/useMediaDevices';
+import { AvatarCropModal } from './AvatarCropModal';
 
 interface SettingsModalProps {
   displayName: string;
@@ -65,6 +66,9 @@ interface SettingsModalProps {
   onChangeChatWidthScale: (scale: number) => void;
   analyserNode: AnalyserNode | null;
   onClose: () => void;
+  avatarDataUrl: string | null;
+  selfColor: string;
+  onChangeAvatar: (dataUrl: string | null) => void;
 }
 
 function SettingsSlider({
@@ -441,8 +445,12 @@ export function SettingsModal({
   onChangeChatWidthScale,
   analyserNode,
   onClose,
+  avatarDataUrl,
+  selfColor,
+  onChangeAvatar,
 }: SettingsModalProps): React.JSX.Element {
   const [name, setName] = useState(displayName);
+  const [cropOpen, setCropOpen] = useState(false);
   const { capturing, startCapture, onRebindKey } = useKeyCapture();
   const [activeTab, setActiveTab] = useState<'profile' | 'audio' | 'video' | 'sfx' | 'chat' | 'ui' | 'keybinds' | 'games' | 'app'>('profile');
 
@@ -558,17 +566,62 @@ export function SettingsModal({
 
           <div className="settings-content__body">
             {activeTab === 'profile' && (
-              <label className="field">
-                <span>Display name</span>
-                <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  onBlur={commitName}
-                  onKeyDown={(e) => e.key === 'Enter' && commitName()}
-                  maxLength={32}
-                  autoFocus
-                />
-              </label>
+              <>
+                <div className="settings-subdivision">Avatar</div>
+                <div className="avatar-settings-row">
+                  <div
+                    className="avatar-settings-preview"
+                    style={avatarDataUrl ? undefined : { background: `linear-gradient(145deg, ${selfColor}ee, ${selfColor}66)` }}
+                  >
+                    {avatarDataUrl ? (
+                      <img src={avatarDataUrl} alt="Your avatar" className="avatar-settings-preview__img" />
+                    ) : (
+                      <span className="avatar-settings-preview__initial">
+                        {name.trim().charAt(0).toUpperCase() || '?'}
+                      </span>
+                    )}
+                  </div>
+                  <div className="avatar-settings-actions">
+                    <button
+                      className="seg-btn"
+                      onClick={() => setCropOpen(true)}
+                    >
+                      {avatarDataUrl ? 'Change Avatar' : 'Set Avatar'}
+                    </button>
+                    {avatarDataUrl && (
+                      <button
+                        className="seg-btn avatar-settings-remove"
+                        onClick={() => onChangeAvatar(null)}
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="settings-subdivision" style={{ marginTop: '16px' }}>Display Name</div>
+                <label className="field">
+                  <span>Display name</span>
+                  <input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    onBlur={commitName}
+                    onKeyDown={(e) => e.key === 'Enter' && commitName()}
+                    maxLength={32}
+                    autoFocus
+                  />
+                </label>
+
+                {cropOpen && (
+                  <AvatarCropModal
+                    onSave={(dataUrl) => {
+                      onChangeAvatar(dataUrl);
+                      setCropOpen(false);
+                    }}
+                    onCancel={() => setCropOpen(false)}
+                  />
+                )}
+              </>
             )}
 
             {activeTab === 'audio' && (

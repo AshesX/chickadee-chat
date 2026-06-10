@@ -16,6 +16,7 @@ interface SidebarProps {
   users: SpaceUser[];
   selfName: string;
   selfColor: string;
+  selfAvatarUrl?: string | null;
   online: boolean;
   selfGame?: string;
   onOpenSettings: () => void;
@@ -42,6 +43,7 @@ export function Sidebar({
   users,
   selfName,
   selfColor,
+  selfAvatarUrl,
   online,
   selfGame,
   onOpenSettings,
@@ -193,9 +195,13 @@ export function Sidebar({
             <div className="friend-row__avatar-wrap">
               <div
                 className="friend-row__avatar"
-                style={{ background: `linear-gradient(135deg, ${u.color}, ${u.color}66)` }}
+                style={u.avatarUrl ? undefined : { background: `linear-gradient(135deg, ${u.color}, ${u.color}66)` }}
               >
-                {u.initial}
+                {u.avatarUrl ? (
+                  <img src={u.avatarUrl} alt={u.name} className="friend-avatar-img" />
+                ) : (
+                  u.initial
+                )}
               </div>
               <span className={`presence-dot presence-dot--${u.status}`} />
             </div>
@@ -218,9 +224,13 @@ export function Sidebar({
           <div className="friend-row__avatar-wrap">
             <div
               className="self__avatar"
-              style={{ background: `linear-gradient(135deg, ${selfColor}, ${selfColor}99)` }}
+              style={selfAvatarUrl ? undefined : { background: `linear-gradient(135deg, ${selfColor}, ${selfColor}99)` }}
             >
-              {selfInitial}
+              {selfAvatarUrl ? (
+                <img src={selfAvatarUrl} alt={selfName} className="friend-avatar-img" />
+              ) : (
+                selfInitial
+              )}
             </div>
             <span className={`presence-dot presence-dot--${online ? selfStatus : 'offline'}`} />
           </div>

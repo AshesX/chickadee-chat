@@ -33,6 +33,8 @@ export interface Peer {
   deafened: boolean;
   /** The presence status of this peer: 'online' | 'idle' | 'dnd'. */
   status: 'online' | 'idle' | 'dnd';
+  /** Custom avatar as a base64 data URL (128×128 WebP/JPEG), or null. */
+  avatarDataUrl: string | null;
 }
 
 /** A sidebar room entry (local; the server uses arbitrary room ids). */
@@ -114,6 +116,8 @@ export interface PersistedSettings {
   chatPosition: 'left' | 'right';
   /** Chat Width Scale (relative to normal, e.g. 1.0 to 2.0). */
   chatWidthScale: number;
+  /** User's custom avatar as a base64 data URL (128×128 WebP/JPEG), or null. */
+  avatarDataUrl: string | null;
 }
 
 /** Built-in games the detector ships with (process names are lower-cased, .exe-less). */
@@ -174,6 +178,7 @@ export function defaultSettings(): PersistedSettings {
     chatFontScale: 1.0,
     chatPosition: 'right',
     chatWidthScale: 1.0,
+    avatarDataUrl: null,
   };
 }
 
@@ -189,7 +194,7 @@ export interface ScreenSource {
 
 /** Messages sent from a client up to the signaling server. */
 export type ClientMessage =
-  | { type: 'join'; spaceId: string; room: RoomId | null; displayName: string; userId: string; rooms: Room[]; status?: 'online' | 'idle' | 'dnd' }
+  | { type: 'join'; spaceId: string; room: RoomId | null; displayName: string; userId: string; rooms: Room[]; status?: 'online' | 'idle' | 'dnd'; avatarDataUrl?: string | null }
   | { type: 'join-room'; room: RoomId | null }
   | { type: 'offer'; to: PeerId; sdp: RTCSessionDescriptionInit }
   | { type: 'answer'; to: PeerId; sdp: RTCSessionDescriptionInit }
@@ -201,6 +206,7 @@ export type ClientMessage =
   | { type: 'game-state'; game: string | null }
   | { type: 'deafen-state'; deafened: boolean }
   | { type: 'status-state'; status: 'online' | 'idle' | 'dnd' }
+  | { type: 'avatar-state'; avatarDataUrl: string | null }
   // Broadcast room list changes to the active space.
   | { type: 'update-rooms'; spaceId: string; rooms: Room[] }
   // Ephemeral room chat (a reaction is a chat with `reaction: true`).
@@ -243,6 +249,8 @@ export type ServerMessage =
   | { type: 'deafen-state'; from: PeerId; deafened: boolean }
   // A peer updated their presence status; broadcast to everyone else in the room.
   | { type: 'status-state'; from: PeerId; status: 'online' | 'idle' | 'dnd' }
+  // A peer updated their avatar; broadcast to all space members.
+  | { type: 'avatar-state'; from: PeerId; avatarDataUrl: string | null }
   // Broadcast room list changes to the active space.
   | { type: 'rooms-updated'; spaceId: string; rooms: Room[] }
   // Relayed room chat / reaction.

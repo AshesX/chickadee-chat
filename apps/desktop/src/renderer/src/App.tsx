@@ -54,7 +54,8 @@ export function App(): React.JSX.Element {
   const [cameraFramerate, setCameraFramerate] = useState(() => store.getCameraFramerate());
   const [screenResolution, setScreenResolution] = useState(() => store.getScreenResolution());
   const [screenFramerate, setScreenFramerate] = useState(() => store.getScreenFramerate());
-  const mesh = usePeerMesh(signaling, iceServers, noiseSuppression, micVolume, cameraResolution, cameraFramerate, screenResolution, screenFramerate, echoCancellation, autoGainControl, inputDeviceId);
+  const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(() => store.getAvatarDataUrl());
+  const mesh = usePeerMesh(signaling, iceServers, noiseSuppression, micVolume, cameraResolution, cameraFramerate, screenResolution, screenFramerate, echoCancellation, autoGainControl, inputDeviceId, localAvatarUrl);
   const colors = useUserColors(signaling.peers.map((p) => p.id));
   const timer = useSessionTimer(signaling.status === 'connected');
 
@@ -146,12 +147,33 @@ export function App(): React.JSX.Element {
   const inRoom = currentRoomId !== null;
   const currentRoom = rooms.find((r) => r.id === currentRoomId) ?? null;
   const totalInRoom = inRoom ? signaling.peers.length + 1 : 0;
-  const users = useSpacePresence(signaling, signaling.rooms);
+  const rawUsers = useSpacePresence(signaling, signaling.rooms);
+
+  // Override self's avatar with the local value (immediate, no round-trip wait).
+  // Peer avatars come from signaling state (Peer.avatarDataUrl), populated space-wide.
+  const users = useMemo(
+    () => rawUsers.map((u) => ({
+      ...u,
+      avatarUrl: (u.id === userId ? localAvatarUrl : u.avatarUrl) ?? undefined,
+    })),
+    [rawUsers, userId, localAvatarUrl],
+  );
+
+  const handleSaveAvatar = useCallback(
+    (dataUrl: string | null) => {
+      setLocalAvatarUrl(dataUrl);
+      store.setAvatarDataUrl(dataUrl);
+      if (signaling.status === 'connected') {
+        signaling.send({ type: 'avatar-state', avatarDataUrl: dataUrl });
+      }
+    },
+    [signaling.status, signaling.send],
+  );
 
   // Maintain a continuous space-level WebSocket connection to the signaling server
   useEffect(() => {
     if (currentSpaceId && displayName && userId) {
-      signaling.join(currentSpaceId, currentRoomId, displayName, userId, rooms, selfStatus);
+      signaling.join(currentSpaceId, currentRoomId, displayName, userId, rooms, selfStatus, localAvatarUrl);
     } else {
       signaling.leave();
     }
@@ -503,6 +525,7 @@ export function App(): React.JSX.Element {
         transmitting={transmitting}
         gameTag={game?.short}
         deafened={deafened}
+        avatarUrl={localAvatarUrl}
       />
       {signaling.peers.map((peer) => {
         const media = mesh.remote[peer.id];
@@ -516,6 +539,7 @@ export function App(): React.JSX.Element {
             cameraStream={media?.cameraStream ?? null}
             color={colors[peer.id] ?? SELF_COLOR}
             connectionState={media?.connectionState ?? 'new'}
+            avatarUrl={peer.avatarDataUrl ?? null}
             gameTag={peer.game ?? undefined}
             volume={deafened ? 0 : (volumes[peer.id] ?? 1)}
             deafened={peer.deafened}
@@ -560,7 +584,8 @@ export function App(): React.JSX.Element {
         users={users}
         selfName={displayName}
         selfColor={SELF_COLOR}
-        online={inRoom && signaling.status === 'connected'}
+        selfAvatarUrl={localAvatarUrl}
+        online={signaling.status === 'connected'}
         selfGame={game?.name}
         onOpenSettings={() => setSettingsOpen(true)}
         spaces={spaces}
@@ -823,6 +848,9 @@ export function App(): React.JSX.Element {
           onChangeChatWidthScale={applyChatWidthScale}
           analyserNode={mesh.analyserNode}
           onClose={() => setSettingsOpen(false)}
+          avatarDataUrl={localAvatarUrl}
+          selfColor={SELF_COLOR}
+          onChangeAvatar={handleSaveAvatar}
         />
       )}
     </div>
