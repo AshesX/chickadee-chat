@@ -51,7 +51,7 @@ export function WelcomeWizard({ onSubmit }: WelcomeWizardProps): React.JSX.Eleme
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && next()}
-              placeholder="e.g. Rain"
+              placeholder="e.g. Birby"
               maxLength={32}
             />
             <button

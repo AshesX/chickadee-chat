@@ -27,7 +27,7 @@ export function NameModal({ onSubmit }: NameModalProps): React.JSX.Element {
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && submit()}
-          placeholder="e.g. Rain"
+          placeholder="e.g. Birby"
           autoFocus
           maxLength={32}
         />
