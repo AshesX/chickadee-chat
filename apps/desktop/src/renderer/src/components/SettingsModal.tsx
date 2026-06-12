@@ -178,7 +178,7 @@ function SettingsSlider({
   };
 
   return (
-    <div style={{ width: '100%' }}>
+    <div style={{ flex: 1, minWidth: 0 }}>
       <div className="mic-slider-container">
         <input
           type="range"
