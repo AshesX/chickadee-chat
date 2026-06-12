@@ -8,6 +8,7 @@ import { useSpacePresence } from './hooks/useSpacePresence';
 import { useSpaces } from './hooks/useSpaces';
 import { useKeybindSync } from './hooks/useKeybindSync';
 import { useVoiceActivation } from './hooks/useVoiceActivation';
+import { useNoiseExpander } from './hooks/useNoiseExpander';
 import { useMediaDevices } from './hooks/useMediaDevices';
 import { useSfxEvents } from './hooks/useSfxEvents';
 import { useTraySync } from './hooks/useTraySync';
@@ -76,6 +77,10 @@ export function App(): React.JSX.Element {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [inputMode, setInputMode] = useState<'open' | 'voice' | 'ptt'>(() => store.getInputMode());
   const [vadThreshold, setVadThreshold] = useState(() => store.getVadThreshold());
+  const [vadReleaseMs, setVadReleaseMs] = useState(() => store.getVadReleaseMs());
+  const [openMicNoiseReductionEnabled, setOpenMicNoiseReductionEnabled] = useState(() => store.getOpenMicNoiseReductionEnabled());
+  const [openMicThreshold, setOpenMicThreshold] = useState(() => store.getOpenMicThreshold());
+  const [openMicReductionDb, setOpenMicReductionDb] = useState(() => store.getOpenMicReductionDb());
   // In voice mode the mic button pauses VAD (master mute) rather than toggling directly.
   const [voiceMuted, setVoiceMuted] = useState(false);
   const [pushToTalkKey, setPushToTalkKey] = useState(() => store.getPushToTalkKey());
@@ -350,6 +355,26 @@ export function App(): React.JSX.Element {
     store.setVadThreshold(threshold);
   }, []);
 
+  const applyVadReleaseMs = useCallback((ms: number) => {
+    setVadReleaseMs(ms);
+    store.setVadReleaseMs(ms);
+  }, []);
+
+  const applyOpenMicNoiseReductionEnabled = useCallback((on: boolean) => {
+    setOpenMicNoiseReductionEnabled(on);
+    store.setOpenMicNoiseReductionEnabled(on);
+  }, []);
+
+  const applyOpenMicThreshold = useCallback((threshold: number) => {
+    setOpenMicThreshold(threshold);
+    store.setOpenMicThreshold(threshold);
+  }, []);
+
+  const applyOpenMicReductionDb = useCallback((db: number) => {
+    setOpenMicReductionDb(db);
+    store.setOpenMicReductionDb(db);
+  }, []);
+
   function applyPushToTalkKey(key: string): void {
     setPushToTalkKey(key);
     store.setPushToTalkKey(key);
@@ -538,8 +563,19 @@ export function App(): React.JSX.Element {
   useVoiceActivation({
     active: inputMode === 'voice' && inRoom && !deafened && !voiceMuted,
     threshold: vadThreshold,
+    releaseMs: vadReleaseMs,
     analyserNode: mesh.analyserNode,
     setMicEnabled: mesh.setMicEnabled,
+  });
+
+  // Open-mic downward expander: softly attenuates background noise between
+  // speech instead of hard-gating. The mic stays live; only the gain ramps.
+  useNoiseExpander({
+    active: inputMode === 'open' && openMicNoiseReductionEnabled && inRoom && !deafened,
+    threshold: openMicThreshold,
+    reductionDb: openMicReductionDb,
+    analyserNode: mesh.analyserNode,
+    expanderGain: mesh.expanderGainNode,
   });
 
   // Audio device lists for the Settings dropdowns (only enumerate while open).
@@ -838,6 +874,14 @@ export function App(): React.JSX.Element {
           onChangeInputMode={applyInputMode}
           vadThreshold={vadThreshold}
           onChangeVadThreshold={applyVadThreshold}
+          vadReleaseMs={vadReleaseMs}
+          onChangeVadReleaseMs={applyVadReleaseMs}
+          openMicNoiseReductionEnabled={openMicNoiseReductionEnabled}
+          onChangeOpenMicNoiseReductionEnabled={applyOpenMicNoiseReductionEnabled}
+          openMicThreshold={openMicThreshold}
+          onChangeOpenMicThreshold={applyOpenMicThreshold}
+          openMicReductionDb={openMicReductionDb}
+          onChangeOpenMicReductionDb={applyOpenMicReductionDb}
           theme={theme}
           onChangeTheme={applyTheme}
           launchOnStartup={launchOnStartup}

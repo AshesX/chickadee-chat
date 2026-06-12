@@ -82,6 +82,14 @@ export interface PersistedSettings {
   inputMode: 'open' | 'voice' | 'ptt';
   /** RMS gate level (0..1) for voice-activation mode. */
   vadThreshold: number;
+  /** Hangover (ms) the voice-activation gate stays open after the level drops. */
+  vadReleaseMs: number;
+  /** Open-mic downward expander: attenuate background noise when not speaking. */
+  openMicNoiseReductionEnabled: boolean;
+  /** RMS speech threshold (0..1) for the open-mic expander (separate from vadThreshold). */
+  openMicThreshold: number;
+  /** Attenuation floor in dB (negative, e.g. -20) applied below the threshold. */
+  openMicReductionDb: number;
   /** Preferred mic deviceId, or '' for the system default. */
   inputDeviceId: string;
   /** Preferred speaker deviceId (setSinkId), or '' for the system default. */
@@ -158,6 +166,10 @@ export function defaultSettings(): PersistedSettings {
     autoGainControl: false,
     inputMode: 'voice',
     vadThreshold: 0.04,
+    vadReleaseMs: 500,
+    openMicNoiseReductionEnabled: true,
+    openMicThreshold: 0.04,
+    openMicReductionDb: -20,
     inputDeviceId: '',
     outputDeviceId: '',
     // Default to F8 — captured system-wide, so Space would swallow the spacebar in-game.

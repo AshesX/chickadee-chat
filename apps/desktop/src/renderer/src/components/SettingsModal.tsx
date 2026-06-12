@@ -24,6 +24,14 @@ interface SettingsModalProps {
   onChangeInputMode: (mode: 'open' | 'voice' | 'ptt') => void;
   vadThreshold: number;
   onChangeVadThreshold: (v: number) => void;
+  vadReleaseMs: number;
+  onChangeVadReleaseMs: (v: number) => void;
+  openMicNoiseReductionEnabled: boolean;
+  onChangeOpenMicNoiseReductionEnabled: (on: boolean) => void;
+  openMicThreshold: number;
+  onChangeOpenMicThreshold: (v: number) => void;
+  openMicReductionDb: number;
+  onChangeOpenMicReductionDb: (v: number) => void;
   theme: 'midnight' | 'classic' | 'oled';
   onChangeTheme: (t: 'midnight' | 'classic' | 'oled') => void;
   launchOnStartup: boolean;
@@ -80,25 +88,29 @@ interface SettingsModalProps {
 }
 
 function SettingsSlider({
-  min,
-  max,
-  step,
+  min = 0,
+  max = 100,
+  step = 1,
   value,
   onChange,
-  markers,
+  markers = [],
   labels,
   snapThreshold = 0.03,
   commitOnRelease = false,
+  snapValues,
 }: {
-  min: number;
-  max: number;
-  step: number;
+  min?: number;
+  max?: number;
+  step?: number;
   value: number;
   onChange: (val: number) => void;
-  markers: number[];
+  markers?: number[];
   labels: { value: number; text: string }[];
   snapThreshold?: number;
   commitOnRelease?: boolean;
+  /** When provided, the slider only lands on these exact values, rendered as
+   *  uniformly spaced detents (index-based). Overrides min/max/step/markers. */
+  snapValues?: number[];
 }): React.JSX.Element {
   const [localValue, setLocalValue] = useState(value);
 
@@ -108,14 +120,41 @@ function SettingsSlider({
     }
   }, [value, commitOnRelease]);
 
+  const discrete = snapValues != null && snapValues.length > 0;
+
+  // Index of the stop closest to a value (tolerates legacy/off-grid values).
+  const nearestIndex = (v: number): number => {
+    if (!discrete) return 0;
+    let best = 0;
+    let bestDist = Infinity;
+    for (let i = 0; i < snapValues.length; i++) {
+      const d = Math.abs(snapValues[i] - v);
+      if (d < bestDist) {
+        bestDist = d;
+        best = i;
+      }
+    }
+    return best;
+  };
+
+  // Horizontal position (0..100%) of a value: by index in discrete mode (even
+  // detents), by linear interpolation otherwise.
+  const posPercent = (v: number): number =>
+    discrete ? (nearestIndex(v) / (snapValues.length - 1)) * 100 : ((v - min) / (max - min)) * 100;
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     let val = parseFloat(e.target.value);
-    
-    // Magnetic snap
-    for (const m of markers) {
-      if (Math.abs(m - val) <= snapThreshold) {
-        val = m;
-        break;
+
+    if (discrete) {
+      const idx = Math.min(snapValues.length - 1, Math.max(0, Math.round(val)));
+      val = snapValues[idx];
+    } else {
+      // Magnetic snap
+      for (const m of markers) {
+        if (Math.abs(m - val) <= snapThreshold) {
+          val = m;
+          break;
+        }
       }
     }
 
@@ -143,18 +182,18 @@ function SettingsSlider({
       <div className="mic-slider-container">
         <input
           type="range"
-          min={min}
-          max={max}
-          step={step}
-          value={commitOnRelease ? localValue : value}
+          min={discrete ? 0 : min}
+          max={discrete ? snapValues.length - 1 : max}
+          step={discrete ? 1 : step}
+          value={discrete ? nearestIndex(commitOnRelease ? localValue : value) : commitOnRelease ? localValue : value}
           onChange={handleChange}
           onPointerUp={commitOnRelease ? handleCommit : undefined}
           onKeyUp={commitOnRelease ? handleKeyUp : undefined}
           onBlur={commitOnRelease ? handleCommit : undefined}
           className="settings-slider"
         />
-        {markers.map((m) => {
-          const percent = ((m - min) / (max - min)) * 100;
+        {(discrete ? snapValues : markers).map((m) => {
+          const percent = posPercent(m);
           // Thumb is ~16px diameter (8px radius)
           const leftCalc = `calc(${percent}% + ${8 - (percent / 100) * 16}px)`;
           return (
@@ -168,7 +207,7 @@ function SettingsSlider({
       </div>
       <div className="mic-slider-labels" style={{ position: 'relative', height: '14px', marginTop: '-6px' }}>
         {labels.map((l) => {
-          const percent = ((l.value - min) / (max - min)) * 100;
+          const percent = posPercent(l.value);
           const leftCalc = `calc(${percent}% + ${8 - (percent / 100) * 16}px)`;
           return (
             <span
@@ -411,6 +450,14 @@ export function SettingsModal({
   onChangeInputMode,
   vadThreshold,
   onChangeVadThreshold,
+  vadReleaseMs,
+  onChangeVadReleaseMs,
+  openMicNoiseReductionEnabled,
+  onChangeOpenMicNoiseReductionEnabled,
+  openMicThreshold,
+  onChangeOpenMicThreshold,
+  openMicReductionDb,
+  onChangeOpenMicReductionDb,
   theme,
   onChangeTheme,
   launchOnStartup,
@@ -508,6 +555,10 @@ export function SettingsModal({
     onChangeOutputDevice(defaults.outputDeviceId);
     onChangeInputMode(defaults.inputMode);
     onChangeVadThreshold(defaults.vadThreshold);
+    onChangeVadReleaseMs(defaults.vadReleaseMs);
+    onChangeOpenMicNoiseReductionEnabled(defaults.openMicNoiseReductionEnabled);
+    onChangeOpenMicThreshold(defaults.openMicThreshold);
+    onChangeOpenMicReductionDb(defaults.openMicReductionDb);
     onChangeTheme(defaults.theme);
     onChangeLaunchOnStartup(defaults.launchOnStartup);
     onChangeCloseBehavior(defaults.closeBehavior);
@@ -762,29 +813,108 @@ export function SettingsModal({
                 </div>
 
                 {inputMode === 'voice' && (
-                  <div className="settings-row">
-                    <div className="settings-row__label">
-                      <span>Voice sensitivity</span>
-                      <span className="settings-row__hint">Speak normally and adjust until the meter consistently crosses the gate. Higher = needs louder sound to transmit.</span>
+                  <>
+                    <div className="settings-row">
+                      <div className="settings-row__label">
+                        <span>Voice sensitivity</span>
+                        <span className="settings-row__hint">Speak normally and adjust until the meter consistently crosses the gate. Higher = needs louder sound to transmit.</span>
+                      </div>
+                      <div className="mic-control-wrap">
+                        <SettingsSlider
+                          min={0.01}
+                          max={0.2}
+                          step={0.005}
+                          value={vadThreshold}
+                          onChange={onChangeVadThreshold}
+                          markers={[0.01, 0.05, 0.1, 0.15, 0.2]}
+                          labels={[
+                            { value: 0.01, text: 'Low' },
+                            { value: 0.1, text: 'Medium' },
+                            { value: 0.2, text: 'High' },
+                          ]}
+                          snapThreshold={0.004}
+                        />
+                        <MicLevelMeter bars={micBars} online={!!analyserNode} />
+                      </div>
                     </div>
-                    <div className="mic-control-wrap">
+
+                    <div className="settings-row">
+                      <div className="settings-row__label">
+                        <span>Voice hold time</span>
+                        <span className="settings-row__hint">How long the mic stays open after you stop talking, so word endings and short pauses aren't clipped. Currently {vadReleaseMs} ms.</span>
+                      </div>
                       <SettingsSlider
-                        min={0.01}
-                        max={0.2}
-                        step={0.005}
-                        value={vadThreshold}
-                        onChange={onChangeVadThreshold}
-                        markers={[0.01, 0.05, 0.1, 0.15, 0.2]}
+                        value={vadReleaseMs}
+                        onChange={onChangeVadReleaseMs}
+                        snapValues={[100, 250, 500, 750, 1000, 1500, 2000, 2500, 3000]}
                         labels={[
-                          { value: 0.01, text: 'Low' },
-                          { value: 0.1, text: 'Medium' },
-                          { value: 0.2, text: 'High' },
+                          { value: 100, text: 'Short' },
+                          { value: 1000, text: 'Medium' },
+                          { value: 3000, text: 'Long' },
                         ]}
-                        snapThreshold={0.004}
                       />
-                      <MicLevelMeter bars={micBars} online={!!analyserNode} />
                     </div>
-                  </div>
+                  </>
+                )}
+
+                {inputMode === 'open' && (
+                  <>
+                    <div className="settings-row">
+                      <div className="settings-row__label">
+                        <span>Reduce background noise</span>
+                        <span className="settings-row__hint">Softly lowers the volume of background noise while you're not speaking, instead of cutting it off. Turn off for a raw, unprocessed mic.</span>
+                      </div>
+                      <Toggle on={openMicNoiseReductionEnabled} onClick={() => onChangeOpenMicNoiseReductionEnabled(!openMicNoiseReductionEnabled)} />
+                    </div>
+
+                    {openMicNoiseReductionEnabled && (
+                      <>
+                        <div className="settings-row">
+                          <div className="settings-row__label">
+                            <span>Speech sensitivity</span>
+                            <span className="settings-row__hint">Speak normally and adjust until the meter consistently crosses the gate. Higher = needs louder sound to count as speech.</span>
+                          </div>
+                          <div className="mic-control-wrap">
+                            <SettingsSlider
+                              min={0.01}
+                              max={0.2}
+                              step={0.005}
+                              value={openMicThreshold}
+                              onChange={onChangeOpenMicThreshold}
+                              markers={[0.01, 0.05, 0.1, 0.15, 0.2]}
+                              labels={[
+                                { value: 0.01, text: 'Low' },
+                                { value: 0.1, text: 'Medium' },
+                                { value: 0.2, text: 'High' },
+                              ]}
+                              snapThreshold={0.004}
+                            />
+                            <MicLevelMeter bars={micBars} online={!!analyserNode} />
+                          </div>
+                        </div>
+
+                        <div className="settings-row">
+                          <div className="settings-row__label">
+                            <span>Reduction amount</span>
+                            <span className="settings-row__hint">How much to attenuate background noise. {openMicReductionDb} dB{openMicReductionDb <= -40 ? ' (near silent)' : ''}.</span>
+                          </div>
+                          <SettingsSlider
+                            min={-40}
+                            max={-10}
+                            step={5}
+                            value={openMicReductionDb}
+                            onChange={onChangeOpenMicReductionDb}
+                            markers={[-40, -30, -20, -10]}
+                            labels={[
+                              { value: -10, text: 'Gentle' },
+                              { value: -40, text: 'Strong' },
+                            ]}
+                            snapThreshold={4}
+                          />
+                        </div>
+                      </>
+                    )}
+                  </>
                 )}
 
                 <hr className="settings-divider" />

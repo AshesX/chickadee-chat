@@ -1,14 +1,16 @@
 import { useEffect, useRef } from 'react';
 
-const MIN_TOGGLE_MS = 120; // debounce rapid edge flips
-const HANG_MS = 250; // keep the gate open briefly after speech drops
-const HYSTERESIS = 0.7; // close gate at threshold * HYSTERESIS
+const ATTACK_MS = 5; // open near-instantly once the level crosses the threshold
+const HYSTERESIS = 0.7; // close at threshold * HYSTERESIS
 
 interface UseVoiceActivationOpts {
   /** Run the gate only when in voice mode, in a room, not deafened, not paused. */
   active: boolean;
   /** RMS open threshold (0..1); the close threshold is threshold * HYSTERESIS. */
   threshold: number;
+  /** Hangover: how long (ms) to hold the gate open after the level drops, so
+   *  trailing word-ends and short pauses aren't clipped. */
+  releaseMs: number;
   /**
    * The mic analyser node from the processing graph. It sits on the gain node
    * *before* the transmit gate, so it always carries the live mic signal even
@@ -22,20 +24,34 @@ interface UseVoiceActivationOpts {
 
 /**
  * Voice-activation (open-mic) gate: monitors the local mic's RMS level and
- * opens/closes the transmit gate against a sensitivity threshold, with
- * hysteresis + a short hangtime so brief pauses don't clip speech. While
- * inactive (PTT/open mode, deafened, or manually paused via the mic button) the
- * gate does nothing — the caller owns the mic state in those cases.
+ * opens/closes the transmit gate against a sensitivity threshold.
+ *
+ * Transitions are smoothed by two timings, both expressed as timestamp deltas
+ * inside the single rAF loop (no setTimeout — nothing to leak):
+ *   - Attack: open once the level has been above the threshold for ATTACK_MS
+ *     (near-instant; the short window rejects single-frame transients like clicks).
+ *   - Release/hangover: stay open until the level has been below the close
+ *     threshold for `releaseMs` continuously — any speech in that window resets
+ *     the timer and keeps the gate open, so brief pauses don't clip speech.
+ *
+ * Hysteresis (close threshold < open threshold) avoids chattering near the line.
+ * setMicEnabled is called only on real open/close edges (and is itself a no-op
+ * when unchanged), so there's no React state thrashing. While inactive (PTT/open
+ * mode, deafened, or manually paused) the gate does nothing — the caller owns
+ * the mic state in those cases.
  */
 export function useVoiceActivation({
   active,
   threshold,
+  releaseMs,
   analyserNode,
   setMicEnabled,
 }: UseVoiceActivationOpts): void {
-  // Keep the latest threshold without restarting the analyser loop each change.
+  // Keep the latest tunables without restarting the analyser loop each change.
   const thresholdRef = useRef(threshold);
   thresholdRef.current = threshold;
+  const releaseMsRef = useRef(releaseMs);
+  releaseMsRef.current = releaseMs;
 
   useEffect(() => {
     if (!active || !analyserNode) return;
@@ -43,8 +59,8 @@ export function useVoiceActivation({
     const samples = new Uint8Array(analyserNode.fftSize);
     let raf = 0;
     let open = false;
-    let lastToggle = 0;
-    let belowSince = 0;
+    let aboveSince = 0; // when the level first rose above the open threshold (0 = below)
+    let belowSince = 0; // when the level first fell below the close threshold (0 = above)
 
     // Start closed; the gate opens on the first detected speech.
     setMicEnabled(false);
@@ -61,20 +77,26 @@ export function useVoiceActivation({
       const offLevel = onLevel * HYSTERESIS;
 
       if (!open) {
-        if (rms > onLevel && now - lastToggle > MIN_TOGGLE_MS) {
-          open = true;
-          lastToggle = now;
-          setMicEnabled(true);
+        // Attack: open once we've been above threshold for ATTACK_MS.
+        if (rms > onLevel) {
+          if (aboveSince === 0) aboveSince = now;
+          if (now - aboveSince >= ATTACK_MS) {
+            open = true;
+            belowSince = 0;
+            setMicEnabled(true);
+          }
+        } else {
+          aboveSince = 0;
         }
       } else {
+        // Release/hangover: hold open until below threshold for releaseMs straight.
         if (rms > offLevel) {
-          belowSince = 0;
+          belowSince = 0; // speech resumes → cancel the pending close
         } else {
           if (belowSince === 0) belowSince = now;
-          if (now - belowSince > HANG_MS && now - lastToggle > MIN_TOGGLE_MS) {
+          if (now - belowSince >= releaseMsRef.current) {
             open = false;
-            lastToggle = now;
-            belowSince = 0;
+            aboveSince = 0;
             setMicEnabled(false);
           }
         }

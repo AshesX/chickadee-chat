@@ -48,6 +48,7 @@ export interface PeerMesh {
   startScreenShare: (sourceId: string, withAudio: boolean) => void;
   stopScreenShare: () => void;
   analyserNode: AnalyserNode | null;
+  expanderGainNode: GainNode | null;
   teardown: () => void;
 }
 
@@ -67,19 +68,25 @@ function createMicProcessingGraph(
   ctx: AudioContext,
   rawStream: MediaStream,
   volume: number,
-): { gainNode: GainNode; analyserNode: AnalyserNode; processedStream: MediaStream } {
+): { gainNode: GainNode; analyserNode: AnalyserNode; expanderGainNode: GainNode; processedStream: MediaStream } {
   const source = ctx.createMediaStreamSource(rawStream);
   const gainNode = ctx.createGain();
   gainNode.gain.value = volume;
   const analyserNode = ctx.createAnalyser();
   analyserNode.fftSize = MIC_ANALYSER_FFT_SIZE;
+  // Downward-expander gain, driven by useNoiseExpander in open-mic mode.
+  // Starts transparent (0 dB); the analyser taps the signal *before* it so
+  // detection always sees the true pre-attenuation level.
+  const expanderGainNode = ctx.createGain();
+  expanderGainNode.gain.value = 1;
   const destination = ctx.createMediaStreamDestination();
 
   source.connect(gainNode);
   gainNode.connect(analyserNode);
-  gainNode.connect(destination);
+  gainNode.connect(expanderGainNode);
+  expanderGainNode.connect(destination);
 
-  return { gainNode, analyserNode, processedStream: destination.stream };
+  return { gainNode, analyserNode, expanderGainNode, processedStream: destination.stream };
 }
 
 /**
@@ -120,9 +127,11 @@ export function usePeerMesh(
   const audioContextRef = useRef<AudioContext | null>(null);
   const gainNodeRef = useRef<GainNode | null>(null);
   const analyserNodeRef = useRef<AnalyserNode | null>(null);
+  const expanderGainNodeRef = useRef<GainNode | null>(null);
   const rawStreamRef = useRef<MediaStream | null>(null);
 
   const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
+  const [expanderGainNode, setExpanderGainNode] = useState<GainNode | null>(null);
 
   const localAvatarUrlRef = useRef<string | null>(localAvatarUrl);
   localAvatarUrlRef.current = localAvatarUrl;
@@ -181,16 +190,18 @@ export function usePeerMesh(
           // AudioContext unavailable; fall back to raw stream (no volume control or analysis).
           localStreamRef.current = stream;
           setAnalyserNode(null);
+          setExpanderGainNode(null);
           setLocalStream(stream);
           return stream;
         }
 
-        const { gainNode, analyserNode: analyserNodeObj, processedStream } =
+        const { gainNode, analyserNode: analyserNodeObj, expanderGainNode: expanderGainNodeObj, processedStream } =
           createMicProcessingGraph(ctx, stream, micVolumeRef.current);
 
         audioContextRef.current = ctx;
         gainNodeRef.current = gainNode;
         analyserNodeRef.current = analyserNodeObj;
+        expanderGainNodeRef.current = expanderGainNodeObj;
         localStreamRef.current = processedStream;
 
         for (const track of processedStream.getAudioTracks()) track.enabled = micEnabledRef.current;
@@ -203,6 +214,7 @@ export function usePeerMesh(
         }
         
         setAnalyserNode(analyserNodeObj);
+        setExpanderGainNode(expanderGainNodeObj);
         setLocalStream(processedStream);
         return processedStream;
       })
@@ -213,6 +225,7 @@ export function usePeerMesh(
         micEnabledRef.current = false;
         localStreamRef.current = null;
         setAnalyserNode(null);
+        setExpanderGainNode(null);
         return null;
       });
 
@@ -343,9 +356,11 @@ export function usePeerMesh(
     // it is owned by lib/audioContext.ts and shared with sfx.ts across join/leave cycles.
     if (gainNodeRef.current) { gainNodeRef.current.disconnect(); gainNodeRef.current = null; }
     if (analyserNodeRef.current) { analyserNodeRef.current.disconnect(); analyserNodeRef.current = null; }
+    if (expanderGainNodeRef.current) { expanderGainNodeRef.current.disconnect(); expanderGainNodeRef.current = null; }
     audioContextRef.current = null;
     rawStreamRef.current = null;
     setAnalyserNode(null);
+    setExpanderGainNode(null);
 
     localStreamRef.current = null;
     localStreamPromiseRef.current = null;
@@ -709,6 +724,7 @@ export function usePeerMesh(
     startScreenShare,
     stopScreenShare,
     analyserNode,
+    expanderGainNode,
     teardown,
   };
 }
