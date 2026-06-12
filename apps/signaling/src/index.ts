@@ -85,6 +85,7 @@ function handleJoin(socket: WebSocket, msg: Extract<ClientMessage, { type: 'join
     deafened: false,
     status: msg.status || 'online',
     avatarDataUrl: msg.avatarDataUrl ?? null,
+    voicePreference: msg.voicePreference ?? '',
   };
   const conn: Connection = { socket, peer, space: msg.spaceId, room: fullRoomId };
 
@@ -280,6 +281,12 @@ function handleAvatarState(conn: Connection, avatarDataUrl: string | null): void
   }
 }
 
+/** Record a peer's TTS voice preference and tell the room (room-only — chat/TTS is room-scoped). */
+function handleVoiceState(conn: Connection, voicePreference: string): void {
+  conn.peer.voicePreference = typeof voicePreference === 'string' ? voicePreference.slice(0, 32) : '';
+  broadcast(conn.room, { type: 'voice-state', from: conn.peer.id, voicePreference: conn.peer.voicePreference }, conn.peer.id);
+}
+
 /** Record a peer's presence status and tell the room (mirror pattern). */
 function handleStatusState(conn: Connection, status: 'online' | 'idle' | 'dnd'): void {
   conn.peer.status = status;
@@ -426,6 +433,8 @@ wss.on('connection', (socket) => {
       handleStatusState(conn, msg.status);
     } else if (msg.type === 'avatar-state') {
       handleAvatarState(conn, msg.avatarDataUrl);
+    } else if (msg.type === 'voice-state') {
+      handleVoiceState(conn, msg.voicePreference);
     } else if (msg.type === 'update-rooms') {
       handleUpdateRooms(msg.spaceId, msg.rooms);
     } else if (msg.type === 'chat') {

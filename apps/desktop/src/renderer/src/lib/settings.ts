@@ -150,6 +150,8 @@ export const store = {
   setChatWidthScale: (chatWidthScale: number): void => persist({ chatWidthScale }),
   getChatTtsEnabled: (): boolean => cache.chatTtsEnabled ?? false,
   setChatTtsEnabled: (chatTtsEnabled: boolean): void => persist({ chatTtsEnabled }),
+  getVoicePreference: (): string => cache.voicePreference ?? '',
+  setVoicePreference: (voicePreference: string): void => persist({ voicePreference }),
   getAvatarDataUrl: (): string | null => cache.avatarDataUrl ?? null,
   setAvatarDataUrl: (avatarDataUrl: string | null): void => persist({ avatarDataUrl }),
 };

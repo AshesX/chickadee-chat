@@ -8,6 +8,8 @@ export interface ChatMessage {
   text: string;
   time: string;
   isReaction?: boolean;
+  /** Sender's synced TTS voice-category id (for reading the message aloud); '' = system default. */
+  voicePreference?: string;
 }
 
 export const REACTION_EMOJIS = ['🔥', '😂', '👍', '❤️', '🎉', '💀'];

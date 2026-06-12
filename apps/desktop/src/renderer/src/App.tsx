@@ -30,6 +30,7 @@ import { generateBadgeOverlay } from './lib/trayIcon';
 import { Modal } from './components/Modal';
 import { playSfx } from './lib/sfx';
 import { speakChatMessage, cancelSpeech } from './lib/tts';
+import { initVoices } from './lib/voices';
 
 interface ActiveScreen {
   key: string;
@@ -57,7 +58,8 @@ export function App(): React.JSX.Element {
   const [screenResolution, setScreenResolution] = useState(() => store.getScreenResolution());
   const [screenFramerate, setScreenFramerate] = useState(() => store.getScreenFramerate());
   const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(() => store.getAvatarDataUrl());
-  const mesh = usePeerMesh(signaling, iceServers, noiseSuppression, micVolume, cameraResolution, cameraFramerate, screenResolution, screenFramerate, echoCancellation, autoGainControl, inputDeviceId, localAvatarUrl);
+  const [localVoicePreference, setLocalVoicePreference] = useState(() => store.getVoicePreference());
+  const mesh = usePeerMesh(signaling, iceServers, noiseSuppression, micVolume, cameraResolution, cameraFramerate, screenResolution, screenFramerate, echoCancellation, autoGainControl, inputDeviceId, localAvatarUrl, localVoicePreference);
   const colors = useUserColors(signaling.peers.map((p) => p.id));
   const timer = useSessionTimer(signaling.status === 'connected');
 
@@ -137,7 +139,7 @@ export function App(): React.JSX.Element {
     setUnreadCount((c) => c + 1);
     // Read the flag from the store (not React state) so this empty-deps callback stays stable.
     if (store.getChatTtsEnabled() && !msg.isReaction) {
-      speakChatMessage(msg.senderName, msg.text);
+      speakChatMessage(msg.senderName, msg.text, msg.voicePreference);
     }
   }, []);
 
@@ -185,10 +187,22 @@ export function App(): React.JSX.Element {
     [signaling.status, signaling.send],
   );
 
+  const applyVoicePreference = useCallback(
+    (pref: string) => {
+      setLocalVoicePreference(pref);
+      store.setVoicePreference(pref);
+      // Tell the room how to read our chat aloud (live update; also sent in join + on reconnect).
+      if (signaling.status === 'connected') {
+        signaling.send({ type: 'voice-state', voicePreference: pref });
+      }
+    },
+    [signaling.status, signaling.send],
+  );
+
   // Maintain a continuous space-level WebSocket connection to the signaling server
   useEffect(() => {
     if (currentSpaceId && displayName && userId) {
-      signaling.join(currentSpaceId, currentRoomId, displayName, userId, rooms, selfStatus, localAvatarUrl);
+      signaling.join(currentSpaceId, currentRoomId, displayName, userId, rooms, selfStatus, localAvatarUrl, localVoicePreference);
     } else {
       signaling.leave();
     }
@@ -471,6 +485,11 @@ export function App(): React.JSX.Element {
     };
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
+  }, []);
+
+  // Warm the TTS voice list on startup so the first spoken message resolves the right voice.
+  useEffect(() => {
+    initVoices();
   }, []);
 
   // Update Electron badge count when unreadCount or badge setting changes.
@@ -956,6 +975,8 @@ export function App(): React.JSX.Element {
           onChangeChatWidthScale={applyChatWidthScale}
           chatTtsEnabled={chatTtsEnabled}
           onChangeChatTtsEnabled={applyChatTtsEnabled}
+          voicePreference={localVoicePreference}
+          onChangeVoicePreference={applyVoicePreference}
           analyserNode={mesh.analyserNode}
           onClose={() => setSettingsOpen(false)}
           avatarDataUrl={localAvatarUrl}

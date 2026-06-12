@@ -47,6 +47,7 @@ check('welcome carries muted=false for existing peers', wb.peers[0].muted === fa
 check('welcome carries cameraOn=false for existing peers', wb.peers[0].cameraOn === false);
 check('welcome carries screenStreamId=null for existing peers', wb.peers[0].screenStreamId === null);
 check('welcome carries game=null for existing peers', wb.peers[0].game === null);
+check('welcome carries voicePreference="" for existing peers', wb.peers[0].voicePreference === '');
 check('welcome carries userId for existing peers', wb.peers[0].userId === 'uid-Alpha');
 
 await wait(150);
@@ -120,6 +121,14 @@ const cGame = (ev) => ev.type === 'game-state' && ev.from === wc.selfId && ev.ga
 check('A receives C game-state', a.events.some(cGame));
 check('D receives C game-state', d.events.some(cGame));
 check('C does not receive its own game-state', !c.events.some((ev) => ev.type === 'game-state'));
+
+// TTS voice preference mirror — C sets a voice, A/D told, C not echoed.
+c.ws.send(JSON.stringify({ type: 'voice-state', voicePreference: 'uk-female' }));
+await wait(200);
+const cVoice = (ev) => ev.type === 'voice-state' && ev.from === wc.selfId && ev.voicePreference === 'uk-female';
+check('A receives C voice-state', a.events.some(cVoice));
+check('D receives C voice-state', d.events.some(cVoice));
+check('C does not receive its own voice-state', !c.events.some((ev) => ev.type === 'voice-state'));
 
 // Phase 6C: a join without userId still gets a non-empty userId (server fallback).
 const f1 = client('Foxtrot', { room: 'fb', userId: null });

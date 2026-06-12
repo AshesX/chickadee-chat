@@ -35,6 +35,8 @@ export interface Peer {
   status: 'online' | 'idle' | 'dnd';
   /** Custom avatar as a base64 data URL (128×128 WebP/JPEG), or null. */
   avatarDataUrl: string | null;
+  /** Generic TTS voice-category id others use to read this peer's chat aloud (e.g. 'uk-female'); '' = system default. */
+  voicePreference: string;
 }
 
 /** A sidebar room entry (local; the server uses arbitrary room ids). */
@@ -130,6 +132,8 @@ export interface PersistedSettings {
   chatWidthScale: number;
   /** Read incoming chat messages aloud (Web Speech API) when the app is unfocused. */
   chatTtsEnabled: boolean;
+  /** Generic TTS voice-category id peers use to read this user's chat aloud (e.g. 'uk-female'); '' = system default. */
+  voicePreference: string;
   /** User's custom avatar as a base64 data URL (128×128 WebP/JPEG), or null. */
   avatarDataUrl: string | null;
 }
@@ -201,6 +205,7 @@ export function defaultSettings(): PersistedSettings {
     chatPosition: 'right',
     chatWidthScale: 1.0,
     chatTtsEnabled: false,
+    voicePreference: '',
     avatarDataUrl: null,
   };
 }
@@ -217,7 +222,7 @@ export interface ScreenSource {
 
 /** Messages sent from a client up to the signaling server. */
 export type ClientMessage =
-  | { type: 'join'; spaceId: string; room: RoomId | null; displayName: string; userId: string; rooms: Room[]; status?: 'online' | 'idle' | 'dnd'; avatarDataUrl?: string | null }
+  | { type: 'join'; spaceId: string; room: RoomId | null; displayName: string; userId: string; rooms: Room[]; status?: 'online' | 'idle' | 'dnd'; avatarDataUrl?: string | null; voicePreference?: string }
   | { type: 'join-room'; room: RoomId | null }
   | { type: 'offer'; to: PeerId; sdp: RTCSessionDescriptionInit }
   | { type: 'answer'; to: PeerId; sdp: RTCSessionDescriptionInit }
@@ -230,6 +235,7 @@ export type ClientMessage =
   | { type: 'deafen-state'; deafened: boolean }
   | { type: 'status-state'; status: 'online' | 'idle' | 'dnd' }
   | { type: 'avatar-state'; avatarDataUrl: string | null }
+  | { type: 'voice-state'; voicePreference: string }
   // Broadcast room list changes to the active space.
   | { type: 'update-rooms'; spaceId: string; rooms: Room[] }
   // Ephemeral room chat (a reaction is a chat with `reaction: true`).
@@ -274,6 +280,8 @@ export type ServerMessage =
   | { type: 'status-state'; from: PeerId; status: 'online' | 'idle' | 'dnd' }
   // A peer updated their avatar; broadcast to all space members.
   | { type: 'avatar-state'; from: PeerId; avatarDataUrl: string | null }
+  // A peer changed the voice others use to read their chat aloud; broadcast to the room.
+  | { type: 'voice-state'; from: PeerId; voicePreference: string }
   // Broadcast room list changes to the active space.
   | { type: 'rooms-updated'; spaceId: string; rooms: Room[] }
   // Relayed room chat / reaction.

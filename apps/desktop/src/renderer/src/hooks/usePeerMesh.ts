@@ -107,6 +107,7 @@ export function usePeerMesh(
   autoGainControl: boolean,
   inputDeviceId: string,
   localAvatarUrl: string | null,
+  localVoicePreference: string,
 ): PeerMesh {
   const { subscribe, send, status } = signaling;
 
@@ -135,6 +136,8 @@ export function usePeerMesh(
 
   const localAvatarUrlRef = useRef<string | null>(localAvatarUrl);
   localAvatarUrlRef.current = localAvatarUrl;
+  const localVoicePreferenceRef = useRef<string>(localVoicePreference);
+  localVoicePreferenceRef.current = localVoicePreference;
 
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [localScreenStream, setLocalScreenStream] = useState<MediaStream | null>(null);
@@ -646,6 +649,8 @@ export function usePeerMesh(
     }
     // Re-broadcast avatar so the server's fresh peer record reflects the current avatar.
     send({ type: 'avatar-state', avatarDataUrl: localAvatarUrlRef.current });
+    // Re-broadcast voice preference so peers read our chat aloud in the right voice after reconnect.
+    send({ type: 'voice-state', voicePreference: localVoicePreferenceRef.current });
   }, [send]);
 
   // React to signaling messages: set up / tear down links and route negotiation.

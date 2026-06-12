@@ -4,6 +4,8 @@ import { defaultSettings, type GameDef } from '@chickadee/shared';
 import { useKeyCapture } from '../hooks/useKeyCapture';
 import type { MediaDeviceOption } from '../hooks/useMediaDevices';
 import { AvatarCropModal } from './AvatarCropModal';
+import { VOICE_CATEGORIES } from '../lib/voices';
+import { previewVoice } from '../lib/tts';
 
 interface SettingsModalProps {
   displayName: string;
@@ -82,6 +84,8 @@ interface SettingsModalProps {
   onChangeChatWidthScale: (scale: number) => void;
   chatTtsEnabled: boolean;
   onChangeChatTtsEnabled: (on: boolean) => void;
+  voicePreference: string;
+  onChangeVoicePreference: (id: string) => void;
   analyserNode: AnalyserNode | null;
   onClose: () => void;
   avatarDataUrl: string | null;
@@ -510,6 +514,8 @@ export function SettingsModal({
   onChangeChatWidthScale,
   chatTtsEnabled,
   onChangeChatTtsEnabled,
+  voicePreference,
+  onChangeVoicePreference,
   analyserNode,
   onClose,
   avatarDataUrl,
@@ -588,6 +594,7 @@ export function SettingsModal({
     onChangeChatPosition(defaults.chatPosition);
     onChangeChatWidthScale(defaults.chatWidthScale);
     onChangeChatTtsEnabled(defaults.chatTtsEnabled);
+    onChangeVoicePreference(defaults.voicePreference);
   }
 
   return (
@@ -1246,6 +1253,27 @@ export function SettingsModal({
                   <span className="settings-row__hint">When the app is minimized or unfocused, new chat messages are spoken using your system voice.</span>
                 </div>
                 <Toggle on={chatTtsEnabled} onClick={() => onChangeChatTtsEnabled(!chatTtsEnabled)} />
+              </div>
+
+              <div className="settings-row">
+                <div className="settings-row__label">
+                  <span>My chat voice</span>
+                  <span className="settings-row__hint">How your messages sound to others who have read-aloud on. Each listener's app matches it to the closest voice their system has.</span>
+                </div>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <select
+                    className="welcome__input"
+                    value={voicePreference}
+                    onChange={(e) => onChangeVoicePreference(e.target.value)}
+                    style={{ width: 'auto', maxWidth: '230px', padding: '6px 12px' }}
+                  >
+                    <option value="">System Default</option>
+                    {VOICE_CATEGORIES.map((c) => (
+                      <option key={c.id} value={c.id}>{c.label}</option>
+                    ))}
+                  </select>
+                  <button className="seg-btn" onClick={() => previewVoice(voicePreference)}>Test</button>
+                </div>
               </div>
               </>
             )}

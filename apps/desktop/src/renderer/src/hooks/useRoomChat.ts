@@ -86,6 +86,8 @@ export function useRoomChat({ signaling, displayName, colors, roomId, onNewMessa
         text: msg.text,
         time: nowTime(),
         isReaction: msg.reaction,
+        // Look up the sender's synced voice preference so TTS reads them in their chosen voice.
+        voicePreference: peer?.voicePreference ?? '',
       };
       setMessages((m) => [...m, message]);
       if (msg.reaction) spawnFloat(msg.text);
