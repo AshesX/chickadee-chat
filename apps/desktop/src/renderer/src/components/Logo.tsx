@@ -6,14 +6,14 @@ interface LogoProps {
 }
 
 // Center of Left and Right Eyes in the SVG coordinates
-const EYE_LEFT = { cx: 98.24, cy: 170.59 };
-const EYE_RIGHT = { cx: 252.46, cy: 170.59 };
+const EYE_LEFT = { cx: 98.15, cy: 170.59 };
+const EYE_RIGHT = { cx: 252.37, cy: 170.59 };
 
 // Radius of the path the pupil centers rotate along
-const ROTATION_RADIUS = 24.324389; // Math.sqrt(17.2^2 + 17.2^2)
+const ROTATION_RADIUS = 25.107053; // Math.sqrt(18.29^2 + 17.2^2)
 
-// Original angle (top left: dx = -17.2, dy = -17.2)
-const BASE_ANGLE = -3 * Math.PI / 4;
+// Original angle (top left: dx = -18.29, dy = -17.2)
+const BASE_ANGLE = Math.atan2(-17.2, -18.29);
 
 /** The Chickadee Chat brand logo. */
 export function Logo({ size = 24, className }: LogoProps): React.JSX.Element {
@@ -119,14 +119,14 @@ export function Logo({ size = 24, className }: LogoProps): React.JSX.Element {
           const svgHeight = svgRect.height;
 
           // Compute left eye center coordinates relative to viewport
-          const relativeXLeft = (98.24 + 20.255) / 390;
-          const relativeYLeft = 170.59 / 390;
+          const relativeXLeft = (98.15 + 20.42) / 390;
+          const relativeYLeft = (170.59 + 0.27) / 390;
           const eyeLeftX = svgRect.left + relativeXLeft * svgWidth;
           const eyeLeftY = svgRect.top + relativeYLeft * svgHeight;
 
           // Compute right eye center coordinates relative to viewport
-          const relativeXRight = (252.46 + 20.255) / 390;
-          const relativeYRight = 170.59 / 390;
+          const relativeXRight = (252.37 + 20.42) / 390;
+          const relativeYRight = (170.59 + 0.27) / 390;
           const eyeRightX = svgRect.left + relativeXRight * svgWidth;
           const eyeRightY = svgRect.top + relativeYRight * svgHeight;
 
@@ -248,12 +248,12 @@ export function Logo({ size = 24, className }: LogoProps): React.JSX.Element {
       xmlns="http://www.w3.org/2000/svg"
       width={size}
       height={size}
-      viewBox="-20.255 0 390 390"
+      viewBox="-20.42 -0.27 390 390"
       className={className}
       style={{ display: 'inline-block' }}
     >
-      <circle id="eye-left" fill="#e8e8f0" cx={EYE_LEFT.cx} cy={EYE_LEFT.cy} r="34.4" />
-      <circle id="eye-right" fill="#e8e8f0" cx={EYE_RIGHT.cx} cy={EYE_RIGHT.cy} r="34.4" />
+      <circle id="eye-left" fill="#e9e9e9" cx={EYE_LEFT.cx} cy={EYE_LEFT.cy} r="34.4" />
+      <circle id="eye-right" fill="#e9e9e9" cx={EYE_RIGHT.cx} cy={EYE_RIGHT.cy} r="34.4" />
       <circle
         id="pupil-left"
         fill="var(--bg)"
@@ -270,8 +270,8 @@ export function Logo({ size = 24, className }: LogoProps): React.JSX.Element {
       />
       <path
         id="chickadee-body"
-        fill="#e8e8f0"
-        d="M252.86,57.15c-18.94-10.24-21.4-25.94,7.47-33.48-20.43-5.57-41.2,1.87-58.98,17.8C199.57,23.87,231.95.23,231.95.23,149.32-5.08,32.42,83.93,8.25,163.1c-12.93,36.69-10.09,79.35,4.51,116.67,15.47,31.07,54.97,2.45,35.22-24.17-29.54-39.51-23.69-100.8,16.6-130.79,44.39-33.97,97.85,13.31,98.64,61.77l-10.68,10.93c-10.71,10.97-11.67,28.16-2.24,40.25,0,0,7.51,9.7,14.43,18.57,5.43,6.97,15.98,6.94,21.38-.05,6.9-8.94,14.42-18.74,14.42-18.74,9.32-12.07,8.35-29.16-2.28-40.09-3.9-4.01-7.75-7.91-10.79-10.88,0,0,0,0,0,0,.39-46.01,47.68-92.25,92.37-65.7,33.66,19.58,47.5,63.7,38.71,100.89-15.08,59.71-82.47,88.83-139.66,89.34-67.18.61-87.04,82.43-9.12,78.76,188.65,2.14,248.71-244.57,83.09-332.73ZM190.38,227.76c2.36-.48,4.06,2.23,2.61,4.16-18.56,24.68-16.73,24.57-35.38.03-1.46-1.93.23-4.65,2.6-4.17,9.95,2.02,20.22,2.02,30.17-.02Z"
+        fill="#e9e9e9"
+        d="M347.08,185c-8.2-50.24-38.39-98.08-94.31-127.85-18.94-10.24-21.4-25.94,7.47-33.48-20.43-5.57-41.2,1.87-58.98,17.8C199.47,23.87,231.86.23,231.86.23,149.23-5.08,32.33,83.93,8.16,163.1c-47.18,153.9,125.64,223.16,125.64,223.16-.43-13.21,13.74-28.15,13.74-28.15-22.39-2.33-38.22-13.33-38.22-13.33,6.22-25.22,32.06-37.72,32.06-37.72-89.11.44-110.13-83.72-110.13-83.72-8.79-37.19,4.68-82.48,38.34-102.06,43.14-27.13,90.76,14.61,91.65,68.97l-12.45,12.75c-12.49,12.79-13.6,32.84-2.61,46.93,0,0,8.76,11.32,16.82,21.66,6.34,8.13,18.64,8.1,24.94-.06,8.05-10.43,16.81-21.86,16.81-21.86,10.87-14.07,9.74-34-2.66-46.74-4.55-4.67-9.04-9.22-12.58-12.68,0,0,0,0,0,0,.46-53.65,45.55-95.9,90.24-69.35,33.66,19.58,47.5,63.7,38.71,100.89,0,0-18.49,87.87-133.48,85.38-24.85-.54-50.72,9.42-62.89,32.14,18.51,10.32,47.87,12.39,68.67,7.47-20.81,4.92-43.39,17.67-47.3,41.09,41.72,8.98,85.43-21.32,108.51-53.47-10.36,15.87-24.14,37.52-19.62,53.57,55.33-1.33,130.31-119.62,114.73-202.96ZM192.9,238.25c2.76-.56,4.73,2.6,3.04,4.85-21.64,28.78-19.5,28.65-41.25.03-1.71-2.25.27-5.43,3.03-4.86l17.59,9.93,17.59-9.95Z"
       />
     </svg>
   );
