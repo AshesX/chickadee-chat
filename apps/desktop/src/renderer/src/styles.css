@@ -1876,7 +1876,7 @@ button {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 24px 30px;
+  padding: 16px 24px;
   min-width: 0;
   position: relative;
 }
@@ -1885,13 +1885,13 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 24px;
-  padding-bottom: 12px;
+  margin-bottom: 14px;
+  padding-bottom: 8px;
   border-bottom: 1px solid var(--border);
 }
 
 .settings-content__title {
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--text);
 }
@@ -1913,11 +1913,11 @@ button {
   padding-right: 8px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 12px;
 }
 
 .settings-content__foot {
-  margin-top: 24px;
+  margin-top: 14px;
   display: flex;
   justify-content: flex-end;
 }
@@ -1984,15 +1984,15 @@ button {
   color: var(--text);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  margin-top: 10px;
-  margin-bottom: 5px;
+  margin-top: 4px;
+  margin-bottom: 2px;
 }
 
 .settings-divider {
   height: 1px;
   background: rgba(255, 255, 255, 0.06);
   border: none;
-  margin: 16px 0;
+  margin: 8px 0;
 }
 
 .keybind-row {
