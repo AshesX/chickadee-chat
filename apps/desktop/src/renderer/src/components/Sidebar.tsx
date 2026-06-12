@@ -163,35 +163,37 @@ export function Sidebar({
 
         {switcherOpen && (
           <div className="space-dropdown" onClick={(e) => e.stopPropagation()}>
-            <div className="space-dropdown__list">
-              {spaces.map((s) => {
-                const isActive = s.id === activeSpaceId;
-                return (
-                  <div key={s.id} className={`space-dropdown__row${isActive ? ' space-dropdown__row--active' : ''}`}>
-                    <button
-                      className="space-dropdown__item-select"
-                      onClick={() => {
-                        onSelectSpace(s.id);
-                        setSwitcherOpen(false);
-                      }}
-                    >
-                      <span className="space-dropdown__item-name">{s.name}</span>
-                      {isActive && <span className="space-dropdown__item-dot" />}
-                    </button>
-                    <button
-                      className="space-dropdown__item-delete"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDeleteSpace(s.id, s.name);
-                      }}
-                      title="Delete Space"
-                    >
-                      <Trash2 size={12} />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
+            {spaces.length > 0 && (
+              <div className="space-dropdown__list">
+                {spaces.map((s) => {
+                  const isActive = s.id === activeSpaceId;
+                  return (
+                    <div key={s.id} className={`space-dropdown__row${isActive ? ' space-dropdown__row--active' : ''}`}>
+                      <button
+                        className="space-dropdown__item-select"
+                        onClick={() => {
+                          onSelectSpace(s.id);
+                          setSwitcherOpen(false);
+                        }}
+                      >
+                        <span className="space-dropdown__item-name">{s.name}</span>
+                        {isActive && <span className="space-dropdown__item-dot" />}
+                      </button>
+                      <button
+                        className="space-dropdown__item-delete"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteSpace(s.id, s.name);
+                        }}
+                        title="Delete Space"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             <div className="space-dropdown__actions">
               <button
                 className="space-dropdown__action-btn"
