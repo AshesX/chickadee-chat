@@ -74,7 +74,7 @@ export function useRoomChat({ signaling, displayName, colors, roomId, onNewMessa
     const handle: MessageListener = (msg) => {
       if (msg.type !== 'chat') return;
 
-      if (store.getSfxEnabled()) {
+      if (store.getSfxEnabled() && store.getSfxChatEnabled()) {
         playSfx('chat', store.getSfxVolume());
       }
 

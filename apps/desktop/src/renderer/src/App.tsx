@@ -87,6 +87,10 @@ export function App(): React.JSX.Element {
   const [volumeOpen, setVolumeOpen] = useState(false);
   const [sfxEnabled, setSfxEnabled] = useState(() => store.getSfxEnabled());
   const [sfxVolume, setSfxVolume] = useState(() => store.getSfxVolume());
+  const [sfxJoinLeaveEnabled, setSfxJoinLeaveEnabled] = useState(() => store.getSfxJoinLeaveEnabled());
+  const [sfxMuteEnabled, setSfxMuteEnabled] = useState(() => store.getSfxMuteEnabled());
+  const [sfxChatEnabled, setSfxChatEnabled] = useState(() => store.getSfxChatEnabled());
+  const [sfxDeafenEnabled, setSfxDeafenEnabled] = useState(() => store.getSfxDeafenEnabled());
   const [deafened, setDeafened] = useState(false);
   const preDeafenMicRef = useRef<boolean>(true);
   const micEnabledRef = useRef(mesh.micEnabled);
@@ -376,6 +380,26 @@ export function App(): React.JSX.Element {
     store.setSfxVolume(vol);
   }
 
+  function applySfxJoinLeaveEnabled(on: boolean): void {
+    setSfxJoinLeaveEnabled(on);
+    store.setSfxJoinLeaveEnabled(on);
+  }
+
+  function applySfxMuteEnabled(on: boolean): void {
+    setSfxMuteEnabled(on);
+    store.setSfxMuteEnabled(on);
+  }
+
+  function applySfxChatEnabled(on: boolean): void {
+    setSfxChatEnabled(on);
+    store.setSfxChatEnabled(on);
+  }
+
+  function applySfxDeafenEnabled(on: boolean): void {
+    setSfxDeafenEnabled(on);
+    store.setSfxDeafenEnabled(on);
+  }
+
   function applyBadgeNotificationsEnabled(on: boolean): void {
     setBadgeNotificationsEnabled(on);
     store.setBadgeNotificationsEnabled(on);
@@ -425,7 +449,7 @@ export function App(): React.JSX.Element {
   const toggleDeafen = useCallback(() => {
     setDeafened((d) => {
       const nextDeaf = !d;
-      if (store.getSfxEnabled()) {
+      if (store.getSfxEnabled() && store.getSfxDeafenEnabled()) {
         playSfx(nextDeaf ? 'deafen' : 'undeafen', store.getSfxVolume());
       }
       if (signaling.status === 'connected') {
@@ -496,7 +520,7 @@ export function App(): React.JSX.Element {
 
   const peerIdsStr = useMemo(() => signaling.peers.map((p) => p.id).sort().join(','), [signaling.peers]);
 
-  useSfxEvents({ sfxEnabled, sfxVolume, currentRoomId, peerIdsStr, micEnabled: mesh.micEnabled, inRoom });
+  useSfxEvents({ sfxEnabled, sfxVolume, sfxJoinLeaveEnabled, sfxMuteEnabled, currentRoomId, peerIdsStr, micEnabled: mesh.micEnabled, inRoom });
 
   useKeybindSync({
     inputMode,
@@ -834,6 +858,14 @@ export function App(): React.JSX.Element {
           onChangeSfxEnabled={applySfxEnabled}
           sfxVolume={sfxVolume}
           onChangeSfxVolume={applySfxVolume}
+          sfxJoinLeaveEnabled={sfxJoinLeaveEnabled}
+          onChangeSfxJoinLeaveEnabled={applySfxJoinLeaveEnabled}
+          sfxMuteEnabled={sfxMuteEnabled}
+          onChangeSfxMuteEnabled={applySfxMuteEnabled}
+          sfxChatEnabled={sfxChatEnabled}
+          onChangeSfxChatEnabled={applySfxChatEnabled}
+          sfxDeafenEnabled={sfxDeafenEnabled}
+          onChangeSfxDeafenEnabled={applySfxDeafenEnabled}
           badgeNotificationsEnabled={badgeNotificationsEnabled}
           onChangeBadgeNotificationsEnabled={applyBadgeNotificationsEnabled}
           micVolume={micVolume}

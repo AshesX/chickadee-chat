@@ -92,6 +92,10 @@ export interface PersistedSettings {
   pttMode: 'hold' | 'toggle';
   sfxEnabled: boolean;
   sfxVolume: number;
+  sfxJoinLeaveEnabled: boolean;
+  sfxMuteEnabled: boolean;
+  sfxChatEnabled: boolean;
+  sfxDeafenEnabled: boolean;
   badgeNotificationsEnabled: boolean;
   status: 'online' | 'idle' | 'dnd';
   micVolume: number;
@@ -161,6 +165,10 @@ export function defaultSettings(): PersistedSettings {
     pttMode: 'hold',
     sfxEnabled: true,
     sfxVolume: 0.25,
+    sfxJoinLeaveEnabled: true,
+    sfxMuteEnabled: true,
+    sfxChatEnabled: true,
+    sfxDeafenEnabled: true,
     badgeNotificationsEnabled: true,
     status: 'online',
     micVolume: 1.0,

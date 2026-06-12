@@ -44,6 +44,14 @@ interface SettingsModalProps {
   onChangeSfxEnabled: (on: boolean) => void;
   sfxVolume: number;
   onChangeSfxVolume: (vol: number) => void;
+  sfxJoinLeaveEnabled: boolean;
+  onChangeSfxJoinLeaveEnabled: (on: boolean) => void;
+  sfxMuteEnabled: boolean;
+  onChangeSfxMuteEnabled: (on: boolean) => void;
+  sfxChatEnabled: boolean;
+  onChangeSfxChatEnabled: (on: boolean) => void;
+  sfxDeafenEnabled: boolean;
+  onChangeSfxDeafenEnabled: (on: boolean) => void;
   badgeNotificationsEnabled: boolean;
   onChangeBadgeNotificationsEnabled: (on: boolean) => void;
   micVolume: number;
@@ -423,6 +431,14 @@ export function SettingsModal({
   onChangeSfxEnabled,
   sfxVolume,
   onChangeSfxVolume,
+  sfxJoinLeaveEnabled,
+  onChangeSfxJoinLeaveEnabled,
+  sfxMuteEnabled,
+  onChangeSfxMuteEnabled,
+  sfxChatEnabled,
+  onChangeSfxChatEnabled,
+  sfxDeafenEnabled,
+  onChangeSfxDeafenEnabled,
   badgeNotificationsEnabled,
   onChangeBadgeNotificationsEnabled,
   micVolume,
@@ -502,6 +518,10 @@ export function SettingsModal({
     onChangeMuteMode(defaults.muteMode);
     onChangeSfxEnabled(defaults.sfxEnabled);
     onChangeSfxVolume(defaults.sfxVolume);
+    onChangeSfxJoinLeaveEnabled(defaults.sfxJoinLeaveEnabled);
+    onChangeSfxMuteEnabled(defaults.sfxMuteEnabled);
+    onChangeSfxChatEnabled(defaults.sfxChatEnabled);
+    onChangeSfxDeafenEnabled(defaults.sfxDeafenEnabled);
     onChangeBadgeNotificationsEnabled(defaults.badgeNotificationsEnabled);
     onChangeMicVolume(defaults.micVolume);
     onChangeCameraResolution(defaults.cameraResolution);
@@ -907,9 +927,41 @@ export function SettingsModal({
                 <div className="settings-row">
                   <div className="settings-row__label">
                     <span>Sound effects</span>
-                    <span className="settings-row__hint">Audio cues for room join/leave, mute, and chat.</span>
+                    <span className="settings-row__hint">Master switch for all audio cues.</span>
                   </div>
                   <Toggle on={sfxEnabled} onClick={() => onChangeSfxEnabled(!sfxEnabled)} />
+                </div>
+
+                <div className="settings-row" style={{ paddingLeft: 16, opacity: sfxEnabled ? 1 : 0.45, pointerEvents: sfxEnabled ? undefined : 'none' }}>
+                  <div className="settings-row__label">
+                    <span>Room join / leave</span>
+                    <span className="settings-row__hint">When you or a peer join or leave a room.</span>
+                  </div>
+                  <Toggle on={sfxJoinLeaveEnabled} onClick={() => onChangeSfxJoinLeaveEnabled(!sfxJoinLeaveEnabled)} />
+                </div>
+
+                <div className="settings-row" style={{ paddingLeft: 16, opacity: sfxEnabled ? 1 : 0.45, pointerEvents: sfxEnabled ? undefined : 'none' }}>
+                  <div className="settings-row__label">
+                    <span>Mic mute / unmute</span>
+                    <span className="settings-row__hint">When you mute or unmute your microphone.</span>
+                  </div>
+                  <Toggle on={sfxMuteEnabled} onClick={() => onChangeSfxMuteEnabled(!sfxMuteEnabled)} />
+                </div>
+
+                <div className="settings-row" style={{ paddingLeft: 16, opacity: sfxEnabled ? 1 : 0.45, pointerEvents: sfxEnabled ? undefined : 'none' }}>
+                  <div className="settings-row__label">
+                    <span>Chat messages</span>
+                    <span className="settings-row__hint">When an incoming chat message arrives.</span>
+                  </div>
+                  <Toggle on={sfxChatEnabled} onClick={() => onChangeSfxChatEnabled(!sfxChatEnabled)} />
+                </div>
+
+                <div className="settings-row" style={{ paddingLeft: 16, opacity: sfxEnabled ? 1 : 0.45, pointerEvents: sfxEnabled ? undefined : 'none' }}>
+                  <div className="settings-row__label">
+                    <span>Deafen / undeafen</span>
+                    <span className="settings-row__hint">When you toggle deafen mode.</span>
+                  </div>
+                  <Toggle on={sfxDeafenEnabled} onClick={() => onChangeSfxDeafenEnabled(!sfxDeafenEnabled)} />
                 </div>
 
                 <div className="settings-row">
