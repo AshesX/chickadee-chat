@@ -80,6 +80,8 @@ interface SettingsModalProps {
   onChangeChatPosition: (pos: 'left' | 'right') => void;
   chatWidthScale: number;
   onChangeChatWidthScale: (scale: number) => void;
+  chatTtsEnabled: boolean;
+  onChangeChatTtsEnabled: (on: boolean) => void;
   analyserNode: AnalyserNode | null;
   onClose: () => void;
   avatarDataUrl: string | null;
@@ -506,6 +508,8 @@ export function SettingsModal({
   onChangeChatPosition,
   chatWidthScale,
   onChangeChatWidthScale,
+  chatTtsEnabled,
+  onChangeChatTtsEnabled,
   analyserNode,
   onClose,
   avatarDataUrl,
@@ -583,6 +587,7 @@ export function SettingsModal({
     onChangeChatFontScale(defaults.chatFontScale);
     onChangeChatPosition(defaults.chatPosition);
     onChangeChatWidthScale(defaults.chatWidthScale);
+    onChangeChatTtsEnabled(defaults.chatTtsEnabled);
   }
 
   return (
@@ -1233,6 +1238,14 @@ export function SettingsModal({
                     onClick={() => onChangeChatPosition('right')}
                   >Right</button>
                 </div>
+              </div>
+
+              <div className="settings-row">
+                <div className="settings-row__label">
+                  <span>Read messages aloud (Text-to-Speech)</span>
+                  <span className="settings-row__hint">When the app is minimized or unfocused, new chat messages are spoken using your system voice.</span>
+                </div>
+                <Toggle on={chatTtsEnabled} onClick={() => onChangeChatTtsEnabled(!chatTtsEnabled)} />
               </div>
               </>
             )}

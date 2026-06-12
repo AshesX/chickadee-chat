@@ -128,6 +128,8 @@ export interface PersistedSettings {
   chatPosition: 'left' | 'right';
   /** Chat Width Scale (relative to normal, e.g. 1.0 to 2.0). */
   chatWidthScale: number;
+  /** Read incoming chat messages aloud (Web Speech API) when the app is unfocused. */
+  chatTtsEnabled: boolean;
   /** User's custom avatar as a base64 data URL (128×128 WebP/JPEG), or null. */
   avatarDataUrl: string | null;
 }
@@ -198,6 +200,7 @@ export function defaultSettings(): PersistedSettings {
     chatFontScale: 1.0,
     chatPosition: 'right',
     chatWidthScale: 1.0,
+    chatTtsEnabled: false,
     avatarDataUrl: null,
   };
 }

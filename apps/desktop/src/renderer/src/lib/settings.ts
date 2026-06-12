@@ -148,6 +148,8 @@ export const store = {
   setChatPosition: (chatPosition: 'left' | 'right'): void => persist({ chatPosition }),
   getChatWidthScale: (): number => cache.chatWidthScale ?? 1.0,
   setChatWidthScale: (chatWidthScale: number): void => persist({ chatWidthScale }),
+  getChatTtsEnabled: (): boolean => cache.chatTtsEnabled ?? false,
+  setChatTtsEnabled: (chatTtsEnabled: boolean): void => persist({ chatTtsEnabled }),
   getAvatarDataUrl: (): string | null => cache.avatarDataUrl ?? null,
   setAvatarDataUrl: (avatarDataUrl: string | null): void => persist({ avatarDataUrl }),
 };

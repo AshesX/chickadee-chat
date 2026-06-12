@@ -20,7 +20,7 @@ import { ControlBar } from './components/ControlBar';
 import { ParticipantTile } from './components/ParticipantTile';
 import { ScreenView } from './components/ScreenView';
 import { ScreenSharePicker } from './components/ScreenSharePicker';
-import { ChatPanel } from './components/ChatPanel';
+import { ChatPanel, type ChatMessage } from './components/ChatPanel';
 import { VolumePopover } from './components/VolumePopover';
 import { WelcomeWizard } from './components/WelcomeWizard';
 import { RoomModal } from './components/RoomModal';
@@ -29,6 +29,7 @@ import { Logo } from './components/Logo';
 import { generateBadgeOverlay } from './lib/trayIcon';
 import { Modal } from './components/Modal';
 import { playSfx } from './lib/sfx';
+import { speakChatMessage, cancelSpeech } from './lib/tts';
 
 interface ActiveScreen {
   key: string;
@@ -110,6 +111,7 @@ export function App(): React.JSX.Element {
   const [chatFontScale, setChatFontScale] = useState(() => store.getChatFontScale());
   const [chatPosition, setChatPosition] = useState(() => store.getChatPosition());
   const [chatWidthScale, setChatWidthScale] = useState(() => store.getChatWidthScale());
+  const [chatTtsEnabled, setChatTtsEnabled] = useState(() => store.getChatTtsEnabled());
   const [theme, setTheme] = useState<'midnight' | 'classic' | 'oled'>(() => store.getTheme());
   const [launchOnStartup, setLaunchOnStartup] = useState(() => store.getLaunchOnStartup());
   const [closeBehavior, setCloseBehavior] = useState<'quit' | 'tray'>(() => store.getCloseBehavior());
@@ -130,9 +132,12 @@ export function App(): React.JSX.Element {
     void window.chickadee?.setAlwaysOnTop?.(alwaysOnTop);
   }, [alwaysOnTop]);
 
-  const handleNewMessage = useCallback(() => {
-    if (!document.hasFocus()) {
-      setUnreadCount((c) => c + 1);
+  const handleNewMessage = useCallback((msg: ChatMessage) => {
+    if (document.hasFocus()) return;
+    setUnreadCount((c) => c + 1);
+    // Read the flag from the store (not React state) so this empty-deps callback stays stable.
+    if (store.getChatTtsEnabled() && !msg.isReaction) {
+      speakChatMessage(msg.senderName, msg.text);
     }
   }, []);
 
@@ -430,6 +435,12 @@ export function App(): React.JSX.Element {
     store.setBadgeNotificationsEnabled(on);
   }
 
+  function applyChatTtsEnabled(on: boolean): void {
+    setChatTtsEnabled(on);
+    store.setChatTtsEnabled(on);
+    if (!on) cancelSpeech(); // stop any in-progress speech when disabled
+  }
+
   function applyTheme(next: 'midnight' | 'classic' | 'oled'): void {
     setTheme(next);
     store.setTheme(next);
@@ -452,9 +463,12 @@ export function App(): React.JSX.Element {
     void window.chickadee?.setAlwaysOnTop?.(on);
   }
 
-  // Reset unread count when window gets focus.
+  // Reset unread count when window gets focus; also stop any queued TTS backlog.
   useEffect(() => {
-    const handleFocus = (): void => { setUnreadCount(0); };
+    const handleFocus = (): void => {
+      setUnreadCount(0);
+      cancelSpeech();
+    };
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
   }, []);
@@ -748,7 +762,7 @@ export function App(): React.JSX.Element {
                 </>
               ) : (
                 <>
-                  <h2>Chirp...? Aren't you forgetting a little something?</h2>
+                  <h2>Chirp...? Aren't you forgetting something?</h2>
                   <p>Create or join a space to join a room!</p>
                 </>
               )}
@@ -940,6 +954,8 @@ export function App(): React.JSX.Element {
           onChangeChatPosition={applyChatPosition}
           chatWidthScale={chatWidthScale}
           onChangeChatWidthScale={applyChatWidthScale}
+          chatTtsEnabled={chatTtsEnabled}
+          onChangeChatTtsEnabled={applyChatTtsEnabled}
           analyserNode={mesh.analyserNode}
           onClose={() => setSettingsOpen(false)}
           avatarDataUrl={localAvatarUrl}
