@@ -1415,7 +1415,8 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 12px 12px 16px;
+  padding: 10px 12px 10px 16px;
+  min-height: 47px;
   border-bottom: 1px solid var(--border);
   position: relative;
   -webkit-app-region: drag;
@@ -1455,6 +1456,12 @@ button {
   text-overflow: ellipsis;
   white-space: nowrap;
   line-height: 1.25;
+}
+
+.space-switcher-btn__name--empty {
+  font-weight: 400;
+  font-style: italic;
+  color: var(--dim);
 }
 
 .space-switcher-btn__code {

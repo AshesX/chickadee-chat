@@ -10,6 +10,7 @@ interface RoomHeaderProps {
   game?: string;
   chatOpen: boolean;
   onToggleChat: () => void;
+  hasSpace: boolean;
 }
 
 export function RoomHeader({
@@ -20,6 +21,7 @@ export function RoomHeader({
   game,
   chatOpen,
   onToggleChat,
+  hasSpace,
 }: RoomHeaderProps): React.JSX.Element {
 
   return (
@@ -38,11 +40,11 @@ export function RoomHeader({
               {game ? `${game} · ` : ''}⏱ {timer}
             </div>
           </>
-        ) : (
+        ) : hasSpace ? (
           <div className="room-header__title room-header__title--idle">
             Select a room to start
           </div>
-        )}
+        ) : null}
       </div>
 
       <div className="room-header__spacer" />

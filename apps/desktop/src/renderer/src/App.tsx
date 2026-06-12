@@ -153,7 +153,7 @@ export function App(): React.JSX.Element {
   // What the mic button reflects: in voice mode it's the master-pause state.
   const micButtonOn = inputMode === 'voice' ? !voiceMuted : mesh.micEnabled;
 
-  const onboardingNeeded = !displayName || !currentSpaceId;
+  const onboardingNeeded = !displayName;
   const inRoom = currentRoomId !== null;
   const currentRoom = rooms.find((r) => r.id === currentRoomId) ?? null;
   const totalInRoom = inRoom ? signaling.peers.length + 1 : 0;
@@ -678,6 +678,7 @@ export function App(): React.JSX.Element {
           game={game?.name}
           chatOpen={chatOpen}
           onToggleChat={toggleChat}
+          hasSpace={currentSpaceId !== null}
         />
 
         {inRoom ? (
@@ -740,8 +741,17 @@ export function App(): React.JSX.Element {
           <div className="empty-lounge">
             <div className="empty-lounge__card">
               <Logo size={72} className="empty-lounge__bird" />
-              <h2>Pick a room to start</h2>
-              <p>Choose a room from the sidebar — or create your own.</p>
+              {currentSpaceId ? (
+                <>
+                  <h2>Pick a room to start</h2>
+                  <p>Choose a room from the sidebar — or create your own.</p>
+                </>
+              ) : (
+                <>
+                  <h2>Chirp...? Aren't you forgetting a little something?</h2>
+                  <p>Create or join a space to join a room!</p>
+                </>
+              )}
             </div>
           </div>
         )}

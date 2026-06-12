@@ -155,7 +155,10 @@ function createWindow(): void {
     },
   });
 
-  window.on('ready-to-show', () => window.show());
+  window.on('ready-to-show', () => {
+    window.show();
+    window.webContents.focus();
+  });
 
   // Close-to-tray: when the user's preference is 'tray' and we aren't quitting,
   // hide the window instead of closing it so voice stays connected in the

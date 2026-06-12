@@ -134,7 +134,9 @@ export function Sidebar({
           <div className="space-info-wrap">
             <button className="space-switcher-btn" onClick={() => setSwitcherOpen(!switcherOpen)}>
               <div className="space-switcher-btn__meta">
-                <span className="space-switcher-btn__name">{activeSpace?.name || 'Loading...'}</span>
+                <span className={`space-switcher-btn__name${!activeSpace ? ' space-switcher-btn__name--empty' : ''}`}>
+                  {activeSpace?.name ?? 'Create / Join Space'}
+                </span>
               </div>
               <ChevronDown size={12} className={`space-switcher-btn__chevron${switcherOpen ? ' space-switcher-btn__chevron--open' : ''}`} />
             </button>
@@ -217,59 +219,63 @@ export function Sidebar({
       </div>
 
       <div className="sidebar__scroll">
-        <p className="sidebar__label">ROOMS</p>
-        {rooms.map((r) => {
-          const active = r.id === currentRoomId;
-          return (
-            <button
-              key={r.id}
-              className={`room-row${active ? ' room-row--active' : ''}`}
-              onClick={() => onSelectRoom(r.id)}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                setMenu({ room: r, x: e.clientX, y: e.clientY });
-              }}
-            >
-              <span className="room-row__icon">{r.icon}</span>
-              <span className="room-row__name">{r.label}</span>
-              {active && currentRoomCount > 0 && (
-                <span className="room-row__count">{currentRoomCount}</span>
-              )}
+        {activeSpace && (
+          <>
+            <p className="sidebar__label">ROOMS</p>
+            {rooms.map((r) => {
+              const active = r.id === currentRoomId;
+              return (
+                <button
+                  key={r.id}
+                  className={`room-row${active ? ' room-row--active' : ''}`}
+                  onClick={() => onSelectRoom(r.id)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setMenu({ room: r, x: e.clientX, y: e.clientY });
+                  }}
+                >
+                  <span className="room-row__icon">{r.icon}</span>
+                  <span className="room-row__name">{r.label}</span>
+                  {active && currentRoomCount > 0 && (
+                    <span className="room-row__count">{currentRoomCount}</span>
+                  )}
+                </button>
+              );
+            })}
+            <button className="room-row room-row--create" onClick={onCreateRoom}>
+              <Plus size={14} />
+              <span>Create Room</span>
             </button>
-          );
-        })}
-        <button className="room-row room-row--create" onClick={onCreateRoom}>
-          <Plus size={14} />
-          <span>Create Room</span>
-        </button>
 
-        <p className="sidebar__label">
-          USERS{users.length > 0 ? ` — ${onlineCount} online` : ''}
-        </p>
-        {users.length === 0 && <p className="sidebar__hint">No users yet</p>}
-        {users.map((u) => (
-          <div key={u.id} className="friend-row">
-            <div className="friend-row__avatar-wrap">
-              <div
-                className="friend-row__avatar"
-                style={u.avatarUrl ? undefined : { background: `linear-gradient(135deg, ${u.color}, ${u.color}66)` }}
-              >
-                {u.avatarUrl ? (
-                  <img src={u.avatarUrl} alt={u.name} className="friend-avatar-img" />
-                ) : (
-                  u.initial
-                )}
+            <p className="sidebar__label">
+              USERS{users.length > 0 ? ` — ${onlineCount} online` : ''}
+            </p>
+            {users.length === 0 && <p className="sidebar__hint">No users yet</p>}
+            {users.map((u) => (
+              <div key={u.id} className="friend-row">
+                <div className="friend-row__avatar-wrap">
+                  <div
+                    className="friend-row__avatar"
+                    style={u.avatarUrl ? undefined : { background: `linear-gradient(135deg, ${u.color}, ${u.color}66)` }}
+                  >
+                    {u.avatarUrl ? (
+                      <img src={u.avatarUrl} alt={u.name} className="friend-avatar-img" />
+                    ) : (
+                      u.initial
+                    )}
+                  </div>
+                  <span className={`presence-dot presence-dot--${u.status}`} />
+                </div>
+                <div className="friend-row__meta">
+                  <div className={`friend-row__name${u.status === 'offline' ? ' friend-row__name--off' : ''}`}>
+                    {u.name}
+                  </div>
+                  <div className="friend-row__where">{u.where}</div>
+                </div>
               </div>
-              <span className={`presence-dot presence-dot--${u.status}`} />
-            </div>
-            <div className="friend-row__meta">
-              <div className={`friend-row__name${u.status === 'offline' ? ' friend-row__name--off' : ''}`}>
-                {u.name}
-              </div>
-              <div className="friend-row__where">{u.where}</div>
-            </div>
-          </div>
-        ))}
+            ))}
+          </>
+        )}
       </div>
 
       <div className="sidebar__self">

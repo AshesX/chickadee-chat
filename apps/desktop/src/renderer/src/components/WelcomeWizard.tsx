@@ -14,10 +14,15 @@ export function WelcomeWizard({ onSubmit }: WelcomeWizardProps): React.JSX.Eleme
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    function tryFocus(): void {
       inputRef.current?.focus();
-    }, 100);
-    return () => clearTimeout(timer);
+    }
+    window.addEventListener('focus', tryFocus);
+    const timer = setTimeout(tryFocus, 100);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('focus', tryFocus);
+    };
   }, [step, action]);
 
   function next(): void {
