@@ -2318,6 +2318,117 @@ button {
   background: rgba(255, 255, 255, 0.04);
 }
 
+/* Settings search widget */
+.settings-sidebar__search-wrap {
+  position: relative;
+  margin-bottom: 4px;
+}
+
+.settings-sidebar__search-icon {
+  position: absolute;
+  left: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--dim);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.settings-sidebar__search-input {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid transparent;
+  border-radius: var(--radius-badge);
+  color: var(--text);
+  font-size: 11px;
+  font-family: inherit;
+  padding: 6px 26px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+  box-sizing: border-box;
+}
+
+.settings-sidebar__search-input::placeholder {
+  color: var(--dim);
+  opacity: 0.5;
+}
+
+.settings-sidebar__search-input:focus {
+  border-color: var(--active-border);
+  background: rgba(255, 255, 255, 0.07);
+  outline: none;
+}
+
+.settings-sidebar__search-clear {
+  position: absolute;
+  right: 7px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--dim);
+  opacity: 0.55;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  border-radius: 3px;
+  transition: opacity 0.1s ease;
+}
+
+.settings-sidebar__search-clear:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.settings-sidebar__search-results {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-badge);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  z-index: 50;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-sidebar__search-result {
+  width: 100%;
+  text-align: left;
+  padding: 7px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.settings-sidebar__search-result:hover,
+.settings-sidebar__search-result--highlighted {
+  background: var(--active-bg);
+}
+
+.settings-sidebar__search-result-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.settings-sidebar__search-result-breadcrumb {
+  font-size: 10px;
+  color: var(--dim);
+  opacity: 0.75;
+}
+
+.settings-sidebar__search-empty {
+  padding: 10px;
+  font-size: 11px;
+  color: var(--dim);
+  text-align: center;
+  opacity: 0.7;
+}
+
 .settings-content {
   flex: 1;
   display: flex;

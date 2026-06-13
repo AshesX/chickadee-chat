@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { User, Mic, Volume2, Sliders, X, Video, Monitor, Gamepad2, Plus, Trash2, MessageSquare } from 'lucide-react';
+import { User, Mic, Volume2, Sliders, X, Video, Monitor, Gamepad2, Plus, Trash2, MessageSquare, Search } from 'lucide-react';
 import { defaultSettings, type GameDef } from '@chickadee/shared';
 import { useKeyCapture } from '../hooks/useKeyCapture';
 import type { MediaDeviceOption } from '../hooks/useMediaDevices';
@@ -561,7 +561,45 @@ export function SettingsModal({
     (initialTab as 'profile' | 'audio' | 'video' | 'sfx' | 'chat' | 'ui' | 'games' | 'app') ?? 'profile'
   );
   const [versionCopied, setVersionCopied] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const version = window.chickadee?.appVersion || '0.1.0';
+
+  type TabId = 'profile' | 'audio' | 'video' | 'sfx' | 'chat' | 'ui' | 'games' | 'app';
+  interface SearchEntry { label: string; description?: string; tab: TabId; sectionId?: string; keywords: string[]; }
+
+  const SETTINGS_SEARCH_INDEX: SearchEntry[] = [
+    { label: 'Avatar', description: 'Set or change your profile picture', tab: 'profile', sectionId: 'section-avatar', keywords: ['photo', 'picture', 'image', 'crop', 'pfp'] },
+    { label: 'Display Name', description: 'Change your name shown to others', tab: 'profile', sectionId: 'section-display-name', keywords: ['name', 'username', 'handle'] },
+    { label: 'Input Device', description: 'Choose your microphone', tab: 'audio', sectionId: 'section-devices', keywords: ['microphone', 'mic', 'input', 'device'] },
+    { label: 'Output Device', description: 'Choose your speakers or headphones', tab: 'audio', sectionId: 'section-devices', keywords: ['speaker', 'headphones', 'output', 'device', 'playback'] },
+    { label: 'Mic Volume', description: 'Adjust microphone gain and boost', tab: 'audio', sectionId: 'section-devices', keywords: ['gain', 'volume', 'boost', 'mic level'] },
+    { label: 'Input Mode', description: 'Open Mic, Voice Activation, or Push-to-Talk', tab: 'audio', sectionId: 'section-input-mode', keywords: ['ptt', 'push to talk', 'voice activation', 'vad', 'open mic', 'transmit'] },
+    { label: 'Push-to-Talk Key', description: 'Set the keybind for push-to-talk', tab: 'audio', sectionId: 'section-input-mode', keywords: ['ptt', 'push to talk', 'keybind', 'hotkey', 'key', 'bind'] },
+    { label: 'Mute Key', description: 'Set the keybind to mute/unmute mic', tab: 'audio', sectionId: 'section-mic-mute', keywords: ['mute', 'unmute', 'keybind', 'hotkey', 'key', 'bind'] },
+    { label: 'Noise Suppression', description: 'Remove background noise from your mic', tab: 'audio', sectionId: 'section-processing', keywords: ['noise', 'background', 'suppress', 'filter', 'processing'] },
+    { label: 'Echo Cancellation', description: 'Prevent speaker audio feeding back into mic', tab: 'audio', sectionId: 'section-processing', keywords: ['echo', 'feedback', 'cancellation', 'processing'] },
+    { label: 'Auto Gain Control', description: 'Automatically adjust mic input level', tab: 'audio', sectionId: 'section-processing', keywords: ['agc', 'auto gain', 'automatic', 'level', 'processing'] },
+    { label: 'Camera Resolution', description: 'Set streaming resolution for your camera', tab: 'video', sectionId: 'section-camera', keywords: ['camera', 'resolution', '720p', '1080p', '4k', 'quality', 'fps', 'framerate'] },
+    { label: 'Screen Share Quality', description: 'Cap resolution and framerate for screen sharing', tab: 'video', sectionId: 'section-screen-share', keywords: ['screen share', 'screen capture', 'resolution', 'framerate', 'fps', 'quality'] },
+    { label: 'Default Video Button', description: 'Whether the video button starts camera or screen share', tab: 'video', sectionId: 'section-video-default', keywords: ['default', 'video', 'camera', 'screen share', 'button'] },
+    { label: 'Sound Effects', description: 'Enable or disable audio cues for join, leave, mute, etc.', tab: 'sfx', keywords: ['sfx', 'sounds', 'audio cues', 'join', 'leave', 'beep', 'chime', 'notification'] },
+    { label: 'SFX Volume', description: 'Adjust the volume of sound effects', tab: 'sfx', keywords: ['sfx volume', 'sound effects volume', 'sounds'] },
+    { label: 'Text-to-Speech', description: 'Read incoming chat messages aloud when unfocused', tab: 'chat', sectionId: 'section-chat-settings', keywords: ['tts', 'text to speech', 'read aloud', 'voice', 'speak', 'speech'] },
+    { label: 'Chat Voice', description: 'Voice others hear when reading your messages', tab: 'chat', sectionId: 'section-chat-settings', keywords: ['tts', 'voice', 'text to speech', 'preference', 'uk', 'female', 'male'] },
+    { label: 'Chat Font Size', description: 'Scale the size of chat text', tab: 'chat', sectionId: 'section-chat-settings', keywords: ['font', 'size', 'scale', 'text', 'chat', 'zoom'] },
+    { label: 'Chat Width', description: 'Adjust how wide the chat panel is', tab: 'chat', sectionId: 'section-chat-settings', keywords: ['width', 'panel', 'chat', 'size', 'scale'] },
+    { label: 'Chat Position', description: 'Place the chat panel on left or right', tab: 'chat', sectionId: 'section-chat-settings', keywords: ['chat', 'position', 'left', 'right', 'layout', 'side'] },
+    { label: 'Theme', description: 'Midnight, Classic Dark, or OLED Black', tab: 'ui', keywords: ['theme', 'color', 'dark', 'midnight', 'oled', 'appearance', 'colours'] },
+    { label: 'UI Scale', description: 'Zoom the entire app interface', tab: 'ui', keywords: ['scale', 'zoom', 'size', 'ui', 'interface', 'accessibility', 'dpi'] },
+    { label: 'Game Detection', description: 'Add or remove games for activity detection', tab: 'games', sectionId: 'section-your-games', keywords: ['game', 'detection', 'activity', 'status', 'playing', 'process'] },
+    { label: 'Launch on Startup', description: 'Open automatically when Windows starts', tab: 'app', keywords: ['startup', 'autostart', 'boot', 'launch', 'windows', 'login'] },
+    { label: 'Minimize to Tray', description: 'Keep running in background when window is closed', tab: 'app', keywords: ['tray', 'close', 'minimize', 'background', 'quit', 'system tray'] },
+    { label: 'Always on Top', description: 'Pin the window above all other apps', tab: 'app', keywords: ['always on top', 'pin', 'window', 'focus', 'float'] },
+    { label: 'Taskbar Badge', description: 'Show unread count on taskbar when unfocused', tab: 'app', keywords: ['badge', 'taskbar', 'unread', 'notification', 'count'] },
+  ];
 
   const SUBSECTIONS: Partial<Record<string, { label: string; id: string }[]>> = {
     profile: [
@@ -590,6 +628,44 @@ export function SettingsModal({
 
   function scrollToSection(id: string): void {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function getSearchResults(query: string): SearchEntry[] {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return SETTINGS_SEARCH_INDEX.filter(({ label, description, keywords }) =>
+      label.toLowerCase().includes(q) ||
+      (description ?? '').toLowerCase().includes(q) ||
+      keywords.some((k) => k.toLowerCase().includes(q))
+    ).slice(0, 6);
+  }
+
+  function handleSearchResultClick(entry: SearchEntry): void {
+    setActiveTab(entry.tab);
+    setSearchQuery('');
+    setHighlightedIndex(-1);
+    if (entry.sectionId) {
+      setTimeout(() => scrollToSection(entry.sectionId!), 0);
+    }
+  }
+
+  function handleSearchKeyDown(e: React.KeyboardEvent<HTMLInputElement>): void {
+    const results = getSearchResults(searchQuery);
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlightedIndex((i) => Math.min(i + 1, results.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightedIndex((i) => Math.max(i - 1, 0));
+    } else if (e.key === 'Enter') {
+      if (highlightedIndex >= 0 && results[highlightedIndex]) {
+        handleSearchResultClick(results[highlightedIndex]);
+      }
+    } else if (e.key === 'Escape' && searchQuery) {
+      e.stopPropagation();
+      setSearchQuery('');
+      setHighlightedIndex(-1);
+    }
   }
 
   function copyVersion(): void {
@@ -663,12 +739,70 @@ export function SettingsModal({
     onChangeVoicePreference(defaults.voicePreference);
   }
 
+  const searchResults = getSearchResults(searchQuery);
+  const showResults = searchFocused && searchQuery.trim().length > 0;
+  const TAB_LABELS: Record<TabId, string> = {
+    profile: 'My Profile', audio: 'Voice & Audio', video: 'Video & Screen Share',
+    sfx: 'Sound Effects', chat: 'Chat Settings', ui: 'User Interface',
+    games: 'Game Detection', app: 'App Settings',
+  };
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="settings-panel" onClick={(e) => e.stopPropagation()}>
-        
+
         {/* Left Sidebar Menu */}
         <div className="settings-sidebar">
+          <div className="settings-sidebar__search-wrap">
+            <Search size={12} className="settings-sidebar__search-icon" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              className="settings-sidebar__search-input"
+              placeholder="Search settings…"
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setHighlightedIndex(-1); }}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setTimeout(() => setSearchFocused(false), 120)}
+              onKeyDown={handleSearchKeyDown}
+              aria-label="Search settings"
+            />
+            {searchQuery && (
+              <button
+                className="settings-sidebar__search-clear"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => { setSearchQuery(''); setHighlightedIndex(-1); searchInputRef.current?.focus(); }}
+                aria-label="Clear search"
+              >
+                <X size={10} />
+              </button>
+            )}
+            {showResults && (
+              <div className="settings-sidebar__search-results">
+                {searchResults.length === 0 ? (
+                  <div className="settings-sidebar__search-empty">No results</div>
+                ) : (
+                  searchResults.map((entry, i) => (
+                    <button
+                      key={`${entry.tab}-${entry.label}`}
+                      className={`settings-sidebar__search-result${i === highlightedIndex ? ' settings-sidebar__search-result--highlighted' : ''}`}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => handleSearchResultClick(entry)}
+                      onMouseEnter={() => setHighlightedIndex(i)}
+                    >
+                      <span className="settings-sidebar__search-result-label">{entry.label}</span>
+                      <span className="settings-sidebar__search-result-breadcrumb">
+                        {TAB_LABELS[entry.tab]}
+                        {entry.sectionId
+                          ? ` › ${SUBSECTIONS[entry.tab]?.find((s) => s.id === entry.sectionId)?.label ?? ''}`
+                          : ''}
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
           <div className="settings-sidebar__title">User Settings</div>
           <button
             className={`settings-sidebar__item${activeTab === 'profile' ? ' settings-sidebar__item--active' : ''}`}
