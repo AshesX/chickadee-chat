@@ -17,6 +17,8 @@ interface SettingsModalProps {
   onChangeEchoCancellation: (on: boolean) => void;
   autoGainControl: boolean;
   onChangeAutoGainControl: (on: boolean) => void;
+  normalizeVoices: boolean;
+  onChangeNormalizeVoices: (on: boolean) => void;
   inputDevices: MediaDeviceOption[];
   outputDevices: MediaDeviceOption[];
   inputDeviceId: string;
@@ -468,6 +470,8 @@ export function SettingsModal({
   onChangeEchoCancellation,
   autoGainControl,
   onChangeAutoGainControl,
+  normalizeVoices,
+  onChangeNormalizeVoices,
   inputDevices,
   outputDevices,
   inputDeviceId,
@@ -700,6 +704,7 @@ export function SettingsModal({
     onChangeNoiseSuppression(defaults.noiseSuppression);
     onChangeEchoCancellation(defaults.echoCancellation);
     onChangeAutoGainControl(defaults.autoGainControl);
+    onChangeNormalizeVoices(defaults.normalizeVoices);
     onChangeInputDevice(defaults.inputDeviceId);
     onChangeOutputDevice(defaults.outputDeviceId);
     onChangeInputMode(defaults.inputMode);
@@ -1316,6 +1321,14 @@ export function SettingsModal({
                     <span className="settings-row__hint">Auto-levels your mic volume. Turn off if you prefer manual control.</span>
                   </div>
                   <Toggle on={autoGainControl} onClick={() => onChangeAutoGainControl(!autoGainControl)} />
+                </div>
+
+                <div className="settings-row">
+                  <div className="settings-row__label">
+                    <span>Normalize voices</span>
+                    <span className="settings-row__hint">Auto-levels how loud <em>others</em> sound — boosts quiet people, tames loud ones. Applies to incoming audio only.</span>
+                  </div>
+                  <Toggle on={normalizeVoices} onClick={() => onChangeNormalizeVoices(!normalizeVoices)} />
                 </div>
               </>
             )}

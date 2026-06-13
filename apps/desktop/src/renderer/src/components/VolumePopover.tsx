@@ -22,7 +22,7 @@ export function VolumePopover({
   onMouseEnter,
   onMouseLeave,
 }: VolumePopoverProps): React.JSX.Element {
-  const menuWidth = 260;
+  const menuWidth = 290;
   const gap = 8;
 
   const bottom = window.innerHeight - anchorRect.top + gap;
@@ -43,6 +43,8 @@ export function VolumePopover({
         {peers.map((p) => {
           const color = colors[p.id] ?? '#8a8ac0';
           const v = volumes[p.id] ?? 1;
+          const pct = Math.round(v * 100);
+          const boosted = v > 1;
           return (
             <div key={p.id} className="volume-row">
               <span
@@ -52,14 +54,22 @@ export function VolumePopover({
                 {p.displayName.trim().charAt(0).toUpperCase() || '?'}
               </span>
               <span className="volume-row__name">{p.displayName}</span>
+              <datalist id={`vticks-${p.id}`}>
+                <option value={100} />
+              </datalist>
               <input
                 className="volume-row__slider"
                 type="range"
+                list={`vticks-${p.id}`}
                 min={0}
-                max={100}
-                value={Math.round(v * 100)}
+                max={200}
+                value={pct}
+                style={{ accentColor: boosted ? '#f59e0b' : '#8b5cf6' }}
                 onChange={(e) => onChange(p.id, Number(e.target.value) / 100)}
               />
+              <span className={`volume-row__pct${boosted ? ' volume-row__pct--boost' : ''}`}>
+                {pct}%
+              </span>
             </div>
           );
         })}

@@ -76,6 +76,10 @@ export interface PersistedSettings {
   echoCancellation: boolean;
   /** Chromium automatic-gain-control constraint on the local mic. */
   autoGainControl: boolean;
+  /** Listener-side auto-level: compress + makeup-gain incoming peer audio to even out quiet/loud talkers. */
+  normalizeVoices: boolean;
+  /** Per-peer output volume (0–2) keyed by stable userId, so manual boosts persist across sessions/reconnects. */
+  peerVolumes: Record<string, number>;
   /**
    * How the mic transmits: 'open' = always live, 'voice' = gated by VAD
    * threshold, 'ptt' = push-to-talk via the hotkey. Replaces the old
@@ -176,6 +180,8 @@ export function defaultSettings(): PersistedSettings {
     noiseSuppression: true,
     echoCancellation: true,
     autoGainControl: false,
+    normalizeVoices: false,
+    peerVolumes: {},
     inputMode: 'voice',
     vadThreshold: 0.04,
     vadReleaseMs: 500,

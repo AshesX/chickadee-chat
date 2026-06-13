@@ -82,6 +82,11 @@ export const store = {
   setEchoCancellation: (echoCancellation: boolean): void => persist({ echoCancellation }),
   getAutoGainControl: (): boolean => cache.autoGainControl ?? false,
   setAutoGainControl: (autoGainControl: boolean): void => persist({ autoGainControl }),
+  getNormalizeVoices: (): boolean => cache.normalizeVoices ?? false,
+  setNormalizeVoices: (normalizeVoices: boolean): void => persist({ normalizeVoices }),
+  getPeerVolumes: (): Record<string, number> => cache.peerVolumes ?? {},
+  setPeerVolume: (userId: string, volume: number): void =>
+    persist({ peerVolumes: { ...(cache.peerVolumes ?? {}), [userId]: volume } }),
   getInputMode: (): 'open' | 'voice' | 'ptt' => cache.inputMode ?? 'voice',
   setInputMode: (inputMode: 'open' | 'voice' | 'ptt'): void => persist({ inputMode }),
   getVadThreshold: (): number => cache.vadThreshold ?? 0.04,

@@ -54,6 +54,7 @@ export function App(): React.JSX.Element {
   const [noiseSuppression, setNoiseSuppression] = useState(() => store.getNoiseSuppression());
   const [echoCancellation, setEchoCancellation] = useState(() => store.getEchoCancellation());
   const [autoGainControl, setAutoGainControl] = useState(() => store.getAutoGainControl());
+  const [normalizeVoices, setNormalizeVoices] = useState(() => store.getNormalizeVoices());
   const [inputDeviceId, setInputDeviceId] = useState(() => store.getInputDeviceId());
   const [outputDeviceId, setOutputDeviceId] = useState(() => store.getOutputDeviceId());
   const [micVolume, setMicVolume] = useState(() => store.getMicVolume());
@@ -97,6 +98,36 @@ export function App(): React.JSX.Element {
   const [muteMode, setMuteMode] = useState<'hold' | 'toggle'>(() => store.getMuteMode());
   const [game, setGame] = useState<{ name: string; short: string } | null>(null);
   const [volumes, setVolumes] = useState<Record<string, number>>({});
+
+  // Manual per-peer volume: update the live (peerId-keyed) map and persist by stable userId
+  // so a boost sticks across restarts/reconnects (a new peer.id is re-seeded on join below).
+  const handleVolumeChange = useCallback(
+    (peerId: string, volume: number) => {
+      setVolumes((prev) => ({ ...prev, [peerId]: volume }));
+      const uid = signaling.peers.find((p) => p.id === peerId)?.userId;
+      if (uid) store.setPeerVolume(uid, volume);
+    },
+    [signaling.peers],
+  );
+
+  // Hydrate per-peer volume from persisted (userId-keyed) values when peers appear.
+  // Fill-missing-only so an in-session edit is never clobbered.
+  useEffect(() => {
+    const saved = store.getPeerVolumes();
+    setVolumes((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const p of signaling.peers) {
+        if (p.id in next) continue;
+        const v = p.userId ? saved[p.userId] : undefined;
+        if (v !== undefined) {
+          next[p.id] = v;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [signaling.peers]);
   const [volumeOpen, setVolumeOpen] = useState(false);
   const [inputMenuOpen, setInputMenuOpen] = useState(false);
   const [outputMenuOpen, setOutputMenuOpen] = useState(false);
@@ -380,6 +411,11 @@ export function App(): React.JSX.Element {
     setAutoGainControl(on);
     store.setAutoGainControl(on);
     mesh.setAutoGainControl(on);
+  }
+
+  function applyNormalizeVoices(on: boolean): void {
+    setNormalizeVoices(on);
+    store.setNormalizeVoices(on);
   }
 
   const applyInputDevice = useCallback((id: string) => {
@@ -736,9 +772,10 @@ export function App(): React.JSX.Element {
             connectionState={media?.connectionState ?? 'new'}
             avatarUrl={peer.avatarDataUrl ?? null}
             gameTag={peer.game ?? undefined}
-            volume={deafened ? 0 : Math.min(1, (volumes[peer.id] ?? 1) * outputVolume)}
+            volume={deafened ? 0 : (volumes[peer.id] ?? 1) * outputVolume}
             deafened={peer.deafened}
             outputDeviceId={outputDeviceId}
+            normalize={normalizeVoices}
           />
         );
       })}
@@ -875,7 +912,7 @@ export function App(): React.JSX.Element {
                 peers={signaling.peers}
                 colors={colors}
                 volumes={volumes}
-                onChange={(peerId, volume) => setVolumes((prev) => ({ ...prev, [peerId]: volume }))}
+                onChange={handleVolumeChange}
                 onClose={() => setVolumeOpen(false)}
                 anchorRect={volumeMenuAnchor}
                 onMouseEnter={() => {
@@ -1102,6 +1139,8 @@ export function App(): React.JSX.Element {
           onChangeEchoCancellation={applyEchoCancellation}
           autoGainControl={autoGainControl}
           onChangeAutoGainControl={applyAutoGainControl}
+          normalizeVoices={normalizeVoices}
+          onChangeNormalizeVoices={applyNormalizeVoices}
           inputDevices={devices.inputs}
           outputDevices={devices.outputs}
           inputDeviceId={inputDeviceId}

@@ -1584,6 +1584,15 @@ button {
   flex-shrink: 0;
   accent-color: #8b5cf6;
 }
+.volume-row__pct {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--dim);
+  width: 34px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.volume-row__pct--boost { color: #f59e0b; }
 
 /* ── Room right-click context menu ────────────────────────── */
 .ctx-backdrop {

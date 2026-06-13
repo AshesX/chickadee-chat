@@ -8,6 +8,7 @@
     "apps/*"
   ],
   "scripts": {
+    "predev": "node scripts/free-port.mjs 8080",
     "dev": "concurrently -n signaling,desktop -c cyan,magenta \"npm run dev:signaling\" \"npm run dev:desktop\"",
     "dev:signaling": "npm run dev --workspace @chickadee/signaling",
     "dev:desktop": "npm run dev --workspace @chickadee/desktop",
