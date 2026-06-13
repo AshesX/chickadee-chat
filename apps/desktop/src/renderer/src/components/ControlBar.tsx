@@ -4,7 +4,6 @@ import {
   MicOff,
   Video,
   VideoOff,
-  ScreenShare,
   ScreenShareOff,
   Radio,
   Volume2,
@@ -53,6 +52,7 @@ interface ControlBarProps {
   onToggleCamera: () => void;
   sharingScreen: boolean;
   onToggleShare: () => void;
+  onVideoMenu: (rect: DOMRect) => void;
   inputMode: 'open' | 'voice' | 'ptt';
   /** Cycle Open Mic → Voice Activation → Push-to-Talk. */
   onCycleInputMode: () => void;
@@ -73,6 +73,7 @@ export function ControlBar({
   onToggleCamera,
   sharingScreen,
   onToggleShare,
+  onVideoMenu,
   inputMode,
   onCycleInputMode,
   onInputModeMenu,
@@ -118,18 +119,32 @@ export function ControlBar({
         </button>
       </div>
 
-      <ControlButton
-        icon={cameraEnabled ? VideoOff : Video}
-        label={cameraEnabled ? 'Stop Cam' : 'Camera'}
-        state={cameraEnabled ? 'active' : 'default'}
-        onClick={onToggleCamera}
-      />
-      <ControlButton
-        icon={sharingScreen ? ScreenShareOff : ScreenShare}
-        label={sharingScreen ? 'Stop Share' : 'Share'}
-        state={sharingScreen ? 'active' : 'default'}
-        onClick={onToggleShare}
-      />
+      <div className="control-bar__divider" />
+
+      <div className="ctrl-group">
+        <ControlButton
+          icon={cameraEnabled ? VideoOff : (sharingScreen ? ScreenShareOff : Video)}
+          label={cameraEnabled ? 'Stop Cam' : (sharingScreen ? 'Stop Share' : 'Camera')}
+          state={(cameraEnabled || sharingScreen) ? 'active' : 'default'}
+          onClick={() => {
+            if (cameraEnabled) {
+              onToggleCamera();
+            } else if (sharingScreen) {
+              onToggleShare();
+            } else {
+              onToggleCamera();
+            }
+          }}
+        />
+        <button
+          className="ctrl-btn--chevron"
+          title="Video settings"
+          onClick={(e) => onVideoMenu(e.currentTarget.getBoundingClientRect())}
+        >
+          <ChevronUp size={11} />
+        </button>
+      </div>
+
       <div className="ctrl-group">
         <ControlButton
           icon={Radio}

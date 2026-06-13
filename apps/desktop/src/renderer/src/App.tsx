@@ -24,6 +24,7 @@ import { ChatPanel, type ChatMessage } from './components/ChatPanel';
 import { VolumePopover } from './components/VolumePopover';
 import { AudioDeviceMenu } from './components/AudioDeviceMenu';
 import { InputModeMenu } from './components/InputModeMenu';
+import { VideoMenu } from './components/VideoMenu';
 import { WelcomeWizard } from './components/WelcomeWizard';
 import { RoomModal } from './components/RoomModal';
 import { SettingsModal } from './components/SettingsModal';
@@ -99,9 +100,11 @@ export function App(): React.JSX.Element {
   const [inputMenuOpen, setInputMenuOpen] = useState(false);
   const [outputMenuOpen, setOutputMenuOpen] = useState(false);
   const [inputModeMenuOpen, setInputModeMenuOpen] = useState(false);
+  const [videoMenuOpen, setVideoMenuOpen] = useState(false);
   const [inputMenuAnchor, setInputMenuAnchor] = useState<DOMRect | null>(null);
   const [outputMenuAnchor, setOutputMenuAnchor] = useState<DOMRect | null>(null);
   const [inputModeMenuAnchor, setInputModeMenuAnchor] = useState<DOMRect | null>(null);
+  const [videoMenuAnchor, setVideoMenuAnchor] = useState<DOMRect | null>(null);
   const [settingsInitialTab, setSettingsInitialTab] = useState('profile');
   const [sfxEnabled, setSfxEnabled] = useState(() => store.getSfxEnabled());
   const [sfxVolume, setSfxVolume] = useState(() => store.getSfxVolume());
@@ -756,21 +759,23 @@ export function App(): React.JSX.Element {
               micEnabled={micButtonOn}
               hasMic={!!mesh.localStream}
               onToggleMic={handleToggleMic}
-              onInputMenu={(rect) => { setInputMenuAnchor(rect); setInputMenuOpen(true); setOutputMenuOpen(false); setInputModeMenuOpen(false); }}
+              onInputMenu={(rect) => { setInputMenuAnchor(rect); setInputMenuOpen(true); setOutputMenuOpen(false); setInputModeMenuOpen(false); setVideoMenuOpen(false); }}
               cameraEnabled={mesh.cameraEnabled}
               onToggleCamera={mesh.toggleCamera}
               sharingScreen={mesh.sharingScreen}
-              onToggleShare={() =>
-                mesh.sharingScreen ? mesh.stopScreenShare() : setPickerOpen(true)
-              }
+              onToggleShare={() => {
+                setVideoMenuOpen(false);
+                mesh.sharingScreen ? mesh.stopScreenShare() : setPickerOpen(true);
+              }}
+              onVideoMenu={(rect) => { setVideoMenuAnchor(rect); setVideoMenuOpen(true); setInputMenuOpen(false); setOutputMenuOpen(false); setInputModeMenuOpen(false); }}
               inputMode={inputMode}
               onCycleInputMode={cycleInputMode}
-              onInputModeMenu={(rect) => { setInputModeMenuAnchor(rect); setInputModeMenuOpen(true); setInputMenuOpen(false); setOutputMenuOpen(false); }}
+              onInputModeMenu={(rect) => { setInputModeMenuAnchor(rect); setInputModeMenuOpen(true); setInputMenuOpen(false); setOutputMenuOpen(false); setVideoMenuOpen(false); }}
               onVolume={() => setVolumeOpen((v) => !v)}
               onLeave={leaveRoom}
               deafened={deafened}
               onToggleDeafen={toggleDeafen}
-              onOutputMenu={(rect) => { setOutputMenuAnchor(rect); setOutputMenuOpen(true); setInputMenuOpen(false); setInputModeMenuOpen(false); }}
+              onOutputMenu={(rect) => { setOutputMenuAnchor(rect); setOutputMenuOpen(true); setInputMenuOpen(false); setInputModeMenuOpen(false); setVideoMenuOpen(false); }}
             />
 
             {volumeOpen && (
@@ -822,6 +827,28 @@ export function App(): React.JSX.Element {
                 onOpenVoiceSettings={() => { setInputModeMenuOpen(false); setSettingsInitialTab('audio'); setSettingsOpen(true); }}
                 onClose={() => setInputModeMenuOpen(false)}
                 anchorRect={inputModeMenuAnchor}
+              />
+            )}
+            {videoMenuOpen && videoMenuAnchor && (
+              <VideoMenu
+                cameraEnabled={mesh.cameraEnabled}
+                onToggleCamera={mesh.toggleCamera}
+                sharingScreen={mesh.sharingScreen}
+                onToggleShare={() => {
+                  setVideoMenuOpen(false);
+                  mesh.sharingScreen ? mesh.stopScreenShare() : setPickerOpen(true);
+                }}
+                cameraResolution={cameraResolution}
+                onChangeCameraResolution={applyCameraResolution}
+                cameraFramerate={cameraFramerate}
+                onChangeCameraFramerate={applyCameraFramerate}
+                screenResolution={screenResolution}
+                onChangeScreenResolution={applyScreenResolution}
+                screenFramerate={screenFramerate}
+                onChangeScreenFramerate={applyScreenFramerate}
+                onOpenVideoSettings={() => { setVideoMenuOpen(false); setSettingsInitialTab('video'); setSettingsOpen(true); }}
+                onClose={() => setVideoMenuOpen(false)}
+                anchorRect={videoMenuAnchor}
               />
             )}
           </>

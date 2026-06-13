@@ -142,11 +142,57 @@ export function usePeerMesh(
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [localScreenStream, setLocalScreenStream] = useState<MediaStream | null>(null);
   const [micEnabled, setMicEnabled] = useState(true);
-  const [micError, setMicError] = useState<string | null>(null);
+  const [micError, setMicErrorState] = useState<string | null>(null);
   const [cameraEnabled, setCameraEnabled] = useState(false);
-  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [cameraError, setCameraErrorState] = useState<string | null>(null);
   const [sharingScreen, setSharingScreen] = useState(false);
-  const [screenError, setScreenError] = useState<string | null>(null);
+  const [screenError, setScreenErrorState] = useState<string | null>(null);
+
+  const cameraErrorTimeoutRef = useRef<any>(null);
+  const screenErrorTimeoutRef = useRef<any>(null);
+  const micErrorTimeoutRef = useRef<any>(null);
+
+  const setCameraError = useCallback((msg: string | null) => {
+    if (cameraErrorTimeoutRef.current) {
+      clearTimeout(cameraErrorTimeoutRef.current);
+      cameraErrorTimeoutRef.current = null;
+    }
+    setCameraErrorState(msg);
+    if (msg) {
+      cameraErrorTimeoutRef.current = setTimeout(() => {
+        setCameraErrorState(null);
+        cameraErrorTimeoutRef.current = null;
+      }, 3000);
+    }
+  }, []);
+
+  const setScreenError = useCallback((msg: string | null) => {
+    if (screenErrorTimeoutRef.current) {
+      clearTimeout(screenErrorTimeoutRef.current);
+      screenErrorTimeoutRef.current = null;
+    }
+    setScreenErrorState(msg);
+    if (msg) {
+      screenErrorTimeoutRef.current = setTimeout(() => {
+        setScreenErrorState(null);
+        screenErrorTimeoutRef.current = null;
+      }, 3000);
+    }
+  }, []);
+
+  const setMicError = useCallback((msg: string | null) => {
+    if (micErrorTimeoutRef.current) {
+      clearTimeout(micErrorTimeoutRef.current);
+      micErrorTimeoutRef.current = null;
+    }
+    setMicErrorState(msg);
+    if (msg) {
+      micErrorTimeoutRef.current = setTimeout(() => {
+        setMicErrorState(null);
+        micErrorTimeoutRef.current = null;
+      }, 3000);
+    }
+  }, []);
   const [remote, setRemote] = useState<Record<PeerId, RemoteMedia>>({});
 
   const linksRef = useRef<Map<PeerId, PeerLink>>(new Map());
