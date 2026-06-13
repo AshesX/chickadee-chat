@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { User, Mic, Volume2, Keyboard, Sliders, X, Video, Monitor, Gamepad2, Plus, Trash2, MessageSquare } from 'lucide-react';
+import { User, Mic, Volume2, Sliders, X, Video, Monitor, Gamepad2, Plus, Trash2, MessageSquare } from 'lucide-react';
 import { defaultSettings, type GameDef } from '@chickadee/shared';
 import { useKeyCapture } from '../hooks/useKeyCapture';
 import type { MediaDeviceOption } from '../hooks/useMediaDevices';
@@ -536,8 +536,8 @@ export function SettingsModal({
   const [name, setName] = useState(displayName);
   const [cropOpen, setCropOpen] = useState(false);
   const { capturing, startCapture, onRebindKey } = useKeyCapture();
-  const [activeTab, setActiveTab] = useState<'profile' | 'audio' | 'video' | 'sfx' | 'chat' | 'ui' | 'keybinds' | 'games' | 'app'>(
-    (initialTab as 'profile' | 'audio' | 'video' | 'sfx' | 'chat' | 'ui' | 'keybinds' | 'games' | 'app') ?? 'profile'
+  const [activeTab, setActiveTab] = useState<'profile' | 'audio' | 'video' | 'sfx' | 'chat' | 'ui' | 'games' | 'app'>(
+    (initialTab as 'profile' | 'audio' | 'video' | 'sfx' | 'chat' | 'ui' | 'games' | 'app') ?? 'profile'
   );
   const [versionCopied, setVersionCopied] = useState(false);
   const version = window.chickadee?.appVersion || '0.1.0';
@@ -663,13 +663,6 @@ export function SettingsModal({
             <span>User Interface</span>
           </button>
           <button
-            className={`settings-sidebar__item${activeTab === 'keybinds' ? ' settings-sidebar__item--active' : ''}`}
-            onClick={() => setActiveTab('keybinds')}
-          >
-            <Keyboard size={15} />
-            <span>Push-to-talk/Mute</span>
-          </button>
-          <button
             className={`settings-sidebar__item${activeTab === 'games' ? ' settings-sidebar__item--active' : ''}`}
             onClick={() => setActiveTab('games')}
           >
@@ -705,7 +698,6 @@ export function SettingsModal({
               {activeTab === 'sfx' && 'Sound Effects'}
               {activeTab === 'chat' && 'Chat Settings'}
               {activeTab === 'ui' && 'User Interface'}
-              {activeTab === 'keybinds' && 'Push-to-talk/Mute'}
               {activeTab === 'games' && 'Game Detection'}
               {activeTab === 'app' && 'App Settings'}
             </h2>
@@ -984,6 +976,99 @@ export function SettingsModal({
                     )}
                   </>
                 )}
+
+                {inputMode === 'ptt' && (
+                  <>
+                    <div className="settings-row">
+                      <div className="settings-row__label">
+                        <span>PTT mode</span>
+                        <span className="settings-row__hint">Hold: mic live while key held. Toggle: press to unmute, press again to mute.</span>
+                      </div>
+                      <div className="seg-group">
+                        <button
+                          className={`seg-btn${pttMode === 'hold' ? ' seg-btn--active' : ''}`}
+                          onClick={() => onChangePttMode('hold')}
+                        >Hold</button>
+                        <button
+                          className={`seg-btn${pttMode === 'toggle' ? ' seg-btn--active' : ''}`}
+                          onClick={() => onChangePttMode('toggle')}
+                        >Toggle</button>
+                      </div>
+                    </div>
+
+                    <div className="settings-row">
+                      <div className="settings-row__label">
+                        <span>Push-to-talk key</span>
+                        <span className="settings-row__hint">Captured system-wide — pick a key you don't use in-game.</span>
+                      </div>
+                      <div className="keybind-row">
+                        <button
+                          className={`rebind${capturing === 'ptt' ? ' rebind--active' : ''}`}
+                          onClick={() => startCapture('ptt')}
+                          onKeyDown={capturing === 'ptt' ? (e) => onRebindKey(e, onChangePushToTalkKey, onChangeMuteKey) : undefined}
+                        >
+                          {capturing === 'ptt' ? 'Press a key…' : (pushToTalkKey || 'Unbound')}
+                        </button>
+                        {pushToTalkKey && (
+                          <button
+                            className="unbind-btn"
+                            onClick={() => onChangePushToTalkKey('')}
+                            title="Clear keybind"
+                            aria-label="Clear Push-to-talk keybind"
+                          >
+                            <X size={14} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <hr className="settings-divider" />
+                <div className="settings-subdivision">Mic Mute</div>
+
+                <div className="settings-row">
+                  <div className="settings-row__label">
+                    <span>Mute mode</span>
+                    <span className="settings-row__hint">Hold: mic muted while key held. Toggle: press to toggle mute on/off.</span>
+                  </div>
+                  <div className="seg-group">
+                    <button
+                      className={`seg-btn${muteMode === 'hold' ? ' seg-btn--active' : ''}`}
+                      onClick={() => onChangeMuteMode('hold')}
+                    >Hold</button>
+                    <button
+                      className={`seg-btn${muteMode === 'toggle' ? ' seg-btn--active' : ''}`}
+                      onClick={() => onChangeMuteMode('toggle')}
+                    >Toggle</button>
+                  </div>
+                </div>
+
+                <div className="settings-row">
+                  <div className="settings-row__label">
+                    <span>Mute key</span>
+                    <span className="settings-row__hint">Captured system-wide — press to mute/unmute your microphone.</span>
+                  </div>
+                  <div className="keybind-row">
+                    <button
+                      className={`rebind${capturing === 'mute' ? ' rebind--active' : ''}`}
+                      onClick={() => startCapture('mute')}
+                      onKeyDown={capturing === 'mute' ? (e) => onRebindKey(e, onChangePushToTalkKey, onChangeMuteKey) : undefined}
+                    >
+                      {capturing === 'mute' ? 'Press a key…' : (muteKey || 'Unbound')}
+                    </button>
+                    {muteKey && (
+                      <button
+                        className="unbind-btn"
+                        onClick={() => onChangeMuteKey('')}
+                        title="Clear keybind"
+                        aria-label="Clear Mute keybind"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                </div>
 
                 <hr className="settings-divider" />
                 <div className="settings-subdivision">Processing</div>
@@ -1313,105 +1398,6 @@ export function SettingsModal({
                   <button className="seg-btn" onClick={() => previewVoice(voicePreference)}>Test</button>
                 </div>
               </div>
-              </>
-            )}
-
-            {activeTab === 'keybinds' && (
-              <>
-                {/* Push-to-talk subdivision */}
-                <div className="settings-subdivision">Push-to-talk</div>
-
-                <div className="settings-row">
-                  <div className="settings-row__label">
-                    <span>PTT mode</span>
-                    <span className="settings-row__hint">Hold: mic live while key held. Toggle: press to unmute, press again to mute.</span>
-                  </div>
-                  <div className="seg-group">
-                    <button
-                      className={`seg-btn${pttMode === 'hold' ? ' seg-btn--active' : ''}`}
-                      onClick={() => onChangePttMode('hold')}
-                    >Hold</button>
-                    <button
-                      className={`seg-btn${pttMode === 'toggle' ? ' seg-btn--active' : ''}`}
-                      onClick={() => onChangePttMode('toggle')}
-                    >Toggle</button>
-                  </div>
-                </div>
-
-                <div className="settings-row">
-                  <div className="settings-row__label">
-                    <span>Push-to-talk key</span>
-                    <span className="settings-row__hint">Captured system-wide — pick a key you don't use in-game.</span>
-                  </div>
-                  <div className="keybind-row">
-                    <button
-                      className={`rebind${capturing === 'ptt' ? ' rebind--active' : ''}`}
-                      onClick={() => startCapture('ptt')}
-                      onKeyDown={capturing === 'ptt' ? (e) => onRebindKey(e, onChangePushToTalkKey, onChangeMuteKey) : undefined}
-                    >
-                      {capturing === 'ptt' ? 'Press a key…' : (pushToTalkKey || 'Unbound')}
-                    </button>
-                    {pushToTalkKey && (
-                      <button
-                        className="unbind-btn"
-                        onClick={() => onChangePushToTalkKey('')}
-                        title="Clear keybind"
-                        aria-label="Clear Push-to-talk keybind"
-                      >
-                        <X size={14} />
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Subtle Divider */}
-                <hr className="settings-divider" />
-
-                {/* Mic Mute subdivision */}
-                <div className="settings-subdivision">Mic Mute</div>
-
-                <div className="settings-row">
-                  <div className="settings-row__label">
-                    <span>Mute mode</span>
-                    <span className="settings-row__hint">Hold: mic muted while key held. Toggle: press to toggle mute on/off.</span>
-                  </div>
-                  <div className="seg-group">
-                    <button
-                      className={`seg-btn${muteMode === 'hold' ? ' seg-btn--active' : ''}`}
-                      onClick={() => onChangeMuteMode('hold')}
-                    >Hold</button>
-                    <button
-                      className={`seg-btn${muteMode === 'toggle' ? ' seg-btn--active' : ''}`}
-                      onClick={() => onChangeMuteMode('toggle')}
-                    >Toggle</button>
-                  </div>
-                </div>
-
-                <div className="settings-row">
-                  <div className="settings-row__label">
-                    <span>Mute key</span>
-                    <span className="settings-row__hint">Captured system-wide — press to mute/unmute your microphone.</span>
-                  </div>
-                  <div className="keybind-row">
-                    <button
-                      className={`rebind${capturing === 'mute' ? ' rebind--active' : ''}`}
-                      onClick={() => startCapture('mute')}
-                      onKeyDown={capturing === 'mute' ? (e) => onRebindKey(e, onChangePushToTalkKey, onChangeMuteKey) : undefined}
-                    >
-                      {capturing === 'mute' ? 'Press a key…' : (muteKey || 'Unbound')}
-                    </button>
-                    {muteKey && (
-                      <button
-                        className="unbind-btn"
-                        onClick={() => onChangeMuteKey('')}
-                        title="Clear keybind"
-                        aria-label="Clear Mute keybind"
-                      >
-                        <X size={14} />
-                      </button>
-                    )}
-                  </div>
-                </div>
               </>
             )}
 
