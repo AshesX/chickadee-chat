@@ -33,6 +33,44 @@ export function ChatPanel({
   const inputRef = useRef<HTMLInputElement>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerAnchor, setPickerAnchor] = useState<DOMRect | null>(null);
+  const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasEnteredPopoverRef = useRef(false);
+
+  function startCloseTimeout(): void {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+    }
+    const delay = hasEnteredPopoverRef.current ? 1000 : 3000;
+    closeTimeoutRef.current = setTimeout(() => {
+      setPickerOpen(false);
+    }, delay);
+  }
+
+  function cancelCloseTimeout(): void {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+  }
+
+  useEffect(() => {
+    if (pickerOpen) {
+      hasEnteredPopoverRef.current = false;
+    } else {
+      if (closeTimeoutRef.current) {
+        clearTimeout(closeTimeoutRef.current);
+        closeTimeoutRef.current = null;
+      }
+    }
+  }, [pickerOpen]);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimeoutRef.current) {
+        clearTimeout(closeTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -99,6 +137,8 @@ export function ChatPanel({
             setPickerAnchor(e.currentTarget.getBoundingClientRect());
             setPickerOpen((prev) => !prev);
           }}
+          onMouseEnter={cancelCloseTimeout}
+          onMouseLeave={startCloseTimeout}
           aria-label="Choose emoji"
         >
           😊
@@ -124,6 +164,11 @@ export function ChatPanel({
           }}
           onClose={() => setPickerOpen(false)}
           anchorRect={pickerAnchor}
+          onMouseEnter={() => {
+            cancelCloseTimeout();
+            hasEnteredPopoverRef.current = true;
+          }}
+          onMouseLeave={startCloseTimeout}
         />
       )}
     </div>

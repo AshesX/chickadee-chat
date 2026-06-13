@@ -118,6 +118,41 @@ export function App(): React.JSX.Element {
   const [sfxDeafenEnabled, setSfxDeafenEnabled] = useState(() => store.getSfxDeafenEnabled());
   const [deafened, setDeafened] = useState(false);
   const lastJoinTimeRef = useRef<number>(0);
+  const reactionCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reactionHasEnteredPopoverRef = useRef(false);
+
+  const startReactionCloseTimeout = useCallback(() => {
+    if (reactionCloseTimeoutRef.current) clearTimeout(reactionCloseTimeoutRef.current);
+    const delay = reactionHasEnteredPopoverRef.current ? 1000 : 3000;
+    reactionCloseTimeoutRef.current = setTimeout(() => {
+      setReactionMenuOpen(false);
+    }, delay);
+  }, []);
+
+  const cancelReactionCloseTimeout = useCallback(() => {
+    if (reactionCloseTimeoutRef.current) {
+      clearTimeout(reactionCloseTimeoutRef.current);
+      reactionCloseTimeoutRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (reactionMenuOpen) {
+      reactionHasEnteredPopoverRef.current = false;
+    } else {
+      if (reactionCloseTimeoutRef.current) {
+        clearTimeout(reactionCloseTimeoutRef.current);
+        reactionCloseTimeoutRef.current = null;
+      }
+    }
+  }, [reactionMenuOpen]);
+
+  useEffect(() => {
+    return () => {
+      if (reactionCloseTimeoutRef.current) clearTimeout(reactionCloseTimeoutRef.current);
+    };
+  }, []);
+
   const [badgeNotificationsEnabled, setBadgeNotificationsEnabled] = useState(() => store.getBadgeNotificationsEnabled());
   const [unreadCount, setUnreadCount] = useState(0);
   const [selfStatus, setSelfStatus] = useState<'online' | 'idle' | 'dnd'>(() => store.getStatus());
@@ -798,6 +833,8 @@ export function App(): React.JSX.Element {
               deafened={deafened}
               onToggleDeafen={toggleDeafen}
               onOutputMenu={(rect) => { setOutputMenuAnchor(rect); setOutputMenuOpen(true); setInputMenuOpen(false); setInputModeMenuOpen(false); setVideoMenuOpen(false); setReactionMenuOpen(false); }}
+              onMouseEnterReact={cancelReactionCloseTimeout}
+              onMouseLeaveReact={startReactionCloseTimeout}
             />
 
             {volumeOpen && (
@@ -879,6 +916,11 @@ export function App(): React.JSX.Element {
                 onReact={chat.react}
                 onClose={() => setReactionMenuOpen(false)}
                 anchorRect={reactionMenuAnchor}
+                onMouseEnter={() => {
+                  cancelReactionCloseTimeout();
+                  reactionHasEnteredPopoverRef.current = true;
+                }}
+                onMouseLeave={startReactionCloseTimeout}
               />
             )}
           </>

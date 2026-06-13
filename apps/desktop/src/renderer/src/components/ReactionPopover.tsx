@@ -4,14 +4,16 @@ interface ReactionPopoverProps {
   onReact: (emoji: string) => void;
   onClose: () => void;
   anchorRect: DOMRect;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
 }
 
 const REACTION_EMOJIS = ['🔥', '😂', '👍', '❤️', '🎉', '💀'];
 
-export function ReactionPopover({ onReact, onClose, anchorRect }: ReactionPopoverProps): React.JSX.Element {
+export function ReactionPopover({ onReact, onClose, anchorRect, onMouseEnter, onMouseLeave }: ReactionPopoverProps): React.JSX.Element {
   const [cooldown, setCooldown] = useState(false);
 
-  const menuWidth = 240;
+  const menuWidth = 340;
   const gap = 8;
 
   const bottom = window.innerHeight - anchorRect.top + gap;
@@ -34,6 +36,8 @@ export function ReactionPopover({ onReact, onClose, anchorRect }: ReactionPopove
         className="reaction-pop"
         style={{ bottom, left, width: menuWidth }}
         onClick={(e) => e.stopPropagation()}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
       >
         <div className="reaction-pop__grid">
           {REACTION_EMOJIS.map((emoji) => (

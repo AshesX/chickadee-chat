@@ -66,6 +66,8 @@ interface ControlBarProps {
   deafened: boolean;
   onToggleDeafen: () => void;
   onOutputMenu: (rect: DOMRect) => void;
+  onMouseEnterReact?: () => void;
+  onMouseLeaveReact?: () => void;
 }
 
 export function ControlBar({
@@ -88,6 +90,8 @@ export function ControlBar({
   deafened,
   onToggleDeafen,
   onOutputMenu,
+  onMouseEnterReact,
+  onMouseLeaveReact,
 }: ControlBarProps): React.JSX.Element {
   return (
     <footer className="control-bar">
@@ -178,11 +182,17 @@ export function ControlBar({
 
       <div className="control-bar__divider" />
 
-      <ControlButton
-        icon={Smile}
-        label="React"
-        onClick={(e) => onReactMenu(e.currentTarget.getBoundingClientRect())}
-      />
+      <div
+        onMouseEnter={onMouseEnterReact}
+        onMouseLeave={onMouseLeaveReact}
+        style={{ display: 'flex' }}
+      >
+        <ControlButton
+          icon={Smile}
+          label="React"
+          onClick={(e) => onReactMenu(e.currentTarget.getBoundingClientRect())}
+        />
+      </div>
 
       <div className="control-bar__divider" />
 

@@ -2,6 +2,8 @@ interface EmojiPickerPopoverProps {
   onSelectEmoji: (emoji: string) => void;
   onClose: () => void;
   anchorRect: DOMRect;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
 }
 
 interface EmojiCategory {
@@ -24,8 +26,8 @@ const CATEGORIES: EmojiCategory[] = [
   },
 ];
 
-export function EmojiPickerPopover({ onSelectEmoji, onClose, anchorRect }: EmojiPickerPopoverProps): React.JSX.Element {
-  const menuWidth = 220;
+export function EmojiPickerPopover({ onSelectEmoji, onClose, anchorRect, onMouseEnter, onMouseLeave }: EmojiPickerPopoverProps): React.JSX.Element {
+  const menuWidth = 260;
   const gap = 8;
 
   const bottom = window.innerHeight - anchorRect.top + gap;
@@ -39,6 +41,8 @@ export function EmojiPickerPopover({ onSelectEmoji, onClose, anchorRect }: Emoji
         className="emoji-picker-pop"
         style={{ bottom, left, width: menuWidth }}
         onClick={(e) => e.stopPropagation()}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
       >
         {CATEGORIES.map((cat) => (
           <div key={cat.name} className="emoji-picker-pop__section">
