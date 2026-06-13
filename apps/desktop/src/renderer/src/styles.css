@@ -805,6 +805,93 @@ button {
   color: var(--text-sub);
 }
 
+/* ── Input mode menu ──────────────────────────────────────── */
+.input-mode-switcher {
+  display: flex;
+  gap: 2px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-btn);
+  padding: 2px;
+  margin-bottom: 10px;
+}
+.input-mode-switcher__btn {
+  flex: 1;
+  padding: 4px 6px;
+  font-size: 11px;
+  border-radius: calc(var(--radius-btn) - 2px);
+  color: var(--dim);
+  text-align: center;
+  transition: all 0.12s ease;
+}
+.input-mode-switcher__btn.active {
+  background: var(--active-bg);
+  color: var(--text);
+}
+.input-mode-switcher__btn:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-sub);
+}
+.input-mode-menu__key-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+.input-mode-menu__key-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+}
+.input-mode-menu__key-value {
+  flex: 1;
+  font-family: monospace;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-badge);
+  padding: 2px 8px;
+  text-align: center;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.input-mode-menu__change-link {
+  font-size: 11px;
+  color: var(--active-text);
+  text-decoration: underline;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  flex-shrink: 0;
+  transition: opacity 0.12s ease;
+}
+.input-mode-menu__change-link:hover {
+  opacity: 0.75;
+}
+.audio-menu__toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-sub);
+  cursor: pointer;
+  padding: 3px 0;
+}
+.audio-menu__toggle-row input[type='checkbox'] {
+  accent-color: var(--active-border);
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
 /* ── Custom select ────────────────────────────────────────── */
 .custom-select {
   position: relative;
@@ -2043,6 +2130,27 @@ button {
   border-left: 3px solid #8b5cf6;
   border-top-left-radius: 2px;
   border-bottom-left-radius: 2px;
+}
+.settings-sidebar__sub-items {
+  display: flex;
+  flex-direction: column;
+  margin: 2px 0 4px 22px;
+  border-left: 2px solid var(--border);
+  padding-left: 8px;
+  gap: 1px;
+}
+.settings-sidebar__sub-item {
+  width: 100%;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: var(--dim);
+  text-align: left;
+  border-radius: var(--radius-badge);
+  transition: color 0.1s ease, background 0.1s ease;
+}
+.settings-sidebar__sub-item:hover {
+  color: var(--text-sub);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .settings-content {

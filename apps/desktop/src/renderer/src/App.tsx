@@ -23,6 +23,7 @@ import { ScreenSharePicker } from './components/ScreenSharePicker';
 import { ChatPanel, type ChatMessage } from './components/ChatPanel';
 import { VolumePopover } from './components/VolumePopover';
 import { AudioDeviceMenu } from './components/AudioDeviceMenu';
+import { InputModeMenu } from './components/InputModeMenu';
 import { WelcomeWizard } from './components/WelcomeWizard';
 import { RoomModal } from './components/RoomModal';
 import { SettingsModal } from './components/SettingsModal';
@@ -97,8 +98,10 @@ export function App(): React.JSX.Element {
   const [volumeOpen, setVolumeOpen] = useState(false);
   const [inputMenuOpen, setInputMenuOpen] = useState(false);
   const [outputMenuOpen, setOutputMenuOpen] = useState(false);
+  const [inputModeMenuOpen, setInputModeMenuOpen] = useState(false);
   const [inputMenuAnchor, setInputMenuAnchor] = useState<DOMRect | null>(null);
   const [outputMenuAnchor, setOutputMenuAnchor] = useState<DOMRect | null>(null);
+  const [inputModeMenuAnchor, setInputModeMenuAnchor] = useState<DOMRect | null>(null);
   const [settingsInitialTab, setSettingsInitialTab] = useState('profile');
   const [sfxEnabled, setSfxEnabled] = useState(() => store.getSfxEnabled());
   const [sfxVolume, setSfxVolume] = useState(() => store.getSfxVolume());
@@ -763,7 +766,7 @@ export function App(): React.JSX.Element {
               micEnabled={micButtonOn}
               hasMic={!!mesh.localStream}
               onToggleMic={handleToggleMic}
-              onInputMenu={(rect) => { setInputMenuAnchor(rect); setInputMenuOpen(true); setOutputMenuOpen(false); }}
+              onInputMenu={(rect) => { setInputMenuAnchor(rect); setInputMenuOpen(true); setOutputMenuOpen(false); setInputModeMenuOpen(false); }}
               cameraEnabled={mesh.cameraEnabled}
               onToggleCamera={mesh.toggleCamera}
               sharingScreen={mesh.sharingScreen}
@@ -772,12 +775,13 @@ export function App(): React.JSX.Element {
               }
               inputMode={inputMode}
               onCycleInputMode={cycleInputMode}
+              onInputModeMenu={(rect) => { setInputModeMenuAnchor(rect); setInputModeMenuOpen(true); setInputMenuOpen(false); setOutputMenuOpen(false); }}
               transmitting={transmitting}
               onVolume={() => setVolumeOpen((v) => !v)}
               onLeave={leaveRoom}
               deafened={deafened}
               onToggleDeafen={toggleDeafen}
-              onOutputMenu={(rect) => { setOutputMenuAnchor(rect); setOutputMenuOpen(true); setInputMenuOpen(false); }}
+              onOutputMenu={(rect) => { setOutputMenuAnchor(rect); setOutputMenuOpen(true); setInputMenuOpen(false); setInputModeMenuOpen(false); }}
             />
 
             {volumeOpen && (
@@ -813,6 +817,22 @@ export function App(): React.JSX.Element {
                 onOpenVoiceSettings={() => { setOutputMenuOpen(false); setSettingsInitialTab('audio'); setSettingsOpen(true); }}
                 onClose={() => setOutputMenuOpen(false)}
                 anchorRect={outputMenuAnchor}
+              />
+            )}
+            {inputModeMenuOpen && inputModeMenuAnchor && (
+              <InputModeMenu
+                inputMode={inputMode}
+                onSwitchMode={applyInputMode}
+                pttMode={pttMode}
+                onChangePttMode={applyPttMode}
+                pushToTalkKey={pushToTalkKey}
+                vadThreshold={vadThreshold}
+                onChangeVadThreshold={applyVadThreshold}
+                openMicNoiseReductionEnabled={openMicNoiseReductionEnabled}
+                onToggleOpenMicNoiseReduction={() => applyOpenMicNoiseReductionEnabled(!openMicNoiseReductionEnabled)}
+                onOpenVoiceSettings={() => { setInputModeMenuOpen(false); setSettingsInitialTab('audio'); setSettingsOpen(true); }}
+                onClose={() => setInputModeMenuOpen(false)}
+                anchorRect={inputModeMenuAnchor}
               />
             )}
           </>

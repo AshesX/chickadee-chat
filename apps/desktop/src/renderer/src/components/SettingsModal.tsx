@@ -373,7 +373,7 @@ function GamesPanel(): React.JSX.Element {
         Add your own by entering its process name (e.g. <code>mygame.exe</code>).
       </span>
 
-      <div className="settings-subdivision">Your games</div>
+      <div id="section-your-games" className="settings-subdivision">Your games</div>
       {customs.length === 0 && (
         <span className="settings-row__hint">No custom games yet.</span>
       )}
@@ -430,7 +430,7 @@ function GamesPanel(): React.JSX.Element {
       </div>
 
       <hr className="settings-divider" />
-      <div className="settings-subdivision">Built-in games</div>
+      <div id="section-builtin-games" className="settings-subdivision">Built-in games</div>
       {builtIns.map((g) => (
         <div className="settings-row" key={g.processName}>
           <div className="settings-row__label">
@@ -542,6 +542,34 @@ export function SettingsModal({
   const [versionCopied, setVersionCopied] = useState(false);
   const version = window.chickadee?.appVersion || '0.1.0';
 
+  const SUBSECTIONS: Partial<Record<string, { label: string; id: string }[]>> = {
+    profile: [
+      { label: 'Avatar', id: 'section-avatar' },
+      { label: 'Display Name', id: 'section-display-name' },
+    ],
+    audio: [
+      { label: 'Devices', id: 'section-devices' },
+      { label: 'Input Mode', id: 'section-input-mode' },
+      { label: 'Mic Mute', id: 'section-mic-mute' },
+      { label: 'Processing', id: 'section-processing' },
+    ],
+    video: [
+      { label: 'Camera', id: 'section-camera' },
+      { label: 'Screen Share', id: 'section-screen-share' },
+    ],
+    chat: [
+      { label: 'Chat Settings', id: 'section-chat-settings' },
+    ],
+    games: [
+      { label: 'Your Games', id: 'section-your-games' },
+      { label: 'Built-in Games', id: 'section-builtin-games' },
+    ],
+  };
+
+  function scrollToSection(id: string): void {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   function copyVersion(): void {
     if (window.chickadee?.writeClipboard) {
       void window.chickadee.writeClipboard(version);
@@ -625,6 +653,13 @@ export function SettingsModal({
             <User size={15} />
             <span>My Profile</span>
           </button>
+          {activeTab === 'profile' && (
+            <div className="settings-sidebar__sub-items">
+              {SUBSECTIONS.profile!.map((s) => (
+                <button key={s.id} className="settings-sidebar__sub-item" onClick={() => scrollToSection(s.id)}>{s.label}</button>
+              ))}
+            </div>
+          )}
 
           <div className="settings-sidebar__title" style={{ marginTop: '14px' }}>App Settings</div>
           <button
@@ -634,6 +669,13 @@ export function SettingsModal({
             <Mic size={15} />
             <span>Voice & Audio</span>
           </button>
+          {activeTab === 'audio' && (
+            <div className="settings-sidebar__sub-items">
+              {SUBSECTIONS.audio!.map((s) => (
+                <button key={s.id} className="settings-sidebar__sub-item" onClick={() => scrollToSection(s.id)}>{s.label}</button>
+              ))}
+            </div>
+          )}
           <button
             className={`settings-sidebar__item${activeTab === 'video' ? ' settings-sidebar__item--active' : ''}`}
             onClick={() => setActiveTab('video')}
@@ -641,6 +683,13 @@ export function SettingsModal({
             <Video size={15} />
             <span>Video & Screen Share</span>
           </button>
+          {activeTab === 'video' && (
+            <div className="settings-sidebar__sub-items">
+              {SUBSECTIONS.video!.map((s) => (
+                <button key={s.id} className="settings-sidebar__sub-item" onClick={() => scrollToSection(s.id)}>{s.label}</button>
+              ))}
+            </div>
+          )}
           <button
             className={`settings-sidebar__item${activeTab === 'sfx' ? ' settings-sidebar__item--active' : ''}`}
             onClick={() => setActiveTab('sfx')}
@@ -655,6 +704,13 @@ export function SettingsModal({
             <MessageSquare size={15} />
             <span>Chat Settings</span>
           </button>
+          {activeTab === 'chat' && (
+            <div className="settings-sidebar__sub-items">
+              {SUBSECTIONS.chat!.map((s) => (
+                <button key={s.id} className="settings-sidebar__sub-item" onClick={() => scrollToSection(s.id)}>{s.label}</button>
+              ))}
+            </div>
+          )}
           <button
             className={`settings-sidebar__item${activeTab === 'ui' ? ' settings-sidebar__item--active' : ''}`}
             onClick={() => setActiveTab('ui')}
@@ -669,6 +725,13 @@ export function SettingsModal({
             <Gamepad2 size={15} />
             <span>Game Detection</span>
           </button>
+          {activeTab === 'games' && (
+            <div className="settings-sidebar__sub-items">
+              {SUBSECTIONS.games!.map((s) => (
+                <button key={s.id} className="settings-sidebar__sub-item" onClick={() => scrollToSection(s.id)}>{s.label}</button>
+              ))}
+            </div>
+          )}
           <button
             className={`settings-sidebar__item${activeTab === 'app' ? ' settings-sidebar__item--active' : ''}`}
             onClick={() => setActiveTab('app')}
@@ -709,7 +772,7 @@ export function SettingsModal({
           <div className="settings-content__body">
             {activeTab === 'profile' && (
               <>
-                <div className="settings-subdivision">Avatar</div>
+                <div id="section-avatar" className="settings-subdivision">Avatar</div>
                 <div className="avatar-settings-row">
                   <div
                     className="avatar-settings-preview"
@@ -741,7 +804,7 @@ export function SettingsModal({
                   </div>
                 </div>
 
-                <div className="settings-subdivision" style={{ marginTop: '16px' }}>Display Name</div>
+                <div id="section-display-name" className="settings-subdivision" style={{ marginTop: '16px' }}>Display Name</div>
                 <label className="field">
                   <span>Display name</span>
                   <input
@@ -768,7 +831,7 @@ export function SettingsModal({
 
             {activeTab === 'audio' && (
               <>
-                <div className="settings-subdivision">Devices</div>
+                <div id="section-devices" className="settings-subdivision">Devices</div>
 
                 <div className="settings-row">
                   <div className="settings-row__label">
@@ -849,7 +912,7 @@ export function SettingsModal({
                 </div>
 
                 <hr className="settings-divider" />
-                <div className="settings-subdivision">Input Mode</div>
+                <div id="section-input-mode" className="settings-subdivision">Input Mode</div>
 
                 <div className="settings-row">
                   <div className="settings-row__label">
@@ -1025,7 +1088,7 @@ export function SettingsModal({
                 )}
 
                 <hr className="settings-divider" />
-                <div className="settings-subdivision">Mic Mute</div>
+                <div id="section-mic-mute" className="settings-subdivision">Mic Mute</div>
 
                 <div className="settings-row">
                   <div className="settings-row__label">
@@ -1071,7 +1134,7 @@ export function SettingsModal({
                 </div>
 
                 <hr className="settings-divider" />
-                <div className="settings-subdivision">Processing</div>
+                <div id="section-processing" className="settings-subdivision">Processing</div>
 
                 <div className="settings-row">
                   <div className="settings-row__label">
@@ -1101,7 +1164,7 @@ export function SettingsModal({
 
             {activeTab === 'video' && (
               <>
-                <div className="settings-subdivision">Camera Constraints</div>
+                <div id="section-camera" className="settings-subdivision">Camera Constraints</div>
                 
                 <div className="settings-row">
                   <div className="settings-row__label">
@@ -1140,7 +1203,7 @@ export function SettingsModal({
                 </div>
 
                 <hr className="settings-divider" />
-                <div className="settings-subdivision">Screen Share Constraints</div>
+                <div id="section-screen-share" className="settings-subdivision">Screen Share Constraints</div>
 
                 <div className="settings-row">
                   <div className="settings-row__label">
@@ -1292,7 +1355,7 @@ export function SettingsModal({
 
             {activeTab === 'chat' && (
               <>
-              <div className="settings-subdivision">Chat Settings</div>
+              <div id="section-chat-settings" className="settings-subdivision">Chat Settings</div>
 
               <div className="settings-row">
                 <div className="settings-row__label">

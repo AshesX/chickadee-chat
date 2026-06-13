@@ -56,6 +56,7 @@ interface ControlBarProps {
   inputMode: 'open' | 'voice' | 'ptt';
   /** Cycle Open Mic → Voice Activation → Push-to-Talk. */
   onCycleInputMode: () => void;
+  onInputModeMenu: (rect: DOMRect) => void;
   /** True while actively transmitting (gated modes; Mute button glows active). */
   transmitting: boolean;
   onVolume: () => void;
@@ -76,6 +77,7 @@ export function ControlBar({
   onToggleShare,
   inputMode,
   onCycleInputMode,
+  onInputModeMenu,
   transmitting,
   onVolume,
   onLeave,
@@ -131,13 +133,22 @@ export function ControlBar({
         state={sharingScreen ? 'active' : 'default'}
         onClick={onToggleShare}
       />
-      <ControlButton
-        icon={Radio}
-        label={inputMode === 'ptt' ? 'Push-Talk' : inputMode === 'voice' ? 'Voice' : 'Open Mic'}
-        state={inputMode === 'open' ? 'default' : 'active'}
-        title="Click to cycle: Open Mic → Voice Activation → Push-to-Talk"
-        onClick={onCycleInputMode}
-      />
+      <div className="ctrl-group">
+        <ControlButton
+          icon={Radio}
+          label={inputMode === 'ptt' ? 'Push-Talk' : inputMode === 'voice' ? 'Voice' : 'Open Mic'}
+          state={inputMode === 'open' ? 'default' : 'active'}
+          title="Click to cycle: Open Mic → Voice Activation → Push-to-Talk"
+          onClick={onCycleInputMode}
+        />
+        <button
+          className="ctrl-btn--chevron"
+          title="Input mode settings"
+          onClick={(e) => onInputModeMenu(e.currentTarget.getBoundingClientRect())}
+        >
+          <ChevronUp size={11} />
+        </button>
+      </div>
       <ControlButton icon={Volume2} label="Volume" onClick={onVolume} />
 
       <div className="control-bar__divider" />
