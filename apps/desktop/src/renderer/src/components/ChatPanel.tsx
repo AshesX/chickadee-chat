@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { SendHorizontal } from 'lucide-react';
+import { EmojiPickerPopover } from './EmojiPickerPopover';
 
 export interface ChatMessage {
   id: number;
@@ -12,20 +13,26 @@ export interface ChatMessage {
   voicePreference?: string;
 }
 
-export const REACTION_EMOJIS = ['🔥', '😂', '👍', '❤️', '🎉', '💀'];
-
 interface ChatPanelProps {
   messages: ChatMessage[];
   onSend: (text: string) => void;
-  onReact: (emoji: string) => void;
   chatFontScale?: number;
   chatPosition?: 'left' | 'right';
   chatWidthScale?: number;
 }
 
-export function ChatPanel({ messages, onSend, onReact, chatFontScale, chatPosition, chatWidthScale }: ChatPanelProps): React.JSX.Element {
+export function ChatPanel({
+  messages,
+  onSend,
+  chatFontScale,
+  chatPosition,
+  chatWidthScale,
+}: ChatPanelProps): React.JSX.Element {
   const [input, setInput] = useState('');
   const endRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerAnchor, setPickerAnchor] = useState<DOMRect | null>(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -36,6 +43,25 @@ export function ChatPanel({ messages, onSend, onReact, chatFontScale, chatPositi
     if (!text) return;
     onSend(text);
     setInput('');
+  }
+
+  function insertEmoji(emoji: string): void {
+    const el = inputRef.current;
+    if (!el) {
+      setInput((prev) => prev + emoji);
+      return;
+    }
+    const start = el.selectionStart ?? el.value.length;
+    const end = el.selectionEnd ?? el.value.length;
+    const nextVal = el.value.substring(0, start) + emoji + el.value.substring(end);
+    setInput(nextVal);
+
+    // Put focus back and place cursor after the inserted emoji
+    setTimeout(() => {
+      el.focus();
+      const newCursorPos = start + emoji.length;
+      el.setSelectionRange(newCursorPos, newCursorPos);
+    }, 0);
   }
 
   return (
@@ -66,16 +92,19 @@ export function ChatPanel({ messages, onSend, onReact, chatFontScale, chatPositi
         <div ref={endRef} />
       </div>
 
-      <div className="chat-panel__reactions">
-        {REACTION_EMOJIS.map((e) => (
-          <button key={e} className="reaction" onClick={() => onReact(e)}>
-            {e}
-          </button>
-        ))}
-      </div>
-
       <div className="chat-panel__input-row">
+        <button
+          className="emoji-trigger-btn"
+          onClick={(e) => {
+            setPickerAnchor(e.currentTarget.getBoundingClientRect());
+            setPickerOpen((prev) => !prev);
+          }}
+          aria-label="Choose emoji"
+        >
+          😊
+        </button>
         <input
+          ref={inputRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && submit()}
@@ -86,6 +115,18 @@ export function ChatPanel({ messages, onSend, onReact, chatFontScale, chatPositi
           <SendHorizontal size={14} />
         </button>
       </div>
+
+      {pickerOpen && pickerAnchor && (
+        <EmojiPickerPopover
+          onSelectEmoji={(emoji) => {
+            insertEmoji(emoji);
+            setPickerOpen(false);
+          }}
+          onClose={() => setPickerOpen(false)}
+          anchorRect={pickerAnchor}
+        />
+      )}
     </div>
   );
 }
+

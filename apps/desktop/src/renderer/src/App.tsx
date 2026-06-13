@@ -22,6 +22,7 @@ import { ScreenView } from './components/ScreenView';
 import { ScreenSharePicker } from './components/ScreenSharePicker';
 import { ChatPanel, type ChatMessage } from './components/ChatPanel';
 import { VolumePopover } from './components/VolumePopover';
+import { ReactionPopover } from './components/ReactionPopover';
 import { AudioDeviceMenu } from './components/AudioDeviceMenu';
 import { InputModeMenu } from './components/InputModeMenu';
 import { VideoMenu } from './components/VideoMenu';
@@ -105,6 +106,8 @@ export function App(): React.JSX.Element {
   const [outputMenuAnchor, setOutputMenuAnchor] = useState<DOMRect | null>(null);
   const [inputModeMenuAnchor, setInputModeMenuAnchor] = useState<DOMRect | null>(null);
   const [videoMenuAnchor, setVideoMenuAnchor] = useState<DOMRect | null>(null);
+  const [reactionMenuOpen, setReactionMenuOpen] = useState(false);
+  const [reactionMenuAnchor, setReactionMenuAnchor] = useState<DOMRect | null>(null);
   const [settingsInitialTab, setSettingsInitialTab] = useState('profile');
   const [sfxEnabled, setSfxEnabled] = useState(() => store.getSfxEnabled());
   const [sfxVolume, setSfxVolume] = useState(() => store.getSfxVolume());
@@ -740,7 +743,7 @@ export function App(): React.JSX.Element {
           <>
             <div className="content-area">
               {chatOpen && chatPosition === 'left' && (
-                <ChatPanel messages={chat.messages} onSend={chat.sendChat} onReact={chat.react} chatFontScale={chatFontScale} chatPosition={chatPosition} chatWidthScale={chatWidthScale} />
+                <ChatPanel messages={chat.messages} onSend={chat.sendChat} chatFontScale={chatFontScale} chatPosition={chatPosition} chatWidthScale={chatWidthScale} />
               )}
 
               {presenting ? (
@@ -759,7 +762,7 @@ export function App(): React.JSX.Element {
               )}
 
               {chatOpen && chatPosition === 'right' && (
-                <ChatPanel messages={chat.messages} onSend={chat.sendChat} onReact={chat.react} chatFontScale={chatFontScale} chatPosition={chatPosition} chatWidthScale={chatWidthScale} />
+                <ChatPanel messages={chat.messages} onSend={chat.sendChat} chatFontScale={chatFontScale} chatPosition={chatPosition} chatWidthScale={chatWidthScale} />
               )}
             </div>
 
@@ -767,24 +770,34 @@ export function App(): React.JSX.Element {
               micEnabled={micButtonOn}
               hasMic={!!mesh.localStream}
               onToggleMic={handleToggleMic}
-              onInputMenu={(rect) => { setInputMenuAnchor(rect); setInputMenuOpen(true); setOutputMenuOpen(false); setInputModeMenuOpen(false); setVideoMenuOpen(false); }}
+              onInputMenu={(rect) => { setInputMenuAnchor(rect); setInputMenuOpen(true); setOutputMenuOpen(false); setInputModeMenuOpen(false); setVideoMenuOpen(false); setReactionMenuOpen(false); }}
               cameraEnabled={mesh.cameraEnabled}
               onToggleCamera={mesh.toggleCamera}
               sharingScreen={mesh.sharingScreen}
               onToggleShare={() => {
                 setVideoMenuOpen(false);
+                setReactionMenuOpen(false);
                 mesh.sharingScreen ? mesh.stopScreenShare() : setPickerOpen(true);
               }}
-              onVideoMenu={(rect) => { setVideoMenuAnchor(rect); setVideoMenuOpen(true); setInputMenuOpen(false); setOutputMenuOpen(false); setInputModeMenuOpen(false); }}
+              onVideoMenu={(rect) => { setVideoMenuAnchor(rect); setVideoMenuOpen(true); setInputMenuOpen(false); setOutputMenuOpen(false); setInputModeMenuOpen(false); setReactionMenuOpen(false); }}
               defaultAction={defaultAction}
               inputMode={inputMode}
               onCycleInputMode={cycleInputMode}
-              onInputModeMenu={(rect) => { setInputModeMenuAnchor(rect); setInputModeMenuOpen(true); setInputMenuOpen(false); setOutputMenuOpen(false); setVideoMenuOpen(false); }}
-              onVolume={() => setVolumeOpen((v) => !v)}
+              onInputModeMenu={(rect) => { setInputModeMenuAnchor(rect); setInputModeMenuOpen(true); setInputMenuOpen(false); setOutputMenuOpen(false); setVideoMenuOpen(false); setReactionMenuOpen(false); }}
+              onVolume={() => { setVolumeOpen((v) => !v); setReactionMenuOpen(false); }}
+              onReactMenu={(rect) => {
+                setReactionMenuAnchor(rect);
+                setReactionMenuOpen(true);
+                setInputMenuOpen(false);
+                setOutputMenuOpen(false);
+                setInputModeMenuOpen(false);
+                setVideoMenuOpen(false);
+                setVolumeOpen(false);
+              }}
               onLeave={leaveRoom}
               deafened={deafened}
               onToggleDeafen={toggleDeafen}
-              onOutputMenu={(rect) => { setOutputMenuAnchor(rect); setOutputMenuOpen(true); setInputMenuOpen(false); setInputModeMenuOpen(false); setVideoMenuOpen(false); }}
+              onOutputMenu={(rect) => { setOutputMenuAnchor(rect); setOutputMenuOpen(true); setInputMenuOpen(false); setInputModeMenuOpen(false); setVideoMenuOpen(false); setReactionMenuOpen(false); }}
             />
 
             {volumeOpen && (
@@ -859,6 +872,13 @@ export function App(): React.JSX.Element {
                 onClose={() => setVideoMenuOpen(false)}
                 anchorRect={videoMenuAnchor}
                 hasCamera={hasCamera}
+              />
+            )}
+            {reactionMenuOpen && reactionMenuAnchor && (
+              <ReactionPopover
+                onReact={chat.react}
+                onClose={() => setReactionMenuOpen(false)}
+                anchorRect={reactionMenuAnchor}
               />
             )}
           </>

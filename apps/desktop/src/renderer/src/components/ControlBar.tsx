@@ -12,6 +12,7 @@ import {
   Headphones,
   HeadphoneOff,
   ChevronUp,
+  Smile,
 } from 'lucide-react';
 
 type ButtonState = 'default' | 'active' | 'danger' | 'fade';
@@ -29,7 +30,7 @@ function ControlButton({
   state?: ButtonState;
   disabled?: boolean;
   title?: string;
-  onClick: () => void;
+  onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
 }): React.JSX.Element {
   return (
     <button
@@ -60,6 +61,7 @@ interface ControlBarProps {
   onCycleInputMode: () => void;
   onInputModeMenu: (rect: DOMRect) => void;
   onVolume: () => void;
+  onReactMenu: (rect: DOMRect) => void;
   onLeave: () => void;
   deafened: boolean;
   onToggleDeafen: () => void;
@@ -81,6 +83,7 @@ export function ControlBar({
   onCycleInputMode,
   onInputModeMenu,
   onVolume,
+  onReactMenu,
   onLeave,
   deafened,
   onToggleDeafen,
@@ -172,6 +175,14 @@ export function ControlBar({
       <div className="control-bar__divider" />
 
       <ControlButton icon={Volume2} label="Volume" onClick={onVolume} />
+
+      <div className="control-bar__divider" />
+
+      <ControlButton
+        icon={Smile}
+        label="React"
+        onClick={(e) => onReactMenu(e.currentTarget.getBoundingClientRect())}
+      />
 
       <div className="control-bar__divider" />
 

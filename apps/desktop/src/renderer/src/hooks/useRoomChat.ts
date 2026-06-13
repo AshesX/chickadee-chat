@@ -74,24 +74,26 @@ export function useRoomChat({ signaling, displayName, colors, roomId, onNewMessa
     const handle: MessageListener = (msg) => {
       if (msg.type !== 'chat') return;
 
-      if (store.getSfxEnabled() && store.getSfxChatEnabled()) {
-        playSfx('chat', store.getSfxVolume());
-      }
+      if (msg.reaction) {
+        spawnFloat(msg.text);
+      } else {
+        if (store.getSfxEnabled() && store.getSfxChatEnabled()) {
+          playSfx('chat', store.getSfxVolume());
+        }
 
-      const peer = peersRef.current.find((p) => p.id === msg.from);
-      const message: ChatMessage = {
-        id: nextId(),
-        senderName: peer?.displayName ?? 'Someone',
-        color: colorsRef.current[msg.from] ?? SELF_COLOR,
-        text: msg.text,
-        time: nowTime(),
-        isReaction: msg.reaction,
-        // Look up the sender's synced voice preference so TTS reads them in their chosen voice.
-        voicePreference: peer?.voicePreference ?? '',
-      };
-      setMessages((m) => [...m, message]);
-      if (msg.reaction) spawnFloat(msg.text);
-      onNewMessageRef.current?.(message);
+        const peer = peersRef.current.find((p) => p.id === msg.from);
+        const message: ChatMessage = {
+          id: nextId(),
+          senderName: peer?.displayName ?? 'Someone',
+          color: colorsRef.current[msg.from] ?? SELF_COLOR,
+          text: msg.text,
+          time: nowTime(),
+          // Look up the sender's synced voice preference so TTS reads them in their chosen voice.
+          voicePreference: peer?.voicePreference ?? '',
+        };
+        setMessages((m) => [...m, message]);
+        onNewMessageRef.current?.(message);
+      }
     };
     return subscribe(handle);
   }, [subscribe, spawnFloat]);
@@ -112,17 +114,6 @@ export function useRoomChat({ signaling, displayName, colors, roomId, onNewMessa
   const react = useCallback(
     (emoji: string) => {
       spawnFloat(emoji);
-      setMessages((m) => [
-        ...m,
-        {
-          id: nextId(),
-          senderName: nameRef.current,
-          color: SELF_COLOR,
-          text: emoji,
-          time: nowTime(),
-          isReaction: true,
-        },
-      ]);
       send({ type: 'chat', text: emoji, reaction: true });
     },
     [send, spawnFloat],
