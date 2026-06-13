@@ -33,12 +33,13 @@ function speakWith(text: string, voicePreference: string): void {
 }
 
 /**
- * Speak a chat message as "[senderName] says: [text]" using the sender's synced voice
- * preference (category id; '' = system default). No-ops if TTS is unavailable.
+ * Speak a chat message using the sender's synced voice preference (category id; '' = system
+ * default). With `speakName` (default) it reads "[senderName] says: [text]"; otherwise just the
+ * text. No-ops if TTS is unavailable.
  */
-export function speakChatMessage(senderName: string, text: string, voicePreference = ''): void {
+export function speakChatMessage(senderName: string, text: string, voicePreference = '', speakName = true): void {
   const body = text.length > MAX_LEN ? `${text.slice(0, MAX_LEN)}, message truncated` : text;
-  speakWith(`${senderName} says: ${body}`, voicePreference);
+  speakWith(speakName ? `${senderName} says: ${body}` : body, voicePreference);
 }
 
 /** Preview a voice category locally (for the Settings "Test" button) — fires immediately. */

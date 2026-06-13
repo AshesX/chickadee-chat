@@ -22,6 +22,7 @@ import { ScreenView } from './components/ScreenView';
 import { ScreenSharePicker } from './components/ScreenSharePicker';
 import { ChatPanel, type ChatMessage } from './components/ChatPanel';
 import { VolumePopover } from './components/VolumePopover';
+import { AudioDeviceMenu } from './components/AudioDeviceMenu';
 import { WelcomeWizard } from './components/WelcomeWizard';
 import { RoomModal } from './components/RoomModal';
 import { SettingsModal } from './components/SettingsModal';
@@ -53,6 +54,7 @@ export function App(): React.JSX.Element {
   const [inputDeviceId, setInputDeviceId] = useState(() => store.getInputDeviceId());
   const [outputDeviceId, setOutputDeviceId] = useState(() => store.getOutputDeviceId());
   const [micVolume, setMicVolume] = useState(() => store.getMicVolume());
+  const [outputVolume, setOutputVolume] = useState(() => store.getOutputVolume());
   const [cameraResolution, setCameraResolution] = useState(() => store.getCameraResolution());
   const [cameraFramerate, setCameraFramerate] = useState(() => store.getCameraFramerate());
   const [screenResolution, setScreenResolution] = useState(() => store.getScreenResolution());
@@ -93,6 +95,11 @@ export function App(): React.JSX.Element {
   const [game, setGame] = useState<{ name: string; short: string } | null>(null);
   const [volumes, setVolumes] = useState<Record<string, number>>({});
   const [volumeOpen, setVolumeOpen] = useState(false);
+  const [inputMenuOpen, setInputMenuOpen] = useState(false);
+  const [outputMenuOpen, setOutputMenuOpen] = useState(false);
+  const [inputMenuAnchor, setInputMenuAnchor] = useState<DOMRect | null>(null);
+  const [outputMenuAnchor, setOutputMenuAnchor] = useState<DOMRect | null>(null);
+  const [settingsInitialTab, setSettingsInitialTab] = useState('profile');
   const [sfxEnabled, setSfxEnabled] = useState(() => store.getSfxEnabled());
   const [sfxVolume, setSfxVolume] = useState(() => store.getSfxVolume());
   const [sfxJoinLeaveEnabled, setSfxJoinLeaveEnabled] = useState(() => store.getSfxJoinLeaveEnabled());
@@ -114,6 +121,7 @@ export function App(): React.JSX.Element {
   const [chatPosition, setChatPosition] = useState(() => store.getChatPosition());
   const [chatWidthScale, setChatWidthScale] = useState(() => store.getChatWidthScale());
   const [chatTtsEnabled, setChatTtsEnabled] = useState(() => store.getChatTtsEnabled());
+  const [chatTtsSpeakName, setChatTtsSpeakName] = useState(() => store.getChatTtsSpeakName());
   const [theme, setTheme] = useState<'midnight' | 'classic' | 'oled'>(() => store.getTheme());
   const [launchOnStartup, setLaunchOnStartup] = useState(() => store.getLaunchOnStartup());
   const [closeBehavior, setCloseBehavior] = useState<'quit' | 'tray'>(() => store.getCloseBehavior());
@@ -139,7 +147,7 @@ export function App(): React.JSX.Element {
     setUnreadCount((c) => c + 1);
     // Read the flag from the store (not React state) so this empty-deps callback stays stable.
     if (store.getChatTtsEnabled() && !msg.isReaction) {
-      speakChatMessage(msg.senderName, msg.text, msg.voicePreference);
+      speakChatMessage(msg.senderName, msg.text, msg.voicePreference, store.getChatTtsSpeakName());
     }
   }, []);
 
@@ -318,6 +326,11 @@ export function App(): React.JSX.Element {
     store.setMicVolume(vol);
   }, []);
 
+  const applyOutputVolume = useCallback((vol: number) => {
+    setOutputVolume(vol);
+    store.setOutputVolume(vol);
+  }, []);
+
   const applyCameraResolution = useCallback((res: string) => {
     setCameraResolution(res);
     store.setCameraResolution(res);
@@ -453,6 +466,11 @@ export function App(): React.JSX.Element {
     setChatTtsEnabled(on);
     store.setChatTtsEnabled(on);
     if (!on) cancelSpeech(); // stop any in-progress speech when disabled
+  }
+
+  function applyChatTtsSpeakName(on: boolean): void {
+    setChatTtsSpeakName(on);
+    store.setChatTtsSpeakName(on);
   }
 
   function applyTheme(next: 'midnight' | 'classic' | 'oled'): void {
@@ -611,8 +629,8 @@ export function App(): React.JSX.Element {
     expanderGain: mesh.expanderGainNode,
   });
 
-  // Audio device lists for the Settings dropdowns (only enumerate while open).
-  const audioDevices = useMediaDevices(settingsOpen);
+  // Audio device lists for Settings and the audio chevron menus.
+  const audioDevices = useMediaDevices(settingsOpen || inputMenuOpen || outputMenuOpen);
 
   useTraySync({ currentRoomLabel: currentRoom?.label ?? null, handleToggleMic, toggleDeafen });
 
@@ -645,7 +663,7 @@ export function App(): React.JSX.Element {
             connectionState={media?.connectionState ?? 'new'}
             avatarUrl={peer.avatarDataUrl ?? null}
             gameTag={peer.game ?? undefined}
-            volume={deafened ? 0 : (volumes[peer.id] ?? 1)}
+            volume={deafened ? 0 : Math.min(1, (volumes[peer.id] ?? 1) * outputVolume)}
             deafened={peer.deafened}
             outputDeviceId={outputDeviceId}
           />
@@ -745,6 +763,7 @@ export function App(): React.JSX.Element {
               micEnabled={micButtonOn}
               hasMic={!!mesh.localStream}
               onToggleMic={handleToggleMic}
+              onInputMenu={(rect) => { setInputMenuAnchor(rect); setInputMenuOpen(true); setOutputMenuOpen(false); }}
               cameraEnabled={mesh.cameraEnabled}
               onToggleCamera={mesh.toggleCamera}
               sharingScreen={mesh.sharingScreen}
@@ -758,6 +777,7 @@ export function App(): React.JSX.Element {
               onLeave={leaveRoom}
               deafened={deafened}
               onToggleDeafen={toggleDeafen}
+              onOutputMenu={(rect) => { setOutputMenuAnchor(rect); setOutputMenuOpen(true); setInputMenuOpen(false); }}
             />
 
             {volumeOpen && (
@@ -767,6 +787,32 @@ export function App(): React.JSX.Element {
                 volumes={volumes}
                 onChange={(peerId, volume) => setVolumes((prev) => ({ ...prev, [peerId]: volume }))}
                 onClose={() => setVolumeOpen(false)}
+              />
+            )}
+            {inputMenuOpen && inputMenuAnchor && (
+              <AudioDeviceMenu
+                mode="input"
+                devices={audioDevices.inputs}
+                selectedDeviceId={inputDeviceId}
+                onSelectDevice={(id) => { setInputDeviceId(id); store.setInputDeviceId(id); }}
+                volume={micVolume}
+                onChangeVolume={applyMicVolume}
+                onOpenVoiceSettings={() => { setInputMenuOpen(false); setSettingsInitialTab('audio'); setSettingsOpen(true); }}
+                onClose={() => setInputMenuOpen(false)}
+                anchorRect={inputMenuAnchor}
+              />
+            )}
+            {outputMenuOpen && outputMenuAnchor && (
+              <AudioDeviceMenu
+                mode="output"
+                devices={audioDevices.outputs}
+                selectedDeviceId={outputDeviceId}
+                onSelectDevice={(id) => { setOutputDeviceId(id); store.setOutputDeviceId(id); }}
+                volume={outputVolume}
+                onChangeVolume={applyOutputVolume}
+                onOpenVoiceSettings={() => { setOutputMenuOpen(false); setSettingsInitialTab('audio'); setSettingsOpen(true); }}
+                onClose={() => setOutputMenuOpen(false)}
+                anchorRect={outputMenuAnchor}
               />
             )}
           </>
@@ -899,6 +945,7 @@ export function App(): React.JSX.Element {
       )}
       {settingsOpen && (
         <SettingsModal
+          initialTab={settingsInitialTab}
           displayName={displayName}
           onChangeName={saveName}
           noiseSuppression={noiseSuppression}
@@ -957,6 +1004,8 @@ export function App(): React.JSX.Element {
           onChangeBadgeNotificationsEnabled={applyBadgeNotificationsEnabled}
           micVolume={micVolume}
           onChangeMicVolume={applyMicVolume}
+          outputVolume={outputVolume}
+          onChangeOutputVolume={applyOutputVolume}
           cameraResolution={cameraResolution}
           onChangeCameraResolution={applyCameraResolution}
           cameraFramerate={cameraFramerate}
@@ -975,10 +1024,12 @@ export function App(): React.JSX.Element {
           onChangeChatWidthScale={applyChatWidthScale}
           chatTtsEnabled={chatTtsEnabled}
           onChangeChatTtsEnabled={applyChatTtsEnabled}
+          chatTtsSpeakName={chatTtsSpeakName}
+          onChangeChatTtsSpeakName={applyChatTtsSpeakName}
           voicePreference={localVoicePreference}
           onChangeVoicePreference={applyVoicePreference}
           analyserNode={mesh.analyserNode}
-          onClose={() => setSettingsOpen(false)}
+          onClose={() => { setSettingsOpen(false); setSettingsInitialTab('profile'); }}
           avatarDataUrl={localAvatarUrl}
           selfColor={SELF_COLOR}
           onChangeAvatar={handleSaveAvatar}

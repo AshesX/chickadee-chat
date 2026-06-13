@@ -109,6 +109,8 @@ export interface PersistedSettings {
   badgeNotificationsEnabled: boolean;
   status: 'online' | 'idle' | 'dnd';
   micVolume: number;
+  /** Master output volume multiplier (0–1) applied to all peer audio. */
+  outputVolume: number;
   muteKey: string;
   muteMode: 'hold' | 'toggle';
   cameraResolution: string;
@@ -132,6 +134,8 @@ export interface PersistedSettings {
   chatWidthScale: number;
   /** Read incoming chat messages aloud (Web Speech API) when the app is unfocused. */
   chatTtsEnabled: boolean;
+  /** Speak the "[name] says:" prefix before each read-aloud message; false = message text only. */
+  chatTtsSpeakName: boolean;
   /** Generic TTS voice-category id peers use to read this user's chat aloud (e.g. 'uk-female'); '' = system default. */
   voicePreference: string;
   /** User's custom avatar as a base64 data URL (128×128 WebP/JPEG), or null. */
@@ -190,6 +194,7 @@ export function defaultSettings(): PersistedSettings {
     badgeNotificationsEnabled: true,
     status: 'online',
     micVolume: 1.0,
+    outputVolume: 1.0,
     muteKey: '',
     muteMode: 'toggle',
     cameraResolution: '720p',
@@ -205,6 +210,7 @@ export function defaultSettings(): PersistedSettings {
     chatPosition: 'right',
     chatWidthScale: 1.0,
     chatTtsEnabled: false,
+    chatTtsSpeakName: true,
     voicePreference: '',
     avatarDataUrl: null,
   };

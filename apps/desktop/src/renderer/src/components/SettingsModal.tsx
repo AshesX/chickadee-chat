@@ -64,8 +64,11 @@ interface SettingsModalProps {
   onChangeSfxDeafenEnabled: (on: boolean) => void;
   badgeNotificationsEnabled: boolean;
   onChangeBadgeNotificationsEnabled: (on: boolean) => void;
+  initialTab?: string;
   micVolume: number;
   onChangeMicVolume: (vol: number) => void;
+  outputVolume: number;
+  onChangeOutputVolume: (vol: number) => void;
   cameraResolution: string;
   onChangeCameraResolution: (res: string) => void;
   cameraFramerate: string;
@@ -84,6 +87,8 @@ interface SettingsModalProps {
   onChangeChatWidthScale: (scale: number) => void;
   chatTtsEnabled: boolean;
   onChangeChatTtsEnabled: (on: boolean) => void;
+  chatTtsSpeakName: boolean;
+  onChangeChatTtsSpeakName: (on: boolean) => void;
   voicePreference: string;
   onChangeVoicePreference: (id: string) => void;
   analyserNode: AnalyserNode | null;
@@ -494,8 +499,11 @@ export function SettingsModal({
   onChangeSfxDeafenEnabled,
   badgeNotificationsEnabled,
   onChangeBadgeNotificationsEnabled,
+  initialTab,
   micVolume,
   onChangeMicVolume,
+  outputVolume,
+  onChangeOutputVolume,
   cameraResolution,
   onChangeCameraResolution,
   cameraFramerate,
@@ -514,6 +522,8 @@ export function SettingsModal({
   onChangeChatWidthScale,
   chatTtsEnabled,
   onChangeChatTtsEnabled,
+  chatTtsSpeakName,
+  onChangeChatTtsSpeakName,
   voicePreference,
   onChangeVoicePreference,
   analyserNode,
@@ -525,7 +535,9 @@ export function SettingsModal({
   const [name, setName] = useState(displayName);
   const [cropOpen, setCropOpen] = useState(false);
   const { capturing, startCapture, onRebindKey } = useKeyCapture();
-  const [activeTab, setActiveTab] = useState<'profile' | 'audio' | 'video' | 'sfx' | 'chat' | 'ui' | 'keybinds' | 'games' | 'app'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'audio' | 'video' | 'sfx' | 'chat' | 'ui' | 'keybinds' | 'games' | 'app'>(
+    (initialTab as 'profile' | 'audio' | 'video' | 'sfx' | 'chat' | 'ui' | 'keybinds' | 'games' | 'app') ?? 'profile'
+  );
   const [versionCopied, setVersionCopied] = useState(false);
   const version = window.chickadee?.appVersion || '0.1.0';
 
@@ -594,6 +606,7 @@ export function SettingsModal({
     onChangeChatPosition(defaults.chatPosition);
     onChangeChatWidthScale(defaults.chatWidthScale);
     onChangeChatTtsEnabled(defaults.chatTtsEnabled);
+    onChangeChatTtsSpeakName(defaults.chatTtsSpeakName);
     onChangeVoicePreference(defaults.voicePreference);
   }
 
@@ -784,6 +797,32 @@ export function SettingsModal({
 
                 <div className="settings-row">
                   <div className="settings-row__label">
+                    <span>Mic volume</span>
+                    <span className="settings-row__hint">Adjust sensitivity. Levels above 100% act as a gain boost.</span>
+                  </div>
+                  <div className="mic-control-wrap">
+                    <SettingsSlider
+                      min={0}
+                      max={4}
+                      step={0.05}
+                      value={micVolume}
+                      onChange={onChangeMicVolume}
+                      markers={[0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0]}
+                      labels={[
+                        { value: 0, text: '0%' },
+                        { value: 1.0, text: '100% (Normal)' },
+                        { value: 2.0, text: '200%' },
+                        { value: 3.0, text: '300%' },
+                        { value: 4.0, text: '400%' }
+                      ]}
+                      snapThreshold={0.08}
+                    />
+                    <MicLevelMeter bars={micBars} online={!!analyserNode} />
+                  </div>
+                </div>
+
+                <div className="settings-row">
+                  <div className="settings-row__label">
                     <span>Output device (speakers)</span>
                     <span className="settings-row__hint">Where other people's audio plays.</span>
                   </div>
@@ -798,6 +837,26 @@ export function SettingsModal({
                       <option key={d.deviceId} value={d.deviceId}>{d.label}</option>
                     ))}
                   </select>
+                </div>
+
+                <div className="settings-row">
+                  <div className="settings-row__label">
+                    <span>Output volume</span>
+                    <span className="settings-row__hint">Master volume for all incoming peer audio.</span>
+                  </div>
+                  <SettingsSlider
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={outputVolume}
+                    onChange={onChangeOutputVolume}
+                    markers={[0, 0.25, 0.5, 0.75, 1.0]}
+                    labels={[
+                      { value: 0, text: '0%' },
+                      { value: 1.0, text: '100%' },
+                    ]}
+                    snapThreshold={0.04}
+                  />
                 </div>
 
                 <hr className="settings-divider" />
@@ -931,32 +990,6 @@ export function SettingsModal({
 
                 <hr className="settings-divider" />
                 <div className="settings-subdivision">Processing</div>
-
-                <div className="settings-row">
-                  <div className="settings-row__label">
-                    <span>Mic volume</span>
-                    <span className="settings-row__hint">Adjust sensitivity. Levels above 100% act as a gain boost.</span>
-                  </div>
-                  <div className="mic-control-wrap">
-                    <SettingsSlider
-                      min={0}
-                      max={4}
-                      step={0.05}
-                      value={micVolume}
-                      onChange={onChangeMicVolume}
-                      markers={[0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0]}
-                      labels={[
-                        { value: 0, text: '0%' },
-                        { value: 1.0, text: '100% (Normal)' },
-                        { value: 2.0, text: '200%' },
-                        { value: 3.0, text: '300%' },
-                        { value: 4.0, text: '400%' }
-                      ]}
-                      snapThreshold={0.08}
-                    />
-                    <MicLevelMeter bars={micBars} online={!!analyserNode} />
-                  </div>
-                </div>
 
                 <div className="settings-row">
                   <div className="settings-row__label">
@@ -1253,6 +1286,14 @@ export function SettingsModal({
                   <span className="settings-row__hint">When the app is minimized or unfocused, new chat messages are spoken using your system voice.</span>
                 </div>
                 <Toggle on={chatTtsEnabled} onClick={() => onChangeChatTtsEnabled(!chatTtsEnabled)} />
+              </div>
+
+              <div className="settings-row">
+                <div className="settings-row__label">
+                  <span>Speak sender's name</span>
+                  <span className="settings-row__hint">Read "[name] says:" before each message. Turn off to hear just the message text.</span>
+                </div>
+                <Toggle on={chatTtsSpeakName} onClick={() => onChangeChatTtsSpeakName(!chatTtsSpeakName)} />
               </div>
 
               <div className="settings-row">

@@ -37,7 +37,7 @@ export function RoomHeader({
               </span>
             </div>
             <div className="room-header__sub">
-              {game ? `${game} · ` : ''}⏱ {timer}
+              {game ? `${game} · ` : ''}{timer}
             </div>
           </>
         ) : hasSpace ? (

@@ -11,6 +11,7 @@ import {
   PhoneOff,
   Headphones,
   HeadphoneOff,
+  ChevronUp,
 } from 'lucide-react';
 
 type ButtonState = 'default' | 'active' | 'danger' | 'fade';
@@ -47,6 +48,7 @@ interface ControlBarProps {
   micEnabled: boolean;
   hasMic: boolean;
   onToggleMic: () => void;
+  onInputMenu: (rect: DOMRect) => void;
   cameraEnabled: boolean;
   onToggleCamera: () => void;
   sharingScreen: boolean;
@@ -60,12 +62,14 @@ interface ControlBarProps {
   onLeave: () => void;
   deafened: boolean;
   onToggleDeafen: () => void;
+  onOutputMenu: (rect: DOMRect) => void;
 }
 
 export function ControlBar({
   micEnabled,
   hasMic,
   onToggleMic,
+  onInputMenu,
   cameraEnabled,
   onToggleCamera,
   sharingScreen,
@@ -77,23 +81,44 @@ export function ControlBar({
   onLeave,
   deafened,
   onToggleDeafen,
+  onOutputMenu,
 }: ControlBarProps): React.JSX.Element {
   return (
     <footer className="control-bar">
-      <ControlButton
-        icon={micEnabled ? Mic : MicOff}
-        label={transmitting ? 'Transmitting' : micEnabled ? 'Mute' : 'Unmute'}
-        state={transmitting ? 'active' : micEnabled ? 'default' : 'danger'}
-        disabled={!hasMic}
-        title={hasMic ? '' : 'No microphone'}
-        onClick={onToggleMic}
-      />
-      <ControlButton
-        icon={deafened ? HeadphoneOff : Headphones}
-        label={deafened ? 'Undeafen' : 'Deafen'}
-        state={deafened ? 'danger' : 'default'}
-        onClick={onToggleDeafen}
-      />
+      <div className="ctrl-group">
+        <ControlButton
+          icon={micEnabled ? Mic : MicOff}
+          label={transmitting ? 'Transmitting' : micEnabled ? 'Mute' : 'Unmute'}
+          state={transmitting ? 'active' : micEnabled ? 'default' : 'danger'}
+          disabled={!hasMic}
+          title={hasMic ? '' : 'No microphone'}
+          onClick={onToggleMic}
+        />
+        <button
+          className="ctrl-btn--chevron"
+          title="Input settings"
+          onClick={(e) => onInputMenu(e.currentTarget.getBoundingClientRect())}
+        >
+          <ChevronUp size={11} />
+        </button>
+      </div>
+
+      <div className="ctrl-group">
+        <ControlButton
+          icon={deafened ? HeadphoneOff : Headphones}
+          label={deafened ? 'Undeafen' : 'Deafen'}
+          state={deafened ? 'danger' : 'default'}
+          onClick={onToggleDeafen}
+        />
+        <button
+          className="ctrl-btn--chevron"
+          title="Output settings"
+          onClick={(e) => onOutputMenu(e.currentTarget.getBoundingClientRect())}
+        >
+          <ChevronUp size={11} />
+        </button>
+      </div>
+
       <ControlButton
         icon={cameraEnabled ? VideoOff : Video}
         label={cameraEnabled ? 'Stop Cam' : 'Camera'}
