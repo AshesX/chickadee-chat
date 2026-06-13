@@ -90,7 +90,7 @@ export function ControlBar({
       <div className="ctrl-group">
         <ControlButton
           icon={micEnabled ? Mic : MicOff}
-          label={transmitting ? 'Transmitting' : micEnabled ? 'Mute' : 'Unmute'}
+          label={micEnabled ? 'Mute' : 'Unmute'}
           state={transmitting ? 'active' : micEnabled ? 'default' : 'danger'}
           disabled={!hasMic}
           title={hasMic ? '' : 'No microphone'}

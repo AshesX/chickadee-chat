@@ -528,12 +528,6 @@ button {
   border-radius: var(--radius-badge);
   padding: 3px 9px;
 }
-.tile__badge-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
 .tile__badge-name {
   font-size: 11px;
   font-weight: 600;
@@ -1358,14 +1352,6 @@ button {
   border-color: var(--active-border);
   color: var(--active-text);
   background: var(--active-bg);
-}
-
-/* "Transmitting…" badge in the self tile name bar */
-.tile__transmitting {
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--online);
-  white-space: nowrap;
 }
 
 /* ── Volume popover ───────────────────────────────────────── */

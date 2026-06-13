@@ -55,8 +55,10 @@ export function ParticipantTile({
   avatarUrl,
 }: ParticipantTileProps): React.JSX.Element {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const speaking = useAudioActivity(muted ? null : cameraStream);
-  const SPEAK_GREEN = '#22c55e';
+  const audioSpeaking = useAudioActivity(muted ? null : cameraStream);
+  // Gated modes (voice/PTT): transmitting prop drives the ripple so it matches the VAD gate exactly.
+  // Open mic + remote peers: transmitting is undefined → fall back to audio-activity detection.
+  const speaking = transmitting !== undefined ? transmitting : audioSpeaking;
   const showMuteIcon = intentionallyMuted ?? muted;
 
   // The <video> is always mounted so remote audio plays even with camera off.
@@ -87,15 +89,6 @@ export function ParticipantTile({
   return (
     <li
       className={`tile${isSelf ? ' tile--self' : ''}${speaking ? ' tile--speaking' : ''}`}
-      style={{
-        // Color-derived speaking ring + glow.
-        ...(speaking
-          ? {
-              borderColor: SPEAK_GREEN,
-              boxShadow: '0 0 34px #22c55e1e, inset 0 0 70px #22c55e06',
-            }
-          : null),
-      }}
     >
       <div
         className="tile__ambient"
@@ -148,17 +141,10 @@ export function ParticipantTile({
       )}
 
       <div className="tile__badge">
-        {speaking && (
-          <span
-            className="tile__badge-dot"
-            style={{ background: SPEAK_GREEN, boxShadow: '0 0 7px #22c55e' }}
-          />
-        )}
         <span className="tile__badge-name">
           {displayName}
           {isSelf && ' (you)'}
         </span>
-        {transmitting && <span className="tile__transmitting">🎙 Transmitting…</span>}
         {deafened && cameraOn && <VolumeX size={12} className="tile__badge-mute" />}
         {!deafened && showMuteIcon && cameraOn && <MicOff size={12} className="tile__badge-mute" />}
       </div>

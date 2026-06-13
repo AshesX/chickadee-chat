@@ -648,7 +648,7 @@ export function App(): React.JSX.Element {
         cameraOn={mesh.cameraEnabled}
         cameraStream={mesh.localStream}
         color={SELF_COLOR}
-        transmitting={transmitting}
+        transmitting={inputMode !== 'open' ? transmitting : undefined}
         gameTag={game?.short}
         deafened={deafened}
         avatarUrl={localAvatarUrl}
