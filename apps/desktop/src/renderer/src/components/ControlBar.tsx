@@ -57,8 +57,6 @@ interface ControlBarProps {
   /** Cycle Open Mic → Voice Activation → Push-to-Talk. */
   onCycleInputMode: () => void;
   onInputModeMenu: (rect: DOMRect) => void;
-  /** True while actively transmitting (gated modes; Mute button glows active). */
-  transmitting: boolean;
   onVolume: () => void;
   onLeave: () => void;
   deafened: boolean;
@@ -78,7 +76,6 @@ export function ControlBar({
   inputMode,
   onCycleInputMode,
   onInputModeMenu,
-  transmitting,
   onVolume,
   onLeave,
   deafened,
@@ -91,7 +88,7 @@ export function ControlBar({
         <ControlButton
           icon={micEnabled ? Mic : MicOff}
           label={micEnabled ? 'Mute' : 'Unmute'}
-          state={transmitting ? 'active' : micEnabled ? 'default' : 'danger'}
+          state={micEnabled ? 'default' : 'danger'}
           disabled={!hasMic}
           title={hasMic ? '' : 'No microphone'}
           onClick={onToggleMic}

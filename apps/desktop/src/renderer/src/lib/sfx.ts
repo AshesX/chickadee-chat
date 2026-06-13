@@ -1,6 +1,6 @@
 import { getSharedAudioContext } from './audioContext';
 
-export function playSfx(type: 'join' | 'leave' | 'mute' | 'unmute' | 'chat' | 'deafen' | 'undeafen', volume: number): void {
+export function playSfx(type: 'join' | 'leave' | 'mute' | 'unmute' | 'chat' | 'deafen' | 'undeafen' | 'transmit-open' | 'transmit-close', volume: number): void {
   const ctx = getSharedAudioContext();
   if (!ctx) return;
 
@@ -185,6 +185,36 @@ export function playSfx(type: 'join' | 'leave' | 'mute' | 'unmute' | 'chat' | 'd
       osc2Gain.connect(gainNode);
       osc2.start(now + 0.05);
       osc2.stop(now + 0.2);
+      break;
+    }
+    case 'transmit-open': {
+      // Subtle quick ascending tick — shorter and quieter than unmute
+      const osc = ctx.createOscillator();
+      const oscGain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(500, now);
+      osc.frequency.exponentialRampToValueAtTime(650, now + 0.04);
+      oscGain.gain.setValueAtTime(0.3, now);
+      oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+      osc.connect(oscGain);
+      oscGain.connect(gainNode);
+      osc.start(now);
+      osc.stop(now + 0.04);
+      break;
+    }
+    case 'transmit-close': {
+      // Subtle quick descending tick — shorter and quieter than mute
+      const osc = ctx.createOscillator();
+      const oscGain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(650, now);
+      osc.frequency.exponentialRampToValueAtTime(500, now + 0.04);
+      oscGain.gain.setValueAtTime(0.3, now);
+      oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+      osc.connect(oscGain);
+      oscGain.connect(gainNode);
+      osc.start(now);
+      osc.stop(now + 0.04);
       break;
     }
   }

@@ -107,6 +107,7 @@ export function App(): React.JSX.Element {
   const [sfxVolume, setSfxVolume] = useState(() => store.getSfxVolume());
   const [sfxJoinLeaveEnabled, setSfxJoinLeaveEnabled] = useState(() => store.getSfxJoinLeaveEnabled());
   const [sfxMuteEnabled, setSfxMuteEnabled] = useState(() => store.getSfxMuteEnabled());
+  const [sfxTransmitEnabled, setSfxTransmitEnabled] = useState(() => store.getSfxTransmitEnabled());
   const [sfxChatEnabled, setSfxChatEnabled] = useState(() => store.getSfxChatEnabled());
   const [sfxDeafenEnabled, setSfxDeafenEnabled] = useState(() => store.getSfxDeafenEnabled());
   const [deafened, setDeafened] = useState(false);
@@ -445,6 +446,11 @@ export function App(): React.JSX.Element {
     store.setSfxMuteEnabled(on);
   }
 
+  function applySfxTransmitEnabled(on: boolean): void {
+    setSfxTransmitEnabled(on);
+    store.setSfxTransmitEnabled(on);
+  }
+
   function applySfxChatEnabled(on: boolean): void {
     setSfxChatEnabled(on);
     store.setSfxChatEnabled(on);
@@ -582,7 +588,7 @@ export function App(): React.JSX.Element {
 
   const peerIdsStr = useMemo(() => signaling.peers.map((p) => p.id).sort().join(','), [signaling.peers]);
 
-  useSfxEvents({ sfxEnabled, sfxVolume, sfxJoinLeaveEnabled, sfxMuteEnabled, currentRoomId, peerIdsStr, micEnabled: mesh.micEnabled, inRoom });
+  useSfxEvents({ sfxEnabled, sfxVolume, sfxJoinLeaveEnabled, sfxMuteEnabled, sfxTransmitEnabled, currentRoomId, peerIdsStr, micEnabled: mesh.micEnabled, micButtonOn, inputMode, inRoom });
 
   useKeybindSync({
     inputMode,
@@ -760,7 +766,6 @@ export function App(): React.JSX.Element {
               inputMode={inputMode}
               onCycleInputMode={cycleInputMode}
               onInputModeMenu={(rect) => { setInputModeMenuAnchor(rect); setInputModeMenuOpen(true); setInputMenuOpen(false); setOutputMenuOpen(false); }}
-              transmitting={transmitting}
               onVolume={() => setVolumeOpen((v) => !v)}
               onLeave={leaveRoom}
               deafened={deafened}
@@ -1000,6 +1005,8 @@ export function App(): React.JSX.Element {
           onChangeSfxJoinLeaveEnabled={applySfxJoinLeaveEnabled}
           sfxMuteEnabled={sfxMuteEnabled}
           onChangeSfxMuteEnabled={applySfxMuteEnabled}
+          sfxTransmitEnabled={sfxTransmitEnabled}
+          onChangeSfxTransmitEnabled={applySfxTransmitEnabled}
           sfxChatEnabled={sfxChatEnabled}
           onChangeSfxChatEnabled={applySfxChatEnabled}
           sfxDeafenEnabled={sfxDeafenEnabled}

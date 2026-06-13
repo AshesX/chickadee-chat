@@ -6,9 +6,19 @@ interface UseSfxEventsOpts {
   sfxVolume: number;
   sfxJoinLeaveEnabled: boolean;
   sfxMuteEnabled: boolean;
+  /** Whether the separate transmission-gate sound is enabled (VAD open/close, PTT key). */
+  sfxTransmitEnabled: boolean;
   currentRoomId: string | null;
   peerIdsStr: string;
+  /** Raw mic-enabled state — drives the transmission SFX (VAD gate / PTT key). */
   micEnabled: boolean;
+  /**
+   * User-intent mic state (what the Mute button reflects).
+   * In voice mode this is `!voiceMuted`; in open/PTT it equals micEnabled.
+   * Changes only on deliberate mute actions, not on VAD gate transitions.
+   */
+  micButtonOn: boolean;
+  inputMode: 'open' | 'voice' | 'ptt';
   inRoom: boolean;
 }
 
@@ -17,13 +27,17 @@ export function useSfxEvents({
   sfxVolume,
   sfxJoinLeaveEnabled,
   sfxMuteEnabled,
+  sfxTransmitEnabled,
   currentRoomId,
   peerIdsStr,
   micEnabled,
+  micButtonOn,
+  inputMode,
   inRoom,
 }: UseSfxEventsOpts): void {
   const prevPeerIdsRef = useRef<string>('');
   const prevRoomIdRef = useRef<string | null>(null);
+  const prevMicButtonOnRef = useRef<boolean | null>(null);
   const prevMicEnabledRef = useRef<boolean | null>(null);
   const lastJoinTimeRef = useRef<number>(0);
 
@@ -60,20 +74,44 @@ export function useSfxEvents({
     prevRoomIdRef.current = currentRoomId;
   }, [currentRoomId, peerIdsStr, sfxEnabled, sfxVolume, sfxJoinLeaveEnabled]);
 
-  // Mute/unmute sound.
+  // Mute/unmute sound — watches micButtonOn (user intent), excluded in PTT mode where
+  // the PTT key and the mute button look identical at the micEnabled level.
+  useEffect(() => {
+    if (prevMicButtonOnRef.current === null) {
+      prevMicButtonOnRef.current = micButtonOn;
+      return;
+    }
+    if (micButtonOn === prevMicButtonOnRef.current) {
+      prevMicButtonOnRef.current = micButtonOn;
+      return;
+    }
+    prevMicButtonOnRef.current = micButtonOn;
+
+    const timeSinceJoin = Date.now() - lastJoinTimeRef.current;
+    if (inRoom && timeSinceJoin > 1000 && sfxEnabled && sfxMuteEnabled && inputMode !== 'ptt') {
+      playSfx(micButtonOn ? 'unmute' : 'mute', sfxVolume);
+    }
+  }, [micButtonOn, inRoom, sfxEnabled, sfxVolume, sfxMuteEnabled, inputMode]);
+
+  // Transmission sound — watches micEnabled in gated modes (VAD open/close, PTT key).
+  // In voice mode, suppressed when the user has manually muted (micButtonOn = false).
   useEffect(() => {
     if (prevMicEnabledRef.current === null) {
       prevMicEnabledRef.current = micEnabled;
       return;
     }
-    if (micEnabled !== prevMicEnabledRef.current) {
-      // Only play mute/unmute if we're in a room and it's been more than 1 second since joining.
-      // This suppresses the mute/unmute sounds that trigger during media setup/re-negotiation on join.
-      const timeSinceJoin = Date.now() - lastJoinTimeRef.current;
-      if (inRoom && timeSinceJoin > 1000 && sfxEnabled && sfxMuteEnabled) {
-        playSfx(micEnabled ? 'unmute' : 'mute', sfxVolume);
-      }
+    if (micEnabled === prevMicEnabledRef.current) {
       prevMicEnabledRef.current = micEnabled;
+      return;
     }
-  }, [micEnabled, inRoom, sfxEnabled, sfxVolume, sfxMuteEnabled]);
+    prevMicEnabledRef.current = micEnabled;
+
+    if (!sfxEnabled || !sfxTransmitEnabled || !inRoom || inputMode === 'open') return;
+    // Voice mode: don't play transmission sound when the gate closes due to manual mute.
+    if (inputMode === 'voice' && !micButtonOn) return;
+    const timeSinceJoin = Date.now() - lastJoinTimeRef.current;
+    if (timeSinceJoin > 1000) {
+      playSfx(micEnabled ? 'transmit-open' : 'transmit-close', sfxVolume);
+    }
+  }, [micEnabled, sfxEnabled, sfxTransmitEnabled, sfxVolume, inRoom, inputMode, micButtonOn]);
 }
