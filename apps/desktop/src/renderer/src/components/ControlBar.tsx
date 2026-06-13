@@ -60,7 +60,7 @@ interface ControlBarProps {
   /** Cycle Open Mic → Voice Activation → Push-to-Talk. */
   onCycleInputMode: () => void;
   onInputModeMenu: (rect: DOMRect) => void;
-  onVolume: () => void;
+  onVolume: (rect: DOMRect) => void;
   onReactMenu: (rect: DOMRect) => void;
   onLeave: () => void;
   deafened: boolean;
@@ -68,6 +68,8 @@ interface ControlBarProps {
   onOutputMenu: (rect: DOMRect) => void;
   onMouseEnterReact?: () => void;
   onMouseLeaveReact?: () => void;
+  onMouseEnterVolume?: () => void;
+  onMouseLeaveVolume?: () => void;
 }
 
 export function ControlBar({
@@ -92,6 +94,8 @@ export function ControlBar({
   onOutputMenu,
   onMouseEnterReact,
   onMouseLeaveReact,
+  onMouseEnterVolume,
+  onMouseLeaveVolume,
 }: ControlBarProps): React.JSX.Element {
   return (
     <footer className="control-bar">
@@ -178,7 +182,13 @@ export function ControlBar({
 
       <div className="control-bar__divider" />
 
-      <ControlButton icon={Volume2} label="Volume" onClick={onVolume} />
+      <div
+        onMouseEnter={onMouseEnterVolume}
+        onMouseLeave={onMouseLeaveVolume}
+        style={{ display: 'flex' }}
+      >
+        <ControlButton icon={Volume2} label="Volume" onClick={(e) => onVolume(e.currentTarget.getBoundingClientRect())} />
+      </div>
 
       <div className="control-bar__divider" />
 

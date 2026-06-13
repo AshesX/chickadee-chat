@@ -6,6 +6,9 @@ interface VolumePopoverProps {
   volumes: Record<PeerId, number>;
   onChange: (peerId: PeerId, volume: number) => void;
   onClose: () => void;
+  anchorRect: DOMRect;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
 }
 
 /** Floating per-peer output-volume sliders, anchored above the control bar. */
@@ -15,10 +18,26 @@ export function VolumePopover({
   volumes,
   onChange,
   onClose,
+  anchorRect,
+  onMouseEnter,
+  onMouseLeave,
 }: VolumePopoverProps): React.JSX.Element {
+  const menuWidth = 260;
+  const gap = 8;
+
+  const bottom = window.innerHeight - anchorRect.top + gap;
+  const rawLeft = anchorRect.left + anchorRect.width / 2 - menuWidth / 2;
+  const left = Math.max(8, Math.min(rawLeft, window.innerWidth - menuWidth - 8));
+
   return (
     <div className="popover-backdrop" onClick={onClose}>
-      <div className="volume-pop" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="volume-pop"
+        style={{ bottom, left, width: menuWidth }}
+        onClick={(e) => e.stopPropagation()}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
+      >
         <div className="volume-pop__head">Volume</div>
         {peers.length === 0 && <p className="volume-pop__empty">No one else here.</p>}
         {peers.map((p) => {

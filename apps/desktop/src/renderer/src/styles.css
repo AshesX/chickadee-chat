@@ -1530,10 +1530,6 @@ button {
 }
 .volume-pop {
   position: fixed;
-  left: 50%;
-  bottom: 84px;
-  transform: translateX(-50%);
-  width: 260px;
   max-height: 320px;
   overflow-y: auto;
   display: flex;

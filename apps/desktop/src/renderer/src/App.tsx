@@ -106,6 +106,7 @@ export function App(): React.JSX.Element {
   const [outputMenuAnchor, setOutputMenuAnchor] = useState<DOMRect | null>(null);
   const [inputModeMenuAnchor, setInputModeMenuAnchor] = useState<DOMRect | null>(null);
   const [videoMenuAnchor, setVideoMenuAnchor] = useState<DOMRect | null>(null);
+  const [volumeMenuAnchor, setVolumeMenuAnchor] = useState<DOMRect | null>(null);
   const [reactionMenuOpen, setReactionMenuOpen] = useState(false);
   const [reactionMenuAnchor, setReactionMenuAnchor] = useState<DOMRect | null>(null);
   const [settingsInitialTab, setSettingsInitialTab] = useState('profile');
@@ -147,9 +148,39 @@ export function App(): React.JSX.Element {
     }
   }, [reactionMenuOpen]);
 
+  const volumeCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const volumeHasEnteredPopoverRef = useRef(false);
+
+  const startVolumeCloseTimeout = useCallback(() => {
+    if (volumeCloseTimeoutRef.current) clearTimeout(volumeCloseTimeoutRef.current);
+    const delay = volumeHasEnteredPopoverRef.current ? 1000 : 3000;
+    volumeCloseTimeoutRef.current = setTimeout(() => {
+      setVolumeOpen(false);
+    }, delay);
+  }, []);
+
+  const cancelVolumeCloseTimeout = useCallback(() => {
+    if (volumeCloseTimeoutRef.current) {
+      clearTimeout(volumeCloseTimeoutRef.current);
+      volumeCloseTimeoutRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (volumeOpen) {
+      volumeHasEnteredPopoverRef.current = false;
+    } else {
+      if (volumeCloseTimeoutRef.current) {
+        clearTimeout(volumeCloseTimeoutRef.current);
+        volumeCloseTimeoutRef.current = null;
+      }
+    }
+  }, [volumeOpen]);
+
   useEffect(() => {
     return () => {
       if (reactionCloseTimeoutRef.current) clearTimeout(reactionCloseTimeoutRef.current);
+      if (volumeCloseTimeoutRef.current) clearTimeout(volumeCloseTimeoutRef.current);
     };
   }, []);
 
@@ -805,7 +836,7 @@ export function App(): React.JSX.Element {
               micEnabled={micButtonOn}
               hasMic={!!mesh.localStream}
               onToggleMic={handleToggleMic}
-              onInputMenu={(rect) => { setInputMenuAnchor(rect); setInputMenuOpen(true); setOutputMenuOpen(false); setInputModeMenuOpen(false); setVideoMenuOpen(false); setReactionMenuOpen(false); }}
+              onInputMenu={(rect) => { setInputMenuAnchor(rect); setInputMenuOpen(true); setOutputMenuOpen(false); setInputModeMenuOpen(false); setVideoMenuOpen(false); setReactionMenuOpen(false); setVolumeOpen(false); }}
               cameraEnabled={mesh.cameraEnabled}
               onToggleCamera={mesh.toggleCamera}
               sharingScreen={mesh.sharingScreen}
@@ -814,12 +845,12 @@ export function App(): React.JSX.Element {
                 setReactionMenuOpen(false);
                 mesh.sharingScreen ? mesh.stopScreenShare() : setPickerOpen(true);
               }}
-              onVideoMenu={(rect) => { setVideoMenuAnchor(rect); setVideoMenuOpen(true); setInputMenuOpen(false); setOutputMenuOpen(false); setInputModeMenuOpen(false); setReactionMenuOpen(false); }}
+              onVideoMenu={(rect) => { setVideoMenuAnchor(rect); setVideoMenuOpen(true); setInputMenuOpen(false); setOutputMenuOpen(false); setInputModeMenuOpen(false); setReactionMenuOpen(false); setVolumeOpen(false); }}
               defaultAction={defaultAction}
               inputMode={inputMode}
               onCycleInputMode={cycleInputMode}
-              onInputModeMenu={(rect) => { setInputModeMenuAnchor(rect); setInputModeMenuOpen(true); setInputMenuOpen(false); setOutputMenuOpen(false); setVideoMenuOpen(false); setReactionMenuOpen(false); }}
-              onVolume={() => { setVolumeOpen((v) => !v); setReactionMenuOpen(false); }}
+              onInputModeMenu={(rect) => { setInputModeMenuAnchor(rect); setInputModeMenuOpen(true); setInputMenuOpen(false); setOutputMenuOpen(false); setVideoMenuOpen(false); setReactionMenuOpen(false); setVolumeOpen(false); }}
+              onVolume={(rect) => { setVolumeMenuAnchor(rect); setVolumeOpen((v) => !v); setReactionMenuOpen(false); setInputMenuOpen(false); setOutputMenuOpen(false); setInputModeMenuOpen(false); setVideoMenuOpen(false); }}
               onReactMenu={(rect) => {
                 setReactionMenuAnchor(rect);
                 setReactionMenuOpen(true);
@@ -832,18 +863,26 @@ export function App(): React.JSX.Element {
               onLeave={leaveRoom}
               deafened={deafened}
               onToggleDeafen={toggleDeafen}
-              onOutputMenu={(rect) => { setOutputMenuAnchor(rect); setOutputMenuOpen(true); setInputMenuOpen(false); setInputModeMenuOpen(false); setVideoMenuOpen(false); setReactionMenuOpen(false); }}
+              onOutputMenu={(rect) => { setOutputMenuAnchor(rect); setOutputMenuOpen(true); setInputMenuOpen(false); setInputModeMenuOpen(false); setVideoMenuOpen(false); setReactionMenuOpen(false); setVolumeOpen(false); }}
               onMouseEnterReact={cancelReactionCloseTimeout}
               onMouseLeaveReact={startReactionCloseTimeout}
+              onMouseEnterVolume={cancelVolumeCloseTimeout}
+              onMouseLeaveVolume={startVolumeCloseTimeout}
             />
 
-            {volumeOpen && (
+            {volumeOpen && volumeMenuAnchor && (
               <VolumePopover
                 peers={signaling.peers}
                 colors={colors}
                 volumes={volumes}
                 onChange={(peerId, volume) => setVolumes((prev) => ({ ...prev, [peerId]: volume }))}
                 onClose={() => setVolumeOpen(false)}
+                anchorRect={volumeMenuAnchor}
+                onMouseEnter={() => {
+                  cancelVolumeCloseTimeout();
+                  volumeHasEnteredPopoverRef.current = true;
+                }}
+                onMouseLeave={startVolumeCloseTimeout}
               />
             )}
             {inputMenuOpen && inputMenuAnchor && (
