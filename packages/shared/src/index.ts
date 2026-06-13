@@ -141,6 +141,7 @@ export interface PersistedSettings {
   voicePreference: string;
   /** User's custom avatar as a base64 data URL (128×128 WebP/JPEG), or null. */
   avatarDataUrl: string | null;
+  defaultVideoAction: 'camera' | 'screen';
 }
 
 /** Built-in games the detector ships with (process names are lower-cased, .exe-less). */
@@ -215,6 +216,7 @@ export function defaultSettings(): PersistedSettings {
     chatTtsSpeakName: true,
     voicePreference: '',
     avatarDataUrl: null,
+    defaultVideoAction: 'camera',
   };
 }
 

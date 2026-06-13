@@ -1357,6 +1357,7 @@ button {
   background: var(--active-bg);
 }
 
+
 /* ── Volume popover ───────────────────────────────────────── */
 .popover-backdrop {
   position: fixed;

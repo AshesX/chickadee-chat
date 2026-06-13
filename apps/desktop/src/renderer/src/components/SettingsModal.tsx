@@ -74,6 +74,8 @@ interface SettingsModalProps {
   onChangeOutputVolume: (vol: number) => void;
   cameraResolution: string;
   onChangeCameraResolution: (res: string) => void;
+  defaultVideoAction: 'camera' | 'screen';
+  onChangeDefaultVideoAction: (action: 'camera' | 'screen') => void;
   cameraFramerate: string;
   onChangeCameraFramerate: (fps: string) => void;
   screenResolution: string;
@@ -99,6 +101,7 @@ interface SettingsModalProps {
   avatarDataUrl: string | null;
   selfColor: string;
   onChangeAvatar: (dataUrl: string | null) => void;
+  hasCamera?: boolean;
 }
 
 function SettingsSlider({
@@ -522,6 +525,8 @@ export function SettingsModal({
   onChangeOutputVolume,
   cameraResolution,
   onChangeCameraResolution,
+  defaultVideoAction,
+  onChangeDefaultVideoAction,
   cameraFramerate,
   onChangeCameraFramerate,
   screenResolution,
@@ -547,6 +552,7 @@ export function SettingsModal({
   avatarDataUrl,
   selfColor,
   onChangeAvatar,
+  hasCamera = true,
 }: SettingsModalProps): React.JSX.Element {
   const [name, setName] = useState(displayName);
   const [cropOpen, setCropOpen] = useState(false);
@@ -569,6 +575,7 @@ export function SettingsModal({
       { label: 'Processing', id: 'section-processing' },
     ],
     video: [
+      { label: 'Default Button Action', id: 'section-video-default' },
       { label: 'Camera', id: 'section-camera' },
       { label: 'Screen Share', id: 'section-screen-share' },
     ],
@@ -643,6 +650,7 @@ export function SettingsModal({
     onChangeBadgeNotificationsEnabled(defaults.badgeNotificationsEnabled);
     onChangeMicVolume(defaults.micVolume);
     onChangeCameraResolution(defaults.cameraResolution);
+    onChangeDefaultVideoAction(defaults.defaultVideoAction ?? 'camera');
     onChangeCameraFramerate(defaults.cameraFramerate);
     onChangeScreenResolution(defaults.screenResolution);
     onChangeScreenFramerate(defaults.screenFramerate);
@@ -1180,9 +1188,37 @@ export function SettingsModal({
 
             {activeTab === 'video' && (
               <>
-                <div id="section-camera" className="settings-subdivision">Camera Constraints</div>
+                <div id="section-video-default" className="settings-subdivision">Room Video Button</div>
                 
                 <div className="settings-row">
+                  <div className="settings-row__label">
+                    <span>Default action</span>
+                    <span className="settings-row__hint">Choose the default action for the Video button when both camera and screen share are off.</span>
+                  </div>
+                  <div className="seg-group">
+                    <button
+                      className={`seg-btn${defaultVideoAction === 'camera' ? ' seg-btn--active' : ''}`}
+                      onClick={() => onChangeDefaultVideoAction('camera')}
+                    >Camera</button>
+                    <button
+                      className={`seg-btn${defaultVideoAction === 'screen' ? ' seg-btn--active' : ''}`}
+                      onClick={() => onChangeDefaultVideoAction('screen')}
+                    >Screen Share</button>
+                  </div>
+                </div>
+
+                <hr className="settings-divider" />
+
+                <div id="section-camera" className="settings-subdivision" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>Camera Constraints</span>
+                  {!hasCamera && (
+                    <span style={{ color: '#ef4444', fontSize: '11px', fontWeight: 600, textTransform: 'initial' }}>
+                      (No camera detected)
+                    </span>
+                  )}
+                </div>
+                
+                <div className="settings-row" style={{ opacity: hasCamera ? 1 : 0.5, pointerEvents: hasCamera ? undefined : 'none' }}>
                   <div className="settings-row__label">
                     <span>Streaming resolution</span>
                     <span className="settings-row__hint">Higher resolutions require significantly more bandwidth.</span>
@@ -1201,7 +1237,7 @@ export function SettingsModal({
                   </select>
                 </div>
 
-                <div className="settings-row">
+                <div className="settings-row" style={{ opacity: hasCamera ? 1 : 0.5, pointerEvents: hasCamera ? undefined : 'none' }}>
                   <div className="settings-row__label">
                     <span>Framerate</span>
                     <span className="settings-row__hint">Frames per second for your camera stream.</span>

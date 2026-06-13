@@ -17,6 +17,7 @@ interface VideoMenuProps {
   onOpenVideoSettings: () => void;
   onClose: () => void;
   anchorRect: DOMRect;
+  hasCamera: boolean;
 }
 
 export function VideoMenu({
@@ -35,6 +36,7 @@ export function VideoMenu({
   onOpenVideoSettings,
   onClose,
   anchorRect,
+  hasCamera,
 }: VideoMenuProps): React.JSX.Element {
   const menuWidth = 240;
   const gap = 8;
@@ -78,33 +80,37 @@ export function VideoMenu({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Camera Section */}
-        <div className="audio-menu__section-label">Camera</div>
-        <button
-          type="button"
-          className={`seg-btn${cameraEnabled ? ' seg-btn--active' : ''}`}
-          style={{ width: '100%', borderRadius: 'var(--radius-badge)', textAlign: 'center', marginBottom: 10 }}
-          onClick={onToggleCamera}
-        >
-          {cameraEnabled ? 'Stop Camera' : 'Start Camera'}
-        </button>
+        {hasCamera && (
+          <>
+            <div className="audio-menu__section-label">Camera</div>
+            <button
+              type="button"
+              className={`seg-btn${cameraEnabled ? ' seg-btn--active' : ''}`}
+              style={{ width: '100%', borderRadius: 'var(--radius-badge)', textAlign: 'center', marginBottom: 10 }}
+              onClick={onToggleCamera}
+            >
+              {cameraEnabled ? 'Stop Camera' : 'Start Camera'}
+            </button>
 
-        <div className="audio-menu__section-label" style={{ marginBottom: 4 }}>Resolution</div>
-        <CustomSelect
-          value={cameraResolution}
-          onChange={onChangeCameraResolution}
-          options={cameraResolutionOptions}
-          className="settings-device-select"
-        />
+            <div className="audio-menu__section-label" style={{ marginBottom: 4 }}>Resolution</div>
+            <CustomSelect
+              value={cameraResolution}
+              onChange={onChangeCameraResolution}
+              options={cameraResolutionOptions}
+              className="settings-device-select"
+            />
 
-        <div className="audio-menu__section-label" style={{ marginTop: 10, marginBottom: 4 }}>Framerate</div>
-        <CustomSelect
-          value={cameraFramerate}
-          onChange={onChangeCameraFramerate}
-          options={cameraFramerateOptions}
-          className="settings-device-select"
-        />
+            <div className="audio-menu__section-label" style={{ marginTop: 10, marginBottom: 4 }}>Framerate</div>
+            <CustomSelect
+              value={cameraFramerate}
+              onChange={onChangeCameraFramerate}
+              options={cameraFramerateOptions}
+              className="settings-device-select"
+            />
 
-        <hr className="audio-menu__divider" />
+            <hr className="audio-menu__divider" />
+          </>
+        )}
 
         {/* Screen Share Section */}
         <div className="audio-menu__section-label">Screen Share</div>

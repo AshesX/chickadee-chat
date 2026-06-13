@@ -8,16 +8,17 @@ export interface MediaDeviceOption {
 interface MediaDevicesState {
   inputs: MediaDeviceOption[];
   outputs: MediaDeviceOption[];
+  videoInputs: MediaDeviceOption[];
 }
 
 /**
- * Enumerates audio input/output devices and refreshes on hot-plug
+ * Enumerates audio/video input/output devices and refreshes on hot-plug
  * (`devicechange`). Labels are only populated once mic permission is granted —
  * the caller should have acquired the mic (Settings does via prepareMedia)
  * before relying on readable labels.
  */
 export function useMediaDevices(enabled: boolean): MediaDevicesState {
-  const [state, setState] = useState<MediaDevicesState>({ inputs: [], outputs: [] });
+  const [state, setState] = useState<MediaDevicesState>({ inputs: [], outputs: [], videoInputs: [] });
 
   useEffect(() => {
     if (!enabled || !navigator.mediaDevices?.enumerateDevices) return;
@@ -29,14 +30,17 @@ export function useMediaDevices(enabled: boolean): MediaDevicesState {
         if (cancelled) return;
         const inputs: MediaDeviceOption[] = [];
         const outputs: MediaDeviceOption[] = [];
+        const videoInputs: MediaDeviceOption[] = [];
         for (const d of devices) {
           if (d.kind === 'audioinput') {
             inputs.push({ deviceId: d.deviceId, label: d.label || `Microphone ${inputs.length + 1}` });
           } else if (d.kind === 'audiooutput') {
             outputs.push({ deviceId: d.deviceId, label: d.label || `Speaker ${outputs.length + 1}` });
+          } else if (d.kind === 'videoinput') {
+            videoInputs.push({ deviceId: d.deviceId, label: d.label || `Camera ${videoInputs.length + 1}` });
           }
         }
-        setState({ inputs, outputs });
+        setState({ inputs, outputs, videoInputs });
       } catch {
         /* ignore — keep last known list */
       }

@@ -128,6 +128,7 @@ export function App(): React.JSX.Element {
   const [launchOnStartup, setLaunchOnStartup] = useState(() => store.getLaunchOnStartup());
   const [closeBehavior, setCloseBehavior] = useState<'quit' | 'tray'>(() => store.getCloseBehavior());
   const [alwaysOnTop, setAlwaysOnTop] = useState(() => store.getAlwaysOnTop());
+  const [defaultVideoAction, setDefaultVideoAction] = useState<'camera' | 'screen'>(() => store.getDefaultVideoAction());
 
   // Apply initial UI scale and whenever it changes
   useEffect(() => {
@@ -485,6 +486,11 @@ export function App(): React.JSX.Element {
     store.setTheme(next);
   }
 
+  const applyDefaultVideoAction = useCallback((action: 'camera' | 'screen') => {
+    setDefaultVideoAction(action);
+    store.setDefaultVideoAction(action);
+  }, []);
+
   function applyLaunchOnStartup(on: boolean): void {
     setLaunchOnStartup(on);
     store.setLaunchOnStartup(on);
@@ -624,8 +630,10 @@ export function App(): React.JSX.Element {
     expanderGain: mesh.expanderGainNode,
   });
 
-  // Audio device lists for Settings and the audio chevron menus.
-  const audioDevices = useMediaDevices(settingsOpen || inputMenuOpen || outputMenuOpen);
+  // Audio/video device lists for Settings and the chevron menus.
+  const devices = useMediaDevices(inRoom || settingsOpen || inputMenuOpen || outputMenuOpen || videoMenuOpen);
+  const hasCamera = devices.videoInputs.length > 0;
+  const defaultAction = hasCamera ? defaultVideoAction : 'screen';
 
   useTraySync({ currentRoomLabel: currentRoom?.label ?? null, handleToggleMic, toggleDeafen });
 
@@ -768,6 +776,7 @@ export function App(): React.JSX.Element {
                 mesh.sharingScreen ? mesh.stopScreenShare() : setPickerOpen(true);
               }}
               onVideoMenu={(rect) => { setVideoMenuAnchor(rect); setVideoMenuOpen(true); setInputMenuOpen(false); setOutputMenuOpen(false); setInputModeMenuOpen(false); }}
+              defaultAction={defaultAction}
               inputMode={inputMode}
               onCycleInputMode={cycleInputMode}
               onInputModeMenu={(rect) => { setInputModeMenuAnchor(rect); setInputModeMenuOpen(true); setInputMenuOpen(false); setOutputMenuOpen(false); setVideoMenuOpen(false); }}
@@ -790,7 +799,7 @@ export function App(): React.JSX.Element {
             {inputMenuOpen && inputMenuAnchor && (
               <AudioDeviceMenu
                 mode="input"
-                devices={audioDevices.inputs}
+                devices={devices.inputs}
                 selectedDeviceId={inputDeviceId}
                 onSelectDevice={(id) => { setInputDeviceId(id); store.setInputDeviceId(id); }}
                 volume={micVolume}
@@ -803,7 +812,7 @@ export function App(): React.JSX.Element {
             {outputMenuOpen && outputMenuAnchor && (
               <AudioDeviceMenu
                 mode="output"
-                devices={audioDevices.outputs}
+                devices={devices.outputs}
                 selectedDeviceId={outputDeviceId}
                 onSelectDevice={(id) => { setOutputDeviceId(id); store.setOutputDeviceId(id); }}
                 volume={outputVolume}
@@ -849,6 +858,7 @@ export function App(): React.JSX.Element {
                 onOpenVideoSettings={() => { setVideoMenuOpen(false); setSettingsInitialTab('video'); setSettingsOpen(true); }}
                 onClose={() => setVideoMenuOpen(false)}
                 anchorRect={videoMenuAnchor}
+                hasCamera={hasCamera}
               />
             )}
           </>
@@ -982,6 +992,7 @@ export function App(): React.JSX.Element {
       {settingsOpen && (
         <SettingsModal
           initialTab={settingsInitialTab}
+          hasCamera={hasCamera}
           displayName={displayName}
           onChangeName={saveName}
           noiseSuppression={noiseSuppression}
@@ -990,12 +1001,14 @@ export function App(): React.JSX.Element {
           onChangeEchoCancellation={applyEchoCancellation}
           autoGainControl={autoGainControl}
           onChangeAutoGainControl={applyAutoGainControl}
-          inputDevices={audioDevices.inputs}
-          outputDevices={audioDevices.outputs}
+          inputDevices={devices.inputs}
+          outputDevices={devices.outputs}
           inputDeviceId={inputDeviceId}
           onChangeInputDevice={applyInputDevice}
           outputDeviceId={outputDeviceId}
           onChangeOutputDevice={applyOutputDevice}
+          defaultVideoAction={defaultVideoAction}
+          onChangeDefaultVideoAction={applyDefaultVideoAction}
           inputMode={inputMode}
           onChangeInputMode={applyInputMode}
           vadThreshold={vadThreshold}

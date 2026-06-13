@@ -160,6 +160,8 @@ export const store = {
   setVoicePreference: (voicePreference: string): void => persist({ voicePreference }),
   getAvatarDataUrl: (): string | null => cache.avatarDataUrl ?? null,
   setAvatarDataUrl: (avatarDataUrl: string | null): void => persist({ avatarDataUrl }),
+  getDefaultVideoAction: (): 'camera' | 'screen' => cache.defaultVideoAction ?? 'camera',
+  setDefaultVideoAction: (defaultVideoAction: 'camera' | 'screen'): void => persist({ defaultVideoAction }),
 };
 
 const FRIEND_PALETTE = [
