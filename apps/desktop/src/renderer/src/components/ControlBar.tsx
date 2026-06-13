@@ -126,6 +126,23 @@ export function ControlBar({
 
       <div className="ctrl-group">
         <ControlButton
+          icon={Radio}
+          label={inputMode === 'ptt' ? 'Push-Talk' : inputMode === 'voice' ? 'Voice' : 'Open Mic'}
+          state={inputMode === 'open' ? 'default' : 'active'}
+          title="Click to cycle: Open Mic → Voice Activation → Push-to-Talk"
+          onClick={onCycleInputMode}
+        />
+        <button
+          className="ctrl-btn--chevron"
+          title="Input mode settings"
+          onClick={(e) => onInputModeMenu(e.currentTarget.getBoundingClientRect())}
+        >
+          <ChevronUp size={11} />
+        </button>
+      </div>
+
+      <div className="ctrl-group">
+        <ControlButton
           icon={cameraEnabled ? VideoOff : (sharingScreen ? ScreenShareOff : (defaultAction === 'screen' ? ScreenShare : Video))}
           label={cameraEnabled ? 'Stop Cam' : (sharingScreen ? 'Stop Share' : (defaultAction === 'screen' ? 'Share' : 'Camera'))}
           state={(cameraEnabled || sharingScreen) ? 'active' : 'default'}
@@ -152,22 +169,8 @@ export function ControlBar({
         </button>
       </div>
 
-      <div className="ctrl-group">
-        <ControlButton
-          icon={Radio}
-          label={inputMode === 'ptt' ? 'Push-Talk' : inputMode === 'voice' ? 'Voice' : 'Open Mic'}
-          state={inputMode === 'open' ? 'default' : 'active'}
-          title="Click to cycle: Open Mic → Voice Activation → Push-to-Talk"
-          onClick={onCycleInputMode}
-        />
-        <button
-          className="ctrl-btn--chevron"
-          title="Input mode settings"
-          onClick={(e) => onInputModeMenu(e.currentTarget.getBoundingClientRect())}
-        >
-          <ChevronUp size={11} />
-        </button>
-      </div>
+      <div className="control-bar__divider" />
+
       <ControlButton icon={Volume2} label="Volume" onClick={onVolume} />
 
       <div className="control-bar__divider" />

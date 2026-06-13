@@ -642,8 +642,8 @@ button {
   flex-direction: column;
   align-items: center;
   gap: 3px;
-  padding: 8px 13px;
-  min-width: 54px;
+  padding: 8px 4px;
+  width: 72px;
   border-radius: var(--radius-btn);
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.04);
@@ -665,6 +665,11 @@ button {
   font-size: 9px;
   font-weight: 500;
   color: var(--dim);
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
 }
 .ctrl-btn--active {
   background: var(--active-bg);
