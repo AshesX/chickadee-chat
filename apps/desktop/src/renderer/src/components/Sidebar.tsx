@@ -305,7 +305,7 @@ export function Sidebar({
           {selfGame && <div className="self__game">🎮 {selfGame}</div>}
         </div>
         <button className="self__settings" onClick={onOpenSettings} aria-label="Settings">
-          <Settings size={15} />
+          <Settings size={18} />
         </button>
 
         {statusMenuOpen && (
