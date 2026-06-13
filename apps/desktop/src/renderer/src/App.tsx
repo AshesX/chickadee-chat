@@ -110,12 +110,7 @@ export function App(): React.JSX.Element {
   const [sfxChatEnabled, setSfxChatEnabled] = useState(() => store.getSfxChatEnabled());
   const [sfxDeafenEnabled, setSfxDeafenEnabled] = useState(() => store.getSfxDeafenEnabled());
   const [deafened, setDeafened] = useState(false);
-  const preDeafenMicRef = useRef<boolean>(true);
-  const micEnabledRef = useRef(mesh.micEnabled);
   const lastJoinTimeRef = useRef<number>(0);
-  useEffect(() => {
-    micEnabledRef.current = mesh.micEnabled;
-  }, [mesh.micEnabled]);
   const [badgeNotificationsEnabled, setBadgeNotificationsEnabled] = useState(() => store.getBadgeNotificationsEnabled());
   const [unreadCount, setUnreadCount] = useState(0);
   const [selfStatus, setSelfStatus] = useState<'online' | 'idle' | 'dnd'>(() => store.getStatus());
@@ -534,23 +529,11 @@ export function App(): React.JSX.Element {
       if (signaling.status === 'connected') {
         signaling.send({ type: 'deafen-state', deafened: nextDeaf });
       }
-      if (nextDeaf) {
-        preDeafenMicRef.current = micEnabledRef.current;
-        if (micEnabledRef.current) {
-          mesh.setMicEnabled(false);
-        }
-      } else {
-        mesh.setMicEnabled(preDeafenMicRef.current);
-      }
       return nextDeaf;
     });
-  }, [signaling.status, signaling.send, mesh.setMicEnabled]);
+  }, [signaling.status, signaling.send]);
 
   const handleToggleMic = useCallback(() => {
-    if (deafened) {
-      toggleDeafen();
-      return;
-    }
     if (inputMode === 'voice') {
       // Master mute: pause/resume the VAD gate instead of toggling directly.
       setVoiceMuted((m) => {
@@ -561,7 +544,7 @@ export function App(): React.JSX.Element {
       return;
     }
     mesh.toggleMic();
-  }, [deafened, toggleDeafen, mesh.toggleMic, mesh.setMicEnabled, inputMode]);
+  }, [mesh.toggleMic, mesh.setMicEnabled, inputMode]);
 
   // Acquire mic for test when settings is open, release if not in room when closed.
   useEffect(() => {
@@ -612,10 +595,10 @@ export function App(): React.JSX.Element {
     localStream: mesh.localStream,
   });
 
-  // Voice-activation gate (open-mic mode). Paused while manually muted/deafened.
+  // Voice-activation gate (open-mic mode). Paused while manually muted (voiceMuted).
   // Reads the pre-gate analyser so it sees the live mic even while muted.
   useVoiceActivation({
-    active: inputMode === 'voice' && inRoom && !deafened && !voiceMuted,
+    active: inputMode === 'voice' && inRoom && !voiceMuted,
     threshold: vadThreshold,
     releaseMs: vadReleaseMs,
     analyserNode: mesh.analyserNode,
@@ -625,7 +608,7 @@ export function App(): React.JSX.Element {
   // Open-mic downward expander: softly attenuates background noise between
   // speech instead of hard-gating. The mic stays live; only the gain ramps.
   useNoiseExpander({
-    active: inputMode === 'open' && openMicNoiseReductionEnabled && inRoom && !deafened,
+    active: inputMode === 'open' && openMicNoiseReductionEnabled && inRoom,
     threshold: openMicThreshold,
     reductionDb: openMicReductionDb,
     analyserNode: mesh.analyserNode,

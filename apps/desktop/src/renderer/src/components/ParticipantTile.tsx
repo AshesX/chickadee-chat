@@ -127,15 +127,12 @@ export function ParticipantTile({
             ) : (
               initial
             )}
-            {deafened ? (
+            {(deafened || showMuteIcon) && (
               <span className="tile__avatar-mute">
-                <VolumeX size={11} strokeWidth={2.5} />
+                {deafened && <VolumeX size={11} strokeWidth={2.5} />}
+                {showMuteIcon && <MicOff size={11} strokeWidth={2.5} />}
               </span>
-            ) : showMuteIcon ? (
-              <span className="tile__avatar-mute">
-                <MicOff size={11} strokeWidth={2.5} />
-              </span>
-            ) : null}
+            )}
           </div>
         </div>
       )}
@@ -146,7 +143,7 @@ export function ParticipantTile({
           {isSelf && ' (you)'}
         </span>
         {deafened && cameraOn && <VolumeX size={12} className="tile__badge-mute" />}
-        {!deafened && showMuteIcon && cameraOn && <MicOff size={12} className="tile__badge-mute" />}
+        {showMuteIcon && cameraOn && <MicOff size={12} className="tile__badge-mute" />}
       </div>
 
       {gameTag && <div className="tile__gametag">🎮 {gameTag}</div>}

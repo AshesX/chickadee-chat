@@ -4,7 +4,7 @@ const ATTACK_MS = 5; // open near-instantly once the level crosses the threshold
 const HYSTERESIS = 0.7; // close at threshold * HYSTERESIS
 
 interface UseVoiceActivationOpts {
-  /** Run the gate only when in voice mode, in a room, not deafened, not paused. */
+  /** Run the gate only when in voice mode, in a room, and not paused/muted. */
   active: boolean;
   /** RMS open threshold (0..1); the close threshold is threshold * HYSTERESIS. */
   threshold: number;
