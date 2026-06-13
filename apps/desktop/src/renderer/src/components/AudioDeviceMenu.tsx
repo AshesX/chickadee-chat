@@ -1,5 +1,6 @@
 import { Settings } from 'lucide-react';
 import type { MediaDeviceOption } from '../hooks/useMediaDevices';
+import { CustomSelect } from './CustomSelect';
 
 interface AudioDeviceMenuProps {
   mode: 'input' | 'output';
@@ -33,9 +34,12 @@ export function AudioDeviceMenu({
 
   const isInput = mode === 'input';
   const volumeMax = isInput ? 4 : 1;
-  const volumePct = isInput
-    ? Math.round(volume * 100)
-    : Math.round(volume * 100);
+  const volumePct = Math.round(volume * 100);
+
+  const deviceOptions = [
+    { value: '', label: 'System Default' },
+    ...devices.map((d) => ({ value: d.deviceId, label: d.label })),
+  ];
 
   return (
     <>
@@ -48,18 +52,11 @@ export function AudioDeviceMenu({
         <div className="audio-menu__section-label">
           {isInput ? 'Input Device' : 'Output Device'}
         </div>
-        <select
-          className="audio-menu__select"
+        <CustomSelect
           value={selectedDeviceId}
-          onChange={(e) => onSelectDevice(e.target.value)}
-        >
-          <option value="">System Default</option>
-          {devices.map((d) => (
-            <option key={d.deviceId} value={d.deviceId}>
-              {d.label}
-            </option>
-          ))}
-        </select>
+          onChange={onSelectDevice}
+          options={deviceOptions}
+        />
 
         <div className="audio-menu__section-label" style={{ marginTop: 10 }}>
           {isInput ? `Mic Volume — ${volumePct}%` : `Output Volume — ${volumePct}%`}

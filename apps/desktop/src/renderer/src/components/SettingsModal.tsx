@@ -4,6 +4,7 @@ import { defaultSettings, type GameDef } from '@chickadee/shared';
 import { useKeyCapture } from '../hooks/useKeyCapture';
 import type { MediaDeviceOption } from '../hooks/useMediaDevices';
 import { AvatarCropModal } from './AvatarCropModal';
+import { CustomSelect } from './CustomSelect';
 import { VOICE_CATEGORIES } from '../lib/voices';
 import { previewVoice } from '../lib/tts';
 
@@ -782,17 +783,15 @@ export function SettingsModal({
                     <span>Input device (microphone)</span>
                     <span className="settings-row__hint">Switches your mic live without dropping the call.</span>
                   </div>
-                  <select
-                    className="welcome__input"
+                  <CustomSelect
                     value={inputDeviceId}
-                    onChange={(e) => onChangeInputDevice(e.target.value)}
-                    style={{ width: 'auto', maxWidth: '230px', padding: '6px 12px' }}
-                  >
-                    <option value="">System Default</option>
-                    {inputDevices.map((d) => (
-                      <option key={d.deviceId} value={d.deviceId}>{d.label}</option>
-                    ))}
-                  </select>
+                    onChange={onChangeInputDevice}
+                    options={[
+                      { value: '', label: 'System Default' },
+                      ...inputDevices.map((d) => ({ value: d.deviceId, label: d.label })),
+                    ]}
+                    className="settings-device-select"
+                  />
                 </div>
 
                 <div className="settings-row">
@@ -826,17 +825,15 @@ export function SettingsModal({
                     <span>Output device (speakers)</span>
                     <span className="settings-row__hint">Where other people's audio plays.</span>
                   </div>
-                  <select
-                    className="welcome__input"
+                  <CustomSelect
                     value={outputDeviceId}
-                    onChange={(e) => onChangeOutputDevice(e.target.value)}
-                    style={{ width: 'auto', maxWidth: '230px', padding: '6px 12px' }}
-                  >
-                    <option value="">System Default</option>
-                    {outputDevices.map((d) => (
-                      <option key={d.deviceId} value={d.deviceId}>{d.label}</option>
-                    ))}
-                  </select>
+                    onChange={onChangeOutputDevice}
+                    options={[
+                      { value: '', label: 'System Default' },
+                      ...outputDevices.map((d) => ({ value: d.deviceId, label: d.label })),
+                    ]}
+                    className="settings-device-select"
+                  />
                 </div>
 
                 <div className="settings-row">
