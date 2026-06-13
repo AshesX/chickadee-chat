@@ -207,7 +207,16 @@ export function usePeerMesh(
         expanderGainNodeRef.current = expanderGainNodeObj;
         localStreamRef.current = processedStream;
 
-        for (const track of processedStream.getAudioTracks()) track.enabled = micEnabledRef.current;
+        for (const track of processedStream.getAudioTracks()) {
+          track.enabled = micEnabledRef.current;
+          void track.applyConstraints({
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false,
+          }).catch((err) => {
+            console.warn('Failed to disable post-processing constraints on initial track', err);
+          });
+        }
         // Upgrade links created before the mic was ready (listen-only → sending).
         // Audio only — video is managed separately via setLocalVideoTrack.
         for (const link of linksRef.current.values()) {
@@ -468,6 +477,16 @@ export function usePeerMesh(
           analyserNodeRef.current = newAnalyser;
           setAnalyserNode(newAnalyser);
           nextStream = processedStream;
+
+          for (const track of processedStream.getAudioTracks()) {
+            void track.applyConstraints({
+              echoCancellation: false,
+              noiseSuppression: false,
+              autoGainControl: false,
+            }).catch((err) => {
+              console.warn('Failed to disable post-processing constraints on switched track', err);
+            });
+          }
         } else {
           setAnalyserNode(null);
           nextStream = newRaw;
