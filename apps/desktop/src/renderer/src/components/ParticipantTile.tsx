@@ -6,6 +6,8 @@ export interface ParticipantTileProps {
   displayName: string;
   isSelf: boolean;
   muted: boolean;
+  /** If provided, controls the mute icon independently of the audio-gate `muted` prop. */
+  intentionallyMuted?: boolean;
   /** Whether this participant's camera is on (show video vs. avatar). */
   cameraOn: boolean;
   /** Camera+mic stream: local (muted preview) for self, remote otherwise. */
@@ -40,6 +42,7 @@ export function ParticipantTile({
   displayName,
   isSelf,
   muted,
+  intentionallyMuted,
   cameraOn,
   cameraStream,
   color,
@@ -53,6 +56,8 @@ export function ParticipantTile({
 }: ParticipantTileProps): React.JSX.Element {
   const videoRef = useRef<HTMLVideoElement>(null);
   const speaking = useAudioActivity(muted ? null : cameraStream);
+  const SPEAK_GREEN = '#22c55e';
+  const showMuteIcon = intentionallyMuted ?? muted;
 
   // The <video> is always mounted so remote audio plays even with camera off.
   useEffect(() => {
@@ -86,8 +91,8 @@ export function ParticipantTile({
         // Color-derived speaking ring + glow.
         ...(speaking
           ? {
-              borderColor: color,
-              boxShadow: `0 0 34px ${color}1e, inset 0 0 70px ${color}06`,
+              borderColor: SPEAK_GREEN,
+              boxShadow: '0 0 34px #22c55e1e, inset 0 0 70px #22c55e06',
             }
           : null),
       }}
@@ -110,10 +115,10 @@ export function ParticipantTile({
         <div className="tile__center">
           {speaking && (
             <>
-              <span className="tile__ripple" style={{ borderColor: `${color}55` }} />
+              <span className="tile__ripple" style={{ borderColor: '#22c55e55' }} />
               <span
                 className="tile__ripple tile__ripple--2"
-                style={{ borderColor: `${color}28` }}
+                style={{ borderColor: '#22c55e28' }}
               />
             </>
           )}
@@ -121,7 +126,7 @@ export function ParticipantTile({
             className="tile__avatar"
             style={{
               background: avatarUrl ? undefined : `linear-gradient(145deg, ${color}ee, ${color}66)`,
-              boxShadow: speaking ? `0 0 34px ${color}70` : '0 4px 22px rgba(0,0,0,.55)',
+              boxShadow: speaking ? '0 0 34px #22c55e70' : '0 4px 22px rgba(0,0,0,.55)',
             }}
           >
             {avatarUrl ? (
@@ -133,7 +138,7 @@ export function ParticipantTile({
               <span className="tile__avatar-mute">
                 <VolumeX size={11} strokeWidth={2.5} />
               </span>
-            ) : muted ? (
+            ) : showMuteIcon ? (
               <span className="tile__avatar-mute">
                 <MicOff size={11} strokeWidth={2.5} />
               </span>
@@ -146,7 +151,7 @@ export function ParticipantTile({
         {speaking && (
           <span
             className="tile__badge-dot"
-            style={{ background: color, boxShadow: `0 0 7px ${color}` }}
+            style={{ background: SPEAK_GREEN, boxShadow: '0 0 7px #22c55e' }}
           />
         )}
         <span className="tile__badge-name">
@@ -155,7 +160,7 @@ export function ParticipantTile({
         </span>
         {transmitting && <span className="tile__transmitting">🎙 Transmitting…</span>}
         {deafened && cameraOn && <VolumeX size={12} className="tile__badge-mute" />}
-        {!deafened && muted && cameraOn && <MicOff size={12} className="tile__badge-mute" />}
+        {!deafened && showMuteIcon && cameraOn && <MicOff size={12} className="tile__badge-mute" />}
       </div>
 
       {gameTag && <div className="tile__gametag">🎮 {gameTag}</div>}

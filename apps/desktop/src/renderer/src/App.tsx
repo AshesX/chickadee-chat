@@ -644,6 +644,7 @@ export function App(): React.JSX.Element {
         displayName={displayName}
         isSelf
         muted={!mesh.micEnabled}
+        intentionallyMuted={!micButtonOn}
         cameraOn={mesh.cameraEnabled}
         cameraStream={mesh.localStream}
         color={SELF_COLOR}
