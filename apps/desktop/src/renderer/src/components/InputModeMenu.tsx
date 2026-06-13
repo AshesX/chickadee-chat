@@ -41,7 +41,7 @@ export function InputModeMenu({
   const rawLeft = anchorRect.left + anchorRect.width / 2 - menuWidth / 2;
   const left = Math.max(8, Math.min(rawLeft, window.innerWidth - menuWidth - 8));
 
-  const vadPct = Math.round(((vadThreshold - 0.01) / (0.2 - 0.01)) * 100);
+  const vadPct = Math.round(((vadThreshold - 0.01) / (0.1 - 0.01)) * 100);
 
   return (
     <>
@@ -104,7 +104,7 @@ export function InputModeMenu({
               type="range"
               className="audio-menu__slider"
               min={0.01}
-              max={0.2}
+              max={0.1}
               step={0.005}
               value={vadThreshold}
               onChange={(e) => onChangeVadThreshold(Number(e.target.value))}

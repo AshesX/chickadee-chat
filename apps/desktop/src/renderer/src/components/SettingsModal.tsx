@@ -253,11 +253,10 @@ function Toggle({
 }
 
 /**
- * A single rAF loop reads `analyserNode.getByteFrequencyData` once per frame and
+ * A single rAF loop reads `analyserNode.getByteTimeDomainData` once per frame and
  * writes the level to every registered meter bar. This avoids having multiple
- * `MicLevelMeter`s each poll the same AnalyserNode — two `getByteFrequencyData`
- * readers on one node starve each other (the second reads zeros), which is why
- * the voice meter previously stayed empty while the mic-volume meter worked.
+ * `MicLevelMeter`s each poll the same AnalyserNode — two readers on one node
+ * starve each other.
  */
 function useSharedMicMeter(
   analyserNode: AnalyserNode | null,
@@ -271,22 +270,23 @@ function useSharedMicMeter(
       return;
     }
 
-    const dataArray = new Uint8Array(analyserNode.frequencyBinCount);
+    const dataArray = new Uint8Array(analyserNode.fftSize);
     let animationFrameId: number;
 
     const updateMeter = (): void => {
-      analyserNode.getByteFrequencyData(dataArray);
+      analyserNode.getByteTimeDomainData(dataArray);
 
-      let sum = 0;
+      let sumSquares = 0;
       for (let i = 0; i < dataArray.length; i++) {
-        sum += dataArray[i];
+        const centered = (dataArray[i] - 128) / 128;
+        sumSquares += centered * centered;
       }
-      const average = sum / dataArray.length;
+      const rms = Math.sqrt(sumSquares / dataArray.length);
 
-      // Normalize average (which typically lands between 0 and 110 for speech)
-      const percentage = Math.min(100, Math.round((average / 110) * 100));
-      // Clip warning if boosted audio is excessively high (frequency amplitude clipping)
-      const className = `mic-meter__fill${average > 195 ? ' mic-meter__fill--clipping' : ''}`;
+      // Normalize RMS relative to the 0.1 maximum sensitivity threshold.
+      const percentage = Math.min(100, Math.round((rms / 0.1) * 100));
+      // Clip warning if boosted audio is excessively high (clipping begins above ~0.95)
+      const className = `mic-meter__fill${rms > 0.95 ? ' mic-meter__fill--clipping' : ''}`;
 
       // Read the live Set each frame so a meter that mounts later (the
       // conditional voice section) is picked up immediately.
@@ -310,9 +310,11 @@ function useSharedMicMeter(
 function MicLevelMeter({
   bars,
   online,
+  threshold,
 }: {
   bars: React.MutableRefObject<Set<HTMLDivElement>>;
   online: boolean;
+  threshold?: number;
 }): React.JSX.Element {
   const barRef = useRef<HTMLDivElement>(null);
 
@@ -326,10 +328,19 @@ function MicLevelMeter({
     };
   }, [bars]);
 
+  const markerPosition = threshold !== undefined ? Math.min(100, (threshold / 0.1) * 100) : null;
+
   return (
     <div className="mic-meter">
       <div className="mic-meter__track">
         <div ref={barRef} className="mic-meter__fill" />
+        {markerPosition !== null && (
+          <div
+            className="mic-meter__gate-marker"
+            style={{ left: `${markerPosition}%` }}
+            title={`Gate Threshold: ${Math.round(markerPosition)}%`}
+          />
+        )}
       </div>
       <span className="mic-meter__label">
         {online ? 'Live input' : 'Mic offline'}
@@ -857,7 +868,7 @@ export function SettingsModal({
                 <div className="settings-row">
                   <div className="settings-row__label">
                     <span>Mic volume</span>
-                    <span className="settings-row__hint">Adjust sensitivity. Levels above 100% act as a gain boost.</span>
+                    <span className="settings-row__hint">Adjust mic volume. Levels above 100% act as a gain boost (which also helps voice sensitivity triggers).</span>
                   </div>
                   <div className="mic-control-wrap">
                     <SettingsSlider
@@ -950,19 +961,19 @@ export function SettingsModal({
                       <div className="mic-control-wrap">
                         <SettingsSlider
                           min={0.01}
-                          max={0.2}
+                          max={0.1}
                           step={0.005}
                           value={vadThreshold}
                           onChange={onChangeVadThreshold}
-                          markers={[0.01, 0.05, 0.1, 0.15, 0.2]}
+                          markers={[0.01, 0.05, 0.1]}
                           labels={[
                             { value: 0.01, text: 'Low' },
-                            { value: 0.1, text: 'Medium' },
-                            { value: 0.2, text: 'High' },
+                            { value: 0.05, text: 'Medium' },
+                            { value: 0.1, text: 'High' },
                           ]}
-                          snapThreshold={0.004}
+                          snapThreshold={0.002}
                         />
-                        <MicLevelMeter bars={micBars} online={!!analyserNode} />
+                        <MicLevelMeter bars={micBars} online={!!analyserNode} threshold={vadThreshold} />
                       </div>
                     </div>
 
@@ -1005,19 +1016,19 @@ export function SettingsModal({
                           <div className="mic-control-wrap">
                             <SettingsSlider
                               min={0.01}
-                              max={0.2}
+                              max={0.1}
                               step={0.005}
                               value={openMicThreshold}
                               onChange={onChangeOpenMicThreshold}
-                              markers={[0.01, 0.05, 0.1, 0.15, 0.2]}
+                              markers={[0.01, 0.05, 0.1]}
                               labels={[
                                 { value: 0.01, text: 'Low' },
-                                { value: 0.1, text: 'Medium' },
-                                { value: 0.2, text: 'High' },
+                                { value: 0.05, text: 'Medium' },
+                                { value: 0.1, text: 'High' },
                               ]}
-                              snapThreshold={0.004}
+                              snapThreshold={0.002}
                             />
-                            <MicLevelMeter bars={micBars} online={!!analyserNode} />
+                            <MicLevelMeter bars={micBars} online={!!analyserNode} threshold={openMicThreshold} />
                           </div>
                         </div>
 

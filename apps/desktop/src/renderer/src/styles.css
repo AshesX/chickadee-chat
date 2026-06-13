@@ -1999,8 +1999,21 @@ button {
   height: 6px;
   background: #090918;
   border-radius: var(--radius-pill);
-  overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.04);
+  position: relative;
+}
+
+.mic-meter__gate-marker {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: 12px;
+  background-color: #ffffff;
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.6);
+  border-radius: 1px;
+  z-index: 5;
+  pointer-events: none;
+  transform: translateX(-50%);
 }
 
 .mic-meter__fill {
