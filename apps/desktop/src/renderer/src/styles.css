@@ -1501,16 +1501,17 @@ button {
 .seg-btn {
   padding: 6px 12px;
   border: 1px solid var(--border);
+  border-radius: var(--radius-badge);
   background: var(--bg);
   color: var(--text);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
 }
-.seg-btn:first-child {
+.seg-group > .seg-btn:first-child {
   border-radius: var(--radius-badge) 0 0 var(--radius-badge);
 }
-.seg-btn:last-child {
+.seg-group > .seg-btn:last-child {
   border-radius: 0 var(--radius-badge) var(--radius-badge) 0;
   border-left: none;
 }

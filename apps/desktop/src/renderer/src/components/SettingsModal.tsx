@@ -1507,18 +1507,21 @@ export function SettingsModal({
                   <span className="settings-row__hint">How your messages sound to others who have read-aloud on. Each listener's app matches it to the closest voice their system has.</span>
                 </div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <select
-                    className="welcome__input"
+                  <CustomSelect
                     value={voicePreference}
-                    onChange={(e) => onChangeVoicePreference(e.target.value)}
-                    style={{ width: 'auto', maxWidth: '230px', padding: '6px 12px' }}
+                    onChange={onChangeVoicePreference}
+                    options={[
+                      { value: '', label: 'System Default' },
+                      ...VOICE_CATEGORIES.map((c) => ({ value: c.id, label: c.label }))
+                    ]}
+                    className="settings-device-select"
+                  />
+                  <button
+                    className="seg-btn"
+                    onClick={() => previewVoice(voicePreference)}
                   >
-                    <option value="">System Default</option>
-                    {VOICE_CATEGORIES.map((c) => (
-                      <option key={c.id} value={c.id}>{c.label}</option>
-                    ))}
-                  </select>
-                  <button className="seg-btn" onClick={() => previewVoice(voicePreference)}>Test</button>
+                    Test
+                  </button>
                 </div>
               </div>
               </>
