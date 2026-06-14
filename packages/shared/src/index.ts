@@ -300,6 +300,8 @@ export type ClientMessage =
   | { type: 'voice-state'; voicePreference: string }
   // Broadcast room list changes to the active space.
   | { type: 'update-rooms'; spaceId: string; rooms: Room[] }
+  // Broadcast space rename to active peers.
+  | { type: 'rename-space'; spaceId: string; newSpaceId: string; newSpaceName: string }
   // Ephemeral room chat (a reaction is a chat with `reaction: true`).
   | { type: 'chat'; text: string; reaction?: boolean }
   // Liveness check so the client can detect a dead/half-open connection.
@@ -346,6 +348,8 @@ export type ServerMessage =
   | { type: 'voice-state'; from: PeerId; voicePreference: string }
   // Broadcast room list changes to the active space.
   | { type: 'rooms-updated'; spaceId: string; rooms: Room[] }
+  // Broadcast space rename to all clients in the space.
+  | { type: 'space-renamed'; spaceId: string; newSpaceId: string; newSpaceName: string }
   // Relayed room chat / reaction.
   | { type: 'chat'; from: PeerId; text: string; reaction?: boolean }
   // Reply to a client ping.

@@ -27,8 +27,8 @@ export interface UseSpacesResult {
   deleteSpace: (spaceId: string, spaceName: string) => void;
   /** Initializes the first space during onboarding. */
   initFirstSpace: (val: string, action: 'create' | 'join', customSignalingUrl?: string, joinSecret?: string) => void;
-  /** Updates connection settings for an existing space. */
-  updateSpaceSettings: (spaceId: string, customSignalingUrl: string, joinSecret: string) => void;
+  /** Updates settings for an existing space (supports renaming). */
+  updateSpaceSettings: (spaceId: string, name: string, customSignalingUrl: string, joinSecret: string, precomputedId?: string) => string;
   /** Updates room list in state + persisted store. Used by createRoom/renameRoom/removeRoom/signaling sync. */
   updateRooms: (rooms: Room[]) => void;
 }
@@ -116,11 +116,39 @@ export function useSpaces(clearRoom: () => void): UseSpacesResult {
     store.setRooms(nextRooms);
   }, []);
 
-  function updateSpaceSettings(spaceId: string, customSignalingUrl: string, joinSecret: string): void {
-    const nextSpaces = spaces.map(s => s.id === spaceId ? { ...s, customSignalingUrl, joinSecret } : s);
+  const updateSpaceSettings = useCallback((spaceId: string, name: string, customSignalingUrl: string, joinSecret: string, precomputedId?: string): string => {
+    const spaceToRename = spaces.find(s => s.id === spaceId);
+    let newSpaceId = spaceId;
+    if (spaceToRename && spaceToRename.name.trim().toLowerCase() !== name.trim().toLowerCase()) {
+      newSpaceId = precomputedId || generateSpaceId(name);
+    }
+
+    const nextSpaces = spaces.map(s => {
+      if (s.id === spaceId) {
+        return {
+          ...s,
+          id: newSpaceId,
+          name: name.trim(),
+          customSignalingUrl,
+          joinSecret
+        };
+      }
+      return s;
+    });
+
     store.setSpaces(nextSpaces);
     setSpaces(nextSpaces);
-  }
+
+    if (spaceId === currentSpaceId) {
+      store.setActiveSpaceId(newSpaceId);
+      setCurrentSpaceId(newSpaceId);
+      if (spaceToRename) {
+        setRooms(spaceToRename.rooms);
+      }
+    }
+
+    return newSpaceId;
+  }, [spaces, currentSpaceId]);
 
   return { spaces, currentSpaceId, rooms, switchSpace, addSpace, deleteSpace, initFirstSpace, updateRooms, updateSpaceSettings };
 }

@@ -361,6 +361,19 @@ function handleUpdateRooms(spaceId: string, roomsList: Room[]): void {
   console.log(`[rooms-update] space "${spaceId}" rooms updated; broadcasted to members`);
 }
 
+function handleRenameSpace(conn: Connection, newSpaceId: string, newSpaceName: string): void {
+  const spaceId = conn.space;
+  const clampedId = clampString(newSpaceId, MAX_ID_LEN);
+  const clampedName = clampString(newSpaceName, MAX_DISPLAY_NAME_LEN);
+  
+  if (!clampedId || !clampedName) return;
+
+  // Broadcast the space-renamed message to everyone in the current space except the sender
+  broadcastSpace(spaceId, { type: 'space-renamed', spaceId, newSpaceId: clampedId, newSpaceName: clampedName }, conn);
+  
+  console.log(`[space-rename] space "${spaceId}" renamed to "${clampedName}" with new ID "${clampedId}"`);
+}
+
 /** Relay an ephemeral chat message / reaction to the rest of the room. */
 function handleChat(conn: Connection, text: string, reaction: boolean | undefined): void {
   const trimmed = clampString(text, CHAT_MAX_LEN);
@@ -520,6 +533,8 @@ wss.on('connection', (socket) => {
       handleVoiceState(conn, msg.voicePreference);
     } else if (msg.type === 'update-rooms') {
       handleUpdateRooms(msg.spaceId, msg.rooms);
+    } else if (msg.type === 'rename-space') {
+      handleRenameSpace(conn, msg.newSpaceId, msg.newSpaceName);
     } else if (msg.type === 'chat') {
       handleChat(conn, msg.text, msg.reaction);
     }

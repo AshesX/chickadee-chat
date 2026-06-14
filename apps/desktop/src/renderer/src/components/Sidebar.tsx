@@ -189,7 +189,6 @@ export function Sidebar({
                           setSwitcherOpen(false);
                         }}
                         title="Space Settings"
-                        style={{ background: 'transparent', border: 'none', color: 'var(--dim)', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
                       >
                         <Settings size={12} />
                       </button>

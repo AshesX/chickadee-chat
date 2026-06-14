@@ -35,6 +35,7 @@ import { generateBadgeOverlay } from './lib/trayIcon';
 import { Modal } from './components/Modal';
 import { playSfx } from './lib/sfx';
 import { SpaceSettingsModal } from './components/SpaceSettingsModal';
+import { AdvancedConnectionSettings } from './components/AdvancedConnectionSettings';
 import { speakChatMessage, cancelSpeech } from './lib/tts';
 import { initVoices } from './lib/voices';
 
@@ -335,6 +336,29 @@ export function App(): React.JSX.Element {
     // Room movement and status updates are sent dynamically over the active socket.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentSpaceId, userId, displayName, spaces]);
+  
+  // Listen for space renames from other clients
+  useEffect(() => {
+    const unsubscribe = signaling.subscribe((msg) => {
+      if (msg.type === 'space-renamed') {
+        const { spaceId, newSpaceId, newSpaceName } = msg;
+        const exists = spaces.some((s) => s.id === spaceId);
+        if (exists) {
+          const existingSpace = spaces.find((s) => s.id === spaceId);
+          if (existingSpace) {
+            updateSpaceSettings(
+              spaceId,
+              newSpaceName,
+              existingSpace.customSignalingUrl || '',
+              existingSpace.joinSecret || '',
+              newSpaceId
+            );
+          }
+        }
+      }
+    });
+    return unsubscribe;
+  }, [signaling.subscribe, spaces, updateSpaceSettings]);
 
   const applyStatus = useCallback((status: 'online' | 'idle' | 'dnd') => {
     setSelfStatus(status);
@@ -1086,42 +1110,21 @@ export function App(): React.JSX.Element {
               maxLength={32}
             />
           </div>
-          <div style={{ marginTop: '8px' }}>
-            <button
-              className="welcome__btn"
-              style={{ background: 'transparent', border: 'none', color: 'var(--dim)', textAlign: 'left', padding: '0', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px' }}
-              onClick={() => setAdvancedOpen(!advancedOpen)}
-            >
-              {advancedOpen ? '▼ Hide' : '▶ Show'} Advanced Connection Settings
-            </button>
-            {advancedOpen && (
-              <div style={{ marginTop: '12px', padding: '12px', background: 'var(--bg-mid)', borderRadius: 'var(--radius-panel)' }}>
-                <label className="field-label" style={{ textAlign: 'left' }}>Signaling Server URL (Optional)</label>
-                <input
-                  className="welcome__input"
-                  value={customSignalingUrl}
-                  onChange={(e) => setCustomSignalingUrl(e.target.value)}
-                  placeholder="e.g. wss://chickadee.example.com"
-                  style={{ marginBottom: '12px' }}
-                />
-                <label className="field-label" style={{ textAlign: 'left' }}>Join Secret / Password (Optional)</label>
-                <input
-                  className="welcome__input"
-                  type="password"
-                  value={joinSecret}
-                  onChange={(e) => setJoinSecret(e.target.value)}
-                  placeholder="Leave blank for public servers"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && newSpaceName.trim()) {
-                      addSpace(newSpaceName, 'create', customSignalingUrl.trim() || undefined, joinSecret || undefined);
-                      setNewSpaceName('');
-                      setCreateSpaceOpen(false);
-                    }
-                  }}
-                />
-              </div>
-            )}
-          </div>
+          <AdvancedConnectionSettings
+            customSignalingUrl={customSignalingUrl}
+            setCustomSignalingUrl={setCustomSignalingUrl}
+            joinSecret={joinSecret}
+            setJoinSecret={setJoinSecret}
+            advancedOpen={advancedOpen}
+            setAdvancedOpen={setAdvancedOpen}
+            onEnterKeyDown={() => {
+              if (newSpaceName.trim()) {
+                addSpace(newSpaceName, 'create', customSignalingUrl.trim() || undefined, joinSecret || undefined);
+                setNewSpaceName('');
+                setCreateSpaceOpen(false);
+              }
+            }}
+          />
           <button
             className="modal-action"
             onClick={() => {
@@ -1155,42 +1158,21 @@ export function App(): React.JSX.Element {
               autoFocus
             />
           </div>
-          <div style={{ marginTop: '8px' }}>
-            <button
-              className="welcome__btn"
-              style={{ background: 'transparent', border: 'none', color: 'var(--dim)', textAlign: 'left', padding: '0', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px' }}
-              onClick={() => setAdvancedOpen(!advancedOpen)}
-            >
-              {advancedOpen ? '▼ Hide' : '▶ Show'} Advanced Connection Settings
-            </button>
-            {advancedOpen && (
-              <div style={{ marginTop: '12px', padding: '12px', background: 'var(--bg-mid)', borderRadius: 'var(--radius-panel)' }}>
-                <label className="field-label" style={{ textAlign: 'left' }}>Signaling Server URL (Optional)</label>
-                <input
-                  className="welcome__input"
-                  value={customSignalingUrl}
-                  onChange={(e) => setCustomSignalingUrl(e.target.value)}
-                  placeholder="e.g. wss://chickadee.example.com"
-                  style={{ marginBottom: '12px' }}
-                />
-                <label className="field-label" style={{ textAlign: 'left' }}>Join Secret / Password (Optional)</label>
-                <input
-                  className="welcome__input"
-                  type="password"
-                  value={joinSecret}
-                  onChange={(e) => setJoinSecret(e.target.value)}
-                  placeholder="Leave blank for public servers"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && inviteCodeInput.trim()) {
-                      addSpace(inviteCodeInput, 'join', customSignalingUrl.trim() || undefined, joinSecret || undefined);
-                      setInviteCodeInput('');
-                      setJoinSpaceOpen(false);
-                    }
-                  }}
-                />
-              </div>
-            )}
-          </div>
+          <AdvancedConnectionSettings
+            customSignalingUrl={customSignalingUrl}
+            setCustomSignalingUrl={setCustomSignalingUrl}
+            joinSecret={joinSecret}
+            setJoinSecret={setJoinSecret}
+            advancedOpen={advancedOpen}
+            setAdvancedOpen={setAdvancedOpen}
+            onEnterKeyDown={() => {
+              if (inviteCodeInput.trim()) {
+                addSpace(inviteCodeInput, 'join', customSignalingUrl.trim() || undefined, joinSecret || undefined);
+                setInviteCodeInput('');
+                setJoinSpaceOpen(false);
+              }
+            }}
+          />
           <button
             className="modal-action"
             onClick={() => {
@@ -1326,8 +1308,27 @@ export function App(): React.JSX.Element {
       {spaceSettingsTarget && (
         <SpaceSettingsModal
           space={spaces.find(s => s.id === spaceSettingsTarget)!}
-          onSave={(url, secret) => {
-            updateSpaceSettings(spaceSettingsTarget, url, secret);
+          onSave={(name, url, secret) => {
+            const oldSpaceId = spaceSettingsTarget;
+            const space = spaces.find(s => s.id === oldSpaceId);
+            const isRename = space && space.name.trim().toLowerCase() !== name.trim().toLowerCase();
+
+            if (isRename && signaling.status === 'connected' && oldSpaceId === currentSpaceId) {
+              const tempSlug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'space';
+              const suffix = Math.random().toString(36).substring(2, 7);
+              const newSpaceId = `${tempSlug}-${suffix}`;
+              
+              signaling.send({
+                type: 'rename-space',
+                spaceId: oldSpaceId,
+                newSpaceId,
+                newSpaceName: name.trim()
+              });
+              
+              updateSpaceSettings(oldSpaceId, name, url, secret, newSpaceId);
+            } else {
+              updateSpaceSettings(oldSpaceId, name, url, secret);
+            }
             setSpaceSettingsTarget(null);
           }}
           onClose={() => setSpaceSettingsTarget(null)}

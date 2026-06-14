@@ -2065,6 +2065,25 @@ button {
   color: #f87171 !important;
 }
 
+.space-dropdown__item-settings {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  color: var(--dim);
+  opacity: 0.5;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.space-dropdown__item-settings:hover {
+  opacity: 1 !important;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text) !important;
+}
+
 .space-dropdown__actions {
   padding: 4px;
   display: flex;
