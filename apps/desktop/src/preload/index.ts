@@ -10,16 +10,14 @@ import {
 interface AppConfig {
   signalingUrl: string;
   iceServers: RTCIceServer[];
-  settings: PersistedSettings;
   appVersion: string;
 }
 
-/** Main passes runtime config synchronously via --chickadee-config=<json>. */
+/** Main passes small fixed runtime config synchronously via --chickadee-config=<json>. */
 function readConfig(): AppConfig {
   const fallback: AppConfig = {
     signalingUrl: 'ws://localhost:8080',
     iceServers: DEFAULT_ICE_SERVERS,
-    settings: defaultSettings(),
     appVersion: '0.1.0',
   };
   const arg = process.argv.find((a) => a.startsWith('--chickadee-config='));
@@ -42,8 +40,14 @@ const api = {
   signalingUrl: config.signalingUrl,
   /** ICE servers (STUN + TURN) for RTCPeerConnection. */
   iceServers: config.iceServers,
-  /** Persisted settings (name, rooms, friends, userId, prefs). */
-  settings: config.settings,
+  /**
+   * Persisted settings (name, rooms, friends, userId, prefs). Fetched over a
+   * synchronous IPC rather than argv so the base64 avatar can't overflow the
+   * command-line length limit (which would silently reset to defaults).
+   */
+  settings:
+    (ipcRenderer.sendSync('chickadee:get-settings') as PersistedSettings | null) ??
+    defaultSettings(),
   /** App version */
   appVersion: config.appVersion,
   /** Merge + persist a partial settings update to userData. */

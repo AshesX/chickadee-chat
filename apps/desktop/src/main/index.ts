@@ -71,7 +71,6 @@ function loadDotEnv(): void {
 interface AppConfig {
   signalingUrl: string;
   iceServers: RTCIceServer[];
-  settings: PersistedSettings;
   appVersion: string;
 }
 
@@ -94,7 +93,10 @@ function buildConfig(): AppConfig {
   } else {
     iceServers.push(...PUBLIC_TURN_SERVERS);
   }
-  return { signalingUrl, iceServers, settings: getSettings(), appVersion: app.getVersion() };
+  // NOTE: settings are intentionally NOT passed here — they ride the synchronous
+  // `chickadee:get-settings` IPC instead, because the full settings object includes
+  // the base64 avatar and argv has a hard length limit (~32 KB on Windows).
+  return { signalingUrl, iceServers, appVersion: app.getVersion() };
 }
 
 loadDotEnv();
@@ -137,7 +139,7 @@ function createWindow(): void {
     show: false,
     frame: false,
     autoHideMenuBar: true,
-    alwaysOnTop: config.settings.alwaysOnTop,
+    alwaysOnTop: getSettings().alwaysOnTop,
     backgroundColor: '#06060f',
     title: 'Chickadee Chat',
     webPreferences: {
@@ -218,6 +220,12 @@ app.whenReady().then(() => {
   // Reconcile OS-level prefs with the persisted settings on launch.
   app.setLoginItemSettings({ openAtLogin: getSettings().launchOnStartup });
 
+  // Synchronous settings handoff to the preload (replaces passing settings via argv,
+  // which has a length limit the base64 avatar could overflow). Registered before
+  // createWindow() so the preload's sendSync always has a loaded value to return.
+  ipcMain.on('chickadee:get-settings', (e) => {
+    e.returnValue = getSettings();
+  });
   ipcMain.handle('chickadee:save-settings', (_e, partial: Partial<PersistedSettings>) =>
     saveSettings(partial),
   );
@@ -257,6 +265,8 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
+}).catch((err) => {
+  console.error('Failed during app startup:', err);
 });
 
 app.on('before-quit', () => {
