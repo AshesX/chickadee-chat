@@ -282,7 +282,7 @@ export interface ScreenSource {
 
 /** Messages sent from a client up to the signaling server. */
 export type ClientMessage =
-  | { type: 'join'; spaceId: string; room: RoomId | null; displayName: string; userId: string; rooms: Room[]; status?: 'online' | 'idle' | 'dnd'; avatarDataUrl?: string | null; voicePreference?: string }
+  | { type: 'join'; spaceId: string; room: RoomId | null; displayName: string; userId: string; rooms: Room[]; status?: 'online' | 'idle' | 'dnd'; avatarDataUrl?: string | null; voicePreference?: string; secret?: string }
   | { type: 'join-room'; room: RoomId | null }
   | { type: 'offer'; to: PeerId; sdp: RTCSessionDescriptionInit }
   | { type: 'answer'; to: PeerId; sdp: RTCSessionDescriptionInit }

@@ -42,6 +42,14 @@ const ALLOWED_ORIGINS = (process.env.CHICKADEE_ALLOWED_ORIGINS ?? '')
   .map((o) => o.trim())
   .filter(Boolean);
 
+/**
+ * Optional shared join secret. Rooms are otherwise reachable by anyone who knows
+ * the (locally-generated, non-secret) spaceId, so set CHICKADEE_JOIN_SECRET on a
+ * private deployment to require a matching `secret` in every `join`. Empty =
+ * open server (default; the public client sends no secret).
+ */
+const JOIN_SECRET = process.env.CHICKADEE_JOIN_SECRET ?? '';
+
 /** Everything we track about one connected socket. */
 interface Connection {
   socket: WebSocket;
@@ -474,6 +482,13 @@ wss.on('connection', (socket) => {
 
     if (msg.type === 'join') {
       if (conn) return; // already joined; ignore duplicate joins
+      // Optional shared-secret gate (private deployments). Silent reject on
+      // mismatch — a legitimate client always carries the configured secret.
+      if (JOIN_SECRET && msg.secret !== JOIN_SECRET) {
+        console.warn('[join] rejected: missing/incorrect join secret');
+        socket.close(1008, 'unauthorized');
+        return;
+      }
       conn = handleJoin(socket, msg);
       return;
     }

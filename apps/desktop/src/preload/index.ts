@@ -11,6 +11,7 @@ interface AppConfig {
   signalingUrl: string;
   iceServers: RTCIceServer[];
   appVersion: string;
+  joinSecret: string;
 }
 
 /** Main passes small fixed runtime config synchronously via --chickadee-config=<json>. */
@@ -19,6 +20,7 @@ function readConfig(): AppConfig {
     signalingUrl: 'ws://localhost:8080',
     iceServers: DEFAULT_ICE_SERVERS,
     appVersion: '0.1.0',
+    joinSecret: '',
   };
   const arg = process.argv.find((a) => a.startsWith('--chickadee-config='));
   if (!arg) return fallback;
@@ -40,6 +42,8 @@ const api = {
   signalingUrl: config.signalingUrl,
   /** ICE servers (STUN + TURN) for RTCPeerConnection. */
   iceServers: config.iceServers,
+  /** Optional shared join secret for private signaling deployments ('' = none). */
+  joinSecret: config.joinSecret,
   /**
    * Persisted settings (name, rooms, friends, userId, prefs). Fetched over a
    * synchronous IPC rather than argv so the base64 avatar can't overflow the

@@ -244,6 +244,8 @@ export function useSignaling(url: string): Signaling {
           status: statusRef.current,
           avatarDataUrl: avatarDataUrlRef.current,
           voicePreference: voicePreferenceRef.current,
+          // Deployment-level shared secret (private servers); '' on the public client.
+          secret: window.chickadee?.joinSecret ?? '',
         }),
       );
       // Heartbeat: ping periodically; if pongs stop, force-close → reconnect.

@@ -72,6 +72,8 @@ interface AppConfig {
   signalingUrl: string;
   iceServers: RTCIceServer[];
   appVersion: string;
+  /** Optional shared join secret for private signaling deployments ('' = none). */
+  joinSecret: string;
 }
 
 function buildConfig(): AppConfig {
@@ -96,7 +98,12 @@ function buildConfig(): AppConfig {
   // NOTE: settings are intentionally NOT passed here — they ride the synchronous
   // `chickadee:get-settings` IPC instead, because the full settings object includes
   // the base64 avatar and argv has a hard length limit (~32 KB on Windows).
-  return { signalingUrl, iceServers, appVersion: app.getVersion() };
+  return {
+    signalingUrl,
+    iceServers,
+    appVersion: app.getVersion(),
+    joinSecret: process.env.CHICKADEE_JOIN_SECRET ?? '',
+  };
 }
 
 loadDotEnv();
@@ -147,7 +154,12 @@ function createWindow(): void {
       // "type": "module"), so the preload is index.js. Keeping these in sync
       // is essential — a wrong extension leaves window.chickadee undefined.
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false,
+      // Chromium sandbox on for defense-in-depth. The preload only uses
+      // sandbox-safe APIs (contextBridge/ipcRenderer/webFrame) and reads its
+      // config from process.argv (additionalArguments), both of which work in a
+      // sandboxed preload. @chickadee/shared is bundled in (pure TS, no node
+      // builtins), so no disallowed require() is emitted.
+      sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
       // Keep the renderer responsive (mic toggles, PTT) when unfocused/minimized.
