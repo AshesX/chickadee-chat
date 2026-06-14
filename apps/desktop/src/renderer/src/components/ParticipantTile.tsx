@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { MicOff, VolumeX } from 'lucide-react';
+import { sanitizeAvatarDataUrl } from '@chickadee/shared';
 import { useAudioActivity } from '../hooks/useAudioActivity';
 import { getSharedAudioContext, getMasterBus } from '../lib/audioContext';
 
@@ -55,6 +56,9 @@ export function ParticipantTile({
   avatarUrl,
   normalize,
 }: ParticipantTileProps): React.JSX.Element {
+  // Validate peer-supplied avatar data URLs before rendering (defense in depth;
+  // the server already sanitizes, but never trust an <img src> from the wire).
+  const safeAvatarUrl = sanitizeAvatarDataUrl(avatarUrl);
   const videoRef = useRef<HTMLVideoElement>(null);
   const gainNodeRef = useRef<GainNode | null>(null);
   const sourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
@@ -173,12 +177,12 @@ export function ParticipantTile({
           <div
             className="tile__avatar"
             style={{
-              background: avatarUrl ? undefined : `linear-gradient(145deg, ${color}ee, ${color}66)`,
+              background: safeAvatarUrl ? undefined : `linear-gradient(145deg, ${color}ee, ${color}66)`,
               boxShadow: speaking ? '0 0 34px #22c55e70' : '0 4px 22px rgba(0,0,0,.55)',
             }}
           >
-            {avatarUrl ? (
-              <img src={avatarUrl} alt={displayName} className="tile__avatar-img" />
+            {safeAvatarUrl ? (
+              <img src={safeAvatarUrl} alt={displayName} className="tile__avatar-img" />
             ) : (
               initial
             )}

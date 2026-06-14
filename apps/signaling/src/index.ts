@@ -1,8 +1,17 @@
 import { randomUUID } from 'node:crypto';
 import { WebSocketServer, type WebSocket } from 'ws';
 import {
+  CHAT_MAX_LEN,
+  MAX_AVATAR_DATA_URL_LEN,
+  MAX_DISPLAY_NAME_LEN,
+  MAX_GAME_TAG_LEN,
+  MAX_ID_LEN,
   MAX_PEERS_PER_ROOM,
+  MAX_VOICE_PREF_LEN,
+  clampString,
   parseClientMessage,
+  sanitizeAvatarDataUrl,
+  sanitizeStatus,
   type ClientMessage,
   type Peer,
   type PeerId,
@@ -13,6 +22,25 @@ import {
 } from '@chickadee/shared';
 
 const PORT = Number(process.env.PORT ?? 8080);
+
+/** Cap on a single inbound WS frame. The largest legitimate message is an avatar
+ *  data URL; everything else is tiny. Keeps a small headroom over the avatar cap. */
+const MAX_WS_PAYLOAD = MAX_AVATAR_DATA_URL_LEN + 8 * 1024;
+
+/** Per-connection message rate limit (generous — well above WebRTC ICE trickle bursts). */
+const MSG_RATE_LIMIT = 200;
+const MSG_RATE_WINDOW_MS = 1000;
+
+/**
+ * Optional Origin allowlist (comma-separated env). The Electron client sends no
+ * Origin, so an empty allowlist permits all (current behaviour); set it to lock
+ * the hosted server to known origins. CSWSH risk is low here (no cookies/auth),
+ * but this plus the rate limit + payload cap blunt browser-based resource abuse.
+ */
+const ALLOWED_ORIGINS = (process.env.CHICKADEE_ALLOWED_ORIGINS ?? '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
 
 /** Everything we track about one connected socket. */
 interface Connection {
@@ -64,38 +92,46 @@ function broadcast(room: RoomId | null, message: ServerMessage, exceptId?: PeerI
 }
 
 function handleJoin(socket: WebSocket, msg: Extract<ClientMessage, { type: 'join' }>): Connection | null {
-  const fullRoomId = msg.room ? `${msg.spaceId}:${msg.room}` : null;
+  // spaceId is used as an in-memory map key; require a sane string.
+  const spaceId = clampString(msg.spaceId, MAX_ID_LEN);
+  if (!spaceId) return null;
+  const room = msg.room == null ? null : clampString(msg.room, MAX_ID_LEN) || null;
+
+  const fullRoomId = room ? `${spaceId}:${room}` : null;
   const members = fullRoomId ? (rooms.get(fullRoomId) ?? new Map<PeerId, Connection>()) : null;
 
   if (members && members.size >= MAX_PEERS_PER_ROOM) {
-    send(socket, { type: 'room-full', room: msg.room! });
+    // members is non-null only when fullRoomId (and thus room) is non-null.
+    send(socket, { type: 'room-full', room: room! });
     return null;
   }
 
   const id = randomUUID();
+  const userId = clampString(msg.userId, MAX_ID_LEN);
   const peer: Peer = {
     id,
     // Tolerant: fall back to the session id if a client omits a stable userId.
-    userId: typeof msg.userId === 'string' && msg.userId ? msg.userId : id,
-    displayName: msg.displayName.trim() || 'Anonymous',
+    userId: userId || id,
+    displayName: clampString(msg.displayName, MAX_DISPLAY_NAME_LEN) || 'Anonymous',
     muted: false,
     cameraOn: false,
     screenStreamId: null,
     game: null,
     deafened: false,
-    status: msg.status || 'online',
-    avatarDataUrl: msg.avatarDataUrl ?? null,
-    voicePreference: msg.voicePreference ?? '',
+    status: sanitizeStatus(msg.status),
+    avatarDataUrl: sanitizeAvatarDataUrl(msg.avatarDataUrl),
+    voicePreference: clampString(msg.voicePreference, MAX_VOICE_PREF_LEN),
   };
-  const conn: Connection = { socket, peer, space: msg.spaceId, room: fullRoomId };
+  const conn: Connection = { socket, peer, space: spaceId, room: fullRoomId };
 
-  const wasEmpty = !spaces.has(msg.spaceId);
+  const wasEmpty = !spaces.has(spaceId);
+  const joinRooms = Array.isArray(msg.rooms) ? msg.rooms : [];
 
   // Track/sync rooms for the space
-  if (wasEmpty && msg.rooms && msg.rooms.length > 0) {
-    spaces.set(msg.spaceId, msg.rooms);
+  if (wasEmpty && joinRooms.length > 0) {
+    spaces.set(spaceId, joinRooms);
   }
-  const spaceRooms = spaces.get(msg.spaceId) ?? msg.rooms ?? [];
+  const spaceRooms = spaces.get(spaceId) ?? joinRooms;
 
   // Snapshot existing peers before adding the newcomer.
   const existingPeers: Peer[] = members ? [...members.values()].map((c) => c.peer) : [];
@@ -106,24 +142,24 @@ function handleJoin(socket: WebSocket, msg: Extract<ClientMessage, { type: 'join
   }
 
   // Add to spaceConnections
-  const spaceConns = spaceConnections.get(msg.spaceId) ?? new Map<PeerId, Connection>();
+  const spaceConns = spaceConnections.get(spaceId) ?? new Map<PeerId, Connection>();
   spaceConns.set(peer.id, conn);
-  spaceConnections.set(msg.spaceId, spaceConns);
+  spaceConnections.set(spaceId, spaceConns);
 
   // Tell the newcomer who is already here (newcomer will initiate offers in Phase 2) and the current room list.
   send(socket, { type: 'welcome', selfId: peer.id, peers: existingPeers, rooms: spaceRooms, wasEmpty });
 
   // Update space presence
-  const presenceMap = spacePresence.get(msg.spaceId) ?? new Map<string, SpacePresence>();
+  const presenceMap = spacePresence.get(spaceId) ?? new Map<string, SpacePresence>();
   const presence: SpacePresence = {
     peer,
-    roomId: msg.room,
+    roomId: room,
   };
   presenceMap.set(peer.userId, presence);
-  spacePresence.set(msg.spaceId, presenceMap);
+  spacePresence.set(spaceId, presenceMap);
 
   // Clear timeout if any
-  const timeouts = spaceTimeouts.get(msg.spaceId);
+  const timeouts = spaceTimeouts.get(spaceId);
   if (timeouts) {
     const timer = timeouts.get(peer.userId);
     if (timer) {
@@ -137,14 +173,14 @@ function handleJoin(socket: WebSocket, msg: Extract<ClientMessage, { type: 'join
   send(socket, { type: 'space-presence', presence: allSpacePresence });
 
   // Broadcast update to space (except newcomer)
-  broadcastSpace(msg.spaceId, { type: 'space-peer-update', presence }, conn);
+  broadcastSpace(spaceId, { type: 'space-peer-update', presence }, conn);
 
   // Tell everyone else about the newcomer.
   if (fullRoomId) {
     broadcast(fullRoomId, { type: 'peer-joined', peer }, peer.id);
     console.log(`[join] ${peer.displayName} (${peer.id}) -> room "${fullRoomId}" (${members!.size}/${MAX_PEERS_PER_ROOM})`);
   } else {
-    console.log(`[join] ${peer.displayName} (${peer.id}) -> Space "${msg.spaceId}" (no room)`);
+    console.log(`[join] ${peer.displayName} (${peer.id}) -> Space "${spaceId}" (no room)`);
   }
 
   return conn;
@@ -252,7 +288,7 @@ function handleScreenState(conn: Connection, streamId: string | null): void {
 
 /** Record a peer's detected game and tell the room (mirror pattern). */
 function handleGameState(conn: Connection, game: string | null): void {
-  conn.peer.game = game ? game.slice(0, 24) : null;
+  conn.peer.game = game == null ? null : clampString(game, MAX_GAME_TAG_LEN) || null;
   broadcast(conn.room, { type: 'game-state', from: conn.peer.id, game: conn.peer.game }, conn.peer.id);
 
   const pMap = spacePresence.get(conn.space);
@@ -270,9 +306,12 @@ function handleDeafenState(conn: Connection, deafened: boolean): void {
 
 /** Record a peer's avatar and broadcast to all space members (avatar syncs space-wide, not just the room). */
 function handleAvatarState(conn: Connection, avatarDataUrl: string | null): void {
-  conn.peer.avatarDataUrl = avatarDataUrl;
-  // Broadcast the raw avatar-state message to room members so their peer tiles update immediately.
-  broadcast(conn.room, { type: 'avatar-state', from: conn.peer.id, avatarDataUrl }, conn.peer.id);
+  // Validate the data URL (type + size) before storing/relaying — this is the
+  // primary amplification-DoS guard, since the avatar fans out space-wide.
+  const safe = sanitizeAvatarDataUrl(avatarDataUrl);
+  conn.peer.avatarDataUrl = safe;
+  // Broadcast the sanitized avatar-state to room members so their tiles update immediately.
+  broadcast(conn.room, { type: 'avatar-state', from: conn.peer.id, avatarDataUrl: safe }, conn.peer.id);
   // Also broadcast space-peer-update so all space members (across rooms) get the updated Peer.
   const pMap = spacePresence.get(conn.space);
   if (pMap) {
@@ -283,14 +322,15 @@ function handleAvatarState(conn: Connection, avatarDataUrl: string | null): void
 
 /** Record a peer's TTS voice preference and tell the room (room-only — chat/TTS is room-scoped). */
 function handleVoiceState(conn: Connection, voicePreference: string): void {
-  conn.peer.voicePreference = typeof voicePreference === 'string' ? voicePreference.slice(0, 32) : '';
+  conn.peer.voicePreference = clampString(voicePreference, MAX_VOICE_PREF_LEN);
   broadcast(conn.room, { type: 'voice-state', from: conn.peer.id, voicePreference: conn.peer.voicePreference }, conn.peer.id);
 }
 
 /** Record a peer's presence status and tell the room (mirror pattern). */
 function handleStatusState(conn: Connection, status: 'online' | 'idle' | 'dnd'): void {
-  conn.peer.status = status;
-  broadcast(conn.room, { type: 'status-state', from: conn.peer.id, status }, conn.peer.id);
+  const safe = sanitizeStatus(status);
+  conn.peer.status = safe;
+  broadcast(conn.room, { type: 'status-state', from: conn.peer.id, status: safe }, conn.peer.id);
 
   const pMap = spacePresence.get(conn.space);
   if (pMap) {
@@ -300,23 +340,22 @@ function handleStatusState(conn: Connection, status: 'online' | 'idle' | 'dnd'):
 }
 
 function handleUpdateRooms(spaceId: string, roomsList: Room[]): void {
+  if (!Array.isArray(roomsList)) return;
   spaces.set(spaceId, roomsList);
-  // Broadcast update to everyone in this Space (across all rooms of that Space)
-  for (const roomMap of rooms.values()) {
-    for (const conn of roomMap.values()) {
-      if (conn.space === spaceId) {
-        send(conn.socket, { type: 'rooms-updated', spaceId, rooms: roomsList });
-      }
+  // Broadcast to space members directly (spaceConnections already indexes them,
+  // avoiding an O(all peers) sweep of every room map).
+  const conns = spaceConnections.get(spaceId);
+  if (conns) {
+    for (const conn of conns.values()) {
+      send(conn.socket, { type: 'rooms-updated', spaceId, rooms: roomsList });
     }
   }
   console.log(`[rooms-update] space "${spaceId}" rooms updated; broadcasted to members`);
 }
 
-const CHAT_MAX_LEN = 500;
-
 /** Relay an ephemeral chat message / reaction to the rest of the room. */
 function handleChat(conn: Connection, text: string, reaction: boolean | undefined): void {
-  const trimmed = text.trim().slice(0, CHAT_MAX_LEN);
+  const trimmed = clampString(text, CHAT_MAX_LEN);
   if (!trimmed) return;
   broadcast(
     conn.room,
@@ -383,10 +422,33 @@ function handleDisconnect(conn: Connection): void {
   }
 }
 
-const wss = new WebSocketServer({ port: PORT });
+const wss = new WebSocketServer({
+  port: PORT,
+  // Cap a single inbound frame so a huge payload can't exhaust memory.
+  maxPayload: MAX_WS_PAYLOAD,
+  // Optional Origin allowlist; empty = allow all (Electron sends no Origin).
+  verifyClient: ALLOWED_ORIGINS.length === 0
+    ? undefined
+    : ({ origin }: { origin: string }) => !origin || ALLOWED_ORIGINS.includes(origin),
+});
 
 /** Liveness tracking for the ws-level heartbeat (terminates dead sockets). */
 const alive = new WeakMap<WebSocket, boolean>();
+
+/** Per-connection sliding-window message counter for rate limiting. */
+const rate = new WeakMap<WebSocket, { count: number; resetAt: number }>();
+
+/** Returns true (and the socket should be dropped) when a connection floods messages. */
+function isRateLimited(socket: WebSocket): boolean {
+  const now = Date.now();
+  let r = rate.get(socket);
+  if (!r || now > r.resetAt) {
+    r = { count: 0, resetAt: now + MSG_RATE_WINDOW_MS };
+    rate.set(socket, r);
+  }
+  r.count += 1;
+  return r.count > MSG_RATE_LIMIT;
+}
 
 wss.on('connection', (socket) => {
   // A connection has no identity until it sends a valid `join`.
@@ -395,6 +457,12 @@ wss.on('connection', (socket) => {
   socket.on('pong', () => alive.set(socket, true));
 
   socket.on('message', (data) => {
+    // Drop abusive senders before doing any parsing work.
+    if (isRateLimited(socket)) {
+      socket.close(1008, 'rate limit exceeded');
+      return;
+    }
+
     const msg = parseClientMessage(data.toString());
     if (!msg) return;
 

@@ -5,13 +5,14 @@ import { WebSocket } from 'ws';
 
 const URL = 'ws://localhost:8080';
 const ROOM = 'smoke';
+const SPACE = 'smoke-space';
 
-function client(displayName, { room = ROOM, userId = `uid-${displayName}` } = {}) {
+function client(displayName, { room = ROOM, userId = `uid-${displayName}`, spaceId = SPACE } = {}) {
   const events = [];
   const ws = new WebSocket(URL);
   const ready = new Promise((resolve) => {
     ws.on('open', () => {
-      const join = { type: 'join', room, displayName };
+      const join = { type: 'join', spaceId, room, displayName };
       if (userId !== null) join.userId = userId;
       ws.send(JSON.stringify(join));
     });
@@ -168,6 +169,40 @@ check('SpaceAlpha receives empty welcome after leaving room', welcomeEventsA.len
 
 clientA.ws.close();
 clientB.ws.close();
+
+// Input validation: a valid avatar passes through; an invalid one is nulled.
+const VALID_AVATAR = 'data:image/png;base64,iVBORw0KGgo=';
+c.ws.send(JSON.stringify({ type: 'avatar-state', avatarDataUrl: VALID_AVATAR }));
+await wait(150);
+check(
+  'A receives C valid avatar unchanged',
+  a.events.some((ev) => ev.type === 'avatar-state' && ev.from === wc.selfId && ev.avatarDataUrl === VALID_AVATAR),
+);
+
+c.ws.send(JSON.stringify({ type: 'avatar-state', avatarDataUrl: 'javascript:alert(1)' }));
+await wait(150);
+check(
+  'A receives C invalid avatar sanitized to null',
+  a.events.some((ev) => ev.type === 'avatar-state' && ev.from === wc.selfId && ev.avatarDataUrl === null),
+);
+
+// Input validation: an over-long display name is capped (<= 32 chars).
+const longName = client('X'.repeat(100), { room: 'cap-room', spaceId: 'cap-space' });
+await longName.ready;
+const capPeer = client('CapPeer', { room: 'cap-room', spaceId: 'cap-space' });
+const wCap = await capPeer.ready;
+check('over-long displayName capped to 32 chars', wCap.peers[0].displayName.length <= 32);
+longName.ws.close();
+capPeer.ws.close();
+
+// Input validation: a join without spaceId is rejected (no welcome / no room-full).
+const noSpace = new WebSocket(URL);
+let noSpaceReplied = false;
+noSpace.on('open', () => noSpace.send(JSON.stringify({ type: 'join', room: 'x', displayName: 'NoSpace' })));
+noSpace.on('message', () => { noSpaceReplied = true; });
+await wait(200);
+check('join without spaceId is rejected (no reply)', noSpaceReplied === false);
+noSpace.close();
 
 for (const cl of [a, c, d, e]) cl.ws.close();
 await wait(100);

@@ -9,6 +9,50 @@
 /** Maximum number of peers allowed in a single room (full-mesh limit). */
 export const MAX_PEERS_PER_ROOM = 4;
 
+// --- Input bounds (enforced server-side; reused client-side for defense in depth) ---
+/** Max length of a chat message / reaction. */
+export const CHAT_MAX_LEN = 500;
+/** Max length of a display name. */
+export const MAX_DISPLAY_NAME_LEN = 32;
+/** Max length of a detected-game short tag. */
+export const MAX_GAME_TAG_LEN = 24;
+/** Max length of a TTS voice-category id. */
+export const MAX_VOICE_PREF_LEN = 32;
+/** Max length of an id-like field (userId / spaceId / roomId). */
+export const MAX_ID_LEN = 128;
+/**
+ * Max length of an avatar data URL. A 128×128 WebP/JPEG is typically 10–30 KB
+ * of base64; 256 KB is a generous ceiling that still stops amplification abuse.
+ */
+export const MAX_AVATAR_DATA_URL_LEN = 256 * 1024;
+
+const AVATAR_DATA_URL_RE = /^data:image\/(?:png|jpe?g|webp);base64,[A-Za-z0-9+/=]+$/;
+
+/**
+ * Validate an untrusted avatar value: must be a base64 PNG/JPEG/WebP data URL
+ * within the size cap. Returns the value if valid, else null. Used by the
+ * signaling server on intake and by the renderer before binding to an <img>.
+ */
+export function sanitizeAvatarDataUrl(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  if (value.length > MAX_AVATAR_DATA_URL_LEN) return null;
+  return AVATAR_DATA_URL_RE.test(value) ? value : null;
+}
+
+/** Coerce an untrusted value to a trimmed string capped at `max` chars (default '' on non-strings). */
+export function clampString(value: unknown, max: number): string {
+  return typeof value === 'string' ? value.trim().slice(0, max) : '';
+}
+
+/** The valid presence statuses. */
+export const PRESENCE_STATUSES = ['online', 'idle', 'dnd'] as const;
+export type PresenceStatus = (typeof PRESENCE_STATUSES)[number];
+
+/** Narrow an untrusted value to a PresenceStatus, defaulting to 'online'. */
+export function sanitizeStatus(value: unknown): PresenceStatus {
+  return PRESENCE_STATUSES.includes(value as PresenceStatus) ? (value as PresenceStatus) : 'online';
+}
+
 export type RoomId = string;
 export type PeerId = string;
 

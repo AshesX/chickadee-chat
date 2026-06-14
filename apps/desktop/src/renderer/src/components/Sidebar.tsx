@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Pencil, Plus, Settings, Trash2, ChevronDown, Copy, Check } from 'lucide-react';
-import type { Room, SpaceInfo } from '@chickadee/shared';
+import { sanitizeAvatarDataUrl, type Room, type SpaceInfo } from '@chickadee/shared';
 
 import type { SpaceUser } from '../hooks/useSpacePresence';
 
@@ -253,15 +253,18 @@ export function Sidebar({
               USERS{users.length > 0 ? ` — ${onlineCount} online` : ''}
             </p>
             {users.length === 0 && <p className="sidebar__hint">No users yet</p>}
-            {users.map((u) => (
+            {users.map((u) => {
+              // Validate peer-supplied avatar before rendering (defense in depth).
+              const uAvatar = sanitizeAvatarDataUrl(u.avatarUrl);
+              return (
               <div key={u.id} className="friend-row">
                 <div className="friend-row__avatar-wrap">
                   <div
                     className="friend-row__avatar"
-                    style={u.avatarUrl ? undefined : { background: `linear-gradient(135deg, ${u.color}, ${u.color}66)` }}
+                    style={uAvatar ? undefined : { background: `linear-gradient(135deg, ${u.color}, ${u.color}66)` }}
                   >
-                    {u.avatarUrl ? (
-                      <img src={u.avatarUrl} alt={u.name} className="friend-avatar-img" />
+                    {uAvatar ? (
+                      <img src={uAvatar} alt={u.name} className="friend-avatar-img" />
                     ) : (
                       u.initial
                     )}
@@ -275,7 +278,8 @@ export function Sidebar({
                   <div className="friend-row__where">{u.where}</div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </>
         )}
       </div>
