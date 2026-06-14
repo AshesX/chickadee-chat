@@ -122,6 +122,7 @@ function handleJoin(socket: WebSocket, msg: Extract<ClientMessage, { type: 'join
     userId: userId || id,
     displayName: clampString(msg.displayName, MAX_DISPLAY_NAME_LEN) || 'Anonymous',
     muted: false,
+    speaking: false,
     cameraOn: false,
     screenStreamId: null,
     game: null,
@@ -280,6 +281,12 @@ function relay(conn: Connection, msg: ClientMessage & { to: PeerId }): void {
 function handleMicState(conn: Connection, muted: boolean): void {
   conn.peer.muted = muted;
   broadcast(conn.room, { type: 'mic-state', from: conn.peer.id, muted }, conn.peer.id);
+}
+
+/** Record a peer's new speaking state and tell everyone else in the room. */
+function handleSpeakingState(conn: Connection, speaking: boolean): void {
+  conn.peer.speaking = speaking;
+  broadcast(conn.room, { type: 'speaking-state', from: conn.peer.id, speaking }, conn.peer.id);
 }
 
 /** Record a peer's new camera state and tell everyone else in the room. */
@@ -517,6 +524,8 @@ wss.on('connection', (socket) => {
       relay(conn, msg);
     } else if (msg.type === 'mic-state') {
       handleMicState(conn, msg.muted);
+    } else if (msg.type === 'speaking-state') {
+      handleSpeakingState(conn, msg.speaking);
     } else if (msg.type === 'cam-state') {
       handleCamState(conn, msg.on);
     } else if (msg.type === 'screen-state') {

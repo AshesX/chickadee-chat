@@ -63,6 +63,8 @@ export interface Peer {
   displayName: string;
   /** Whether this peer's microphone is currently muted (tracked server-side). */
   muted: boolean;
+  /** Whether this peer is actively speaking/transmitting (drives the speaking ripple). */
+  speaking: boolean;
   /** Whether this peer's camera is currently on (tracked server-side). */
   cameraOn: boolean;
   /**
@@ -291,6 +293,7 @@ export type ClientMessage =
   | { type: 'ice-candidate'; to: PeerId; candidate: RTCIceCandidateInit }
   // Broadcast to the whole room (no `to`); server relays with `from` stamped.
   | { type: 'mic-state'; muted: boolean }
+  | { type: 'speaking-state'; speaking: boolean }
   | { type: 'cam-state'; on: boolean }
   | { type: 'screen-state'; streamId: string | null }
   | { type: 'game-state'; game: string | null }
@@ -332,6 +335,8 @@ export type ServerMessage =
   | { type: 'ice-candidate'; from: PeerId; candidate: RTCIceCandidateInit }
   // A peer toggled their mic; broadcast to everyone else in the room.
   | { type: 'mic-state'; from: PeerId; muted: boolean }
+  // A peer started/stopped speaking; broadcast to everyone else in the room.
+  | { type: 'speaking-state'; from: PeerId; speaking: boolean }
   // A peer toggled their camera; broadcast to everyone else in the room.
   | { type: 'cam-state'; from: PeerId; on: boolean }
   // A peer started/stopped sharing their screen (streamId null = stopped).

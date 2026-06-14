@@ -449,9 +449,11 @@ export function usePeerMesh(
       micEnabledRef.current = on;
       for (const track of stream.getAudioTracks()) track.enabled = on;
       setMicEnabled(on);
-      send({ type: 'mic-state', muted: !on });
+      // NOTE: mic-state (mute intent) is broadcast from App.tsx, not here — the
+      // VAD/PTT transmit gate calls this on every edge, which would spam the room
+      // and flicker remote mute icons. The transmit gate only toggles track.enabled.
     },
-    [send],
+    [],
   );
 
   const toggleMic = useCallback(() => {
@@ -707,7 +709,8 @@ export function usePeerMesh(
   // After a reconnect the server reset our peer to defaults; re-broadcast any
   // non-default local state so others' tiles reflect reality.
   const reannounceLocalState = useCallback(() => {
-    if (!micEnabledRef.current) send({ type: 'mic-state', muted: true });
+    // mic-state (mute intent) is re-announced by App.tsx's broadcast effect (keyed
+    // on signaling.status), so it isn't sent here.
     if (cameraEnabledRef.current) send({ type: 'cam-state', on: true });
     if (sharingScreenRef.current && screenStreamRef.current) {
       send({ type: 'screen-state', streamId: screenStreamRef.current.id });

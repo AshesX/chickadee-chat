@@ -77,6 +77,14 @@ check('A receives C mic-state(muted)', a.events.some(fromCMic));
 check('D receives C mic-state(muted)', d.events.some(fromCMic));
 check('C does not receive its own mic-state', !c.events.some((ev) => ev.type === 'mic-state'));
 
+// Phase 2b: C starts speaking; A and D should be told, C should not echo.
+c.ws.send(JSON.stringify({ type: 'speaking-state', speaking: true }));
+await wait(200);
+const fromCSpk = (ev) => ev.type === 'speaking-state' && ev.from === wc.selfId && ev.speaking === true;
+check('A receives C speaking-state(true)', a.events.some(fromCSpk));
+check('D receives C speaking-state(true)', d.events.some(fromCSpk));
+check('C does not receive its own speaking-state', !c.events.some((ev) => ev.type === 'speaking-state'));
+
 // Phase 3: C turns camera on; A and D should be told, C should not echo.
 c.ws.send(JSON.stringify({ type: 'cam-state', on: true }));
 await wait(200);

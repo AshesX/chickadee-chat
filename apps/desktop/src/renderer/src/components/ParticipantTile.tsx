@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { MicOff, VolumeX } from 'lucide-react';
 import { sanitizeAvatarDataUrl } from '@chickadee/shared';
-import { useAudioActivity } from '../hooks/useAudioActivity';
 import { getSharedAudioContext, getMasterBus } from '../lib/audioContext';
 
 export interface ParticipantTileProps {
@@ -20,8 +19,8 @@ export interface ParticipantTileProps {
   connectionState?: RTCPeerConnectionState;
   /** Abbreviated game name (top-right tag); omitted when none. */
   gameTag?: string;
-  /** Self only: actively transmitting in push-to-talk mode. */
-  transmitting?: boolean;
+  /** Whether this participant is currently speaking (drives the ripple); synced from the wire. */
+  speaking?: boolean;
   /** Remote only: output volume 0–2 (default 1, where 2 = 200% boost). */
   volume?: number;
   /** Whether this participant is currently deafened. */
@@ -50,7 +49,7 @@ export function ParticipantTile({
   color,
   connectionState,
   gameTag,
-  transmitting,
+  speaking = false,
   volume,
   deafened,
   avatarUrl,
@@ -65,10 +64,8 @@ export function ParticipantTile({
   // True once remote audio is routed through the Web Audio graph; mutes the <video>
   // element so audio isn't played twice. Stays false (element audible) if no AudioContext.
   const [audioRouted, setAudioRouted] = useState(false);
-  const audioSpeaking = useAudioActivity(muted ? null : cameraStream);
-  // Gated modes (voice/PTT): transmitting prop drives the ripple so it matches the VAD gate exactly.
-  // Open mic + remote peers: transmitting is undefined → fall back to audio-activity detection.
-  const speaking = transmitting !== undefined ? transmitting : audioSpeaking;
+  // `speaking` is computed by the owner (App.tsx) and synced over the signaling
+  // relay (Peer.speaking) so every client renders an identical ripple.
   const showMuteIcon = intentionallyMuted ?? muted;
 
   // The <video> is always mounted so remote audio plays even with camera off.

@@ -8,6 +8,7 @@ import { useSpacePresence } from './hooks/useSpacePresence';
 import { useSpaces } from './hooks/useSpaces';
 import { useKeybindSync } from './hooks/useKeybindSync';
 import { useVoiceActivation } from './hooks/useVoiceActivation';
+import { useAudioActivity } from './hooks/useAudioActivity';
 import { useNoiseExpander } from './hooks/useNoiseExpander';
 import { useMediaDevices } from './hooks/useMediaDevices';
 import { useSfxEvents } from './hooks/useSfxEvents';
@@ -282,6 +283,13 @@ export function App(): React.JSX.Element {
   const transmitting = inputMode !== 'open' && mesh.micEnabled;
   // What the mic button reflects: in voice mode it's the master-pause state.
   const micButtonOn = inputMode === 'voice' ? !voiceMuted : mesh.micEnabled;
+  // Unified local "speaking" value driving the self ripple AND the broadcast, so
+  // every client renders an identical ripple. Open mic: RMS-detect the live mic.
+  // Gated modes: the transmit gate already is the speaking signal.
+  const selfAudioSpeaking = useAudioActivity(
+    inputMode === 'open' && mesh.micEnabled ? mesh.localStream : null,
+  );
+  const selfSpeaking = inputMode === 'open' ? selfAudioSpeaking : transmitting;
 
   const onboardingNeeded = !displayName;
   const inRoom = currentRoomId !== null;
@@ -731,6 +739,22 @@ export function App(): React.JSX.Element {
     }
   }, [game, currentRoomId, signaling.status, signaling.send, deafened, selfStatus]);
 
+  // Broadcast mute *intent* (not the per-frame VAD/PTT transmit gate) so remote
+  // mute icons reflect a deliberate mute and don't flicker as the user talks.
+  // Keyed on signaling.status so it re-announces on (re)connect.
+  useEffect(() => {
+    if (signaling.status === 'connected') {
+      signaling.send({ type: 'mic-state', muted: !micButtonOn });
+    }
+  }, [micButtonOn, signaling.status, signaling.send]);
+
+  // Broadcast our speaking state so peers render the same ripple we show locally.
+  useEffect(() => {
+    if (signaling.status === 'connected') {
+      signaling.send({ type: 'speaking-state', speaking: selfSpeaking });
+    }
+  }, [selfSpeaking, signaling.status, signaling.send]);
+
   // Keep local rooms in sync with the signaling server's room list for this Space.
   useEffect(() => {
     if (signaling.status === 'connected' && signaling.rooms) {
@@ -791,7 +815,7 @@ export function App(): React.JSX.Element {
         cameraOn={mesh.cameraEnabled}
         cameraStream={mesh.localStream}
         color={SELF_COLOR}
-        transmitting={inputMode !== 'open' ? transmitting : undefined}
+        speaking={selfSpeaking}
         gameTag={game?.short}
         deafened={deafened}
         avatarUrl={localAvatarUrl}
@@ -804,6 +828,7 @@ export function App(): React.JSX.Element {
             displayName={peer.displayName}
             isSelf={false}
             muted={peer.muted}
+            speaking={peer.speaking}
             cameraOn={peer.cameraOn}
             cameraStream={media?.cameraStream ?? null}
             color={colors[peer.id] ?? SELF_COLOR}

@@ -94,6 +94,11 @@ function applyPresenceUpdate(state: SignalingState, msg: ServerMessage): Signali
         ...state,
         peers: state.peers.map((p) => (p.id === msg.from ? { ...p, muted: msg.muted } : p)),
       };
+    case 'speaking-state':
+      return {
+        ...state,
+        peers: state.peers.map((p) => (p.id === msg.from ? { ...p, speaking: msg.speaking } : p)),
+      };
     case 'cam-state':
       return {
         ...state,
