@@ -1867,6 +1867,15 @@ button {
   line-height: 1.25;
 }
 
+.space-switcher-btn__name--code {
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 800;
+  font-family: monospace;
+  letter-spacing: 0.02em;
+}
+
 .space-switcher-btn__name--empty {
   font-weight: 400;
   font-style: italic;

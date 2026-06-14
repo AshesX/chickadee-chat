@@ -69,6 +69,10 @@ export function Sidebar({
   const [copied, setCopied] = useState(false);
   const activeSpace = spaces.find((s) => s.id === activeSpaceId);
 
+  // Typewriter state for copy hover effect
+  const [copyHovered, setCopyHovered] = useState(false);
+  const [typedCode, setTypedCode] = useState('');
+
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function startCloseTimeout(): void {
@@ -113,6 +117,26 @@ export function Sidebar({
     };
   }, [switcherOpen]);
 
+  // Typewriter effect for Copy Space Code hover
+  useEffect(() => {
+    if (!activeSpace) return;
+    if (copyHovered) {
+      let index = 0;
+      setTypedCode('');
+      const fullText = `#${activeSpace.id}`;
+      const interval = setInterval(() => {
+        index++;
+        setTypedCode(fullText.substring(0, index));
+        if (index >= fullText.length) {
+          clearInterval(interval);
+        }
+      }, 15);
+      return () => clearInterval(interval);
+    } else {
+      setTypedCode('');
+    }
+  }, [copyHovered, activeSpace]);
+
   function copySpaceCode(): void {
     if (!activeSpace) return;
     if (window.chickadee?.writeClipboard) {
@@ -137,7 +161,13 @@ export function Sidebar({
             <button className="space-switcher-btn" onClick={() => setSwitcherOpen(!switcherOpen)}>
               <div className="space-switcher-btn__meta">
                 <span className={`space-switcher-btn__name${!activeSpace ? ' space-switcher-btn__name--empty' : ''}`}>
-                  {activeSpace?.name ?? 'Create / Join Space'}
+                  {copyHovered && typedCode ? (
+                    <span className="space-switcher-btn__name--code">
+                      {typedCode}
+                    </span>
+                  ) : (
+                    activeSpace?.name ?? 'Create / Join Space'
+                  )}
                 </span>
               </div>
               <ChevronDown size={12} className={`space-switcher-btn__chevron${switcherOpen ? ' space-switcher-btn__chevron--open' : ''}`} />
@@ -147,17 +177,12 @@ export function Sidebar({
             <button 
               className="space-copy-btn" 
               onClick={copySpaceCode} 
+              onMouseEnter={() => setCopyHovered(true)}
+              onMouseLeave={() => setCopyHovered(false)}
             >
               {copied ? <Check size={13} style={{ color: '#4ade80' }} /> : <Copy size={13} />}
               <span className="space-copy-btn__tooltip">
-                {copied ? (
-                  'Copied!'
-                ) : (
-                  <>
-                    <span className="space-copy-btn__tooltip-action">Copy Space Code</span>
-                    <span className="space-copy-btn__tooltip-code">#{activeSpace.id}</span>
-                  </>
-                )}
+                {copied ? 'Copied!' : 'Copy Space Code'}
               </span>
             </button>
           )}
