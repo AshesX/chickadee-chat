@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { MicOff, VolumeX } from 'lucide-react';
 import { useAudioActivity } from '../hooks/useAudioActivity';
-import { getSharedAudioContext } from '../lib/audioContext';
+import { getSharedAudioContext, getMasterBus } from '../lib/audioContext';
 
 export interface ParticipantTileProps {
   displayName: string;
@@ -108,7 +108,7 @@ export function ParticipantTile({
     } else {
       src.connect(gain);
     }
-    gain.connect(ctx.destination);
+    gain.connect(getMasterBus() ?? ctx.destination);
     sourceNodeRef.current = src;
     gainNodeRef.current = gain;
     setAudioRouted(true);

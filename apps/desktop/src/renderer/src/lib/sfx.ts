@@ -1,4 +1,4 @@
-import { getSharedAudioContext } from './audioContext';
+import { getSharedAudioContext, getMasterBus } from './audioContext';
 
 export function playSfx(type: 'join' | 'leave' | 'mute' | 'unmute' | 'chat' | 'deafen' | 'undeafen' | 'transmit-open' | 'transmit-close', volume: number): void {
   const ctx = getSharedAudioContext();
@@ -9,7 +9,7 @@ export function playSfx(type: 'join' | 'leave' | 'mute' | 'unmute' | 'chat' | 'd
   // Create master volume node
   const gainNode = ctx.createGain();
   gainNode.gain.setValueAtTime(volume, now);
-  gainNode.connect(ctx.destination);
+  gainNode.connect(getMasterBus() ?? ctx.destination);
 
   switch (type) {
     case 'join': {
