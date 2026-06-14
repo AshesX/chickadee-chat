@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Logo } from './Logo';
 
 interface WelcomeWizardProps {
-  onSubmit: (displayName: string, spaceNameOrCode: string, action: 'create' | 'join') => void;
+  onSubmit: (displayName: string, spaceNameOrCode: string, action: 'create' | 'join', customSignalingUrl?: string, joinSecret?: string) => void;
 }
 
 export function WelcomeWizard({ onSubmit }: WelcomeWizardProps): React.JSX.Element {
@@ -10,6 +10,9 @@ export function WelcomeWizard({ onSubmit }: WelcomeWizardProps): React.JSX.Eleme
   const [displayName, setDisplayName] = useState('');
   const [action, setAction] = useState<'create' | 'join'>('create');
   const [spaceValue, setSpaceValue] = useState('');
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [customSignalingUrl, setCustomSignalingUrl] = useState('');
+  const [joinSecret, setJoinSecret] = useState('');
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -35,7 +38,7 @@ export function WelcomeWizard({ onSubmit }: WelcomeWizardProps): React.JSX.Eleme
     const name = displayName.trim();
     const val = spaceValue.trim();
     if (name && val) {
-      onSubmit(name, val, action);
+      onSubmit(name, val, action, customSignalingUrl.trim() || undefined, joinSecret || undefined);
     }
   }
 
@@ -121,6 +124,37 @@ export function WelcomeWizard({ onSubmit }: WelcomeWizardProps): React.JSX.Eleme
                   />
                 </>
               )}
+
+              <div style={{ marginTop: '8px' }}>
+                <button
+                  className="welcome__btn"
+                  style={{ background: 'transparent', border: 'none', color: 'var(--dim)', textAlign: 'left', padding: '0', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  onClick={() => setAdvancedOpen(!advancedOpen)}
+                >
+                  {advancedOpen ? '▼ Hide' : '▶ Show'} Advanced Connection Settings
+                </button>
+                {advancedOpen && (
+                  <div style={{ marginTop: '12px', padding: '12px', background: 'var(--bg-mid)', borderRadius: 'var(--radius-panel)' }}>
+                    <label className="field-label" style={{ textAlign: 'left' }}>Signaling Server URL (Optional)</label>
+                    <input
+                      className="welcome__input"
+                      value={customSignalingUrl}
+                      onChange={(e) => setCustomSignalingUrl(e.target.value)}
+                      placeholder="e.g. wss://chickadee.example.com"
+                      style={{ marginBottom: '12px' }}
+                    />
+                    <label className="field-label" style={{ textAlign: 'left' }}>Join Secret / Password (Optional)</label>
+                    <input
+                      className="welcome__input"
+                      type="password"
+                      value={joinSecret}
+                      onChange={(e) => setJoinSecret(e.target.value)}
+                      placeholder="Leave blank for public servers"
+                      onKeyDown={(e) => e.key === 'Enter' && finish()}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
             <div style={{ display: 'flex', gap: '10px', width: '100%' }}>

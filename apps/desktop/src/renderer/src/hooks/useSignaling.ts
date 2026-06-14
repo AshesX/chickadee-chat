@@ -35,7 +35,7 @@ export interface SignalingState {
 }
 
 export interface Signaling extends SignalingState {
-  join: (spaceId: string, room: string | null, displayName: string, userId: string, rooms: Room[], status: 'online' | 'idle' | 'dnd', avatarDataUrl?: string | null, voicePreference?: string) => void;
+  join: (spaceId: string, room: string | null, displayName: string, userId: string, rooms: Room[], status: 'online' | 'idle' | 'dnd', avatarDataUrl?: string | null, voicePreference?: string, joinSecret?: string, signalingUrl?: string) => void;
   leave: () => void;
   joinRoom: (room: string | null) => void;
   /** Send a message to the server (used by WebRTC negotiation + mic-state). */
@@ -162,7 +162,7 @@ const MAX_RECONNECT_ATTEMPTS = 10;
  * half-open connections. On reconnect the server assigns a new selfId, so the
  * WebRTC mesh rebuilds from the fresh `welcome`.
  */
-export function useSignaling(url: string): Signaling {
+export function useSignaling(): Signaling {
   const [state, setState] = useState<SignalingState>(INITIAL);
   const socketRef = useRef<WebSocket | null>(null);
   const listenersRef = useRef<Set<MessageListener>>(new Set());
@@ -175,6 +175,8 @@ export function useSignaling(url: string): Signaling {
   const statusRef = useRef<'online' | 'idle' | 'dnd'>('online');
   const avatarDataUrlRef = useRef<string | null>(null);
   const voicePreferenceRef = useRef<string>('');
+  const joinSecretRef = useRef<string>('');
+  const signalingUrlRef = useRef<string>('ws://localhost:8080');
   const shouldReconnectRef = useRef(false);
   const attemptsRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -229,7 +231,7 @@ export function useSignaling(url: string): Signaling {
   }, []);
 
   const connect = useCallback(() => {
-    const socket = new WebSocket(url);
+    const socket = new WebSocket(signalingUrlRef.current);
     socketRef.current = socket;
 
     socket.onopen = () => {
@@ -244,8 +246,8 @@ export function useSignaling(url: string): Signaling {
           status: statusRef.current,
           avatarDataUrl: avatarDataUrlRef.current,
           voicePreference: voicePreferenceRef.current,
-          // Deployment-level shared secret (private servers); '' on the public client.
-          secret: window.chickadee?.joinSecret ?? '',
+          // Use space-specific secret if provided, else fallback to global.
+          secret: joinSecretRef.current || (window.chickadee?.joinSecret ?? ''),
         }),
       );
       // Heartbeat: ping periodically; if pongs stop, force-close → reconnect.
@@ -307,7 +309,7 @@ export function useSignaling(url: string): Signaling {
         );
       }
     };
-  }, [url, scheduleReconnect, clearTimers, closeSocket]);
+  }, [scheduleReconnect, clearTimers, closeSocket]);
 
   // Keep the ref pointing at the latest connect for scheduleReconnect to call.
   useEffect(() => {
@@ -315,7 +317,7 @@ export function useSignaling(url: string): Signaling {
   }, [connect]);
 
   const join = useCallback(
-    (spaceId: string, room: string | null, displayName: string, userId: string, roomsList: Room[], status: 'online' | 'idle' | 'dnd', avatarDataUrl?: string | null, voicePreference?: string) => {
+    (spaceId: string, room: string | null, displayName: string, userId: string, roomsList: Room[], status: 'online' | 'idle' | 'dnd', avatarDataUrl?: string | null, voicePreference?: string, joinSecret?: string, signalingUrl?: string) => {
       closeSocket();
       clearTimers();
       shouldReconnectRef.current = true;
@@ -328,6 +330,8 @@ export function useSignaling(url: string): Signaling {
       statusRef.current = status;
       avatarDataUrlRef.current = avatarDataUrl ?? null;
       voicePreferenceRef.current = voicePreference ?? '';
+      joinSecretRef.current = joinSecret ?? '';
+      if (signalingUrl) signalingUrlRef.current = signalingUrl;
       setState({ ...INITIAL, status: 'connecting', rooms: roomsList });
       connect();
     },

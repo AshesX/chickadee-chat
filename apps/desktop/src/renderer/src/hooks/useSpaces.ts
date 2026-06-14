@@ -23,10 +23,12 @@ export interface UseSpacesResult {
   rooms: Room[];
   switchSpace: (spaceId: string) => void;
   /** Consolidated create/join handler for the space modals. */
-  addSpace: (val: string, type: 'create' | 'join') => void;
+  addSpace: (val: string, type: 'create' | 'join', customSignalingUrl?: string, joinSecret?: string) => void;
   deleteSpace: (spaceId: string, spaceName: string) => void;
   /** Initializes the first space during onboarding. */
-  initFirstSpace: (val: string, action: 'create' | 'join') => void;
+  initFirstSpace: (val: string, action: 'create' | 'join', customSignalingUrl?: string, joinSecret?: string) => void;
+  /** Updates connection settings for an existing space. */
+  updateSpaceSettings: (spaceId: string, customSignalingUrl: string, joinSecret: string) => void;
   /** Updates room list in state + persisted store. Used by createRoom/renameRoom/removeRoom/signaling sync. */
   updateRooms: (rooms: Room[]) => void;
 }
@@ -44,7 +46,7 @@ export function useSpaces(clearRoom: () => void): UseSpacesResult {
     setRooms(active ? active.rooms : []);
   }
 
-  function addSpace(val: string, type: 'create' | 'join'): void {
+  function addSpace(val: string, type: 'create' | 'join', customSignalingUrl?: string, joinSecret?: string): void {
     let spaceId: string;
     let spaceName: string;
 
@@ -64,7 +66,7 @@ export function useSpaces(clearRoom: () => void): UseSpacesResult {
       spaceName = parseSpaceName(spaceId);
     }
 
-    const newSpace: SpaceInfo = { id: spaceId, name: spaceName, rooms: DEFAULT_ROOMS };
+    const newSpace: SpaceInfo = { id: spaceId, name: spaceName, rooms: DEFAULT_ROOMS, customSignalingUrl, joinSecret };
     const nextSpaces = [...spaces, newSpace];
     store.setSpaces(nextSpaces);
     setSpaces(nextSpaces);
@@ -93,7 +95,7 @@ export function useSpaces(clearRoom: () => void): UseSpacesResult {
     }
   }
 
-  function initFirstSpace(val: string, action: 'create' | 'join'): void {
+  function initFirstSpace(val: string, action: 'create' | 'join', customSignalingUrl?: string, joinSecret?: string): void {
     let spaceId = val;
     let spaceName = val;
     if (action === 'create') {
@@ -101,7 +103,7 @@ export function useSpaces(clearRoom: () => void): UseSpacesResult {
     } else {
       spaceName = parseSpaceName(val);
     }
-    const newSpace: SpaceInfo = { id: spaceId, name: spaceName, rooms: DEFAULT_ROOMS };
+    const newSpace: SpaceInfo = { id: spaceId, name: spaceName, rooms: DEFAULT_ROOMS, customSignalingUrl, joinSecret };
     store.setSpaces([newSpace]);
     store.setActiveSpaceId(spaceId);
     setSpaces([newSpace]);
@@ -114,5 +116,11 @@ export function useSpaces(clearRoom: () => void): UseSpacesResult {
     store.setRooms(nextRooms);
   }, []);
 
-  return { spaces, currentSpaceId, rooms, switchSpace, addSpace, deleteSpace, initFirstSpace, updateRooms };
+  function updateSpaceSettings(spaceId: string, customSignalingUrl: string, joinSecret: string): void {
+    const nextSpaces = spaces.map(s => s.id === spaceId ? { ...s, customSignalingUrl, joinSecret } : s);
+    store.setSpaces(nextSpaces);
+    setSpaces(nextSpaces);
+  }
+
+  return { spaces, currentSpaceId, rooms, switchSpace, addSpace, deleteSpace, initFirstSpace, updateRooms, updateSpaceSettings };
 }

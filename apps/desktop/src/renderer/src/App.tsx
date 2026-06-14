@@ -34,6 +34,7 @@ import { Logo } from './components/Logo';
 import { generateBadgeOverlay } from './lib/trayIcon';
 import { Modal } from './components/Modal';
 import { playSfx } from './lib/sfx';
+import { SpaceSettingsModal } from './components/SpaceSettingsModal';
 import { speakChatMessage, cancelSpeech } from './lib/tts';
 import { initVoices } from './lib/voices';
 
@@ -49,9 +50,8 @@ function slugify(label: string): string {
 }
 
 export function App(): React.JSX.Element {
-  const signalingUrl = useMemo(() => window.chickadee?.signalingUrl ?? 'ws://localhost:8080', []);
   const iceServers = useMemo(() => window.chickadee?.iceServers ?? DEFAULT_ICE_SERVERS, []);
-  const signaling = useSignaling(signalingUrl);
+  const signaling = useSignaling();
   const [noiseSuppression, setNoiseSuppression] = useState(() => store.getNoiseSuppression());
   const [echoCancellation, setEchoCancellation] = useState(() => store.getEchoCancellation());
   const [autoGainControl, setAutoGainControl] = useState(() => store.getAutoGainControl());
@@ -77,12 +77,13 @@ export function App(): React.JSX.Element {
     signaling.joinRoom(null);
     setCurrentRoomId(null);
   }, [signaling.joinRoom]);
-  const { spaces, currentSpaceId, rooms, switchSpace, addSpace, deleteSpace, initFirstSpace, updateRooms } =
+  const { spaces, currentSpaceId, rooms, switchSpace, addSpace, deleteSpace, initFirstSpace, updateRooms, updateSpaceSettings } =
     useSpaces(leaveRoom);
 
   const [chatOpen, setChatOpen] = useState(() => store.getChatVisible());
   const [createOpen, setCreateOpen] = useState(false);
   const [renameTarget, setRenameTarget] = useState<Room | null>(null);
+  const [spaceSettingsTarget, setSpaceSettingsTarget] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [inputMode, setInputMode] = useState<'open' | 'voice' | 'ptt'>(() => store.getInputMode());
@@ -265,6 +266,9 @@ export function App(): React.JSX.Element {
   const [joinSpaceOpen, setJoinSpaceOpen] = useState(false);
   const [newSpaceName, setNewSpaceName] = useState('');
   const [inviteCodeInput, setInviteCodeInput] = useState('');
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [customSignalingUrl, setCustomSignalingUrl] = useState('');
+  const [joinSecret, setJoinSecret] = useState('');
 
   const chat = useRoomChat({
     signaling,
@@ -320,14 +324,17 @@ export function App(): React.JSX.Element {
   // Maintain a continuous space-level WebSocket connection to the signaling server
   useEffect(() => {
     if (currentSpaceId && displayName && userId) {
-      signaling.join(currentSpaceId, currentRoomId, displayName, userId, rooms, selfStatus, localAvatarUrl, localVoicePreference);
+      const activeSpace = spaces.find((s) => s.id === currentSpaceId);
+      const url = activeSpace?.customSignalingUrl || (window.chickadee?.signalingUrl ?? 'ws://localhost:8080');
+      const secret = activeSpace?.joinSecret || '';
+      signaling.join(currentSpaceId, currentRoomId, displayName, userId, rooms, selfStatus, localAvatarUrl, localVoicePreference, secret, url);
     } else {
       signaling.leave();
     }
     // We only want to re-establish the connection if the space, user, or name changes.
     // Room movement and status updates are sent dynamically over the active socket.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentSpaceId, userId, displayName]);
+  }, [currentSpaceId, userId, displayName, spaces]);
 
   const applyStatus = useCallback((status: 'online' | 'idle' | 'dnd') => {
     setSelfStatus(status);
@@ -384,10 +391,10 @@ export function App(): React.JSX.Element {
     if (id === currentRoomId) leaveRoom();
   }
 
-  function handleOnboardingSubmit(name: string, val: string, action: 'create' | 'join'): void {
+  function handleOnboardingSubmit(name: string, val: string, action: 'create' | 'join', customSignalingUrl?: string, joinSecret?: string): void {
     store.setName(name);
     setDisplayName(name);
-    initFirstSpace(val, action);
+    initFirstSpace(val, action, customSignalingUrl, joinSecret);
   }
 
   function toggleChat(): void {
@@ -829,9 +836,20 @@ export function App(): React.JSX.Element {
         spaces={spaces}
         activeSpaceId={currentSpaceId}
         onSelectSpace={switchSpace}
-        onCreateSpace={() => setCreateSpaceOpen(true)}
-        onJoinSpace={() => setJoinSpaceOpen(true)}
+        onCreateSpace={() => {
+          setCreateSpaceOpen(true);
+          setAdvancedOpen(false);
+          setCustomSignalingUrl('');
+          setJoinSecret('');
+        }}
+        onJoinSpace={() => {
+          setJoinSpaceOpen(true);
+          setAdvancedOpen(false);
+          setCustomSignalingUrl('');
+          setJoinSecret('');
+        }}
         onDeleteSpace={deleteSpace}
+        onSpaceSettings={(id) => setSpaceSettingsTarget(id)}
         selfStatus={selfStatus}
         onChangeStatus={applyStatus}
       />
@@ -1058,7 +1076,7 @@ export function App(): React.JSX.Element {
               onChange={(e) => setNewSpaceName(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && newSpaceName.trim()) {
-                  addSpace(newSpaceName, 'create');
+                  addSpace(newSpaceName, 'create', customSignalingUrl.trim() || undefined, joinSecret || undefined);
                   setNewSpaceName('');
                   setCreateSpaceOpen(false);
                 }
@@ -1068,10 +1086,46 @@ export function App(): React.JSX.Element {
               maxLength={32}
             />
           </div>
+          <div style={{ marginTop: '8px' }}>
+            <button
+              className="welcome__btn"
+              style={{ background: 'transparent', border: 'none', color: 'var(--dim)', textAlign: 'left', padding: '0', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px' }}
+              onClick={() => setAdvancedOpen(!advancedOpen)}
+            >
+              {advancedOpen ? '▼ Hide' : '▶ Show'} Advanced Connection Settings
+            </button>
+            {advancedOpen && (
+              <div style={{ marginTop: '12px', padding: '12px', background: 'var(--bg-mid)', borderRadius: 'var(--radius-panel)' }}>
+                <label className="field-label" style={{ textAlign: 'left' }}>Signaling Server URL (Optional)</label>
+                <input
+                  className="welcome__input"
+                  value={customSignalingUrl}
+                  onChange={(e) => setCustomSignalingUrl(e.target.value)}
+                  placeholder="e.g. wss://chickadee.example.com"
+                  style={{ marginBottom: '12px' }}
+                />
+                <label className="field-label" style={{ textAlign: 'left' }}>Join Secret / Password (Optional)</label>
+                <input
+                  className="welcome__input"
+                  type="password"
+                  value={joinSecret}
+                  onChange={(e) => setJoinSecret(e.target.value)}
+                  placeholder="Leave blank for public servers"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newSpaceName.trim()) {
+                      addSpace(newSpaceName, 'create', customSignalingUrl.trim() || undefined, joinSecret || undefined);
+                      setNewSpaceName('');
+                      setCreateSpaceOpen(false);
+                    }
+                  }}
+                />
+              </div>
+            )}
+          </div>
           <button
             className="modal-action"
             onClick={() => {
-              addSpace(newSpaceName, 'create');
+              addSpace(newSpaceName, 'create', customSignalingUrl.trim() || undefined, joinSecret || undefined);
               setNewSpaceName('');
               setCreateSpaceOpen(false);
             }}
@@ -1092,7 +1146,7 @@ export function App(): React.JSX.Element {
               onChange={(e) => setInviteCodeInput(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && inviteCodeInput.trim()) {
-                  addSpace(inviteCodeInput, 'join');
+                  addSpace(inviteCodeInput, 'join', customSignalingUrl.trim() || undefined, joinSecret || undefined);
                   setInviteCodeInput('');
                   setJoinSpaceOpen(false);
                 }
@@ -1101,10 +1155,46 @@ export function App(): React.JSX.Element {
               autoFocus
             />
           </div>
+          <div style={{ marginTop: '8px' }}>
+            <button
+              className="welcome__btn"
+              style={{ background: 'transparent', border: 'none', color: 'var(--dim)', textAlign: 'left', padding: '0', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px' }}
+              onClick={() => setAdvancedOpen(!advancedOpen)}
+            >
+              {advancedOpen ? '▼ Hide' : '▶ Show'} Advanced Connection Settings
+            </button>
+            {advancedOpen && (
+              <div style={{ marginTop: '12px', padding: '12px', background: 'var(--bg-mid)', borderRadius: 'var(--radius-panel)' }}>
+                <label className="field-label" style={{ textAlign: 'left' }}>Signaling Server URL (Optional)</label>
+                <input
+                  className="welcome__input"
+                  value={customSignalingUrl}
+                  onChange={(e) => setCustomSignalingUrl(e.target.value)}
+                  placeholder="e.g. wss://chickadee.example.com"
+                  style={{ marginBottom: '12px' }}
+                />
+                <label className="field-label" style={{ textAlign: 'left' }}>Join Secret / Password (Optional)</label>
+                <input
+                  className="welcome__input"
+                  type="password"
+                  value={joinSecret}
+                  onChange={(e) => setJoinSecret(e.target.value)}
+                  placeholder="Leave blank for public servers"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && inviteCodeInput.trim()) {
+                      addSpace(inviteCodeInput, 'join', customSignalingUrl.trim() || undefined, joinSecret || undefined);
+                      setInviteCodeInput('');
+                      setJoinSpaceOpen(false);
+                    }
+                  }}
+                />
+              </div>
+            )}
+          </div>
           <button
             className="modal-action"
             onClick={() => {
-              addSpace(inviteCodeInput, 'join');
+              addSpace(inviteCodeInput, 'join', customSignalingUrl.trim() || undefined, joinSecret || undefined);
               setInviteCodeInput('');
               setJoinSpaceOpen(false);
             }}
@@ -1230,6 +1320,17 @@ export function App(): React.JSX.Element {
           avatarDataUrl={localAvatarUrl}
           selfColor={SELF_COLOR}
           onChangeAvatar={handleSaveAvatar}
+        />
+      )}
+
+      {spaceSettingsTarget && (
+        <SpaceSettingsModal
+          space={spaces.find(s => s.id === spaceSettingsTarget)!}
+          onSave={(url, secret) => {
+            updateSpaceSettings(spaceSettingsTarget, url, secret);
+            setSpaceSettingsTarget(null);
+          }}
+          onClose={() => setSpaceSettingsTarget(null)}
         />
       )}
     </div>

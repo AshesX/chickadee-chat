@@ -30,6 +30,7 @@ interface SidebarProps {
   onCreateSpace: () => void;
   onJoinSpace: () => void;
   onDeleteSpace: (id: string, name: string) => void;
+  onSpaceSettings: (id: string) => void;
 }
 
 export function Sidebar({
@@ -56,6 +57,7 @@ export function Sidebar({
   onCreateSpace,
   onJoinSpace,
   onDeleteSpace,
+  onSpaceSettings,
 }: SidebarProps): React.JSX.Element {
   const onlineCount = users.filter((u) => u.status !== 'offline').length;
   const selfInitial = selfName.trim().charAt(0).toUpperCase() || 'Y';
@@ -178,6 +180,18 @@ export function Sidebar({
                       >
                         <span className="space-dropdown__item-name">{s.name}</span>
                         {isActive && <span className="space-dropdown__item-dot" />}
+                      </button>
+                      <button
+                        className="space-dropdown__item-settings"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSpaceSettings(s.id);
+                          setSwitcherOpen(false);
+                        }}
+                        title="Space Settings"
+                        style={{ background: 'transparent', border: 'none', color: 'var(--dim)', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
+                      >
+                        <Settings size={12} />
                       </button>
                       <button
                         className="space-dropdown__item-delete"

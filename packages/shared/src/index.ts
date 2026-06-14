@@ -96,6 +96,8 @@ export interface SpaceInfo {
   id: string;
   name: string;
   rooms: Room[];
+  customSignalingUrl?: string;
+  joinSecret?: string;
 }
 
 /** A game the detector scans for (process name → display + short tag). */
