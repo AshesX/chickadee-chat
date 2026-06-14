@@ -13,6 +13,7 @@ import { useMediaDevices } from './hooks/useMediaDevices';
 import { useSfxEvents } from './hooks/useSfxEvents';
 import { useTraySync } from './hooks/useTraySync';
 import { SELF_COLOR, useUserColors } from './lib/userColors';
+import { setOutputSink } from './lib/audioContext';
 import { store } from './lib/settings';
 import { Sidebar } from './components/Sidebar';
 import { RoomHeader } from './components/RoomHeader';
@@ -128,6 +129,12 @@ export function App(): React.JSX.Element {
       return changed ? next : prev;
     });
   }, [signaling.peers]);
+
+  // Output device is a single global property of the shared audio context (all
+  // playback funnels through it), so set the sink once here — not per-peer tile.
+  useEffect(() => {
+    setOutputSink(outputDeviceId ?? '');
+  }, [outputDeviceId]);
   const [volumeOpen, setVolumeOpen] = useState(false);
   const [inputMenuOpen, setInputMenuOpen] = useState(false);
   const [outputMenuOpen, setOutputMenuOpen] = useState(false);
@@ -774,7 +781,6 @@ export function App(): React.JSX.Element {
             gameTag={peer.game ?? undefined}
             volume={deafened ? 0 : (volumes[peer.id] ?? 1) * outputVolume}
             deafened={peer.deafened}
-            outputDeviceId={outputDeviceId}
             normalize={normalizeVoices}
           />
         );

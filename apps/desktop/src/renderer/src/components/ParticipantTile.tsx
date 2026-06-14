@@ -25,8 +25,6 @@ export interface ParticipantTileProps {
   volume?: number;
   /** Whether this participant is currently deafened. */
   deafened?: boolean;
-  /** Preferred speaker deviceId (setSinkId), or '' for the system default. */
-  outputDeviceId?: string;
   /** Remote only: auto-level incoming audio (compressor + makeup gain) to even out quiet/loud talkers. */
   normalize?: boolean;
   /** Custom avatar data URL; shown instead of the letter initial when set. */
@@ -54,7 +52,6 @@ export function ParticipantTile({
   transmitting,
   volume,
   deafened,
-  outputDeviceId,
   avatarUrl,
   normalize,
 }: ParticipantTileProps): React.JSX.Element {
@@ -130,12 +127,16 @@ export function ParticipantTile({
       gainNodeRef.current.gain.value = Math.max(0, volume ?? 1);
   }, [volume, isSelf, cameraStream]);
 
-  // Route remote audio to the chosen output device via the shared AudioContext.
+  // Fallback when the Web Audio graph isn't wired (no AudioContext): apply volume +
+  // Deafen (volume 0) directly on the <video> so they still work. Near-dead-code in
+  // practice — Electron always provides an AudioContext — but it keeps Deafen correct
+  // instead of silently playing at full volume. When audioRouted, the element is muted
+  // and the gain node owns volume, so this is a no-op.
   useEffect(() => {
-    if (isSelf) return;
-    const ctx = getSharedAudioContext() as (AudioContext & { setSinkId?: (id: string) => Promise<void> }) | null;
-    void ctx?.setSinkId?.(outputDeviceId ?? '').catch(() => {});
-  }, [outputDeviceId, isSelf]);
+    const el = videoRef.current;
+    if (!el || isSelf || audioRouted) return;
+    el.volume = Math.max(0, Math.min(1, volume ?? 1));
+  }, [volume, isSelf, audioRouted]);
 
   const connNote = !isSelf && connectionState ? CONN_LABEL[connectionState] : undefined;
   const initial = displayName.trim().charAt(0).toUpperCase() || '?';
