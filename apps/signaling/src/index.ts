@@ -500,6 +500,20 @@ wss.on('connection', (socket) => {
       return;
     }
 
+    // Non-mutating existence probe — answerable before/without joining. A Space
+    // "exists" only while it has ≥1 connected member. On a secret mismatch we
+    // report `false` rather than leaking existence to an unauthorized prober.
+    if (msg.type === 'check-space') {
+      const spaceId = clampString(msg.spaceId, MAX_ID_LEN);
+      const authorized = !JOIN_SECRET || msg.secret === JOIN_SECRET;
+      send(socket, {
+        type: 'space-status',
+        spaceId,
+        exists: authorized && !!spaceId && spaceConnections.has(spaceId),
+      });
+      return;
+    }
+
     if (msg.type === 'join') {
       if (conn) return; // already joined; ignore duplicate joins
       // Optional shared-secret gate (private deployments). Silent reject on

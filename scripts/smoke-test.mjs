@@ -25,6 +25,21 @@ function client(displayName, { room = ROOM, userId = `uid-${displayName}`, space
   return { ws, events, ready, displayName };
 }
 
+/** One-shot non-mutating existence probe over a throwaway socket. */
+function checkSpace(spaceId) {
+  return new Promise((resolve) => {
+    const ws = new WebSocket(URL);
+    ws.on('open', () => ws.send(JSON.stringify({ type: 'check-space', spaceId })));
+    ws.on('message', (d) => {
+      const msg = JSON.parse(d.toString());
+      if (msg.type === 'space-status' && msg.spaceId === spaceId) {
+        ws.close();
+        resolve(msg.exists);
+      }
+    });
+  });
+}
+
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 let failures = 0;
 const check = (label, cond) => {
@@ -32,9 +47,15 @@ const check = (label, cond) => {
   if (!cond) failures++;
 };
 
+// check-space: an unknown space reports not-existing (no member is connected).
+check('check-space on unknown space -> exists:false', (await checkSpace('no-such-space-xyz')) === false);
+
 const a = client('Alpha');
 const wa = await a.ready;
 check('A joins empty room -> welcome with 0 peers', wa.type === 'welcome' && wa.peers.length === 0);
+
+// check-space: with A connected, the space now reports existing.
+check('check-space on live space -> exists:true', (await checkSpace(SPACE)) === true);
 
 // Phase 5: heartbeat ping -> pong.
 a.ws.send(JSON.stringify({ type: 'ping' }));

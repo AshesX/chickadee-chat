@@ -305,6 +305,9 @@ export type ClientMessage =
   | { type: 'update-rooms'; spaceId: string; rooms: Room[] }
   // Broadcast space rename to active peers.
   | { type: 'rename-space'; spaceId: string; newSpaceId: string; newSpaceName: string }
+  // Non-mutating existence probe — answered before/without joining. A Space "exists"
+  // only while ≥1 member is currently connected (the server is in-memory).
+  | { type: 'check-space'; spaceId: string; secret?: string }
   // Ephemeral room chat (a reaction is a chat with `reaction: true`).
   | { type: 'chat'; text: string; reaction?: boolean }
   // Liveness check so the client can detect a dead/half-open connection.
@@ -329,6 +332,8 @@ export type ServerMessage =
   | { type: 'peer-left'; peerId: PeerId }
   // Sent to the newcomer if the room is already full.
   | { type: 'room-full'; room: RoomId }
+  // Reply to `check-space`: whether the Space currently has ≥1 connected member.
+  | { type: 'space-status'; spaceId: string; exists: boolean }
   // Relayed WebRTC signaling, with `from` stamped by the server.
   | { type: 'offer'; from: PeerId; sdp: RTCSessionDescriptionInit }
   | { type: 'answer'; from: PeerId; sdp: RTCSessionDescriptionInit }

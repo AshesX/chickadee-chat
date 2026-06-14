@@ -5,7 +5,7 @@ import { usePeerMesh } from './hooks/usePeerMesh';
 import { useSessionTimer } from './hooks/useSessionTimer';
 import { useRoomChat } from './hooks/useRoomChat';
 import { useSpacePresence } from './hooks/useSpacePresence';
-import { useSpaces } from './hooks/useSpaces';
+import { useSpaces, type AddSpaceResult } from './hooks/useSpaces';
 import { useKeybindSync } from './hooks/useKeybindSync';
 import { useVoiceActivation } from './hooks/useVoiceActivation';
 import { useAudioActivity } from './hooks/useAudioActivity';
@@ -80,7 +80,7 @@ export function App(): React.JSX.Element {
     setCurrentRoomId(null);
   }, [signaling.joinRoom]);
   const { spaces, currentSpaceId, rooms, switchSpace, addSpace, deleteSpace, initFirstSpace, updateRooms, updateSpaceSettings } =
-    useSpaces(leaveRoom);
+    useSpaces(leaveRoom, signaling.verifySpace);
 
   const [chatOpen, setChatOpen] = useState(() => store.getChatVisible());
   const [createOpen, setCreateOpen] = useState(false);
@@ -268,6 +268,8 @@ export function App(): React.JSX.Element {
   const [joinSpaceOpen, setJoinSpaceOpen] = useState(false);
   const [newSpaceName, setNewSpaceName] = useState('');
   const [inviteCodeInput, setInviteCodeInput] = useState('');
+  const [joinChecking, setJoinChecking] = useState(false);
+  const [joinError, setJoinError] = useState<string | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [customSignalingUrl, setCustomSignalingUrl] = useState('');
   const [joinSecret, setJoinSecret] = useState('');
@@ -423,10 +425,35 @@ export function App(): React.JSX.Element {
     if (id === currentRoomId) leaveRoom();
   }
 
-  function handleOnboardingSubmit(name: string, val: string, action: 'create' | 'join', customSignalingUrl?: string, joinSecret?: string): void {
-    store.setName(name);
-    setDisplayName(name);
-    initFirstSpace(val, action, customSignalingUrl, joinSecret);
+  async function handleOnboardingSubmit(name: string, val: string, action: 'create' | 'join', customSignalingUrl?: string, joinSecret?: string): Promise<AddSpaceResult> {
+    const result = await initFirstSpace(val, action, customSignalingUrl, joinSecret);
+    // Only commit the display name once the space is confirmed, so a failed join
+    // doesn't leave the wizard in a half-applied state.
+    if (result.ok) {
+      store.setName(name);
+      setDisplayName(name);
+    }
+    return result;
+  }
+
+  /** Shared async handler for the Join-a-Space modal (button + Enter). */
+  async function submitJoinSpace(): Promise<void> {
+    const code = inviteCodeInput.trim();
+    if (!code || joinChecking) return;
+    setJoinError(null);
+    setJoinChecking(true);
+    const result = await addSpace(code, 'join', customSignalingUrl.trim() || undefined, joinSecret || undefined);
+    setJoinChecking(false);
+    if (result.ok) {
+      setInviteCodeInput('');
+      setJoinSpaceOpen(false);
+      return;
+    }
+    setJoinError(
+      result.reason === 'unreachable'
+        ? "Couldn't reach the signaling server — check your connection."
+        : 'That Space does not exist (or no one is currently in it).',
+    );
   }
 
   function toggleChat(): void {
@@ -1125,7 +1152,7 @@ export function App(): React.JSX.Element {
               onChange={(e) => setNewSpaceName(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && newSpaceName.trim()) {
-                  addSpace(newSpaceName, 'create', customSignalingUrl.trim() || undefined, joinSecret || undefined);
+                  void addSpace(newSpaceName, 'create', customSignalingUrl.trim() || undefined, joinSecret || undefined);
                   setNewSpaceName('');
                   setCreateSpaceOpen(false);
                 }
@@ -1144,7 +1171,7 @@ export function App(): React.JSX.Element {
             setAdvancedOpen={setAdvancedOpen}
             onEnterKeyDown={() => {
               if (newSpaceName.trim()) {
-                addSpace(newSpaceName, 'create', customSignalingUrl.trim() || undefined, joinSecret || undefined);
+                void addSpace(newSpaceName, 'create', customSignalingUrl.trim() || undefined, joinSecret || undefined);
                 setNewSpaceName('');
                 setCreateSpaceOpen(false);
               }
@@ -1153,7 +1180,7 @@ export function App(): React.JSX.Element {
           <button
             className="modal-action"
             onClick={() => {
-              addSpace(newSpaceName, 'create', customSignalingUrl.trim() || undefined, joinSecret || undefined);
+              void addSpace(newSpaceName, 'create', customSignalingUrl.trim() || undefined, joinSecret || undefined);
               setNewSpaceName('');
               setCreateSpaceOpen(false);
             }}
@@ -1165,24 +1192,22 @@ export function App(): React.JSX.Element {
       )}
 
       {joinSpaceOpen && (
-        <Modal title="Join a Space" onClose={() => setJoinSpaceOpen(false)}>
+        <Modal title="Join a Space" onClose={() => { setJoinSpaceOpen(false); setJoinError(null); }}>
           <div className="field">
             <label className="field-label">Invite Code / Space ID</label>
             <input
               className="welcome__input"
               value={inviteCodeInput}
-              onChange={(e) => setInviteCodeInput(e.target.value)}
+              onChange={(e) => { setInviteCodeInput(e.target.value); setJoinError(null); }}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && inviteCodeInput.trim()) {
-                  addSpace(inviteCodeInput, 'join', customSignalingUrl.trim() || undefined, joinSecret || undefined);
-                  setInviteCodeInput('');
-                  setJoinSpaceOpen(false);
-                }
+                if (e.key === 'Enter') void submitJoinSpace();
               }}
               placeholder="e.g. midnight-lounge-7f8a3"
               autoFocus
+              disabled={joinChecking}
             />
           </div>
+          {joinError && <p className="field-error">{joinError}</p>}
           <AdvancedConnectionSettings
             customSignalingUrl={customSignalingUrl}
             setCustomSignalingUrl={setCustomSignalingUrl}
@@ -1190,24 +1215,14 @@ export function App(): React.JSX.Element {
             setJoinSecret={setJoinSecret}
             advancedOpen={advancedOpen}
             setAdvancedOpen={setAdvancedOpen}
-            onEnterKeyDown={() => {
-              if (inviteCodeInput.trim()) {
-                addSpace(inviteCodeInput, 'join', customSignalingUrl.trim() || undefined, joinSecret || undefined);
-                setInviteCodeInput('');
-                setJoinSpaceOpen(false);
-              }
-            }}
+            onEnterKeyDown={() => void submitJoinSpace()}
           />
           <button
             className="modal-action"
-            onClick={() => {
-              addSpace(inviteCodeInput, 'join', customSignalingUrl.trim() || undefined, joinSecret || undefined);
-              setInviteCodeInput('');
-              setJoinSpaceOpen(false);
-            }}
-            disabled={!inviteCodeInput.trim()}
+            onClick={() => void submitJoinSpace()}
+            disabled={!inviteCodeInput.trim() || joinChecking}
           >
-            Join Space
+            {joinChecking ? 'Checking…' : 'Join Space'}
           </button>
         </Modal>
       )}
