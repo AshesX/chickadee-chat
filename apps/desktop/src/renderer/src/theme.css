@@ -196,13 +196,17 @@ input:focus {
 }
 
 /* Online presence dot pulse */
+/* Compositor-only: pulses opacity + transform on .presence-dot--online::after
+   (the box-shadow on that halo is static), instead of repainting box-shadow every frame. */
 @keyframes dotPulse {
   0%,
   100% {
-    box-shadow: 0 0 4px var(--online);
+    opacity: 0.25;
+    transform: scale(0.82);
   }
   50% {
-    box-shadow: 0 0 10px var(--online), 0 0 18px rgba(34, 197, 94, 0.27);
+    opacity: 1;
+    transform: scale(1);
   }
 }
 

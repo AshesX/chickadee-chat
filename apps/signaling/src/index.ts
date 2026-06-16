@@ -4,7 +4,6 @@ import {
   CHAT_MAX_LEN,
   MAX_AVATAR_DATA_URL_LEN,
   MAX_DISPLAY_NAME_LEN,
-  MAX_GAME_TAG_LEN,
   MAX_ID_LEN,
   MAX_PEERS_PER_ROOM,
   MAX_VOICE_PREF_LEN,
@@ -125,7 +124,6 @@ function handleJoin(socket: WebSocket, msg: Extract<ClientMessage, { type: 'join
     speaking: false,
     cameraOn: false,
     screenStreamId: null,
-    game: null,
     deafened: false,
     status: sanitizeStatus(msg.status),
     avatarDataUrl: sanitizeAvatarDataUrl(msg.avatarDataUrl),
@@ -299,18 +297,6 @@ function handleCamState(conn: Connection, on: boolean): void {
 function handleScreenState(conn: Connection, streamId: string | null): void {
   conn.peer.screenStreamId = streamId;
   broadcast(conn.room, { type: 'screen-state', from: conn.peer.id, streamId }, conn.peer.id);
-}
-
-/** Record a peer's detected game and tell the room (mirror pattern). */
-function handleGameState(conn: Connection, game: string | null): void {
-  conn.peer.game = game == null ? null : clampString(game, MAX_GAME_TAG_LEN) || null;
-  broadcast(conn.room, { type: 'game-state', from: conn.peer.id, game: conn.peer.game }, conn.peer.id);
-
-  const pMap = spacePresence.get(conn.space);
-  if (pMap) {
-    const p = pMap.get(conn.peer.userId);
-    if (p) broadcastSpace(conn.space, { type: 'space-peer-update', presence: p });
-  }
 }
 
 /** Record a peer's new deafen state and tell everyone else in the room (mirror pattern). */
@@ -544,8 +530,6 @@ wss.on('connection', (socket) => {
       handleCamState(conn, msg.on);
     } else if (msg.type === 'screen-state') {
       handleScreenState(conn, msg.streamId);
-    } else if (msg.type === 'game-state') {
-      handleGameState(conn, msg.game);
     } else if (msg.type === 'deafen-state') {
       handleDeafenState(conn, msg.deafened);
     } else if (msg.type === 'status-state') {

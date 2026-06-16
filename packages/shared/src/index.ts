@@ -14,8 +14,6 @@ export const MAX_PEERS_PER_ROOM = 4;
 export const CHAT_MAX_LEN = 500;
 /** Max length of a display name. */
 export const MAX_DISPLAY_NAME_LEN = 32;
-/** Max length of a detected-game short tag. */
-export const MAX_GAME_TAG_LEN = 24;
 /** Max length of a TTS voice-category id. */
 export const MAX_VOICE_PREF_LEN = 32;
 /** Max length of an id-like field (userId / spaceId / roomId). */
@@ -73,8 +71,6 @@ export interface Peer {
    * stream, and lets mid-share joiners classify it correctly.
    */
   screenStreamId: string | null;
-  /** Short tag for the game this peer is playing (e.g. "DRG"), or null. */
-  game: string | null;
   /** Whether this peer is currently deafened. */
   deafened: boolean;
   /** The presence status of this peer: 'online' | 'idle' | 'dnd'. */
@@ -100,15 +96,6 @@ export interface SpaceInfo {
   rooms: Room[];
   customSignalingUrl?: string;
   joinSecret?: string;
-}
-
-/** A game the detector scans for (process name → display + short tag). */
-export interface GameDef {
-  name: string;
-  short: string;
-  processName: string;
-  /** True for user-added games; built-in defaults omit this (locked in the UI). */
-  isCustom?: boolean;
 }
 
 /** Settings persisted to Electron userData (the renderer reads/writes via IPC). */
@@ -196,22 +183,6 @@ export interface PersistedSettings {
   defaultVideoAction: 'camera' | 'screen';
 }
 
-/** Built-in games the detector ships with (process names are lower-cased, .exe-less). */
-export const DEFAULT_GAMES: GameDef[] = [
-  { name: 'Deep Rock Galactic', short: 'DRG', processName: 'fsd-win64' },
-  { name: 'Helldivers 2', short: 'HD2', processName: 'helldivers2' },
-  { name: 'Valheim', short: 'VLH', processName: 'valheim' },
-  { name: 'Counter-Strike 2', short: 'CS2', processName: 'cs2' },
-  { name: 'Elden Ring', short: 'ELD', processName: 'eldenring' },
-  { name: 'Apex Legends', short: 'APX', processName: 'r5apex' },
-  { name: 'Rocket League', short: 'RL', processName: 'rocketleague' },
-  { name: 'Minecraft', short: 'MC', processName: 'javaw' },
-  { name: 'Fortnite', short: 'FN', processName: 'fortniteclient-win64-shipping' },
-  { name: 'Overwatch 2', short: 'OW', processName: 'overwatch' },
-  { name: 'Stardew Valley', short: 'SDV', processName: 'stardew valley' },
-  { name: 'Terraria', short: 'TER', processName: 'terraria' },
-];
-
 export const DEFAULT_ROOMS: Room[] = [
   { id: 'general', label: 'General', icon: '💬' },
   { id: 'gaming', label: 'Gaming', icon: '🎮' },
@@ -296,7 +267,6 @@ export type ClientMessage =
   | { type: 'speaking-state'; speaking: boolean }
   | { type: 'cam-state'; on: boolean }
   | { type: 'screen-state'; streamId: string | null }
-  | { type: 'game-state'; game: string | null }
   | { type: 'deafen-state'; deafened: boolean }
   | { type: 'status-state'; status: 'online' | 'idle' | 'dnd' }
   | { type: 'avatar-state'; avatarDataUrl: string | null }
@@ -346,8 +316,6 @@ export type ServerMessage =
   | { type: 'cam-state'; from: PeerId; on: boolean }
   // A peer started/stopped sharing their screen (streamId null = stopped).
   | { type: 'screen-state'; from: PeerId; streamId: string | null }
-  // A peer's detected game changed (null = none).
-  | { type: 'game-state'; from: PeerId; game: string | null }
   // A peer toggled their deafen state; broadcast to everyone else in the room.
   | { type: 'deafen-state'; from: PeerId; deafened: boolean }
   // A peer updated their presence status; broadcast to everyone else in the room.

@@ -117,11 +117,6 @@ function applyPresenceUpdate(state: SignalingState, msg: ServerMessage): Signali
           p.id === msg.from ? { ...p, screenStreamId: msg.streamId } : p,
         ),
       };
-    case 'game-state':
-      return {
-        ...state,
-        peers: state.peers.map((p) => (p.id === msg.from ? { ...p, game: msg.game } : p)),
-      };
     case 'deafen-state':
       return {
         ...state,

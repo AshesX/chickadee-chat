@@ -100,7 +100,7 @@ export function App(): React.JSX.Element {
   const [pttMode, setPttMode] = useState<'hold' | 'toggle'>(() => store.getPttMode());
   const [muteKey, setMuteKey] = useState(() => store.getMuteKey());
   const [muteMode, setMuteMode] = useState<'hold' | 'toggle'>(() => store.getMuteMode());
-  const [game, setGame] = useState<{ name: string; short: string } | null>(null);
+  const [windowFocused, setWindowFocused] = useState(() => document.hasFocus());
   const [volumes, setVolumes] = useState<Record<string, number>>({});
 
   // Manual per-peer volume: update the live (peerId-keyed) map and persist by stable userId
@@ -687,13 +687,21 @@ export function App(): React.JSX.Element {
   }
 
   // Reset unread count when window gets focus; also stop any queued TTS backlog.
+  // Track focus state too: when the window is unfocused (e.g. on a 2nd monitor
+  // while a game has focus) we freeze the per-frame CSS animations via .app--unfocused.
   useEffect(() => {
     const handleFocus = (): void => {
+      setWindowFocused(true);
       setUnreadCount(0);
       cancelSpeech();
     };
+    const handleBlur = (): void => setWindowFocused(false);
     window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+    };
   }, []);
 
   // Warm the TTS voice list on startup so the first spoken message resolves the right voice.
@@ -750,21 +758,15 @@ export function App(): React.JSX.Element {
     }
   }, [settingsOpen, inRoom, mesh.prepareMedia, mesh.teardown]);
 
-  // Detected game (from the main-process scanner).
-  useEffect(() => {
-    return window.chickadee?.onGameDetected?.((g) => setGame(g));
-  }, []);
-
-  // Broadcast our game short-tag, deafen state, and status to the room (re-announces on join/reconnect).
+  // Broadcast our deafen state and status to the room (re-announces on join/reconnect).
   useEffect(() => {
     if (signaling.status === 'connected') {
-      signaling.send({ type: 'game-state', game: game?.short ?? null });
       if (deafened) {
         signaling.send({ type: 'deafen-state', deafened: true });
       }
       signaling.send({ type: 'status-state', status: selfStatus });
     }
-  }, [game, currentRoomId, signaling.status, signaling.send, deafened, selfStatus]);
+  }, [currentRoomId, signaling.status, signaling.send, deafened, selfStatus]);
 
   // Broadcast mute *intent* (not the per-frame VAD/PTT transmit gate) so remote
   // mute icons reflect a deliberate mute and don't flicker as the user talks.
@@ -843,7 +845,6 @@ export function App(): React.JSX.Element {
         cameraStream={mesh.localStream}
         color={SELF_COLOR}
         speaking={selfSpeaking}
-        gameTag={game?.short}
         deafened={deafened}
         avatarUrl={localAvatarUrl}
       />
@@ -861,7 +862,6 @@ export function App(): React.JSX.Element {
             color={colors[peer.id] ?? SELF_COLOR}
             connectionState={media?.connectionState ?? 'new'}
             avatarUrl={peer.avatarDataUrl ?? null}
-            gameTag={peer.game ?? undefined}
             volume={deafened ? 0 : (volumes[peer.id] ?? 1) * outputVolume}
             deafened={peer.deafened}
             normalize={normalizeVoices}
@@ -887,7 +887,7 @@ export function App(): React.JSX.Element {
   const errors = [mesh.micError, mesh.cameraError, mesh.screenError, signaling.error].filter(Boolean);
 
   return (
-    <div className="app">
+    <div className={`app${windowFocused ? '' : ' app--unfocused'}`}>
       {chat.floats.map((f) => (
         <div key={f.id} className="float-reaction" style={{ left: `${f.x}%` }}>
           {f.emoji}
@@ -907,7 +907,6 @@ export function App(): React.JSX.Element {
         selfColor={SELF_COLOR}
         selfAvatarUrl={localAvatarUrl}
         online={signaling.status === 'connected'}
-        selfGame={game?.name}
         onOpenSettings={() => setSettingsOpen(true)}
         spaces={spaces}
         activeSpaceId={currentSpaceId}
@@ -936,7 +935,6 @@ export function App(): React.JSX.Element {
           count={totalInRoom}
           maxCount={MAX_PEERS_PER_ROOM}
           timer={timer}
-          game={game?.name}
           chatOpen={chatOpen}
           onToggleChat={toggleChat}
           hasSpace={currentSpaceId !== null}

@@ -16,10 +16,10 @@ import {
   type PersistedSettings,
 } from '@chickadee/shared';
 import { loadSettings, saveSettings, getSettings } from './settings';
-import { loadGamesList, startGameDetection, configureGameDetection } from './gameDetection';
 import { registerPushToTalk, handleBeforeInput, setHotkeyMainWindow, stopHotkeys } from './hotkeys';
 import { configureTray, setTrayMainWindow, destroyTray } from './tray';
 import { configureScreenShare } from './screenShare';
+import { configureProfiler, startProfiler } from './profiler';
 
 // In dev, override userData per "instance slot" (default 0) so settings persist
 // across restarts (a fixed dir) while two instances stay isolated — run a second
@@ -74,6 +74,8 @@ interface AppConfig {
   appVersion: string;
   /** Optional shared join secret for private signaling deployments ('' = none). */
   joinSecret: string;
+  /** Idle-perf profiling harness toggle (CHICKADEE_PROFILE); inert when false. */
+  profile: boolean;
 }
 
 function buildConfig(): AppConfig {
@@ -103,6 +105,7 @@ function buildConfig(): AppConfig {
     iceServers,
     appVersion: app.getVersion(),
     joinSecret: process.env.CHICKADEE_JOIN_SECRET ?? '',
+    profile: !!process.env.CHICKADEE_PROFILE,
   };
 }
 
@@ -218,7 +221,7 @@ function createWindow(): void {
 
   setHotkeyMainWindow(window);
   setTrayMainWindow(window);
-  startGameDetection(window);
+  startProfiler(window);
 }
 
 app.on('render-process-gone', (_e, _wc, details) => {
@@ -227,7 +230,6 @@ app.on('render-process-gone', (_e, _wc, details) => {
 
 app.whenReady().then(() => {
   loadSettings();
-  loadGamesList();
 
   // Reconcile OS-level prefs with the persisted settings on launch.
   app.setLoginItemSettings({ openAtLogin: getSettings().launchOnStartup });
@@ -268,7 +270,7 @@ app.whenReady().then(() => {
 
   configureMediaPermissions();
   configureScreenShare();
-  configureGameDetection();
+  configureProfiler();
   registerWindowControls();
   registerPushToTalk();
   configureTray();

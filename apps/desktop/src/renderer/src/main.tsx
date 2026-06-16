@@ -7,8 +7,13 @@ import '@fontsource/outfit/700.css';
 import '@fontsource/outfit/800.css';
 import { App } from './App';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { initRendererProfiler } from './lib/profiler';
 import './theme.css';
 import './styles.css';
+
+// Start the rAF-rate profiler before React mounts, outside StrictMode, so it
+// runs once (not double-invoked) and only when CHICKADEE_PROFILE is set.
+initRendererProfiler();
 
 const container = document.getElementById('root');
 if (!container) throw new Error('Root element #root not found');

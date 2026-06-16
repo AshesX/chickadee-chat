@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { User, Mic, Volume2, Sliders, X, Video, Monitor, Gamepad2, Plus, Trash2, MessageSquare, Search } from 'lucide-react';
-import { defaultSettings, type GameDef } from '@chickadee/shared';
+import { User, Mic, Volume2, Sliders, X, Video, Monitor, MessageSquare, Search } from 'lucide-react';
+import { defaultSettings } from '@chickadee/shared';
 import { useKeyCapture } from '../hooks/useKeyCapture';
 import type { MediaDeviceOption } from '../hooks/useMediaDevices';
 import { AvatarCropModal } from './AvatarCropModal';
@@ -354,113 +354,6 @@ function MicLevelMeter({
   );
 }
 
-/** Game-detection list editor: built-ins are read-only; custom rows removable. */
-function GamesPanel(): React.JSX.Element {
-  const [games, setGames] = useState<GameDef[]>([]);
-  const [name, setName] = useState('');
-  const [short, setShort] = useState('');
-  const [proc, setProc] = useState('');
-
-  useEffect(() => {
-    void window.chickadee?.getGames?.().then((g) => setGames(g ?? []));
-  }, []);
-
-  function persist(next: GameDef[]): void {
-    setGames(next);
-    void window.chickadee?.saveGames?.(next);
-  }
-
-  function addGame(): void {
-    const n = name.trim();
-    const p = proc.trim().toLowerCase().replace(/\.exe$/, '');
-    if (!n || !p) return;
-    const s = (short.trim() || n.slice(0, 3)).toUpperCase();
-    persist([...games, { name: n, short: s, processName: p, isCustom: true }]);
-    setName('');
-    setShort('');
-    setProc('');
-  }
-
-  const builtIns = games.filter((g) => !g.isCustom);
-  const customs = games.map((g, i) => ({ g, i })).filter(({ g }) => g.isCustom);
-
-  return (
-    <>
-      <span className="settings-row__hint" style={{ marginBottom: '10px', display: 'block' }}>
-        Chickadee shows a tag on your tile when a known game is running (Windows only).
-        Add your own by entering its process name (e.g. <code>mygame.exe</code>).
-      </span>
-
-      <div id="section-your-games" className="settings-subdivision">Your games</div>
-      {customs.length === 0 && (
-        <span className="settings-row__hint">No custom games yet.</span>
-      )}
-      {customs.map(({ g, i }) => (
-        <div className="settings-row" key={`${g.processName}-${i}`}>
-          <div className="settings-row__label">
-            <span>{g.name} · {g.short}</span>
-            <span className="settings-row__hint">{g.processName}</span>
-          </div>
-          <button
-            className="unbind-btn"
-            onClick={() => persist(games.filter((_, idx) => idx !== i))}
-            title="Remove game"
-            aria-label={`Remove ${g.name}`}
-          >
-            <Trash2 size={14} />
-          </button>
-        </div>
-      ))}
-
-      <div className="settings-row" style={{ alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-        <input
-          className="welcome__input"
-          style={{ flex: '2 1 120px', padding: '6px 10px', margin: 0, textAlign: 'left' }}
-          placeholder="Display name"
-          value={name}
-          maxLength={32}
-          onChange={(e) => setName(e.target.value)}
-        />
-        <input
-          className="welcome__input"
-          style={{ flex: '1 1 60px', padding: '6px 10px', margin: 0, textAlign: 'left' }}
-          placeholder="Tag"
-          value={short}
-          maxLength={5}
-          onChange={(e) => setShort(e.target.value)}
-        />
-        <input
-          className="welcome__input"
-          style={{ flex: '2 1 120px', padding: '6px 10px', margin: 0, textAlign: 'left' }}
-          placeholder="process.exe"
-          value={proc}
-          onChange={(e) => setProc(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && addGame()}
-        />
-        <button
-          className="seg-btn"
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '8px 12px', borderRadius: 'var(--radius-badge)' }}
-          onClick={addGame}
-          disabled={!name.trim() || !proc.trim()}
-        >
-          <Plus size={14} /> Add
-        </button>
-      </div>
-
-      <hr className="settings-divider" />
-      <div id="section-builtin-games" className="settings-subdivision">Built-in games</div>
-      {builtIns.map((g) => (
-        <div className="settings-row" key={g.processName}>
-          <div className="settings-row__label">
-            <span>{g.name} · {g.short}</span>
-            <span className="settings-row__hint">{g.processName}</span>
-          </div>
-        </div>
-      ))}
-    </>
-  );
-}
-
 export function SettingsModal({
   displayName,
   onChangeName,
@@ -561,17 +454,17 @@ export function SettingsModal({
   const [name, setName] = useState(displayName);
   const [cropOpen, setCropOpen] = useState(false);
   const { capturing, startCapture, onRebindKey } = useKeyCapture();
-  const [activeTab, setActiveTab] = useState<'profile' | 'audio' | 'video' | 'sfx' | 'chat' | 'ui' | 'games' | 'app'>(
-    (initialTab as 'profile' | 'audio' | 'video' | 'sfx' | 'chat' | 'ui' | 'games' | 'app') ?? 'profile'
+  const [activeTab, setActiveTab] = useState<'profile' | 'audio' | 'video' | 'sfx' | 'chat' | 'ui' | 'app'>(
+    (initialTab as 'profile' | 'audio' | 'video' | 'sfx' | 'chat' | 'ui' | 'app') ?? 'profile'
   );
   const [versionCopied, setVersionCopied] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const version = window.chickadee?.appVersion || '0.1.0';
+  const version = window.chickadee?.appVersion || '0.2.0';
 
-  type TabId = 'profile' | 'audio' | 'video' | 'sfx' | 'chat' | 'ui' | 'games' | 'app';
+  type TabId = 'profile' | 'audio' | 'video' | 'sfx' | 'chat' | 'ui' | 'app';
   interface SearchEntry { label: string; description?: string; tab: TabId; sectionId?: string; keywords: string[]; }
 
   const SETTINGS_SEARCH_INDEX: SearchEntry[] = [
@@ -598,7 +491,6 @@ export function SettingsModal({
     { label: 'Chat Position', description: 'Place the chat panel on left or right', tab: 'chat', sectionId: 'section-chat-settings', keywords: ['chat', 'position', 'left', 'right', 'layout', 'side'] },
     { label: 'Theme', description: 'Midnight, Classic Dark, or OLED Black', tab: 'ui', keywords: ['theme', 'color', 'dark', 'midnight', 'oled', 'appearance', 'colours'] },
     { label: 'UI Scale', description: 'Zoom the entire app interface', tab: 'ui', keywords: ['scale', 'zoom', 'size', 'ui', 'interface', 'accessibility', 'dpi'] },
-    { label: 'Game Detection', description: 'Add or remove games for activity detection', tab: 'games', sectionId: 'section-your-games', keywords: ['game', 'detection', 'activity', 'status', 'playing', 'process'] },
     { label: 'Launch on Startup', description: 'Open automatically when Windows starts', tab: 'app', keywords: ['startup', 'autostart', 'boot', 'launch', 'windows', 'login'] },
     { label: 'Minimize to Tray', description: 'Keep running in background when window is closed', tab: 'app', keywords: ['tray', 'close', 'minimize', 'background', 'quit', 'system tray'] },
     { label: 'Always on Top', description: 'Pin the window above all other apps', tab: 'app', keywords: ['always on top', 'pin', 'window', 'focus', 'float'] },
@@ -623,10 +515,6 @@ export function SettingsModal({
     ],
     chat: [
       { label: 'Chat Settings', id: 'section-chat-settings' },
-    ],
-    games: [
-      { label: 'Your Games', id: 'section-your-games' },
-      { label: 'Built-in Games', id: 'section-builtin-games' },
     ],
   };
 
@@ -749,7 +637,7 @@ export function SettingsModal({
   const TAB_LABELS: Record<TabId, string> = {
     profile: 'My Profile', audio: 'Voice & Audio', video: 'Video & Screen Share',
     sfx: 'Sound Effects', chat: 'Chat Settings', ui: 'User Interface',
-    games: 'Game Detection', app: 'App Settings',
+    app: 'App Settings',
   };
 
   return (
@@ -882,20 +770,6 @@ export function SettingsModal({
             <span>User Interface</span>
           </button>
           <button
-            className={`settings-sidebar__item${activeTab === 'games' ? ' settings-sidebar__item--active' : ''}`}
-            onClick={() => setActiveTab('games')}
-          >
-            <Gamepad2 size={15} />
-            <span>Game Detection</span>
-          </button>
-          {activeTab === 'games' && (
-            <div className="settings-sidebar__sub-items">
-              {SUBSECTIONS.games!.map((s) => (
-                <button key={s.id} className="settings-sidebar__sub-item" onClick={() => scrollToSection(s.id)}>{s.label}</button>
-              ))}
-            </div>
-          )}
-          <button
             className={`settings-sidebar__item${activeTab === 'app' ? ' settings-sidebar__item--active' : ''}`}
             onClick={() => setActiveTab('app')}
           >
@@ -909,7 +783,7 @@ export function SettingsModal({
               onClick={copyVersion}
               title="Copy Version"
             >
-              {versionCopied ? 'Copied!' : `v${version}`}
+              {versionCopied ? 'Copied!' : `${version} Profiling`}
             </button>
           </div>
         </div>
@@ -924,7 +798,6 @@ export function SettingsModal({
               {activeTab === 'sfx' && 'Sound Effects'}
               {activeTab === 'chat' && 'Chat Settings'}
               {activeTab === 'ui' && 'User Interface'}
-              {activeTab === 'games' && 'Game Detection'}
               {activeTab === 'app' && 'App Settings'}
             </h2>
             <button className="settings-content__close" onClick={onClose} aria-label="Close settings">
@@ -1673,8 +1546,6 @@ export function SettingsModal({
               </div>
               </>
             )}
-
-            {activeTab === 'games' && <GamesPanel />}
 
             {activeTab === 'app' && (
               <>

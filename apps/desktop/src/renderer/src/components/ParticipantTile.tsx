@@ -17,8 +17,6 @@ export interface ParticipantTileProps {
   color: string;
   /** Connection state for remote peers; omitted for self. */
   connectionState?: RTCPeerConnectionState;
-  /** Abbreviated game name (top-right tag); omitted when none. */
-  gameTag?: string;
   /** Whether this participant is currently speaking (drives the ripple); synced from the wire. */
   speaking?: boolean;
   /** Remote only: output volume 0–2 (default 1, where 2 = 200% boost). */
@@ -48,7 +46,6 @@ export function ParticipantTile({
   cameraStream,
   color,
   connectionState,
-  gameTag,
   speaking = false,
   volume,
   deafened,
@@ -202,7 +199,6 @@ export function ParticipantTile({
         {showMuteIcon && cameraOn && <MicOff size={12} className="tile__badge-mute" />}
       </div>
 
-      {gameTag && <div className="tile__gametag">🎮 {gameTag}</div>}
       {connNote && <div className="tile__conn">{connNote}</div>}
     </li>
   );

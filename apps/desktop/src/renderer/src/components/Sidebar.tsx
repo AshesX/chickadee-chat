@@ -18,7 +18,6 @@ interface SidebarProps {
   selfColor: string;
   selfAvatarUrl?: string | null;
   online: boolean;
-  selfGame?: string;
   onOpenSettings: () => void;
   selfStatus: 'online' | 'idle' | 'dnd';
   onChangeStatus: (status: 'online' | 'idle' | 'dnd') => void;
@@ -46,7 +45,6 @@ export function Sidebar({
   selfColor,
   selfAvatarUrl,
   online,
-  selfGame,
   onOpenSettings,
   selfStatus,
   onChangeStatus,
@@ -344,7 +342,6 @@ export function Sidebar({
         </button>
         <div className="self__meta">
           <div className="self__name">{selfName || 'You'}</div>
-          {selfGame && <div className="self__game">🎮 {selfGame}</div>}
         </div>
         <button className="self__settings" onClick={onOpenSettings} aria-label="Settings">
           <Settings size={18} />

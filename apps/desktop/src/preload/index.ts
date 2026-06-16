@@ -2,7 +2,6 @@ import { contextBridge, ipcRenderer, webFrame } from 'electron';
 import {
   DEFAULT_ICE_SERVERS,
   defaultSettings,
-  type GameDef,
   type PersistedSettings,
   type ScreenSource,
 } from '@chickadee/shared';
@@ -12,6 +11,7 @@ interface AppConfig {
   iceServers: RTCIceServer[];
   appVersion: string;
   joinSecret: string;
+  profile: boolean;
 }
 
 /** Main passes small fixed runtime config synchronously via --chickadee-config=<json>. */
@@ -21,6 +21,7 @@ function readConfig(): AppConfig {
     iceServers: DEFAULT_ICE_SERVERS,
     appVersion: '0.1.0',
     joinSecret: '',
+    profile: false,
   };
   const arg = process.argv.find((a) => a.startsWith('--chickadee-config='));
   if (!arg) return fallback;
@@ -54,6 +55,11 @@ const api = {
     defaultSettings(),
   /** App version */
   appVersion: config.appVersion,
+  /** Idle-perf profiling harness toggle (CHICKADEE_PROFILE); false in normal use. */
+  profile: config.profile,
+  /** Report the renderer rAF callback rate to the main-process profiler (no-op sink when off). */
+  profileRaf: (p: { rafPerSec: number; hidden: boolean; focused: boolean }): void =>
+    ipcRenderer.send('chickadee:profile-raf', p),
   /** Merge + persist a partial settings update to userData. */
   saveSettings: (partial: Partial<PersistedSettings>): Promise<void> =>
     ipcRenderer.invoke('chickadee:save-settings', partial),
@@ -115,12 +121,6 @@ const api = {
     ipcRenderer.on('chickadee:mute-stop', listener);
     return () => ipcRenderer.removeListener('chickadee:mute-stop', listener);
   },
-  /** Subscribe to detected-game changes from the main-process scanner. */
-  onGameDetected: (cb: (game: { name: string; short: string } | null) => void): (() => void) => {
-    const listener = (_e: unknown, game: { name: string; short: string } | null): void => cb(game);
-    ipcRenderer.on('chickadee:game-detected', listener);
-    return () => ipcRenderer.removeListener('chickadee:game-detected', listener);
-  },
   /** Tray: set its icon (data URL), current room label, and mute-from-tray. */
   setTrayIcon: (dataUrl: string): Promise<void> => ipcRenderer.invoke('chickadee:set-tray-icon', dataUrl),
   setTrayRoom: (label: string | null): Promise<void> =>
@@ -145,11 +145,6 @@ const api = {
   /** Pin/unpin the window above all other apps. */
   setAlwaysOnTop: (on: boolean): Promise<void> =>
     ipcRenderer.invoke('chickadee:set-always-on-top', on),
-  /** Read the current game-detection list. */
-  getGames: (): Promise<GameDef[]> => ipcRenderer.invoke('chickadee:get-games'),
-  /** Persist the game-detection list (applies to the next scan live). */
-  saveGames: (games: GameDef[]): Promise<void> =>
-    ipcRenderer.invoke('chickadee:save-games', games),
 };
 
 contextBridge.exposeInMainWorld('chickadee', api);

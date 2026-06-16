@@ -26,7 +26,7 @@ Output: `apps/desktop/release/Chickadee Chat-<version>-portable.exe`.
 
 Notes:
 
-- **Windows only.** The app relies on Windows-specific features (system-audio loopback for screen share, `tasklist` game detection, the global push-to-talk hook).
+- **Windows only.** The app relies on Windows-specific features (system-audio loopback for screen share, the global push-to-talk hook).
 - The build is **unsigned**, so on first launch Windows SmartScreen shows a warning → click **More info → Run anyway**. (Code signing needs a certificate and is not set up.)
 - The app icon is generated from `apps/desktop/src/renderer/src/assets/chickadee-logo.svg` into `apps/desktop/resources/icon.ico` (committed to the repo). To regenerate it after changing the logo: `npm run icons --workspace @chickadee/desktop`.
 

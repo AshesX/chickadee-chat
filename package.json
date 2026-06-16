@@ -1,6 +1,6 @@
 {
   "name": "chickadee-chat",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Lightweight P2P desktop voice/video/screen-share app for small groups.",
   "workspaces": [
@@ -14,7 +14,8 @@
     "dev:desktop": "npm run dev --workspace @chickadee/desktop",
     "build": "npm run build --workspaces --if-present",
     "dist": "npm run dist:win --workspace @chickadee/desktop",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "profile:report": "node scripts/profile-report.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",
