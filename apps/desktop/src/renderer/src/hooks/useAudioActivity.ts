@@ -13,6 +13,10 @@ function getAudioContext(): AudioContext {
 const SPEAK_ON = 0.045;
 const SPEAK_OFF = 0.025;
 const MIN_TOGGLE_MS = 120;
+// Cap the analyser+RMS work at ~50 Hz regardless of display refresh rate (rAF fires
+// at 144/240 Hz on gamer hardware; a speaking indicator needs no finer resolution).
+// rAF stays the scheduler so we keep its free throttling while minimized.
+const COMPUTE_INTERVAL_MS = 20;
 
 /**
  * Returns whether the given stream currently carries active speech, by
@@ -40,8 +44,17 @@ export function useAudioActivity(stream: MediaStream | null): boolean {
     let raf = 0;
     let active = false;
     let lastToggle = 0;
+    let lastCompute = 0; // timestamp of the last analyser read (throttle to ~50 Hz)
 
     const tick = (now: number) => {
+      // Throttle the per-frame work; the MIN_TOGGLE_MS debounce below is
+      // timestamp-based, so skipping frames between intervals is harmless.
+      if (now - lastCompute < COMPUTE_INTERVAL_MS) {
+        raf = requestAnimationFrame(tick);
+        return;
+      }
+      lastCompute = now;
+
       analyser.getByteTimeDomainData(samples);
       let sumSquares = 0;
       for (let i = 0; i < samples.length; i++) {

@@ -2,6 +2,12 @@ import { useEffect, useRef } from 'react';
 
 const ATTACK_MS = 5; // open near-instantly once the level crosses the threshold
 const HYSTERESIS = 0.7; // close at threshold * HYSTERESIS
+// Cap the analyser+RMS work at ~50 Hz regardless of the display refresh rate.
+// rAF fires at the monitor's rate (144/240 Hz on gamer hardware) but voice
+// detection needs no finer resolution than ~20 ms (Opus frames are 20 ms; attack
+// stays imperceptible), so we keep rAF as the scheduler — inheriting its free
+// throttling when the window is minimized — but skip the work between intervals.
+const COMPUTE_INTERVAL_MS = 20;
 
 interface UseVoiceActivationOpts {
   /** Run the gate only when in voice mode, in a room, and not paused/muted. */
@@ -61,11 +67,20 @@ export function useVoiceActivation({
     let open = false;
     let aboveSince = 0; // when the level first rose above the open threshold (0 = below)
     let belowSince = 0; // when the level first fell below the close threshold (0 = above)
+    let lastCompute = 0; // timestamp of the last analyser read (throttle to ~50 Hz)
 
     // Start closed; the gate opens on the first detected speech.
     setMicEnabled(false);
 
     const tick = (now: number): void => {
+      // Throttle the per-frame work to COMPUTE_INTERVAL_MS; the gate timing below
+      // is timestamp-based (deltas vs `now`), so skipping frames doesn't affect it.
+      if (now - lastCompute < COMPUTE_INTERVAL_MS) {
+        raf = requestAnimationFrame(tick);
+        return;
+      }
+      lastCompute = now;
+
       analyserNode.getByteTimeDomainData(samples);
       let sumSquares = 0;
       for (let i = 0; i < samples.length; i++) {
