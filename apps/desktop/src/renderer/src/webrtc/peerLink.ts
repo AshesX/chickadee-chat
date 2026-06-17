@@ -164,7 +164,7 @@ export function createPeerLink(opts: PeerLinkOptions): PeerLink {
   }
 
   pc.onconnectionstatechange = () => {
-    if (pc.connectionState === 'failed') maybeRestartIce();
+    if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') maybeRestartIce();
     onConnectionState(pc.connectionState);
   };
 
