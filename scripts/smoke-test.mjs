@@ -69,6 +69,7 @@ check('welcome carries muted=false for existing peers', wb.peers[0].muted === fa
 check('welcome carries cameraOn=false for existing peers', wb.peers[0].cameraOn === false);
 check('welcome carries screenStreamId=null for existing peers', wb.peers[0].screenStreamId === null);
 check('welcome carries voicePreference="" for existing peers', wb.peers[0].voicePreference === '');
+check('welcome carries accentColor="" for existing peers', wb.peers[0].accentColor === '');
 check('welcome carries userId for existing peers', wb.peers[0].userId === 'uid-Alpha');
 
 await wait(150);
@@ -150,6 +151,22 @@ const cVoice = (ev) => ev.type === 'voice-state' && ev.from === wc.selfId && ev.
 check('A receives C voice-state', a.events.some(cVoice));
 check('D receives C voice-state', d.events.some(cVoice));
 check('C does not receive its own voice-state', !c.events.some((ev) => ev.type === 'voice-state'));
+
+// Accent color mirror — C sets a color, A/D told (space-wide), C not echoed.
+c.ws.send(JSON.stringify({ type: 'accent-state', accentColor: '#8B5CF6' }));
+await wait(200);
+const cAccent = (ev) => ev.type === 'accent-state' && ev.from === wc.selfId && ev.accentColor === '#8b5cf6';
+check('A receives C accent-state (lowercased)', a.events.some(cAccent));
+check('D receives C accent-state', d.events.some(cAccent));
+check('C does not receive its own accent-state', !c.events.some((ev) => ev.type === 'accent-state'));
+
+// Invalid accent colors are sanitized to '' by the server.
+c.ws.send(JSON.stringify({ type: 'accent-state', accentColor: 'red; drop table' }));
+await wait(200);
+check(
+  'invalid accent-state is sanitized to ""',
+  a.events.some((ev) => ev.type === 'accent-state' && ev.from === wc.selfId && ev.accentColor === ''),
+);
 
 // Phase 6C: a join without userId still gets a non-empty userId (server fallback).
 const f1 = client('Foxtrot', { room: 'fb', userId: null });

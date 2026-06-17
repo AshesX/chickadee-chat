@@ -7,6 +7,7 @@ import { AvatarCropModal } from './AvatarCropModal';
 import { CustomSelect } from './CustomSelect';
 import { VOICE_CATEGORIES } from '../lib/voices';
 import { previewVoice } from '../lib/tts';
+import { USER_COLORS } from '../lib/userColors';
 
 interface SettingsModalProps {
   displayName: string;
@@ -103,6 +104,9 @@ interface SettingsModalProps {
   avatarDataUrl: string | null;
   selfColor: string;
   onChangeAvatar: (dataUrl: string | null) => void;
+  /** Chosen accent color (`#rrggbb`), or '' for auto-assigned. */
+  accentColor: string;
+  onChangeAccent: (color: string) => void;
   hasCamera?: boolean;
 }
 
@@ -449,6 +453,8 @@ export function SettingsModal({
   avatarDataUrl,
   selfColor,
   onChangeAvatar,
+  accentColor,
+  onChangeAccent,
   hasCamera = true,
 }: SettingsModalProps): React.JSX.Element {
   const [name, setName] = useState(displayName);
@@ -852,6 +858,38 @@ export function SettingsModal({
                     autoFocus
                   />
                 </label>
+
+                <div id="section-accent" className="settings-subdivision" style={{ marginTop: '16px' }}>Accent Color</div>
+                <span className="settings-row__hint">Colors your avatar ring and the glow shown when you speak. Synced to everyone; leave on auto for an assigned color.</span>
+                <div className="accent-swatches">
+                  {USER_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      className={`accent-swatch${accentColor.toLowerCase() === c.toLowerCase() ? ' accent-swatch--active' : ''}`}
+                      style={{ background: c }}
+                      onClick={() => onChangeAccent(c)}
+                      aria-label={`Use accent color ${c}`}
+                    />
+                  ))}
+                  <label
+                    className={`accent-swatch accent-swatch--custom${accentColor && !USER_COLORS.some((c) => c.toLowerCase() === accentColor.toLowerCase()) ? ' accent-swatch--active' : ''}`}
+                    style={accentColor ? { background: accentColor } : undefined}
+                    aria-label="Pick a custom accent color"
+                  >
+                    +
+                    <input
+                      type="color"
+                      value={accentColor || selfColor}
+                      onChange={(e) => onChangeAccent(e.target.value)}
+                    />
+                  </label>
+                  {accentColor && (
+                    <button type="button" className="seg-btn accent-reset" onClick={() => onChangeAccent('')}>
+                      Reset to auto
+                    </button>
+                  )}
+                </div>
 
                 {cropOpen && (
                   <AvatarCropModal

@@ -108,6 +108,7 @@ export function usePeerMesh(
   inputDeviceId: string,
   localAvatarUrl: string | null,
   localVoicePreference: string,
+  localAccentColor: string,
 ): PeerMesh {
   const { subscribe, send, status } = signaling;
 
@@ -138,6 +139,8 @@ export function usePeerMesh(
   localAvatarUrlRef.current = localAvatarUrl;
   const localVoicePreferenceRef = useRef<string>(localVoicePreference);
   localVoicePreferenceRef.current = localVoicePreference;
+  const localAccentColorRef = useRef<string>(localAccentColor);
+  localAccentColorRef.current = localAccentColor;
 
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [localScreenStream, setLocalScreenStream] = useState<MediaStream | null>(null);
@@ -719,6 +722,8 @@ export function usePeerMesh(
     send({ type: 'avatar-state', avatarDataUrl: localAvatarUrlRef.current });
     // Re-broadcast voice preference so peers read our chat aloud in the right voice after reconnect.
     send({ type: 'voice-state', voicePreference: localVoicePreferenceRef.current });
+    // Re-broadcast accent color so the server's fresh peer record reflects the chosen color.
+    send({ type: 'accent-state', accentColor: localAccentColorRef.current });
   }, [send]);
 
   // React to signaling messages: set up / tear down links and route negotiation.

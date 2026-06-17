@@ -9,6 +9,7 @@ import {
   MAX_VOICE_PREF_LEN,
   clampString,
   parseClientMessage,
+  sanitizeAccentColor,
   sanitizeAvatarDataUrl,
   sanitizeStatus,
   type ClientMessage,
@@ -128,6 +129,7 @@ function handleJoin(socket: WebSocket, msg: Extract<ClientMessage, { type: 'join
     status: sanitizeStatus(msg.status),
     avatarDataUrl: sanitizeAvatarDataUrl(msg.avatarDataUrl),
     voicePreference: clampString(msg.voicePreference, MAX_VOICE_PREF_LEN),
+    accentColor: sanitizeAccentColor(msg.accentColor),
   };
   const conn: Connection = { socket, peer, space: spaceId, room: fullRoomId };
 
@@ -313,6 +315,20 @@ function handleAvatarState(conn: Connection, avatarDataUrl: string | null): void
   conn.peer.avatarDataUrl = safe;
   // Broadcast the sanitized avatar-state to room members so their tiles update immediately.
   broadcast(conn.room, { type: 'avatar-state', from: conn.peer.id, avatarDataUrl: safe }, conn.peer.id);
+  // Also broadcast space-peer-update so all space members (across rooms) get the updated Peer.
+  const pMap = spacePresence.get(conn.space);
+  if (pMap) {
+    const p = pMap.get(conn.peer.userId);
+    if (p) broadcastSpace(conn.space, { type: 'space-peer-update', presence: p }, conn);
+  }
+}
+
+/** Record a peer's accent color and broadcast to all space members (syncs space-wide, like the avatar). */
+function handleAccentState(conn: Connection, accentColor: string): void {
+  const safe = sanitizeAccentColor(accentColor);
+  conn.peer.accentColor = safe;
+  // Broadcast to room members so their tiles recolor immediately.
+  broadcast(conn.room, { type: 'accent-state', from: conn.peer.id, accentColor: safe }, conn.peer.id);
   // Also broadcast space-peer-update so all space members (across rooms) get the updated Peer.
   const pMap = spacePresence.get(conn.space);
   if (pMap) {
@@ -538,6 +554,8 @@ wss.on('connection', (socket) => {
       handleAvatarState(conn, msg.avatarDataUrl);
     } else if (msg.type === 'voice-state') {
       handleVoiceState(conn, msg.voicePreference);
+    } else if (msg.type === 'accent-state') {
+      handleAccentState(conn, msg.accentColor);
     } else if (msg.type === 'update-rooms') {
       handleUpdateRooms(msg.spaceId, msg.rooms);
     } else if (msg.type === 'rename-space') {

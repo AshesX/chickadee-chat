@@ -29,7 +29,7 @@ export function useSpacePresence(signaling: Signaling, rooms: Room[]): SpaceUser
       id: p.peer.userId,
       name: p.peer.displayName,
       initial: p.peer.displayName.trim().charAt(0).toUpperCase() || '?',
-      color: userColor(p.peer.userId),
+      color: p.peer.accentColor || userColor(p.peer.userId),
       status: isOffline ? 'offline' : p.peer.status,
       where,
       avatarUrl: p.peer.avatarDataUrl ?? undefined,

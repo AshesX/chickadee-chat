@@ -42,6 +42,18 @@ export function clampString(value: unknown, max: number): string {
   return typeof value === 'string' ? value.trim().slice(0, max) : '';
 }
 
+const ACCENT_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
+
+/**
+ * Validate an untrusted accent color: must be '' (unset → auto-assigned color) or
+ * a `#rrggbb` hex string, else ''. Used by the signaling server on intake and by
+ * the renderer before binding it into a CSS custom property.
+ */
+export function sanitizeAccentColor(value: unknown): string {
+  if (typeof value !== 'string' || value === '') return '';
+  return ACCENT_COLOR_RE.test(value) ? value.toLowerCase() : '';
+}
+
 /** The valid presence statuses. */
 export const PRESENCE_STATUSES = ['online', 'idle', 'dnd'] as const;
 export type PresenceStatus = (typeof PRESENCE_STATUSES)[number];
@@ -79,6 +91,8 @@ export interface Peer {
   avatarDataUrl: string | null;
   /** Generic TTS voice-category id others use to read this peer's chat aloud (e.g. 'uk-female'); '' = system default. */
   voicePreference: string;
+  /** User-chosen accent color (`#rrggbb`), or '' to fall back to an auto-assigned color. */
+  accentColor: string;
 }
 
 /** A sidebar room entry (local; the server uses arbitrary room ids). */
@@ -180,6 +194,8 @@ export interface PersistedSettings {
   voicePreference: string;
   /** User's custom avatar as a base64 data URL (128×128 WebP/JPEG), or null. */
   avatarDataUrl: string | null;
+  /** User-chosen accent color (`#rrggbb`), or '' to fall back to an auto-assigned color. */
+  accentColor: string;
   defaultVideoAction: 'camera' | 'screen';
 }
 
@@ -241,6 +257,7 @@ export function defaultSettings(): PersistedSettings {
     chatTtsSpeakName: true,
     voicePreference: '',
     avatarDataUrl: null,
+    accentColor: '',
     defaultVideoAction: 'camera',
   };
 }
@@ -257,7 +274,7 @@ export interface ScreenSource {
 
 /** Messages sent from a client up to the signaling server. */
 export type ClientMessage =
-  | { type: 'join'; spaceId: string; room: RoomId | null; displayName: string; userId: string; rooms: Room[]; status?: 'online' | 'idle' | 'dnd'; avatarDataUrl?: string | null; voicePreference?: string; secret?: string }
+  | { type: 'join'; spaceId: string; room: RoomId | null; displayName: string; userId: string; rooms: Room[]; status?: 'online' | 'idle' | 'dnd'; avatarDataUrl?: string | null; voicePreference?: string; accentColor?: string; secret?: string }
   | { type: 'join-room'; room: RoomId | null }
   | { type: 'offer'; to: PeerId; sdp: RTCSessionDescriptionInit }
   | { type: 'answer'; to: PeerId; sdp: RTCSessionDescriptionInit }
@@ -271,6 +288,7 @@ export type ClientMessage =
   | { type: 'status-state'; status: 'online' | 'idle' | 'dnd' }
   | { type: 'avatar-state'; avatarDataUrl: string | null }
   | { type: 'voice-state'; voicePreference: string }
+  | { type: 'accent-state'; accentColor: string }
   // Broadcast room list changes to the active space.
   | { type: 'update-rooms'; spaceId: string; rooms: Room[] }
   // Broadcast space rename to active peers.
@@ -324,6 +342,8 @@ export type ServerMessage =
   | { type: 'avatar-state'; from: PeerId; avatarDataUrl: string | null }
   // A peer changed the voice others use to read their chat aloud; broadcast to the room.
   | { type: 'voice-state'; from: PeerId; voicePreference: string }
+  // A peer changed their accent color; broadcast to all space members.
+  | { type: 'accent-state'; from: PeerId; accentColor: string }
   // Broadcast room list changes to the active space.
   | { type: 'rooms-updated'; spaceId: string; rooms: Room[] }
   // Broadcast space rename to all clients in the space.

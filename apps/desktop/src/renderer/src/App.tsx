@@ -68,7 +68,8 @@ export function App(): React.JSX.Element {
   const [screenFramerate, setScreenFramerate] = useState(() => store.getScreenFramerate());
   const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(() => store.getAvatarDataUrl());
   const [localVoicePreference, setLocalVoicePreference] = useState(() => store.getVoicePreference());
-  const mesh = usePeerMesh(signaling, iceServers, noiseSuppression, micVolume, cameraResolution, cameraFramerate, screenResolution, screenFramerate, echoCancellation, autoGainControl, inputDeviceId, localAvatarUrl, localVoicePreference);
+  const [localAccentColor, setLocalAccentColor] = useState(() => store.getAccentColor());
+  const mesh = usePeerMesh(signaling, iceServers, noiseSuppression, micVolume, cameraResolution, cameraFramerate, screenResolution, screenFramerate, echoCancellation, autoGainControl, inputDeviceId, localAvatarUrl, localVoicePreference, localAccentColor);
   const colors = useUserColors(signaling.peers.map((p) => p.id));
   const timer = useSessionTimer(signaling.status === 'connected');
 
@@ -335,13 +336,28 @@ export function App(): React.JSX.Element {
     [signaling.status, signaling.send],
   );
 
+  const handleSaveAccent = useCallback(
+    (color: string) => {
+      setLocalAccentColor(color);
+      store.setAccentColor(color);
+      // Sync our accent color space-wide so everyone recolors our tile/sidebar entry.
+      if (signaling.status === 'connected') {
+        signaling.send({ type: 'accent-state', accentColor: color });
+      }
+    },
+    [signaling.status, signaling.send],
+  );
+
+  // Our effective accent color: the chosen one, else the default self gold.
+  const selfColor = localAccentColor || SELF_COLOR;
+
   // Maintain a continuous space-level WebSocket connection to the signaling server
   useEffect(() => {
     if (currentSpaceId && displayName && userId) {
       const activeSpace = spaces.find((s) => s.id === currentSpaceId);
       const url = activeSpace?.customSignalingUrl || (window.chickadee?.signalingUrl ?? 'ws://localhost:8080');
       const secret = activeSpace?.joinSecret || '';
-      signaling.join(currentSpaceId, currentRoomId, displayName, userId, rooms, selfStatus, localAvatarUrl, localVoicePreference, secret, url);
+      signaling.join(currentSpaceId, currentRoomId, displayName, userId, rooms, selfStatus, localAvatarUrl, localVoicePreference, localAccentColor, secret, url);
     } else {
       signaling.leave();
     }
@@ -851,10 +867,11 @@ export function App(): React.JSX.Element {
         intentionallyMuted={!micButtonOn}
         cameraOn={mesh.cameraEnabled}
         cameraStream={mesh.localStream}
-        color={SELF_COLOR}
+        color={selfColor}
         speaking={selfSpeaking}
         deafened={deafened}
         avatarUrl={localAvatarUrl}
+        screenSharing={mesh.sharingScreen}
         windowVisible={windowVisible}
       />
       {signaling.peers.map((peer) => {
@@ -868,12 +885,13 @@ export function App(): React.JSX.Element {
             speaking={peer.speaking}
             cameraOn={peer.cameraOn}
             cameraStream={media?.cameraStream ?? null}
-            color={colors[peer.id] ?? SELF_COLOR}
+            color={peer.accentColor || colors[peer.id] || SELF_COLOR}
             connectionState={media?.connectionState ?? 'new'}
             avatarUrl={peer.avatarDataUrl ?? null}
             volume={deafened ? 0 : (volumes[peer.id] ?? 1) * outputVolume}
             deafened={peer.deafened}
             normalize={normalizeVoices}
+            screenSharing={!!peer.screenStreamId}
             windowVisible={windowVisible}
           />
         );
@@ -914,7 +932,7 @@ export function App(): React.JSX.Element {
         onRemoveRoom={removeRoom}
         users={users}
         selfName={displayName}
-        selfColor={SELF_COLOR}
+        selfColor={selfColor}
         selfAvatarUrl={localAvatarUrl}
         online={signaling.status === 'connected'}
         onOpenSettings={() => setSettingsOpen(true)}
@@ -1348,8 +1366,10 @@ export function App(): React.JSX.Element {
           analyserNode={mesh.analyserNode}
           onClose={() => { setSettingsOpen(false); setSettingsInitialTab('profile'); }}
           avatarDataUrl={localAvatarUrl}
-          selfColor={SELF_COLOR}
+          selfColor={selfColor}
           onChangeAvatar={handleSaveAvatar}
+          accentColor={localAccentColor}
+          onChangeAccent={handleSaveAccent}
         />
       )}
 

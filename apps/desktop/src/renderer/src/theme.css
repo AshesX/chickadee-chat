@@ -147,18 +147,6 @@ input:focus {
 
 /* ── Animations ───────────────────────────────────────────── */
 
-/* Double-staggered ripple for the speaking indicator */
-@keyframes ripple {
-  0% {
-    transform: scale(1);
-    opacity: 0.55;
-  }
-  100% {
-    transform: scale(1.9);
-    opacity: 0;
-  }
-}
-
 /* Emoji floating up on reaction send */
 @keyframes floatUp {
   0% {

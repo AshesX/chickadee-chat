@@ -27,6 +27,8 @@ export interface ParticipantTileProps {
   normalize?: boolean;
   /** Custom avatar data URL; shown instead of the letter initial when set. */
   avatarUrl?: string | null;
+  /** Whether this participant is currently sharing their screen (drives the frame cue). */
+  screenSharing?: boolean;
   /** False while the window is minimized/hidden; detaches video to stop decode. */
   windowVisible?: boolean;
 }
@@ -53,6 +55,7 @@ export function ParticipantTile({
   deafened,
   avatarUrl,
   normalize,
+  screenSharing = false,
   windowVisible = true,
 }: ParticipantTileProps): React.JSX.Element {
   // Validate peer-supplied avatar data URLs before rendering (defense in depth;
@@ -65,8 +68,14 @@ export function ParticipantTile({
   // element so audio isn't played twice. Stays false (element audible) if no AudioContext.
   const [audioRouted, setAudioRouted] = useState(false);
   // `speaking` is computed by the owner (App.tsx) and synced over the signaling
-  // relay (Peer.speaking) so every client renders an identical ripple.
+  // relay (Peer.speaking) so every client renders an identical cue. Gate on
+  // windowVisible so the speaking ring/glow never renders while minimized.
   const showMuteIcon = intentionallyMuted ?? muted;
+  const showSpeaking = speaking && windowVisible;
+  // Two mutually-exclusive cues: video tiles (camera on) and screen-sharers get the
+  // rectangular frame outline; voice-only tiles get the round avatar ring instead.
+  const showFrame = showSpeaking && (cameraOn || screenSharing);
+  const showAvatarRing = showSpeaking && !cameraOn && !screenSharing;
 
   // The <video> is always mounted so remote audio plays even with camera off.
   // While the window is minimized/hidden, detach the stream so Chromium stops
@@ -148,7 +157,8 @@ export function ParticipantTile({
 
   return (
     <li
-      className={`tile${isSelf ? ' tile--self' : ''}${speaking ? ' tile--speaking' : ''}`}
+      className={`tile${isSelf ? ' tile--self' : ''}${showFrame ? ' tile--speaking' : ''}`}
+      style={{ '--accent': color, '--accent-glow': `${color}70` } as React.CSSProperties}
     >
       <div
         className="tile__ambient"
@@ -166,20 +176,10 @@ export function ParticipantTile({
 
       {!cameraOn && (
         <div className="tile__center">
-          {speaking && (
-            <>
-              <span className="tile__ripple" style={{ borderColor: '#22c55e55' }} />
-              <span
-                className="tile__ripple tile__ripple--2"
-                style={{ borderColor: '#22c55e28' }}
-              />
-            </>
-          )}
           <div
-            className="tile__avatar"
+            className={`tile__avatar${showAvatarRing ? ' tile__avatar--speaking' : ''}`}
             style={{
               background: safeAvatarUrl ? undefined : `linear-gradient(145deg, ${color}ee, ${color}66)`,
-              boxShadow: speaking ? '0 0 34px #22c55e70' : '0 4px 22px rgba(0,0,0,.55)',
             }}
           >
             {safeAvatarUrl ? (

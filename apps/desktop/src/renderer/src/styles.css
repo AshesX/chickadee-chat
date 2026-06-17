@@ -268,12 +268,8 @@ button {
 
 /* When the window is unfocused (e.g. on a 2nd monitor while a game has focus),
    freeze the per-frame animations to save GPU/CPU. Static cues remain: the speaking
-   glow is an inline boxShadow on .tile__avatar, and presence dots keep their solid
-   color — only the motion stops. */
-.app--unfocused .tile__ripple {
-  animation: none;
-  opacity: 0;
-}
+   ring/glow is a static, opacity-toggled .tile__avatar::after (and a tile border for
+   camera-on tiles), and presence dots keep their solid color — only the motion stops. */
 .app--unfocused .presence-dot--online::after {
   animation: none;
   opacity: 0;
@@ -548,18 +544,6 @@ button {
   display: grid;
   place-items: center;
 }
-.tile__ripple {
-  position: absolute;
-  width: 92px;
-  height: 92px;
-  border-radius: 50%;
-  border: 2px solid;
-  pointer-events: none;
-  animation: ripple 1.3s ease-out infinite;
-}
-.tile__ripple--2 {
-  animation-delay: 0.45s;
-}
 .tile__avatar {
   position: relative;
   width: 68px;
@@ -570,10 +554,37 @@ button {
   font-size: 26px;
   font-weight: 800;
   color: #fff;
-  transition: box-shadow 0.3s;
+  box-shadow: 0 4px 22px rgba(0, 0, 0, 0.55);
+}
+/* Speaking cue for voice-only tiles (camera off, not screen-sharing): a solid accent
+   ring + colored glow around the avatar, toggled by opacity only (compositor-friendly)
+   so it looks identical focused/unfocused and never animates per-frame. Gated off while
+   minimized via the `showSpeaking` prop in JS. */
+.tile__avatar::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px var(--accent), 0 0 34px 6px var(--accent-glow);
+  opacity: 0;
+  transition: opacity 0.18s ease;
+  pointer-events: none;
+}
+.tile__avatar--speaking::after {
+  opacity: 1;
+}
+/* Speaking cue for tiles showing video content (camera on) or for screen-sharers: an
+   accent border + glow on the tile frame, riding the existing .tile border/box-shadow
+   transition. Voice-only tiles use the avatar ring above instead, not this frame. */
+.tile--speaking {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent), 0 0 26px var(--accent-glow);
 }
 .tile__avatar-mute {
   position: absolute;
+  /* Above the avatar speaking ring (.tile__avatar::after) so the mute/deafen badge
+     is never hidden under the ring. */
+  z-index: 1;
   bottom: -3px;
   right: -3px;
   min-width: 20px;
@@ -2726,6 +2737,49 @@ button {
   opacity: 1;
   color: var(--danger, #f87171);
   border-color: rgba(239,68,68,0.35);
+}
+
+/* ─── Accent color picker ─────────────────────────────────────────────────── */
+.accent-swatches {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+.accent-swatch {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.18);
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
+}
+.accent-swatch:hover {
+  transform: scale(1.1);
+}
+.accent-swatch--active {
+  border-color: #fff;
+  box-shadow: 0 0 0 2px var(--bg, #14101f), 0 0 0 4px rgba(255,255,255,0.35);
+}
+.accent-swatch--custom {
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.7);
+  background: rgba(255,255,255,0.06);
+}
+.accent-swatch--custom input[type='color'] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.accent-reset {
+  margin-left: 4px;
 }
 
 /* ─── AvatarCropModal ─────────────────────────────────────────────────────── */
