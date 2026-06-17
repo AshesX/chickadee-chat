@@ -27,7 +27,7 @@ QA pass.
 | **User value** | High — solves the "quiet friend" problem listener-side |
 | **Performance cost** | Negligible (adds 0 background loops; ~2 lightweight audio nodes/peer) |
 | **Server / bandwidth cost** | None — entirely local to each client |
-| **Blast radius** | Small — local-only; "Normalize" ships **off by default** |
+| **Blast radius** | Small — local-only; "Normalize" ships **on by default** |
 | **Main risk** | Clipping/distortion at high gain — **addressed** by a master limiter (§8) |
 | **Recommendation** | **Ship** (master limiter added); manual QA pass recommended |
 
@@ -56,7 +56,7 @@ The audio path, traced from microphone to ear:
 ```
                           ┌─────────────────── YOUR CLIENT ───────────────────┐
   mic ──getUserMedia──▶ source ─▶ gain(mic vol) ─▶ expanderGain ─▶ streamDest ─┼──WebRTC──▶ peers
-   (NS/EC on, AGC off)            │                                            │
+   (NS/EC/AGC on)                 │                                            │
                                   └─▶ analyser (tap) ──▶ VAD gate / noise expander / level meter
                           └────────────────────────────────────────────────────┘
 
@@ -69,8 +69,8 @@ The audio path, traced from microphone to ear:
 ### 3.1 Capture (local microphone)
 `usePeerMesh.ts` → `ensureLocalStream()` calls `getUserMedia` with Chromium's built-in
 constraints: **noise suppression (on)**, **echo cancellation (on)**, **automatic gain control
-(off)**. AGC being off is why a quiet talker stays quiet — and a key reason the listener-side
-boost exists.
+(on)**. AGC being on by default fixes many "too quiet" cases at the source, complemented by the listener-side
+boost.
 
 ### 3.2 Local processing graph
 `createMicProcessingGraph()` builds: **source → gain (your mic volume/boost) → analyser (tap)
@@ -121,7 +121,7 @@ live in-memory map stays keyed by session ID for rendering; a small write-throug
 bridge in `App.tsx` keeps the two in sync without ever clobbering an in-session change.
 
 ### 4.2 "Normalize voices" (auto-level)
-A single global toggle (`PersistedSettings.normalizeVoices`, **default off**, in Settings →
+A single global toggle (`PersistedSettings.normalizeVoices`, **default on**, in Settings →
 Audio → Processing). When on, each incoming voice passes through a **compressor + fixed makeup
 gain** before the per-peer volume node — boosting quiet talkers and taming loud ones
 automatically, with no per-person fiddling. Parameters: threshold −28 dB, ratio 4:1, attack
@@ -130,8 +130,8 @@ automatically, with no per-person fiddling. Parameters: threshold −28 dB, rati
 ### 4.3 Properties worth noting for PM
 - **No protocol/server/bandwidth impact** — nothing is transmitted; this only changes what the
   local user hears.
-- **Opt-in for the automatic part** — Normalize is off by default, so default behavior is
-  unchanged for existing users.
+- **Enabled by default for the automatic part** — Normalize is on by default, so voices are
+  leveled automatically out of the box.
 - **Maintenance note:** the per-peer playback graph must use the audio *stream* as its source
   (`createMediaStreamSource`). An earlier attempt using the video *element*
   (`createMediaElementSource`) caused a startup crash and silent audio; that is fixed and now
@@ -216,8 +216,7 @@ roughly tens of bytes per remembered friend.
 ## 8. Assessment & recommendations
 
 **Overall: ship it.** The cost/benefit is strongly favorable — high-value, low-overhead,
-small blast radius, and the automatic part is opt-in. Keeping "Normalize" **default-off** is
-the right call.
+small blast radius, and the automatic part is enabled by default for a premium out-of-the-box experience.
 
 Ordered recommendations:
 
@@ -229,10 +228,7 @@ Ordered recommendations:
   converts the main risk from "can distort if pushed" to "safe at any setting."
 - **SHOULD: run a manual QA pass** before release (see §9). There is no automated audio test —
   WebRTC media can't be verified headlessly — so a short scripted human pass is the safety net.
-- **CONSIDER: enable sender-side AGC by default.** Flipping `autoGainControl` on by default is a
-  ~one-line change that fixes many "too quiet" cases at the source, reducing how often the
-  listener needs the boost at all. (Trade-off: AGC can lift background noise; noise suppression,
-  on by default, offsets this. Worth an A/B listen.)
+- **DONE: enable sender-side AGC by default.** Flipping `autoGainControl` on by default fixes many "too quiet" cases at the source, reducing how often the listener needs the boost at all.
 - **CONSIDER: a one-line in-app hint** near the volume controls clarifying boost vs. Normalize
   vs. mic settings.
 - **CONSIDER (low priority): adaptive makeup** for Normalize (derive makeup from measured gain
