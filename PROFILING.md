@@ -34,14 +34,32 @@ animation + `backdrop-filter` cost. So the second-monitor-during-gameplay case l
 as `background` and is **not** helped by any "pause when hidden" optimization — it's
 the case the visible/foreground scenarios below isolate.
 
-**Not covered (deliberate):** §4.4 Opus DTX/silence behavior — capture manually
-from `chrome://webrtc-internals` (outbound-rtp `bytesSent`/`packetsSent` slope
-during silence) so nothing instruments the live WebRTC path.
+**Not covered by CSV (deliberate):** §4.4 Opus DTX/silence behavior — nothing
+instruments the live WebRTC path. Inspect it manually via the **Ctrl+Alt+W** WebRTC
+Internals window (see Profiling shortcuts), watching the outbound-rtp
+`bytesSent`/`packetsSent` slope during silence.
 
 > Historical (§4.5): the removed `tasklist` game-scan measured ≈ **358 ms avg** (300
 > processes, 12 logical CPUs) statically and **433 ms avg / 715 ms max** under real
 > game load — a periodic main-process burst every 30 s. **Removing game detection
 > eliminated this burst entirely**, which is why `marks.csv` is no longer written.
+
+## Profiling shortcuts
+
+Global hotkeys, registered only while the harness is on. Each gives **activation
+feedback** — a desktop notification **and** a taskbar flash (visible even when the
+window is unfocused/minimized, the common profiling state) — plus a `console.log`, so
+you can confirm the keypress registered in a packaged build with no console.
+
+| Key | Action |
+|---|---|
+| `Ctrl+Alt+P` | Start/stop a ~10 s `contentTracing` paint trace → `trace-*.json` (auto-stops after 10 s). |
+| `Ctrl+Alt+W` | Open the **WebRTC Internals** window (`chrome://webrtc-internals`) — live SDP + per-stream RTP stats. Use it to confirm Opus DTX (`usedtx=1`) and watch `bytesSent`/`packetsSent`. Reuses the window if already open. |
+
+The WebRTC Internals window is a second `BrowserWindow` in the same Chromium process,
+so it sees the app's live peer connections — the only way to reach
+`chrome://webrtc-internals` in this frameless (no address bar) app. See
+[docs/dtx-verification.md](docs/dtx-verification.md) for the DTX procedure.
 
 ## Environment variables
 
@@ -121,3 +139,25 @@ platform/Electron version — **trust the deltas** (foreground vs minimized; and
 `call-2ndmon-game` vs `call-visible-fg` for what gameplay adds while visible) over
 absolutes, and calibrate by cross-checking one scenario's total against Windows Task
 Manager → Details → CPU for the app's PIDs while that scenario runs.
+
+## Removing the harness
+
+The harness is self-contained and gated on `CHICKADEE_PROFILE`, so it ships inert and
+can be pulled out in one pass when profiling is done. Delete / revert, in order:
+
+1. **Main:** `apps/desktop/src/main/profiler.ts` (the whole file). In
+   `apps/desktop/src/main/index.ts` remove the `profiler` import, the `configureProfiler()`
+   call (whenReady), the `startProfiler(window)` call (createWindow), and `profile` from
+   `AppConfig` + `buildConfig()`.
+2. **Renderer:** `apps/desktop/src/renderer/src/lib/profiler.ts` (the whole file) and its
+   `initRendererProfiler()` call in `apps/desktop/src/renderer/src/main.tsx`.
+3. **Preload:** the `profile` flag + `profileRaf` bridge in `apps/desktop/src/preload/index.ts`.
+4. **Tooling:** the `profile:report` script in root `package.json` and
+   `scripts/profile-report.mjs`.
+5. **Test config:** `apps/desktop/release/.env` (or just unset `CHICKADEE_PROFILE` in it).
+6. **Docs:** this file (`PROFILING.md`) and `docs/dtx-verification.md`.
+
+(`profileMark()` is already unused — game detection, its only caller, was removed — so
+nothing else references it.) Cross-check with `grep -ri 'profiler\|CHICKADEE_PROFILE'`
+afterwards; it should return nothing outside deleted files. `npm run typecheck` must
+still pass.

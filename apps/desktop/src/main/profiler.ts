@@ -1,7 +1,6 @@
 import { join } from 'node:path';
 import { mkdirSync, appendFileSync, existsSync } from 'node:fs';
-import { app, contentTracing, globalShortcut, ipcMain } from 'electron';
-import type { BrowserWindow } from 'electron';
+import { app, BrowserWindow, contentTracing, globalShortcut, ipcMain, Notification } from 'electron';
 
 /**
  * Idle-performance profiling harness (read-only instrumentation). Entirely
@@ -60,9 +59,36 @@ export function profileMark(label: string, ms: number): void {
   appendCsv('marks.csv', 'isoTime,label,ms', `${new Date().toISOString()},${label},${ms}`);
 }
 
+// The main window, stashed by startProfiler so the feedback helper can flash it.
+let profiledWindow: BrowserWindow | null = null;
+let appIdSet = false;
+
+/**
+ * Visible "the shortcut fired" feedback for the profiler hotkeys. A packaged
+ * build has no console, so a bare console.log is invisible — this also fires a
+ * native notification and flashes the taskbar (the latter is reliable even when
+ * the window is unfocused/minimized, the common profiling state).
+ */
+function notifyProfiler(body: string): void {
+  console.log('[profiler]', body);
+  try {
+    if (process.platform === 'win32' && !appIdSet) {
+      app.setAppUserModelId('com.chickadee.chat'); // Windows shows toasts only with an AUMID
+      appIdSet = true;
+    }
+    if (Notification.isSupported()) {
+      new Notification({ title: 'Chickadee Profiler', body, silent: true }).show();
+    }
+  } catch {
+    /* notifications are best-effort; the flash + console below always run */
+  }
+  profiledWindow?.flashFrame(true);
+}
+
 /**
  * IPC + global-shortcut setup. Call once from app.whenReady(). Registers the
- * renderer rAF sink and a Ctrl+Alt+P toggle that captures a ~20 s paint trace.
+ * renderer rAF sink, a Ctrl+Alt+P toggle that captures a ~10 s paint trace, and
+ * a Ctrl+Alt+W toggle that opens chrome://webrtc-internals.
  */
 export function configureProfiler(): void {
   if (!isProfiling()) return;
@@ -85,11 +111,11 @@ export function configureProfiler(): void {
       const out = join(getSessionDir(), `trace-${Date.now()}.json`);
       await contentTracing.stopRecording(out);
       tracing = false;
-      console.log('[profiler] trace written:', out);
+      notifyProfiler(`Paint trace written: ${out}`);
       return;
     }
     tracing = true;
-    console.log('[profiler] tracing started (auto-stops in 10s, or press Ctrl+Alt+P again)');
+    notifyProfiler('Paint trace started (10s) — Ctrl+Alt+P');
     // Paint/raster/compositor + GPU only. 'blink'/'toplevel' are dropped — on a
     // visible window they ballooned captures to ~250 MB; devtools.timeline +
     // cc + gpu give the Paint/RasterTask/compositor events we need for §4.2.
@@ -107,6 +133,34 @@ export function configureProfiler(): void {
 
   const registered = globalShortcut.register('Control+Alt+P', () => void toggleTrace());
   if (!registered) console.warn('[profiler] could not register Ctrl+Alt+P (in use?)');
+
+  // Ctrl+Alt+W → open chrome://webrtc-internals in its own window. A second
+  // BrowserWindow shares the app's Chromium browser process, so its
+  // webrtc-internals page sees the main window's live RTCPeerConnections — the
+  // standard way to inspect WebRTC (e.g. confirm Opus DTX) in a frameless app
+  // with no address bar. Reuse the window if it's already open.
+  let webrtcWindow: BrowserWindow | null = null;
+  const openWebrtcInternals = (): void => {
+    if (webrtcWindow && !webrtcWindow.isDestroyed()) {
+      webrtcWindow.focus();
+      return;
+    }
+    webrtcWindow = new BrowserWindow({
+      width: 1000,
+      height: 720,
+      title: 'WebRTC Internals — Chickadee profiling',
+      webPreferences: { sandbox: true }, // trusted internal page; no preload
+    });
+    webrtcWindow.removeMenu();
+    void webrtcWindow.loadURL('chrome://webrtc-internals');
+    webrtcWindow.on('closed', () => {
+      webrtcWindow = null;
+    });
+    notifyProfiler('WebRTC Internals opened — Ctrl+Alt+W');
+  };
+
+  const regWebrtc = globalShortcut.register('Control+Alt+W', openWebrtcInternals);
+  if (!regWebrtc) console.warn('[profiler] could not register Ctrl+Alt+W (in use?)');
 }
 
 /**
@@ -116,6 +170,8 @@ export function configureProfiler(): void {
 export function startProfiler(window: BrowserWindow): void {
   if (!isProfiling()) return;
   getSessionDir(); // create + log the path eagerly
+
+  profiledWindow = window; // so notifyProfiler can flash the taskbar as feedback
 
   const intervalMs = Number(process.env.CHICKADEE_PROFILE_INTERVAL) || 2000;
 
@@ -144,5 +200,8 @@ export function startProfiler(window: BrowserWindow): void {
 
   const id = setInterval(sample, intervalMs);
   sample(); // immediate first sample
-  window.on('closed', () => clearInterval(id));
+  window.on('closed', () => {
+    clearInterval(id);
+    profiledWindow = null;
+  });
 }

@@ -15,18 +15,16 @@ manual capture procedure + a results table — **WebRTC media can't be verified 
    # second instance, separate userData slot:
    $env:CHICKADEE_INSTANCE=1; npm run dev:desktop
    ```
-2. In one instance open the DevTools and go to `chrome://webrtc-internals` (or the
-   in-app DevTools console for `getStats()`).
+2. In a **profiling build** (`CHICKADEE_PROFILE=1` — the test `.env` sets it), press
+   **Ctrl+Alt+W** to open the WebRTC Internals window. It's a second window in the same
+   Chromium process, so it sees this instance's live `RTCPeerConnection`s. (This frameless
+   app has no address bar, so this shortcut is the only way in — see
+   [PROFILING.md](../PROFILING.md) "Profiling shortcuts".)
 
 ## A. Confirm DTX is negotiated
 
-In `webrtc-internals`, open the active `RTCPeerConnection` and find the audio
-`a=fmtp:<pt>` line in the local SDP (or run in the renderer console):
-
-```js
-// In the renderer DevTools, against any live peer connection:
-pc.localDescription.sdp.split('\r\n').filter(l => l.includes('opus') || l.includes('fmtp'))
-```
+In the WebRTC Internals window, expand the active `RTCPeerConnection`, open its
+`setLocalDescription` event, and find the audio `a=fmtp:<pt>` line in the SDP.
 
 **Pass:** the Opus `a=fmtp` line contains `usedtx=1`, existing params
 (`minptime`, `useinbandfec`, …) are intact, and no `maxaveragebitrate` / bitrate field
@@ -34,9 +32,9 @@ was added or changed.
 
 ## B. Measure `bytesSent` / `packetsSent` during silence
 
-In `webrtc-internals`, select the **outbound-rtp (audio)** stat and watch the
-`bytesSent`/`packetsSent` graphs (or poll `getStats()` and diff over ~5 s). Compare the
-**talking** rate against a **silent** period for each input mode.
+In the WebRTC Internals window, select the **outbound-rtp (audio)** stat and watch the
+`bytesSent`/`packetsSent` graphs. Compare the **talking** rate against a **silent**
+period for each input mode.
 
 > Reading it: with DTX engaged, the silent-period `packetsSent` slope should fall to
 > near-zero (Opus emits only sparse keep-alive/CN frames) versus a steady ~50 pkt/s when
@@ -60,9 +58,9 @@ In `webrtc-internals`, select the **outbound-rtp (audio)** stat and watch the
 ## C. Speech-onset listening check
 
 DTX's known edge case is a clipped first syllable after silence. In `voice` mode, pause,
-then start talking — confirm the first word isn't cut. The 5 ms attack in
+then start talking — confirm the first word isn't cut. The ~20 ms attack in
 [useVoiceActivation.ts](../apps/desktop/src/renderer/src/hooks/useVoiceActivation.ts)
-should prevent it.
+(the VAD loop is throttled to ~50 Hz — still imperceptible) should prevent it.
 
 **Result:** _(pass / clipped — describe)_
 
