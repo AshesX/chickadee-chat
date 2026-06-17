@@ -5,6 +5,12 @@ const HANG_MS = 250; // hold the channel open briefly after speech drops
 const HYSTERESIS = 0.7; // close at threshold * HYSTERESIS
 const ATTACK_TC = 0.01; // fast ramp back to 0 dB so word onsets aren't clipped
 const RELEASE_TC = 0.18; // slower fade down to the floor for a natural tail
+// Run the decision at ~50 Hz via setInterval — NOT requestAnimationFrame. rAF is
+// tied to compositor frames, which stop when the window is minimized, so a rAF loop
+// would freeze the expander in the background: if you were silent at minimize the
+// gain stays clamped at the floor and you're inaudible. setInterval keeps firing
+// while minimized (Electron's backgroundThrottling:false), so the gate still opens.
+const COMPUTE_INTERVAL_MS = 20;
 
 interface UseNoiseExpanderOpts {
   /** Run only in open-mic mode with the toggle on, in a room, not deafened. */
@@ -29,8 +35,8 @@ interface UseNoiseExpanderOpts {
  * level sits below the threshold, restoring to 0 dB when speech crosses above.
  * Unlike useVoiceActivation it never hard-mutes (track.enabled stays true) — it
  * only ramps a dedicated GainNode, so background noise is reduced, not cut. The
- * decision runs on rAF with hysteresis + hangtime; the gain itself interpolates
- * at audio rate via setTargetAtTime. While inactive the gain is reset to 0 dB.
+ * decision runs on a ~50 Hz timer with hysteresis + hangtime; the gain itself
+ * interpolates at audio rate via setTargetAtTime. While inactive the gain is reset to 0 dB.
  */
 export function useNoiseExpander({
   active,
@@ -50,7 +56,6 @@ export function useNoiseExpander({
 
     const ctx = expanderGain.context;
     const samples = new Uint8Array(analyserNode.fftSize);
-    let raf = 0;
     let open = false;
     let lastToggle = 0;
     let belowSince = 0;
@@ -62,7 +67,8 @@ export function useNoiseExpander({
       RELEASE_TC,
     );
 
-    const tick = (now: number): void => {
+    const tick = (): void => {
+      const now = performance.now(); // setInterval gives no timestamp; the gate math is now-based
       analyserNode.getByteTimeDomainData(samples);
       let sumSquares = 0;
       for (let i = 0; i < samples.length; i++) {
@@ -93,12 +99,11 @@ export function useNoiseExpander({
           }
         }
       }
-      raf = requestAnimationFrame(tick);
     };
-    raf = requestAnimationFrame(tick);
+    const id = setInterval(tick, COMPUTE_INTERVAL_MS);
 
     return () => {
-      cancelAnimationFrame(raf);
+      clearInterval(id);
       // Reset to transparent so Voice/PTT modes aren't left attenuated.
       expanderGain.gain.setTargetAtTime(1, ctx.currentTime, ATTACK_TC);
     };
