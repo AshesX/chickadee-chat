@@ -20,5 +20,9 @@
   "devDependencies": {
     "concurrently": "^9.2.1",
     "typescript": "^5.9.3"
+  },
+  "allowScripts": {
+    "electron@42.4.1": true,
+    "uiohook-napi@1.5.5": true
   }
 }

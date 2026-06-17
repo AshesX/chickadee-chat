@@ -4,6 +4,15 @@ import { createPeerLink, type PeerLink } from '../webrtc/peerLink';
 import type { MessageListener, Signaling } from './useSignaling';
 import { getSharedAudioContext } from '../lib/audioContext';
 
+/**
+ * `restrictOwnAudio` (Chromium 141+) tells the display-capture pipeline to drop
+ * audio that originates from our own document — i.e. the incoming peer voices we
+ * play through the Web Audio graph — from the captured system audio, so screen
+ * sharing no longer echoes everyone's voice back to them. It's experimental and
+ * not yet in the lib.dom typings, so we extend the constraint type locally.
+ */
+type ScreenAudioConstraints = MediaTrackConstraints & { restrictOwnAudio?: ConstrainBoolean };
+
 export interface RemoteMedia {
   /** The peer's camera+mic stream (mic audio + optional camera video). */
   cameraStream: MediaStream | null;
@@ -655,6 +664,24 @@ export function usePeerMesh(
           // with it (and Windows loopback audio when requested).
           await window.chickadee.setShareSource(sourceId, withAudio);
 
+          // When capturing system audio, ask Chromium to exclude our own document's
+          // audio (the peer voices we play locally) so peers don't hear themselves.
+          // Feature-detect — on builds without restrictOwnAudio, fall back to plain
+          // loopback audio (the pre-existing, echo-prone behavior).
+          const restrictOwnAudioSupported =
+            'restrictOwnAudio' in navigator.mediaDevices.getSupportedConstraints();
+          const audioConstraints: boolean | ScreenAudioConstraints = withAudio
+            ? restrictOwnAudioSupported
+              ? { restrictOwnAudio: true }
+              : true
+            : false;
+          console.info(
+            '[screen-share] restrictOwnAudio supported:',
+            restrictOwnAudioSupported,
+            '| audio request:',
+            audioConstraints,
+          );
+
           let screen: MediaStream;
           try {
             const res = RESOLUTION_MAP[screenResolution] || RESOLUTION_MAP['1080p'];
@@ -666,8 +693,15 @@ export function usePeerMesh(
             };
             screen = await navigator.mediaDevices.getDisplayMedia({
               video: videoConstraints,
-              audio: withAudio,
+              audio: audioConstraints,
             });
+            const sharedAudioTrack = screen.getAudioTracks()[0];
+            if (sharedAudioTrack) {
+              console.info(
+                '[screen-share] captured audio track settings:',
+                sharedAudioTrack.getSettings(),
+              );
+            }
           } catch (audioErr) {
             if (!withAudio) throw audioErr;
             // System-audio capture can fail (e.g. some window shares); retry video-only.
