@@ -152,9 +152,10 @@ function applyPresenceUpdate(state: SignalingState, msg: ServerMessage): Signali
       };
     case 'room-full':
       return {
-        ...state,
+        ...INITIAL,
         status: 'room-full',
         error: `Room "${msg.room}" is full (max 4).`,
+        rooms: state.rooms,
       };
     default:
       return state;
@@ -233,9 +234,10 @@ export function useSignaling(): Signaling {
     if (attemptsRef.current > MAX_RECONNECT_ATTEMPTS) {
       shouldReconnectRef.current = false;
       setState((prev) => ({
-        ...prev,
+        ...INITIAL,
         status: 'error',
         error: 'Lost connection to the signaling server.',
+        rooms: prev.rooms,
       }));
       return;
     }

@@ -815,9 +815,49 @@ export function App(): React.JSX.Element {
     }
   }, [signaling.rooms, signaling.status, updateRooms]);
 
+  // Reset selected room if connection hits a terminal state (closed, room-full, or error)
+  useEffect(() => {
+    if (signaling.status === 'room-full' || signaling.status === 'error' || signaling.status === 'closed') {
+      setCurrentRoomId(null);
+    }
+  }, [signaling.status]);
+
   const peerIdsStr = useMemo(() => signaling.peers.map((p) => p.id).sort().join(','), [signaling.peers]);
 
   useSfxEvents({ sfxEnabled, sfxVolume, sfxJoinLeaveEnabled, sfxMuteEnabled, sfxTransmitEnabled, currentRoomId, peerIdsStr, micEnabled: mesh.micEnabled, micButtonOn, inputMode, inRoom });
+
+  const onPttStart = useCallback(() => {
+    mesh.setMicEnabled(true);
+  }, [mesh.setMicEnabled]);
+
+  const onPttStop = useCallback(() => {
+    mesh.setMicEnabled(false);
+  }, [mesh.setMicEnabled]);
+
+  const onPttToggle = useCallback(() => {
+    mesh.toggleMic();
+  }, [mesh.toggleMic]);
+
+  const onMuteStart = useCallback(() => {
+    if (inputMode === 'voice') {
+      setVoiceMuted(true);
+      mesh.setMicEnabled(false);
+    } else {
+      mesh.setMicEnabled(false);
+    }
+  }, [inputMode, mesh.setMicEnabled]);
+
+  const onMuteStop = useCallback(() => {
+    if (inputMode === 'voice') {
+      setVoiceMuted(false);
+    } else {
+      mesh.setMicEnabled(true);
+    }
+  }, [inputMode, mesh.setMicEnabled]);
+
+  const onMuteToggle = useCallback(() => {
+    handleToggleMic();
+  }, [handleToggleMic]);
 
   useKeybindSync({
     inputMode,
@@ -825,8 +865,12 @@ export function App(): React.JSX.Element {
     pttMode,
     muteKey,
     muteMode,
-    setMicEnabled: mesh.setMicEnabled,
-    toggleMic: mesh.toggleMic,
+    onPttStart,
+    onPttStop,
+    onPttToggle,
+    onMuteStart,
+    onMuteStop,
+    onMuteToggle,
     localStream: mesh.localStream,
   });
 

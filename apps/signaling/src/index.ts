@@ -103,6 +103,28 @@ function handleJoin(socket: WebSocket, msg: Extract<ClientMessage, { type: 'join
   // spaceId is used as an in-memory map key; require a sane string.
   const spaceId = clampString(msg.spaceId, MAX_ID_LEN);
   if (!spaceId) return null;
+  const userId = clampString(msg.userId, MAX_ID_LEN);
+
+  // If a connection with the same userId already exists in this space, clean it up first.
+  if (userId) {
+    const spaceConns = spaceConnections.get(spaceId);
+    if (spaceConns) {
+      const ghosts: Connection[] = [];
+      for (const conn of spaceConns.values()) {
+        if (conn.peer.userId === userId) {
+          ghosts.push(conn);
+        }
+      }
+      for (const ghost of ghosts) {
+        console.log(`[join-cleanup] closing ghost connection for userId ${userId} (${ghost.peer.id})`);
+        ghost.socket.removeAllListeners('close');
+        ghost.socket.removeAllListeners('error');
+        ghost.socket.close();
+        handleDisconnect(ghost);
+      }
+    }
+  }
+
   const room = msg.room == null ? null : clampString(msg.room, MAX_ID_LEN) || null;
 
   const fullRoomId = room ? `${spaceId}:${room}` : null;
@@ -115,7 +137,6 @@ function handleJoin(socket: WebSocket, msg: Extract<ClientMessage, { type: 'join
   }
 
   const id = randomUUID();
-  const userId = clampString(msg.userId, MAX_ID_LEN);
   const peer: Peer = {
     id,
     // Tolerant: fall back to the session id if a client omits a stable userId.
