@@ -13,6 +13,8 @@ npm run dev     # signaling server (ws://localhost:8080) + desktop app together
 
 Other scripts: `npm run dev:desktop`, `npm run dev:signaling`, `npm run build`, `npm run typecheck`.
 
+> **npm 11 note:** dependency install scripts are allow-listed in `package.json` (`allowScripts`), so `npm install` automatically downloads Electron's binary. If you bump Electron or `uiohook-napi` and the app won't launch, re-approve with `npm approve-scripts <pkg> --allow-scripts-pin`.
+
 ## Build a Windows `.exe`
 
 Produces a **portable single executable** (no installer — double-click to run) via [electron-builder](https://www.electron.build/):
@@ -67,4 +69,4 @@ Mesh P2P connects peers directly. Many home networks traverse with STUN alone (a
 
 ## Testing
 
-`node scripts/smoke-test.mjs` exercises the signaling protocol (start the server first). WebRTC media is verified manually with two instances in the same room (use headphones — mics + system-audio loopback echo otherwise).
+`node scripts/smoke-test.mjs` exercises the signaling protocol (start the server first). WebRTC media is verified manually with two instances in the same room (use headphones so each mic doesn't re-capture the other peer's voice from your speakers). Screen sharing with system audio no longer relays peers' voices back to them — the loopback capture sets `restrictOwnAudio` to drop our own output (requires Chromium 141+, i.e. Electron 39+).

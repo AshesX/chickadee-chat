@@ -265,15 +265,13 @@ export function usePeerMesh(
         expanderGainNodeRef.current = expanderGainNodeObj;
         localStreamRef.current = processedStream;
 
+        // The processed track is a synthetic Web Audio (MediaStreamDestination) output,
+        // so it carries none of Chromium's mic DSP (AEC/NS/AGC) — those are applied (or
+        // not) on the raw device track per the user's settings. Only the mute state
+        // applies here; calling applyConstraints to "disable" that DSP throws
+        // OverconstrainedError on a synthetic track and is a no-op regardless.
         for (const track of processedStream.getAudioTracks()) {
           track.enabled = micEnabledRef.current;
-          void track.applyConstraints({
-            echoCancellation: false,
-            noiseSuppression: false,
-            autoGainControl: false,
-          }).catch((err) => {
-            console.warn('Failed to disable post-processing constraints on initial track', err);
-          });
         }
         // Upgrade links created before the mic was ready (listen-only → sending).
         // Audio only — video is managed separately via setLocalVideoTrack.
@@ -537,16 +535,8 @@ export function usePeerMesh(
           analyserNodeRef.current = newAnalyser;
           setAnalyserNode(newAnalyser);
           nextStream = processedStream;
-
-          for (const track of processedStream.getAudioTracks()) {
-            void track.applyConstraints({
-              echoCancellation: false,
-              noiseSuppression: false,
-              autoGainControl: false,
-            }).catch((err) => {
-              console.warn('Failed to disable post-processing constraints on switched track', err);
-            });
-          }
+          // (Synthetic MediaStreamDestination track — no Chromium mic DSP to disable;
+          // mute state is applied to nextStream below.)
         } else {
           setAnalyserNode(null);
           nextStream = newRaw;
@@ -675,12 +665,6 @@ export function usePeerMesh(
               ? { restrictOwnAudio: true }
               : true
             : false;
-          console.info(
-            '[screen-share] restrictOwnAudio supported:',
-            restrictOwnAudioSupported,
-            '| audio request:',
-            audioConstraints,
-          );
 
           let screen: MediaStream;
           try {
@@ -695,13 +679,6 @@ export function usePeerMesh(
               video: videoConstraints,
               audio: audioConstraints,
             });
-            const sharedAudioTrack = screen.getAudioTracks()[0];
-            if (sharedAudioTrack) {
-              console.info(
-                '[screen-share] captured audio track settings:',
-                sharedAudioTrack.getSettings(),
-              );
-            }
           } catch (audioErr) {
             if (!withAudio) throw audioErr;
             // System-audio capture can fail (e.g. some window shares); retry video-only.
