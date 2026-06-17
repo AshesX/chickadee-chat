@@ -177,6 +177,20 @@ function createWindow(): void {
     window.webContents.focus();
   });
 
+  // Tell the renderer when the window becomes invisible (minimized/hidden) so it
+  // can detach incoming video streams and stop decoding frames nobody can see.
+  // Focus/blur is *not* enough — a window on a 2nd monitor is unfocused but
+  // visible and must keep decoding; document.hidden doesn't flip on minimize.
+  const sendVisibility = (): void => {
+    if (window.isDestroyed()) return;
+    const visible = !window.isMinimized() && window.isVisible();
+    window.webContents.send('chickadee:window-visibility', visible);
+  };
+  window.on('minimize', sendVisibility);
+  window.on('restore', sendVisibility);
+  window.on('hide', sendVisibility);
+  window.on('show', sendVisibility);
+
   // Close-to-tray: when the user's preference is 'tray' and we aren't quitting,
   // hide the window instead of closing it so voice stays connected in the
   // background. getSettings() reflects live changes from the renderer.

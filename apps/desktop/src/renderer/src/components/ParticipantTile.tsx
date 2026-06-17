@@ -27,6 +27,8 @@ export interface ParticipantTileProps {
   normalize?: boolean;
   /** Custom avatar data URL; shown instead of the letter initial when set. */
   avatarUrl?: string | null;
+  /** False while the window is minimized/hidden; detaches video to stop decode. */
+  windowVisible?: boolean;
 }
 
 const CONN_LABEL: Partial<Record<RTCPeerConnectionState, string>> = {
@@ -51,6 +53,7 @@ export function ParticipantTile({
   deafened,
   avatarUrl,
   normalize,
+  windowVisible = true,
 }: ParticipantTileProps): React.JSX.Element {
   // Validate peer-supplied avatar data URLs before rendering (defense in depth;
   // the server already sanitizes, but never trust an <img src> from the wire).
@@ -66,10 +69,14 @@ export function ParticipantTile({
   const showMuteIcon = intentionallyMuted ?? muted;
 
   // The <video> is always mounted so remote audio plays even with camera off.
+  // While the window is minimized/hidden, detach the stream so Chromium stops
+  // decoding video nobody can see. Safe for audio: remote audio plays through the
+  // Web Audio graph below (sourced from the MediaStream), and the self preview is
+  // muted — neither depends on the element's srcObject.
   useEffect(() => {
     const el = videoRef.current;
-    if (el) el.srcObject = cameraStream;
-  }, [cameraStream]);
+    if (el) el.srcObject = windowVisible ? cameraStream : null;
+  }, [cameraStream, windowVisible]);
 
   // Build a per-peer Web Audio graph (remote only) so gain > 1.0 is possible.
   // Source from the MediaStream, not the <video> element: createMediaElementSource

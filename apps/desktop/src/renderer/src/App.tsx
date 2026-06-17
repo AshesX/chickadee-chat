@@ -101,6 +101,9 @@ export function App(): React.JSX.Element {
   const [muteKey, setMuteKey] = useState(() => store.getMuteKey());
   const [muteMode, setMuteMode] = useState<'hold' | 'toggle'>(() => store.getMuteMode());
   const [windowFocused, setWindowFocused] = useState(() => document.hasFocus());
+  // Distinct from focus: false only while minimized/hidden (signalled from main).
+  // Gates incoming video decode so frames nobody can see aren't decoded.
+  const [windowVisible, setWindowVisible] = useState(true);
   const [volumes, setVolumes] = useState<Record<string, number>>({});
 
   // Manual per-peer volume: update the live (peerId-keyed) map and persist by stable userId
@@ -704,6 +707,11 @@ export function App(): React.JSX.Element {
     };
   }, []);
 
+  // Track minimized/hidden state from main so we can pause incoming video decode.
+  useEffect(() => {
+    return window.chickadee?.onWindowVisibilityChange?.(setWindowVisible);
+  }, []);
+
   // Warm the TTS voice list on startup so the first spoken message resolves the right voice.
   useEffect(() => {
     initVoices();
@@ -847,6 +855,7 @@ export function App(): React.JSX.Element {
         speaking={selfSpeaking}
         deafened={deafened}
         avatarUrl={localAvatarUrl}
+        windowVisible={windowVisible}
       />
       {signaling.peers.map((peer) => {
         const media = mesh.remote[peer.id];
@@ -865,6 +874,7 @@ export function App(): React.JSX.Element {
             volume={deafened ? 0 : (volumes[peer.id] ?? 1) * outputVolume}
             deafened={peer.deafened}
             normalize={normalizeVoices}
+            windowVisible={windowVisible}
           />
         );
       })}
@@ -951,7 +961,7 @@ export function App(): React.JSX.Element {
                 <div className="presentation">
                   <div className="stage" data-count={Math.min(activeScreens.length, 4)}>
                     {activeScreens.map((s) => (
-                      <ScreenView key={s.key} displayName={s.displayName} isSelf={s.isSelf} stream={s.stream} outputDeviceId={outputDeviceId} />
+                      <ScreenView key={s.key} displayName={s.displayName} isSelf={s.isSelf} stream={s.stream} outputDeviceId={outputDeviceId} windowVisible={windowVisible} />
                     ))}
                   </div>
                   <ul className="filmstrip">{tiles}</ul>

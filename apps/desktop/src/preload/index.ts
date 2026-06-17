@@ -79,6 +79,16 @@ const api = {
     toggleMaximize: (): void => ipcRenderer.send('chickadee:window-maximize-toggle'),
     close: (): void => ipcRenderer.send('chickadee:window-close'),
   },
+  /**
+   * Subscribe to window-visibility changes (false when minimized/hidden, true
+   * when restored/shown). Used to pause incoming video decode while invisible.
+   * Returns an unsubscribe fn.
+   */
+  onWindowVisibilityChange: (cb: (visible: boolean) => void): (() => void) => {
+    const listener = (_e: unknown, visible: boolean): void => cb(visible);
+    ipcRenderer.on('chickadee:window-visibility', listener);
+    return () => ipcRenderer.removeListener('chickadee:window-visibility', listener);
+  },
   /** Register/unregister the global push-to-talk hotkey in main. */
   setPushToTalk: (opts: { enabled: boolean; key: string; mode: 'hold' | 'toggle' }): Promise<void> =>
     ipcRenderer.invoke('chickadee:set-ptt', opts),

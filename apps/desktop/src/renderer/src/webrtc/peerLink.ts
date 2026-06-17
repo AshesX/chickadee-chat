@@ -8,6 +8,42 @@ import {
 /** Don't fire ICE restarts more often than this (ms) per connection. */
 const ICE_RESTART_COOLDOWN_MS = 4000;
 
+/**
+ * Enable Opus DTX (discontinuous transmission) on every Opus m-line of a local
+ * SDP by adding `usedtx=1` to its fmtp params. With DTX the encoder stops
+ * sending full frames during silence (its built-in comfort noise covers the
+ * gap), which cuts upstream bandwidth in a voice-first app where peers are often
+ * quiet. There's no `setParameters()` equivalent for DTX, so this munges the SDP.
+ * Existing fmtp params (minptime, useinbandfec, …) are preserved; bitrate is
+ * untouched. Returns the SDP unchanged if no Opus payload is found.
+ */
+export function enableOpusDtx(sdp: string): string {
+  const lines = sdp.split(/\r\n|\n/);
+  // Map every Opus payload type from its rtpmap line.
+  const opusPts = new Set<string>();
+  for (const line of lines) {
+    const m = /^a=rtpmap:(\d+) opus\/48000/i.exec(line);
+    if (m) opusPts.add(m[1]);
+  }
+  if (opusPts.size === 0) return sdp;
+
+  const out: string[] = [];
+  for (const line of lines) {
+    const fmtp = /^a=fmtp:(\d+) (.*)$/.exec(line);
+    if (fmtp && opusPts.has(fmtp[1])) {
+      out.push(/\busedtx=/.test(fmtp[2]) ? line : `${line};usedtx=1`);
+      continue;
+    }
+    out.push(line);
+    // If an Opus payload has an rtpmap but no fmtp line, add one right after it.
+    const rtpmap = /^a=rtpmap:(\d+) opus\/48000/i.exec(line);
+    if (rtpmap && !sdp.includes(`a=fmtp:${rtpmap[1]} `)) {
+      out.push(`a=fmtp:${rtpmap[1]} usedtx=1`);
+    }
+  }
+  return out.join('\r\n');
+}
+
 /** The subset of relayed signaling messages a peer link consumes. */
 export type PeerSignal = Extract<
   ServerMessage,
@@ -86,7 +122,9 @@ export function createPeerLink(opts: PeerLinkOptions): PeerLink {
   pc.onnegotiationneeded = async () => {
     try {
       makingOffer = true;
-      await pc.setLocalDescription();
+      const offer = await pc.createOffer();
+      offer.sdp = enableOpusDtx(offer.sdp ?? '');
+      await pc.setLocalDescription(offer);
       if (pc.localDescription) {
         send({ type: 'offer', to: peerId, sdp: pc.localDescription });
       }
@@ -202,7 +240,9 @@ export function createPeerLink(opts: PeerLinkOptions): PeerLink {
       isSettingRemoteAnswerPending = false;
 
       if (description.type === 'offer') {
-        await pc.setLocalDescription();
+        const answer = await pc.createAnswer();
+        answer.sdp = enableOpusDtx(answer.sdp ?? '');
+        await pc.setLocalDescription(answer);
         if (pc.localDescription) {
           send({ type: 'answer', to: peerId, sdp: pc.localDescription });
         }
