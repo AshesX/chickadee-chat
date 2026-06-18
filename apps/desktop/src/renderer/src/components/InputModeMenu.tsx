@@ -10,6 +10,8 @@ interface InputModeMenuProps {
   onChangeVadThreshold: (v: number) => void;
   openMicNoiseReductionEnabled: boolean;
   onToggleOpenMicNoiseReduction: () => void;
+  openMicThreshold: number;
+  onChangeOpenMicThreshold: (v: number) => void;
   onOpenVoiceSettings: () => void;
   onClose: () => void;
   anchorRect: DOMRect;
@@ -31,6 +33,8 @@ export function InputModeMenu({
   onChangeVadThreshold,
   openMicNoiseReductionEnabled,
   onToggleOpenMicNoiseReduction,
+  openMicThreshold,
+  onChangeOpenMicThreshold,
   onOpenVoiceSettings,
   onClose,
   anchorRect,
@@ -42,6 +46,7 @@ export function InputModeMenu({
   const left = Math.max(8, Math.min(rawLeft, window.innerWidth - menuWidth - 8));
 
   const vadPct = Math.round(((vadThreshold - 0.01) / (0.1 - 0.01)) * 100);
+  const openMicPct = Math.round(((openMicThreshold - 0.01) / (0.1 - 0.01)) * 100);
 
   return (
     <>
@@ -105,7 +110,7 @@ export function InputModeMenu({
               className="audio-menu__slider"
               min={0.01}
               max={0.1}
-              step={0.005}
+              step={0.001}
               value={vadThreshold}
               onChange={(e) => onChangeVadThreshold(Number(e.target.value))}
             />
@@ -118,15 +123,32 @@ export function InputModeMenu({
 
         {inputMode === 'open' && (
           <>
-            <div className="audio-menu__section-label">Open Mic Settings</div>
             <label className="audio-menu__toggle-row">
               <input
                 type="checkbox"
                 checked={openMicNoiseReductionEnabled}
                 onChange={() => onToggleOpenMicNoiseReduction()}
               />
-              Background noise reduction
+              Noise gate
             </label>
+            {openMicNoiseReductionEnabled && (
+              <>
+                <div className="audio-menu__section-label">Sensitivity — {openMicPct}%</div>
+                <input
+                  type="range"
+                  className="audio-menu__slider"
+                  min={0.01}
+                  max={0.1}
+                  step={0.001}
+                  value={openMicThreshold}
+                  onChange={(e) => onChangeOpenMicThreshold(Number(e.target.value))}
+                />
+                <div className="audio-menu__vol-labels">
+                  <span>Low</span>
+                  <span>High</span>
+                </div>
+              </>
+            )}
           </>
         )}
 

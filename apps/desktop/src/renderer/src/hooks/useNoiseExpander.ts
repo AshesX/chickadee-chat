@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
 
 const MIN_TOGGLE_MS = 120; // debounce rapid edge flips
-const HANG_MS = 250; // hold the channel open briefly after speech drops
 const HYSTERESIS = 0.7; // close at threshold * HYSTERESIS
 const ATTACK_TC = 0.01; // fast ramp back to 0 dB so word onsets aren't clipped
 const RELEASE_TC = 0.18; // slower fade down to the floor for a natural tail
@@ -19,6 +18,9 @@ interface UseNoiseExpanderOpts {
   threshold: number;
   /** Attenuation floor in dB (negative, e.g. -20). */
   reductionDb: number;
+  /** Hangover: how long (ms) to hold the gate open after the level drops, so
+   *  trailing word-ends and short pauses aren't cut down to the floor. */
+  releaseMs: number;
   /**
    * The mic analyser node, tapped on the gain node *before* the expander gain,
    * so it always carries the true pre-attenuation signal (reading post-expander
@@ -42,6 +44,7 @@ export function useNoiseExpander({
   active,
   threshold,
   reductionDb,
+  releaseMs,
   analyserNode,
   expanderGain,
 }: UseNoiseExpanderOpts): void {
@@ -50,6 +53,8 @@ export function useNoiseExpander({
   thresholdRef.current = threshold;
   const reductionDbRef = useRef(reductionDb);
   reductionDbRef.current = reductionDb;
+  const releaseMsRef = useRef(releaseMs);
+  releaseMsRef.current = releaseMs;
 
   useEffect(() => {
     if (!active || !analyserNode || !expanderGain) return;
@@ -91,7 +96,7 @@ export function useNoiseExpander({
           belowSince = 0;
         } else {
           if (belowSince === 0) belowSince = now;
-          if (now - belowSince > HANG_MS && now - lastToggle > MIN_TOGGLE_MS) {
+          if (now - belowSince > releaseMsRef.current && now - lastToggle > MIN_TOGGLE_MS) {
             open = false;
             lastToggle = now;
             belowSince = 0;

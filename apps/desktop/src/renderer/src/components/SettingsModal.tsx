@@ -38,6 +38,8 @@ interface SettingsModalProps {
   onChangeOpenMicThreshold: (v: number) => void;
   openMicReductionDb: number;
   onChangeOpenMicReductionDb: (v: number) => void;
+  openMicReleaseMs: number;
+  onChangeOpenMicReleaseMs: (v: number) => void;
   theme: 'midnight' | 'classic' | 'oled';
   onChangeTheme: (t: 'midnight' | 'classic' | 'oled') => void;
   launchOnStartup: boolean;
@@ -401,6 +403,8 @@ export function SettingsModal({
   onChangeOpenMicThreshold,
   openMicReductionDb,
   onChangeOpenMicReductionDb,
+  openMicReleaseMs,
+  onChangeOpenMicReleaseMs,
   theme,
   onChangeTheme,
   launchOnStartup,
@@ -511,6 +515,7 @@ export function SettingsModal({
     { label: 'Push-to-Talk Key', description: 'Set the keybind for push-to-talk', tab: 'keybindings', sectionId: 'section-kb-voice', keywords: ['ptt', 'push to talk', 'keybind', 'hotkey', 'key', 'bind'] },
     { label: 'Mute Key', description: 'Set the keybind to mute/unmute mic', tab: 'keybindings', sectionId: 'section-kb-voice', keywords: ['mute', 'unmute', 'keybind', 'hotkey', 'key', 'bind'] },
     { label: 'Noise Suppression', description: 'Remove background noise from your mic', tab: 'audio', sectionId: 'section-processing', keywords: ['noise', 'background', 'suppress', 'filter', 'processing'] },
+    { label: 'Noise Gate', description: 'Quiet your mic during pauses in Open Mic mode', tab: 'audio', sectionId: 'section-input-mode', keywords: ['noise gate', 'gate', 'open mic', 'background', 'expander', 'quiet', 'pauses', 'hold', 'release', 'hangover'] },
     { label: 'Echo Cancellation', description: 'Prevent speaker audio feeding back into mic', tab: 'audio', sectionId: 'section-processing', keywords: ['echo', 'feedback', 'cancellation', 'processing'] },
     { label: 'Auto Gain Control', description: 'Automatically adjust mic input level', tab: 'audio', sectionId: 'section-processing', keywords: ['agc', 'auto gain', 'automatic', 'level', 'processing'] },
     { label: 'Camera Resolution', description: 'Set streaming resolution for your camera', tab: 'video', sectionId: 'section-camera', keywords: ['camera', 'resolution', '720p', '1080p', '4k', 'quality', 'fps', 'framerate'] },
@@ -646,6 +651,7 @@ export function SettingsModal({
     onChangeOpenMicNoiseReductionEnabled(defaults.openMicNoiseReductionEnabled);
     onChangeOpenMicThreshold(defaults.openMicThreshold);
     onChangeOpenMicReductionDb(defaults.openMicReductionDb);
+    onChangeOpenMicReleaseMs(defaults.openMicReleaseMs);
     onChangeTheme(defaults.theme);
     onChangeLaunchOnStartup(defaults.launchOnStartup);
     onChangeCloseBehavior(defaults.closeBehavior);
@@ -1081,7 +1087,7 @@ export function SettingsModal({
                         <SettingsSlider
                           min={0.01}
                           max={0.1}
-                          step={0.005}
+                          step={0.001}
                           value={vadThreshold}
                           onChange={onChangeVadThreshold}
                           markers={[0.01, 0.05, 0.1]}
@@ -1090,7 +1096,7 @@ export function SettingsModal({
                             { value: 0.05, text: 'Medium' },
                             { value: 0.1, text: 'High' },
                           ]}
-                          snapThreshold={0.002}
+                          snapThreshold={0.0005}
                         />
                         <MicLevelMeter bars={micBars} online={!!analyserNode} threshold={vadThreshold} />
                       </div>
@@ -1119,8 +1125,8 @@ export function SettingsModal({
                   <>
                     <div className="settings-row">
                       <div className="settings-row__label">
-                        <span>Reduce background noise</span>
-                        <span className="settings-row__hint">Softly lowers the volume of background noise while you're not speaking, instead of cutting it off. Turn off for a raw, unprocessed mic.</span>
+                        <span>Noise gate</span>
+                        <span className="settings-row__hint">Quiets your mic while you're not talking, so others don't hear background noise during pauses. Different from Noise suppression, which cleans noise out of your voice while you talk. Turn off for a raw, unprocessed mic.</span>
                       </div>
                       <Toggle on={openMicNoiseReductionEnabled} onClick={() => onChangeOpenMicNoiseReductionEnabled(!openMicNoiseReductionEnabled)} />
                     </div>
@@ -1136,7 +1142,7 @@ export function SettingsModal({
                             <SettingsSlider
                               min={0.01}
                               max={0.1}
-                              step={0.005}
+                              step={0.001}
                               value={openMicThreshold}
                               onChange={onChangeOpenMicThreshold}
                               markers={[0.01, 0.05, 0.1]}
@@ -1145,7 +1151,7 @@ export function SettingsModal({
                                 { value: 0.05, text: 'Medium' },
                                 { value: 0.1, text: 'High' },
                               ]}
-                              snapThreshold={0.002}
+                              snapThreshold={0.0005}
                             />
                             <MicLevelMeter bars={micBars} online={!!analyserNode} threshold={openMicThreshold} />
                           </div>
@@ -1168,6 +1174,23 @@ export function SettingsModal({
                               { value: -40, text: 'Strong' },
                             ]}
                             snapThreshold={4}
+                          />
+                        </div>
+
+                        <div className="settings-row">
+                          <div className="settings-row__label">
+                            <span>Gate hold time</span>
+                            <span className="settings-row__hint">How long the gate stays open after you stop talking, so word endings and short pauses aren't cut down to background level. Currently {openMicReleaseMs} ms.</span>
+                          </div>
+                          <SettingsSlider
+                            value={openMicReleaseMs}
+                            onChange={onChangeOpenMicReleaseMs}
+                            snapValues={[100, 250, 500, 750, 1000, 1500, 2000, 2500, 3000]}
+                            labels={[
+                              { value: 100, text: 'Short' },
+                              { value: 1000, text: 'Medium' },
+                              { value: 3000, text: 'Long' },
+                            ]}
                           />
                         </div>
                       </>
@@ -1228,7 +1251,7 @@ export function SettingsModal({
                 <div className="settings-row">
                   <div className="settings-row__label">
                     <span>Noise suppression</span>
-                    <span className="settings-row__hint">Chromium built-in mic noise removal.</span>
+                    <span className="settings-row__hint">Chromium's built-in filter that removes steady background noise from your voice as you talk. Different from the open-mic Noise gate, which only quiets your mic during pauses.</span>
                   </div>
                   <Toggle on={noiseSuppression} onClick={() => onChangeNoiseSuppression(!noiseSuppression)} />
                 </div>

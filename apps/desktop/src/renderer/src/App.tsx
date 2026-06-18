@@ -95,6 +95,7 @@ export function App(): React.JSX.Element {
   const [openMicNoiseReductionEnabled, setOpenMicNoiseReductionEnabled] = useState(() => store.getOpenMicNoiseReductionEnabled());
   const [openMicThreshold, setOpenMicThreshold] = useState(() => store.getOpenMicThreshold());
   const [openMicReductionDb, setOpenMicReductionDb] = useState(() => store.getOpenMicReductionDb());
+  const [openMicReleaseMs, setOpenMicReleaseMs] = useState(() => store.getOpenMicReleaseMs());
   // In voice mode the mic button pauses VAD (master mute) rather than toggling directly.
   const [voiceMuted, setVoiceMuted] = useState(false);
   const [pushToTalkKey, setPushToTalkKey] = useState(() => store.getPushToTalkKey());
@@ -614,6 +615,11 @@ export function App(): React.JSX.Element {
     store.setOpenMicReductionDb(db);
   }, []);
 
+  const applyOpenMicReleaseMs = useCallback((ms: number) => {
+    setOpenMicReleaseMs(ms);
+    store.setOpenMicReleaseMs(ms);
+  }, []);
+
   function applyPushToTalkKey(key: string): void {
     setPushToTalkKey(key);
     store.setPushToTalkKey(key);
@@ -947,6 +953,7 @@ export function App(): React.JSX.Element {
     active: inputMode === 'open' && openMicNoiseReductionEnabled && inRoom,
     threshold: openMicThreshold,
     reductionDb: openMicReductionDb,
+    releaseMs: openMicReleaseMs,
     analyserNode: mesh.analyserNode,
     expanderGain: mesh.expanderGainNode,
   });
@@ -1186,6 +1193,8 @@ export function App(): React.JSX.Element {
                 onChangeVadThreshold={applyVadThreshold}
                 openMicNoiseReductionEnabled={openMicNoiseReductionEnabled}
                 onToggleOpenMicNoiseReduction={() => applyOpenMicNoiseReductionEnabled(!openMicNoiseReductionEnabled)}
+                openMicThreshold={openMicThreshold}
+                onChangeOpenMicThreshold={applyOpenMicThreshold}
                 onOpenVoiceSettings={() => { setInputModeMenuOpen(false); setSettingsInitialTab('audio'); setSettingsOpen(true); }}
                 onClose={() => setInputModeMenuOpen(false)}
                 anchorRect={inputModeMenuAnchor}
@@ -1406,6 +1415,8 @@ export function App(): React.JSX.Element {
           onChangeOpenMicThreshold={applyOpenMicThreshold}
           openMicReductionDb={openMicReductionDb}
           onChangeOpenMicReductionDb={applyOpenMicReductionDb}
+          openMicReleaseMs={openMicReleaseMs}
+          onChangeOpenMicReleaseMs={applyOpenMicReleaseMs}
           theme={theme}
           onChangeTheme={applyTheme}
           launchOnStartup={launchOnStartup}

@@ -145,6 +145,8 @@ export interface PersistedSettings {
   openMicThreshold: number;
   /** Attenuation floor in dB (negative, e.g. -20) applied below the threshold. */
   openMicReductionDb: number;
+  /** Hangover (ms) the open-mic noise gate stays open after the level drops. */
+  openMicReleaseMs: number;
   /** Preferred mic deviceId, or '' for the system default. */
   inputDeviceId: string;
   /** Preferred speaker deviceId (setSinkId), or '' for the system default. */
@@ -230,6 +232,7 @@ export function defaultSettings(): PersistedSettings {
     openMicNoiseReductionEnabled: true,
     openMicThreshold: 0.04,
     openMicReductionDb: -20,
+    openMicReleaseMs: 500,
     inputDeviceId: '',
     outputDeviceId: '',
     // Default to unbound
