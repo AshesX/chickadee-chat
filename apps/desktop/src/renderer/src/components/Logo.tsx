@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 
 interface LogoProps {
   size?: number;
@@ -17,96 +17,51 @@ const BASE_ANGLE = Math.atan2(-17.2, -18.29);
 
 /** The Chickadee Chat brand logo. */
 export function Logo({ size = 24, className }: LogoProps): React.JSX.Element {
-  // SVG ref to determine screen positioning of eyes
+  // Refs to determine screen positioning and manipulate pupils directly
   const svgRef = useRef<SVGSVGElement>(null);
-
-  // We track the current angles of the left and right eyes
-  const [angles, setAngles] = useState({ left: BASE_ANGLE, right: BASE_ANGLE });
+  const pupilLeftRef = useRef<SVGCircleElement>(null);
+  const pupilRightRef = useRef<SVGCircleElement>(null);
 
   // Refs to store mutable values for the animation loop
   const stateRef = useRef({
-    phase: 'idle' as 'idle' | 'googly' | 'returning',
-    phaseTimer: 15000 + Math.random() * 5000, // Duration of current phase in ms
-    
-    // Left eye state
     leftAngle: BASE_ANGLE,
-    leftVelocity: 0,
-    leftVelocityTimer: 0, // Time left until next velocity change in ms
-    leftStartReturnAngle: BASE_ANGLE,
-    
-    // Right eye state
     rightAngle: BASE_ANGLE,
-    rightVelocity: 0,
-    rightVelocityTimer: 0,
-    rightStartReturnAngle: BASE_ANGLE,
-    
-    // Returning phase variables
-    returnElapsed: 0,
-    returnDuration: 800, // 0.8 seconds to return to target
+    targetLeft: BASE_ANGLE,
+    targetRight: BASE_ANGLE,
 
     // Mouse position tracking
     mouseActive: false,
     mouseX: 0,
     mouseY: 0,
+
+    // Loop state
+    loopRunning: false,
+    frameId: 0,
   });
 
   useEffect(() => {
+    const state = stateRef.current;
     let lastTime = performance.now();
-    let frameId: number;
 
-    const handleMouseMove = (e: MouseEvent) => {
-      const sidebarEl = document.querySelector('.sidebar');
-      const onboardingEl = document.querySelector('.modal-panel--welcome');
-      let active = false;
-      let targetX = 0;
-      let targetY = 0;
-
-      if (onboardingEl) {
-        // Onboarding Screens (Welcome / Name Modal): track globally
-        active = true;
-        targetX = e.clientX;
-        targetY = e.clientY;
-      } else if (sidebarEl) {
-        // Main Screen: track only inside the sidebar boundaries
-        const rect = sidebarEl.getBoundingClientRect();
-        if (
-          e.clientX >= rect.left &&
-          e.clientX <= rect.right &&
-          e.clientY >= rect.top &&
-          e.clientY <= rect.bottom
-        ) {
-          active = true;
-          targetX = e.clientX;
-          targetY = e.clientY;
-        }
-      } else {
-        // Fallback: track globally
-        active = true;
-        targetX = e.clientX;
-        targetY = e.clientY;
+    // Helper to update pupil coordinates in the DOM directly (no React state re-renders)
+    const updatePupilAttributes = (leftAngle: number, rightAngle: number) => {
+      if (pupilLeftRef.current) {
+        const cx = EYE_LEFT.cx + ROTATION_RADIUS * Math.cos(leftAngle);
+        const cy = EYE_LEFT.cy + ROTATION_RADIUS * Math.sin(leftAngle);
+        pupilLeftRef.current.setAttribute('cx', String(cx));
+        pupilLeftRef.current.setAttribute('cy', String(cy));
       }
-
-      const state = stateRef.current;
-      state.mouseActive = active;
-      if (active) {
-        state.mouseX = targetX;
-        state.mouseY = targetY;
+      if (pupilRightRef.current) {
+        const cx = EYE_RIGHT.cx + ROTATION_RADIUS * Math.cos(rightAngle);
+        const cy = EYE_RIGHT.cy + ROTATION_RADIUS * Math.sin(rightAngle);
+        pupilRightRef.current.setAttribute('cx', String(cx));
+        pupilRightRef.current.setAttribute('cy', String(cy));
       }
     };
-
-    const handleMouseLeave = () => {
-      stateRef.current.mouseActive = false;
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseleave', handleMouseLeave);
 
     const animate = (time: number) => {
       const dt = (time - lastTime) / 1000; // delta time in seconds
       lastTime = time;
-
-      const state = stateRef.current;
-      state.phaseTimer -= dt * 1000;
 
       // Determine the target angle (mouse following or default top-left angle)
       let targetLeft = BASE_ANGLE;
@@ -146,100 +101,114 @@ export function Logo({ size = 24, className }: LogoProps): React.JSX.Element {
         }
       }
 
-      // State machine logic
-      if (state.phase === 'idle') {
-        if (state.phaseTimer <= 0) {
-          // Transition to googly phase
-          state.phase = 'googly';
-          state.phaseTimer = 5000 + Math.random() * 5000; // 5-10 seconds of googly eyes
+      state.targetLeft = targetLeft;
+      state.targetRight = targetRight;
 
-          // Initialize velocities for the googly phase
-          state.leftVelocity = (Math.random() > 0.5 ? 1 : -1) * (1.5 + Math.random() * 2.5);
-          state.leftVelocityTimer = 1000 + Math.random() * 2000;
+      // Smoothly interpolate towards target (mouse location or resting BASE_ANGLE)
+      const diffLeft =
+        (((targetLeft - state.leftAngle + Math.PI) % (2 * Math.PI)) + 2 * Math.PI) %
+          (2 * Math.PI) -
+        Math.PI;
+      const diffRight =
+        (((targetRight - state.rightAngle + Math.PI) % (2 * Math.PI)) + 2 * Math.PI) %
+          (2 * Math.PI) -
+        Math.PI;
 
-          state.rightVelocity = (Math.random() > 0.5 ? 1 : -1) * (1.5 + Math.random() * 2.5);
-          state.rightVelocityTimer = 1000 + Math.random() * 2000;
-        } else {
-          // Smoothly interpolate towards target (mouse location or resting BASE_ANGLE)
-          const diffLeft = (((targetLeft - state.leftAngle + Math.PI) % (2 * Math.PI)) + (2 * Math.PI)) % (2 * Math.PI) - Math.PI;
-          const diffRight = (((targetRight - state.rightAngle + Math.PI) % (2 * Math.PI)) + (2 * Math.PI)) % (2 * Math.PI) - Math.PI;
+      const lerpSpeed = 6.0; // exponential decay factor (~0.2s response time)
+      const stepLeft = diffLeft * (1 - Math.exp(-lerpSpeed * dt));
+      const stepRight = diffRight * (1 - Math.exp(-lerpSpeed * dt));
 
-          const lerpSpeed = 6.0; // exponential decay factor (~0.2s response time)
-          state.leftAngle += diffLeft * (1 - Math.exp(-lerpSpeed * dt));
-          state.rightAngle += diffRight * (1 - Math.exp(-lerpSpeed * dt));
-        }
-      } else if (state.phase === 'googly') {
-        if (state.phaseTimer <= 0) {
-          // Transition to returning phase
-          state.phase = 'returning';
-          state.phaseTimer = state.returnDuration;
-          state.returnElapsed = 0;
-          state.leftStartReturnAngle = state.leftAngle;
-          state.rightStartReturnAngle = state.rightAngle;
-        } else {
-          // Update Left Eye rolling
-          state.leftVelocityTimer -= dt * 1000;
-          if (state.leftVelocityTimer <= 0) {
-            state.leftVelocity = (Math.random() > 0.5 ? 1 : -1) * (1.5 + Math.random() * 2.5);
-            state.leftVelocityTimer = 1000 + Math.random() * 2000;
-          }
-          state.leftAngle += state.leftVelocity * dt;
+      state.leftAngle += stepLeft;
+      state.rightAngle += stepRight;
 
-          // Update Right Eye rolling
-          state.rightVelocityTimer -= dt * 1000;
-          if (state.rightVelocityTimer <= 0) {
-            state.rightVelocity = (Math.random() > 0.5 ? 1 : -1) * (1.5 + Math.random() * 2.5);
-            state.rightVelocityTimer = 1000 + Math.random() * 2000;
-          }
-          state.rightAngle += state.rightVelocity * dt;
-        }
-      } else if (state.phase === 'returning') {
-        state.returnElapsed += dt * 1000;
-        const progress = Math.min(state.returnElapsed / state.returnDuration, 1);
-        
-        // Cubic ease-out: f(t) = 1 - (1-t)^3
-        const ease = 1 - Math.pow(1 - progress, 3);
+      // Update pupil attributes directly
+      updatePupilAttributes(state.leftAngle, state.rightAngle);
 
-        // Find shortest path to target for left eye
-        const diffLeft = (((targetLeft - state.leftStartReturnAngle + Math.PI) % (2 * Math.PI)) + (2 * Math.PI)) % (2 * Math.PI) - Math.PI;
-        state.leftAngle = state.leftStartReturnAngle + diffLeft * ease;
+      // Check if both eyes are close enough to their target angles to suspend the loop
+      const diffLeftRemaining = Math.abs(
+        (((targetLeft - state.leftAngle + Math.PI) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI) -
+          Math.PI
+      );
+      const diffRightRemaining = Math.abs(
+        (((targetRight - state.rightAngle + Math.PI) % (2 * Math.PI)) + 2 * Math.PI) %
+          (2 * Math.PI) -
+          Math.PI
+      );
 
-        // Find shortest path to target for right eye
-        const diffRight = (((targetRight - state.rightStartReturnAngle + Math.PI) % (2 * Math.PI)) + (2 * Math.PI)) % (2 * Math.PI) - Math.PI;
-        state.rightAngle = state.rightStartReturnAngle + diffRight * ease;
-
-        if (progress >= 1) {
-          // Transition back to idle phase
-          state.phase = 'idle';
-          state.phaseTimer = 15000 + Math.random() * 5000; // 15-20 seconds of normal eyes
-          state.leftAngle = targetLeft;
-          state.rightAngle = targetRight;
-        }
+      if (diffLeftRemaining < 0.001 && diffRightRemaining < 0.001) {
+        // Snap to target angles exactly, update DOM, and suspend loop
+        state.leftAngle = targetLeft;
+        state.rightAngle = targetRight;
+        updatePupilAttributes(state.leftAngle, state.rightAngle);
+        state.loopRunning = false;
+      } else {
+        state.frameId = requestAnimationFrame(animate);
       }
-
-      // Update state for rendering
-      setAngles({
-        left: state.leftAngle,
-        right: state.rightAngle,
-      });
-
-      frameId = requestAnimationFrame(animate);
     };
 
-    frameId = requestAnimationFrame(animate);
+    const startLoopIfNeeded = () => {
+      if (!state.loopRunning) {
+        state.loopRunning = true;
+        lastTime = performance.now();
+        state.frameId = requestAnimationFrame(animate);
+      }
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      state.mouseActive = true;
+      state.mouseX = e.clientX;
+      state.mouseY = e.clientY;
+      startLoopIfNeeded();
+    };
+
+    const handleMouseLeave = () => {
+      state.mouseActive = false;
+      startLoopIfNeeded(); // Run loop to transition back to resting state
+    };
+
+    const handleBlur = () => {
+      // Snapping immediately to resting position to guarantee 0% resource usage
+      state.mouseActive = false;
+      state.leftAngle = BASE_ANGLE;
+      state.rightAngle = BASE_ANGLE;
+      updatePupilAttributes(BASE_ANGLE, BASE_ANGLE);
+      if (state.loopRunning) {
+        cancelAnimationFrame(state.frameId);
+        state.loopRunning = false;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        handleBlur();
+      }
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseleave', handleMouseLeave);
+    window.addEventListener('blur', handleBlur);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Initial render setup
+    updatePupilAttributes(state.leftAngle, state.rightAngle);
+
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseleave', handleMouseLeave);
-      cancelAnimationFrame(frameId);
+      window.removeEventListener('blur', handleBlur);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (state.frameId) {
+        cancelAnimationFrame(state.frameId);
+      }
     };
   }, []);
 
-  // Calculate coordinates for pupils based on angles
-  const pupilLeftCx = EYE_LEFT.cx + ROTATION_RADIUS * Math.cos(angles.left);
-  const pupilLeftCy = EYE_LEFT.cy + ROTATION_RADIUS * Math.sin(angles.left);
+  // Compute initial static coordinates based on BASE_ANGLE
+  const initialLeftCx = EYE_LEFT.cx + ROTATION_RADIUS * Math.cos(BASE_ANGLE);
+  const initialLeftCy = EYE_LEFT.cy + ROTATION_RADIUS * Math.sin(BASE_ANGLE);
 
-  const pupilRightCx = EYE_RIGHT.cx + ROTATION_RADIUS * Math.cos(angles.right);
-  const pupilRightCy = EYE_RIGHT.cy + ROTATION_RADIUS * Math.sin(angles.right);
+  const initialRightCx = EYE_RIGHT.cx + ROTATION_RADIUS * Math.cos(BASE_ANGLE);
+  const initialRightCy = EYE_RIGHT.cy + ROTATION_RADIUS * Math.sin(BASE_ANGLE);
 
   return (
     <svg
@@ -256,16 +225,18 @@ export function Logo({ size = 24, className }: LogoProps): React.JSX.Element {
       <circle id="eye-right" fill="#e9e9e9" cx={EYE_RIGHT.cx} cy={EYE_RIGHT.cy} r="34.4" />
       <circle
         id="pupil-left"
+        ref={pupilLeftRef}
         fill="var(--bg)"
-        cx={pupilLeftCx}
-        cy={pupilLeftCy}
+        cx={initialLeftCx}
+        cy={initialLeftCy}
         r="17.2"
       />
       <circle
         id="pupil-right"
+        ref={pupilRightRef}
         fill="var(--bg)"
-        cx={pupilRightCx}
-        cy={pupilRightCy}
+        cx={initialRightCx}
+        cy={initialRightCy}
         r="17.2"
       />
       <path
