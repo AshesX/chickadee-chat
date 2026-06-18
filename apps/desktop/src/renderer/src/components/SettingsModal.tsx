@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { User, Mic, Volume2, Sliders, X, Video, Monitor, MessageSquare, Search } from 'lucide-react';
+import { User, Mic, Volume2, Sliders, X, Video, Monitor, MessageSquare, Search, Keyboard } from 'lucide-react';
 import { defaultSettings } from '@chickadee/shared';
 import { useKeyCapture } from '../hooks/useKeyCapture';
 import type { MediaDeviceOption } from '../hooks/useMediaDevices';
@@ -108,6 +108,20 @@ interface SettingsModalProps {
   accentColor: string;
   onChangeAccent: (color: string) => void;
   hasCamera?: boolean;
+  deafenKey: string;
+  onChangeDeafenKey: (key: string) => void;
+  deafenMode: 'hold' | 'toggle';
+  onChangeDeafenMode: (mode: 'hold' | 'toggle') => void;
+  cameraKey: string;
+  onChangeCameraKey: (key: string) => void;
+  screenShareKey: string;
+  onChangeScreenShareKey: (key: string) => void;
+  chatPanelKey: string;
+  onChangeChatPanelKey: (key: string) => void;
+  ttsToggleKey: string;
+  onChangeTtsToggleKey: (key: string) => void;
+  ttsStopKey: string;
+  onChangeTtsStopKey: (key: string) => void;
 }
 
 function SettingsSlider({
@@ -456,12 +470,26 @@ export function SettingsModal({
   accentColor,
   onChangeAccent,
   hasCamera = true,
+  deafenKey,
+  onChangeDeafenKey,
+  deafenMode,
+  onChangeDeafenMode,
+  cameraKey,
+  onChangeCameraKey,
+  screenShareKey,
+  onChangeScreenShareKey,
+  chatPanelKey,
+  onChangeChatPanelKey,
+  ttsToggleKey,
+  onChangeTtsToggleKey,
+  ttsStopKey,
+  onChangeTtsStopKey,
 }: SettingsModalProps): React.JSX.Element {
   const [name, setName] = useState(displayName);
   const [cropOpen, setCropOpen] = useState(false);
   const { capturing, startCapture, onRebindKey } = useKeyCapture();
-  const [activeTab, setActiveTab] = useState<'profile' | 'audio' | 'video' | 'sfx' | 'chat' | 'ui' | 'app'>(
-    (initialTab as 'profile' | 'audio' | 'video' | 'sfx' | 'chat' | 'ui' | 'app') ?? 'profile'
+  const [activeTab, setActiveTab] = useState<'profile' | 'audio' | 'video' | 'sfx' | 'chat' | 'ui' | 'app' | 'keybindings'>(
+    (initialTab as 'profile' | 'audio' | 'video' | 'sfx' | 'chat' | 'ui' | 'app' | 'keybindings') ?? 'profile'
   );
   const [versionCopied, setVersionCopied] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -470,7 +498,7 @@ export function SettingsModal({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const version = window.chickadee?.appVersion || '0.2.0';
 
-  type TabId = 'profile' | 'audio' | 'video' | 'sfx' | 'chat' | 'ui' | 'app';
+  type TabId = 'profile' | 'audio' | 'video' | 'sfx' | 'chat' | 'ui' | 'app' | 'keybindings';
   interface SearchEntry { label: string; description?: string; tab: TabId; sectionId?: string; keywords: string[]; }
 
   const SETTINGS_SEARCH_INDEX: SearchEntry[] = [
@@ -480,8 +508,8 @@ export function SettingsModal({
     { label: 'Output Device', description: 'Choose your speakers or headphones', tab: 'audio', sectionId: 'section-devices', keywords: ['speaker', 'headphones', 'output', 'device', 'playback'] },
     { label: 'Mic Volume', description: 'Adjust microphone gain and boost', tab: 'audio', sectionId: 'section-devices', keywords: ['gain', 'volume', 'boost', 'mic level'] },
     { label: 'Input Mode', description: 'Open Mic, Voice Activation, or Push-to-Talk', tab: 'audio', sectionId: 'section-input-mode', keywords: ['ptt', 'push to talk', 'voice activation', 'vad', 'open mic', 'transmit'] },
-    { label: 'Push-to-Talk Key', description: 'Set the keybind for push-to-talk', tab: 'audio', sectionId: 'section-input-mode', keywords: ['ptt', 'push to talk', 'keybind', 'hotkey', 'key', 'bind'] },
-    { label: 'Mute Key', description: 'Set the keybind to mute/unmute mic', tab: 'audio', sectionId: 'section-mic-mute', keywords: ['mute', 'unmute', 'keybind', 'hotkey', 'key', 'bind'] },
+    { label: 'Push-to-Talk Key', description: 'Set the keybind for push-to-talk', tab: 'keybindings', sectionId: 'section-kb-voice', keywords: ['ptt', 'push to talk', 'keybind', 'hotkey', 'key', 'bind'] },
+    { label: 'Mute Key', description: 'Set the keybind to mute/unmute mic', tab: 'keybindings', sectionId: 'section-kb-voice', keywords: ['mute', 'unmute', 'keybind', 'hotkey', 'key', 'bind'] },
     { label: 'Noise Suppression', description: 'Remove background noise from your mic', tab: 'audio', sectionId: 'section-processing', keywords: ['noise', 'background', 'suppress', 'filter', 'processing'] },
     { label: 'Echo Cancellation', description: 'Prevent speaker audio feeding back into mic', tab: 'audio', sectionId: 'section-processing', keywords: ['echo', 'feedback', 'cancellation', 'processing'] },
     { label: 'Auto Gain Control', description: 'Automatically adjust mic input level', tab: 'audio', sectionId: 'section-processing', keywords: ['agc', 'auto gain', 'automatic', 'level', 'processing'] },
@@ -501,6 +529,12 @@ export function SettingsModal({
     { label: 'Minimize to Tray', description: 'Keep running in background when window is closed', tab: 'app', keywords: ['tray', 'close', 'minimize', 'background', 'quit', 'system tray'] },
     { label: 'Always on Top', description: 'Pin the window above all other apps', tab: 'app', keywords: ['always on top', 'pin', 'window', 'focus', 'float'] },
     { label: 'Taskbar Badge', description: 'Show unread count on taskbar when unfocused', tab: 'app', keywords: ['badge', 'taskbar', 'unread', 'notification', 'count'] },
+    { label: 'Deafen Key', description: 'Set the keybind to deafen/undeafen', tab: 'keybindings', sectionId: 'section-kb-voice', keywords: ['deafen', 'keybind', 'hotkey', 'bind'] },
+    { label: 'Camera Key', description: 'Set the keybind to toggle camera', tab: 'keybindings', sectionId: 'section-kb-video', keywords: ['camera', 'keybind', 'hotkey', 'video', 'bind'] },
+    { label: 'Screen Share Key', description: 'Set the keybind to toggle screen share', tab: 'keybindings', sectionId: 'section-kb-video', keywords: ['screen share', 'keybind', 'hotkey', 'bind'] },
+    { label: 'Chat Panel Key', description: 'Set the keybind to toggle chat', tab: 'keybindings', sectionId: 'section-kb-chat', keywords: ['chat', 'keybind', 'hotkey', 'bind'] },
+    { label: 'TTS Toggle Key', description: 'Set the keybind to toggle TTS', tab: 'keybindings', sectionId: 'section-kb-chat', keywords: ['tts', 'keybind', 'hotkey', 'bind'] },
+    { label: 'TTS Stop Key', description: 'Set the keybind to stop current TTS', tab: 'keybindings', sectionId: 'section-kb-chat', keywords: ['tts', 'stop', 'keybind', 'hotkey', 'bind'] },
   ];
 
   const SUBSECTIONS: Partial<Record<string, { label: string; id: string }[]>> = {
@@ -511,7 +545,6 @@ export function SettingsModal({
     audio: [
       { label: 'Devices', id: 'section-devices' },
       { label: 'Input Mode', id: 'section-input-mode' },
-      { label: 'Mic Mute', id: 'section-mic-mute' },
       { label: 'Processing', id: 'section-processing' },
     ],
     video: [
@@ -521,6 +554,12 @@ export function SettingsModal({
     ],
     chat: [
       { label: 'Chat Settings', id: 'section-chat-settings' },
+      { label: 'Keybindings', id: 'section-chat-keybindings' },
+    ],
+    keybindings: [
+      { label: 'Voice & Audio', id: 'section-kb-voice' },
+      { label: 'Video', id: 'section-kb-video' },
+      { label: 'Chat', id: 'section-kb-chat' },
     ],
   };
 
@@ -636,6 +675,13 @@ export function SettingsModal({
     onChangeChatTtsEnabled(defaults.chatTtsEnabled);
     onChangeChatTtsSpeakName(defaults.chatTtsSpeakName);
     onChangeVoicePreference(defaults.voicePreference);
+    onChangeDeafenKey(defaults.deafenKey);
+    onChangeDeafenMode(defaults.deafenMode);
+    onChangeCameraKey(defaults.cameraKey);
+    onChangeScreenShareKey(defaults.screenShareKey);
+    onChangeChatPanelKey(defaults.chatPanelKey);
+    onChangeTtsToggleKey(defaults.ttsToggleKey);
+    onChangeTtsStopKey(defaults.ttsStopKey);
   }
 
   const searchResults = getSearchResults(searchQuery);
@@ -643,7 +689,7 @@ export function SettingsModal({
   const TAB_LABELS: Record<TabId, string> = {
     profile: 'My Profile', audio: 'Voice & Audio', video: 'Video & Screen Share',
     sfx: 'Sound Effects', chat: 'Chat Settings', ui: 'User Interface',
-    app: 'App Settings',
+    app: 'App Settings', keybindings: 'Keybindings',
   };
 
   return (
@@ -769,6 +815,20 @@ export function SettingsModal({
             </div>
           )}
           <button
+            className={`settings-sidebar__item${activeTab === 'keybindings' ? ' settings-sidebar__item--active' : ''}`}
+            onClick={() => setActiveTab('keybindings')}
+          >
+            <Keyboard size={15} />
+            <span>Keybindings</span>
+          </button>
+          {activeTab === 'keybindings' && (
+            <div className="settings-sidebar__sub-items">
+              {SUBSECTIONS.keybindings!.map((s) => (
+                <button key={s.id} className="settings-sidebar__sub-item" onClick={() => scrollToSection(s.id)}>{s.label}</button>
+              ))}
+            </div>
+          )}
+          <button
             className={`settings-sidebar__item${activeTab === 'ui' ? ' settings-sidebar__item--active' : ''}`}
             onClick={() => setActiveTab('ui')}
           >
@@ -803,6 +863,7 @@ export function SettingsModal({
               {activeTab === 'video' && 'Video & Screen Share'}
               {activeTab === 'sfx' && 'Sound Effects'}
               {activeTab === 'chat' && 'Chat Settings'}
+              {activeTab === 'keybindings' && 'Keybindings'}
               {activeTab === 'ui' && 'User Interface'}
               {activeTab === 'app' && 'App Settings'}
             </h2>
@@ -1142,7 +1203,7 @@ export function SettingsModal({
                         <button
                           className={`rebind${capturing === 'ptt' ? ' rebind--active' : ''}`}
                           onClick={() => startCapture('ptt')}
-                          onKeyDown={capturing === 'ptt' ? (e) => onRebindKey(e, onChangePushToTalkKey, onChangeMuteKey) : undefined}
+                          onKeyDown={capturing === 'ptt' ? (e) => onRebindKey(e, onChangePushToTalkKey) : undefined}
                         >
                           {capturing === 'ptt' ? 'Press a key…' : (pushToTalkKey || 'Unbound')}
                         </button>
@@ -1160,52 +1221,6 @@ export function SettingsModal({
                     </div>
                   </>
                 )}
-
-                <hr className="settings-divider" />
-                <div id="section-mic-mute" className="settings-subdivision">Mic Mute</div>
-
-                <div className="settings-row">
-                  <div className="settings-row__label">
-                    <span>Mute mode</span>
-                    <span className="settings-row__hint">Hold: mic muted while key held. Toggle: press to toggle mute on/off.</span>
-                  </div>
-                  <div className="seg-group">
-                    <button
-                      className={`seg-btn${muteMode === 'hold' ? ' seg-btn--active' : ''}`}
-                      onClick={() => onChangeMuteMode('hold')}
-                    >Hold</button>
-                    <button
-                      className={`seg-btn${muteMode === 'toggle' ? ' seg-btn--active' : ''}`}
-                      onClick={() => onChangeMuteMode('toggle')}
-                    >Toggle</button>
-                  </div>
-                </div>
-
-                <div className="settings-row">
-                  <div className="settings-row__label">
-                    <span>Mute key</span>
-                    <span className="settings-row__hint">Captured system-wide — press to mute/unmute your microphone.</span>
-                  </div>
-                  <div className="keybind-row">
-                    <button
-                      className={`rebind${capturing === 'mute' ? ' rebind--active' : ''}`}
-                      onClick={() => startCapture('mute')}
-                      onKeyDown={capturing === 'mute' ? (e) => onRebindKey(e, onChangePushToTalkKey, onChangeMuteKey) : undefined}
-                    >
-                      {capturing === 'mute' ? 'Press a key…' : (muteKey || 'Unbound')}
-                    </button>
-                    {muteKey && (
-                      <button
-                        className="unbind-btn"
-                        onClick={() => onChangeMuteKey('')}
-                        title="Clear keybind"
-                        aria-label="Clear Mute keybind"
-                      >
-                        <X size={14} />
-                      </button>
-                    )}
-                  </div>
-                </div>
 
                 <hr className="settings-divider" />
                 <div id="section-processing" className="settings-subdivision">Processing</div>
@@ -1582,6 +1597,306 @@ export function SettingsModal({
                   </button>
                 </div>
               </div>
+
+              <hr className="settings-divider" />
+              <div id="section-chat-keybindings" className="settings-subdivision">Keybindings</div>
+
+              <div className="settings-row">
+                <div className="settings-row__label">
+                  <span>Chat Panel Key</span>
+                  <span className="settings-row__hint">Toggle the chat panel visibility.</span>
+                </div>
+                <div className="keybind-row">
+                  <button
+                    className={`rebind${capturing === 'chatPanel' ? ' rebind--active' : ''}`}
+                    onClick={() => startCapture('chatPanel')}
+                    onKeyDown={capturing === 'chatPanel' ? (e) => onRebindKey(e, onChangeChatPanelKey) : undefined}
+                  >
+                    {capturing === 'chatPanel' ? 'Press a key…' : (chatPanelKey || 'Unbound')}
+                  </button>
+                  {chatPanelKey && (
+                    <button
+                      className="unbind-btn"
+                      onClick={() => onChangeChatPanelKey('')}
+                    ><X size={14} /></button>
+                  )}
+                </div>
+              </div>
+
+              <div className="settings-row">
+                <div className="settings-row__label">
+                  <span>TTS Toggle Key</span>
+                  <span className="settings-row__hint">Toggle the "Read messages aloud" setting.</span>
+                </div>
+                <div className="keybind-row">
+                  <button
+                    className={`rebind${capturing === 'ttsToggle' ? ' rebind--active' : ''}`}
+                    onClick={() => startCapture('ttsToggle')}
+                    onKeyDown={capturing === 'ttsToggle' ? (e) => onRebindKey(e, onChangeTtsToggleKey) : undefined}
+                  >
+                    {capturing === 'ttsToggle' ? 'Press a key…' : (ttsToggleKey || 'Unbound')}
+                  </button>
+                  {ttsToggleKey && (
+                    <button
+                      className="unbind-btn"
+                      onClick={() => onChangeTtsToggleKey('')}
+                    ><X size={14} /></button>
+                  )}
+                </div>
+              </div>
+
+              <div className="settings-row">
+                <div className="settings-row__label">
+                  <span>TTS Stop Key</span>
+                  <span className="settings-row__hint">Immediately stop reading the current message.</span>
+                </div>
+                <div className="keybind-row">
+                  <button
+                    className={`rebind${capturing === 'ttsStop' ? ' rebind--active' : ''}`}
+                    onClick={() => startCapture('ttsStop')}
+                    onKeyDown={capturing === 'ttsStop' ? (e) => onRebindKey(e, onChangeTtsStopKey) : undefined}
+                  >
+                    {capturing === 'ttsStop' ? 'Press a key…' : (ttsStopKey || 'Unbound')}
+                  </button>
+                  {ttsStopKey && (
+                    <button
+                      className="unbind-btn"
+                      onClick={() => onChangeTtsStopKey('')}
+                    ><X size={14} /></button>
+                  )}
+                </div>
+              </div>
+              </>
+            )}
+
+            {activeTab === 'keybindings' && (
+              <>
+                <div id="section-kb-voice" className="settings-subdivision">Voice & Audio</div>
+                
+                <div className="settings-row">
+                  <div className="settings-row__label">
+                    <span>PTT mode</span>
+                    <span className="settings-row__hint">Hold: mic live while key held. Toggle: press to unmute, press again to mute.</span>
+                  </div>
+                  <div className="seg-group">
+                    <button
+                      className={`seg-btn${pttMode === 'hold' ? ' seg-btn--active' : ''}`}
+                      onClick={() => onChangePttMode('hold')}
+                    >Hold</button>
+                    <button
+                      className={`seg-btn${pttMode === 'toggle' ? ' seg-btn--active' : ''}`}
+                      onClick={() => onChangePttMode('toggle')}
+                    >Toggle</button>
+                  </div>
+                </div>
+
+                <div className="settings-row">
+                  <div className="settings-row__label">
+                    <span>Push-to-talk key</span>
+                    <span className="settings-row__hint">Captured system-wide — pick a key you don't use in-game.</span>
+                  </div>
+                  <div className="keybind-row">
+                    <button
+                      className={`rebind${capturing === 'ptt' ? ' rebind--active' : ''}`}
+                      onClick={() => startCapture('ptt')}
+                      onKeyDown={capturing === 'ptt' ? (e) => onRebindKey(e, onChangePushToTalkKey) : undefined}
+                    >
+                      {capturing === 'ptt' ? 'Press a key…' : (pushToTalkKey || 'Unbound')}
+                    </button>
+                    {pushToTalkKey && (
+                      <button
+                        className="unbind-btn"
+                        onClick={() => onChangePushToTalkKey('')}
+                        title="Clear keybind"
+                        aria-label="Clear Push-to-talk keybind"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="settings-row">
+                  <div className="settings-row__label">
+                    <span>Mute mode</span>
+                    <span className="settings-row__hint">Hold: mic muted while key held. Toggle: press to toggle mute on/off.</span>
+                  </div>
+                  <div className="seg-group">
+                    <button
+                      className={`seg-btn${muteMode === 'hold' ? ' seg-btn--active' : ''}`}
+                      onClick={() => onChangeMuteMode('hold')}
+                    >Hold</button>
+                    <button
+                      className={`seg-btn${muteMode === 'toggle' ? ' seg-btn--active' : ''}`}
+                      onClick={() => onChangeMuteMode('toggle')}
+                    >Toggle</button>
+                  </div>
+                </div>
+
+                <div className="settings-row">
+                  <div className="settings-row__label">
+                    <span>Mute key</span>
+                    <span className="settings-row__hint">Captured system-wide — press to mute/unmute your microphone.</span>
+                  </div>
+                  <div className="keybind-row">
+                    <button
+                      className={`rebind${capturing === 'mute' ? ' rebind--active' : ''}`}
+                      onClick={() => startCapture('mute')}
+                      onKeyDown={capturing === 'mute' ? (e) => onRebindKey(e, onChangeMuteKey) : undefined}
+                    >
+                      {capturing === 'mute' ? 'Press a key…' : (muteKey || 'Unbound')}
+                    </button>
+                    {muteKey && (
+                      <button
+                        className="unbind-btn"
+                        onClick={() => onChangeMuteKey('')}
+                        title="Clear keybind"
+                        aria-label="Clear Mute keybind"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="settings-row">
+                  <div className="settings-row__label">
+                    <span>Deafen mode</span>
+                    <span className="settings-row__hint">Hold: deafened while key held. Toggle: press to toggle deafen on/off.</span>
+                  </div>
+                  <div className="seg-group">
+                    <button
+                      className={`seg-btn${deafenMode === 'hold' ? ' seg-btn--active' : ''}`}
+                      onClick={() => onChangeDeafenMode('hold')}
+                    >Hold</button>
+                    <button
+                      className={`seg-btn${deafenMode === 'toggle' ? ' seg-btn--active' : ''}`}
+                      onClick={() => onChangeDeafenMode('toggle')}
+                    >Toggle</button>
+                  </div>
+                </div>
+
+                <div className="settings-row">
+                  <div className="settings-row__label">
+                    <span>Deafen key</span>
+                    <span className="settings-row__hint">Captured system-wide — press to deafen/undeafen.</span>
+                  </div>
+                  <div className="keybind-row">
+                    <button
+                      className={`rebind${capturing === 'deafen' ? ' rebind--active' : ''}`}
+                      onClick={() => startCapture('deafen')}
+                      onKeyDown={capturing === 'deafen' ? (e) => onRebindKey(e, onChangeDeafenKey) : undefined}
+                    >
+                      {capturing === 'deafen' ? 'Press a key…' : (deafenKey || 'Unbound')}
+                    </button>
+                    {deafenKey && (
+                      <button
+                        className="unbind-btn"
+                        onClick={() => onChangeDeafenKey('')}
+                        title="Clear keybind"
+                        aria-label="Clear Deafen keybind"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <hr className="settings-divider" />
+                <div id="section-kb-video" className="settings-subdivision">Video</div>
+
+                <div className="settings-row">
+                  <div className="settings-row__label">
+                    <span>Camera Toggle Key</span>
+                  </div>
+                  <div className="keybind-row">
+                    <button
+                      className={`rebind${capturing === 'camera' ? ' rebind--active' : ''}`}
+                      onClick={() => startCapture('camera')}
+                      onKeyDown={capturing === 'camera' ? (e) => onRebindKey(e, onChangeCameraKey) : undefined}
+                    >
+                      {capturing === 'camera' ? 'Press a key…' : (cameraKey || 'Unbound')}
+                    </button>
+                    {cameraKey && (
+                      <button className="unbind-btn" onClick={() => onChangeCameraKey('')}><X size={14} /></button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="settings-row">
+                  <div className="settings-row__label">
+                    <span>Screen Share Toggle Key</span>
+                  </div>
+                  <div className="keybind-row">
+                    <button
+                      className={`rebind${capturing === 'screenShare' ? ' rebind--active' : ''}`}
+                      onClick={() => startCapture('screenShare')}
+                      onKeyDown={capturing === 'screenShare' ? (e) => onRebindKey(e, onChangeScreenShareKey) : undefined}
+                    >
+                      {capturing === 'screenShare' ? 'Press a key…' : (screenShareKey || 'Unbound')}
+                    </button>
+                    {screenShareKey && (
+                      <button className="unbind-btn" onClick={() => onChangeScreenShareKey('')}><X size={14} /></button>
+                    )}
+                  </div>
+                </div>
+
+                <hr className="settings-divider" />
+                <div id="section-kb-chat" className="settings-subdivision">Chat</div>
+
+                <div className="settings-row">
+                  <div className="settings-row__label">
+                    <span>Chat Panel Key</span>
+                  </div>
+                  <div className="keybind-row">
+                    <button
+                      className={`rebind${capturing === 'chatPanel' ? ' rebind--active' : ''}`}
+                      onClick={() => startCapture('chatPanel')}
+                      onKeyDown={capturing === 'chatPanel' ? (e) => onRebindKey(e, onChangeChatPanelKey) : undefined}
+                    >
+                      {capturing === 'chatPanel' ? 'Press a key…' : (chatPanelKey || 'Unbound')}
+                    </button>
+                    {chatPanelKey && (
+                      <button className="unbind-btn" onClick={() => onChangeChatPanelKey('')}><X size={14} /></button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="settings-row">
+                  <div className="settings-row__label">
+                    <span>TTS Toggle Key</span>
+                  </div>
+                  <div className="keybind-row">
+                    <button
+                      className={`rebind${capturing === 'ttsToggle' ? ' rebind--active' : ''}`}
+                      onClick={() => startCapture('ttsToggle')}
+                      onKeyDown={capturing === 'ttsToggle' ? (e) => onRebindKey(e, onChangeTtsToggleKey) : undefined}
+                    >
+                      {capturing === 'ttsToggle' ? 'Press a key…' : (ttsToggleKey || 'Unbound')}
+                    </button>
+                    {ttsToggleKey && (
+                      <button className="unbind-btn" onClick={() => onChangeTtsToggleKey('')}><X size={14} /></button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="settings-row">
+                  <div className="settings-row__label">
+                    <span>TTS Stop Key</span>
+                  </div>
+                  <div className="keybind-row">
+                    <button
+                      className={`rebind${capturing === 'ttsStop' ? ' rebind--active' : ''}`}
+                      onClick={() => startCapture('ttsStop')}
+                      onKeyDown={capturing === 'ttsStop' ? (e) => onRebindKey(e, onChangeTtsStopKey) : undefined}
+                    >
+                      {capturing === 'ttsStop' ? 'Press a key…' : (ttsStopKey || 'Unbound')}
+                    </button>
+                    {ttsStopKey && (
+                      <button className="unbind-btn" onClick={() => onChangeTtsStopKey('')}><X size={14} /></button>
+                    )}
+                  </div>
+                </div>
               </>
             )}
 

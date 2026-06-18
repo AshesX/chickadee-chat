@@ -12,6 +12,21 @@ interface UseKeybindSyncOpts {
   onMuteStart: () => void;
   onMuteStop: () => void;
   onMuteToggle: () => void;
+  deafenKey: string;
+  deafenMode: 'hold' | 'toggle';
+  onDeafenStart: () => void;
+  onDeafenStop: () => void;
+  onDeafenToggle: () => void;
+  cameraKey: string;
+  onCameraToggle: () => void;
+  screenShareKey: string;
+  onScreenShareToggle: () => void;
+  chatPanelKey: string;
+  onChatPanelToggle: () => void;
+  ttsToggleKey: string;
+  onTtsToggle: () => void;
+  ttsStopKey: string;
+  onTtsStop: () => void;
   localStream: MediaStream | null;
 }
 
@@ -27,6 +42,21 @@ export function useKeybindSync({
   onMuteStart,
   onMuteStop,
   onMuteToggle,
+  deafenKey,
+  deafenMode,
+  onDeafenStart,
+  onDeafenStop,
+  onDeafenToggle,
+  cameraKey,
+  onCameraToggle,
+  screenShareKey,
+  onScreenShareToggle,
+  chatPanelKey,
+  onChatPanelToggle,
+  ttsToggleKey,
+  onTtsToggle,
+  ttsStopKey,
+  onTtsStop,
   localStream,
 }: UseKeybindSyncOpts): void {
   const pttEnabled = inputMode === 'ptt';
@@ -78,4 +108,62 @@ export function useKeybindSync({
     const unsubStop = window.chickadee?.onMuteStop?.(() => onMuteStop());
     return () => { unsubStart?.(); unsubStop?.(); };
   }, [muteMode, onMuteStart, onMuteStop]);
+
+  // Sync new keybinds to main
+  useEffect(() => {
+    void window.chickadee?.setDeafenKeybind?.({ enabled: deafenKey !== '', key: deafenKey, mode: deafenMode });
+  }, [deafenKey, deafenMode]);
+
+  useEffect(() => {
+    void window.chickadee?.setCameraKeybind?.({ enabled: cameraKey !== '', key: cameraKey, mode: 'toggle' });
+  }, [cameraKey]);
+
+  useEffect(() => {
+    void window.chickadee?.setScreenShareKeybind?.({ enabled: screenShareKey !== '', key: screenShareKey, mode: 'toggle' });
+  }, [screenShareKey]);
+
+  useEffect(() => {
+    void window.chickadee?.setChatPanelKeybind?.({ enabled: chatPanelKey !== '', key: chatPanelKey, mode: 'toggle' });
+  }, [chatPanelKey]);
+
+  useEffect(() => {
+    void window.chickadee?.setTtsToggleKeybind?.({ enabled: ttsToggleKey !== '', key: ttsToggleKey, mode: 'toggle' });
+  }, [ttsToggleKey]);
+
+  useEffect(() => {
+    void window.chickadee?.setTtsStopKeybind?.({ enabled: ttsStopKey !== '', key: ttsStopKey, mode: 'toggle' });
+  }, [ttsStopKey]);
+
+  // Listeners for new keybinds
+  useEffect(() => {
+    if (deafenMode !== 'toggle') return;
+    return window.chickadee?.onDeafenToggle?.(() => onDeafenToggle());
+  }, [deafenMode, onDeafenToggle]);
+
+  useEffect(() => {
+    if (deafenMode !== 'hold') return;
+    const unsubStart = window.chickadee?.onDeafenStart?.(() => onDeafenStart());
+    const unsubStop = window.chickadee?.onDeafenStop?.(() => onDeafenStop());
+    return () => { unsubStart?.(); unsubStop?.(); };
+  }, [deafenMode, onDeafenStart, onDeafenStop]);
+
+  useEffect(() => {
+    return window.chickadee?.onCameraToggle?.(() => onCameraToggle());
+  }, [onCameraToggle]);
+
+  useEffect(() => {
+    return window.chickadee?.onScreenShareToggle?.(() => onScreenShareToggle());
+  }, [onScreenShareToggle]);
+
+  useEffect(() => {
+    return window.chickadee?.onChatPanelToggle?.(() => onChatPanelToggle());
+  }, [onChatPanelToggle]);
+
+  useEffect(() => {
+    return window.chickadee?.onTtsToggle?.(() => onTtsToggle());
+  }, [onTtsToggle]);
+
+  useEffect(() => {
+    return window.chickadee?.onTtsStop?.(() => onTtsStop());
+  }, [onTtsStop]);
 }

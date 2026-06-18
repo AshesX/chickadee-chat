@@ -3,30 +3,27 @@ import type { KeyboardEvent } from 'react';
 import { toAccelerator } from '../lib/accelerator';
 
 export function useKeyCapture(): {
-  capturing: 'ptt' | 'mute' | null;
-  startCapture: (target: 'ptt' | 'mute') => void;
+  capturing: string | null;
+  startCapture: (target: string) => void;
   onRebindKey: (
     e: KeyboardEvent,
-    onChangePtt: (k: string) => void,
-    onChangeMute: (k: string) => void,
+    onChange: (k: string) => void,
   ) => void;
 } {
-  const [capturing, setCapturing] = useState<'ptt' | 'mute' | null>(null);
+  const [capturing, setCapturing] = useState<string | null>(null);
 
-  function startCapture(target: 'ptt' | 'mute'): void {
+  function startCapture(target: string): void {
     setCapturing(target);
   }
 
   function onRebindKey(
     e: KeyboardEvent,
-    onChangePtt: (k: string) => void,
-    onChangeMute: (k: string) => void,
+    onChange: (k: string) => void,
   ): void {
     e.preventDefault();
     const accel = toAccelerator(e);
     if (accel) {
-      if (capturing === 'ptt') onChangePtt(accel);
-      else if (capturing === 'mute') onChangeMute(accel);
+      onChange(accel);
       setCapturing(null);
     }
   }

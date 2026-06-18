@@ -131,6 +131,64 @@ const api = {
     ipcRenderer.on('chickadee:mute-stop', listener);
     return () => ipcRenderer.removeListener('chickadee:mute-stop', listener);
   },
+  /** Register/unregister the global deafen hotkey in main. */
+  setDeafenKeybind: (opts: { enabled: boolean; key: string; mode: 'hold' | 'toggle' }): Promise<void> =>
+    ipcRenderer.invoke('chickadee:set-deafen-keybind', opts),
+  onDeafenToggle: (cb: () => void): (() => void) => {
+    const listener = (): void => cb();
+    ipcRenderer.on('chickadee:deafen-toggle', listener);
+    return () => ipcRenderer.removeListener('chickadee:deafen-toggle', listener);
+  },
+  onDeafenStart: (cb: () => void): (() => void) => {
+    const listener = (): void => cb();
+    ipcRenderer.on('chickadee:deafen-start', listener);
+    return () => ipcRenderer.removeListener('chickadee:deafen-start', listener);
+  },
+  onDeafenStop: (cb: () => void): (() => void) => {
+    const listener = (): void => cb();
+    ipcRenderer.on('chickadee:deafen-stop', listener);
+    return () => ipcRenderer.removeListener('chickadee:deafen-stop', listener);
+  },
+  /** Register/unregister the camera toggle hotkey in main. */
+  setCameraKeybind: (opts: { enabled: boolean; key: string; mode: 'toggle' }): Promise<void> =>
+    ipcRenderer.invoke('chickadee:set-camera-keybind', opts),
+  onCameraToggle: (cb: () => void): (() => void) => {
+    const listener = (): void => cb();
+    ipcRenderer.on('chickadee:camera-toggle', listener);
+    return () => ipcRenderer.removeListener('chickadee:camera-toggle', listener);
+  },
+  /** Register/unregister the screen share toggle hotkey in main. */
+  setScreenShareKeybind: (opts: { enabled: boolean; key: string; mode: 'toggle' }): Promise<void> =>
+    ipcRenderer.invoke('chickadee:set-screen-share-keybind', opts),
+  onScreenShareToggle: (cb: () => void): (() => void) => {
+    const listener = (): void => cb();
+    ipcRenderer.on('chickadee:screen-share-toggle', listener);
+    return () => ipcRenderer.removeListener('chickadee:screen-share-toggle', listener);
+  },
+  /** Register/unregister the chat panel toggle hotkey in main. */
+  setChatPanelKeybind: (opts: { enabled: boolean; key: string; mode: 'toggle' }): Promise<void> =>
+    ipcRenderer.invoke('chickadee:set-chat-panel-keybind', opts),
+  onChatPanelToggle: (cb: () => void): (() => void) => {
+    const listener = (): void => cb();
+    ipcRenderer.on('chickadee:chat-panel-toggle', listener);
+    return () => ipcRenderer.removeListener('chickadee:chat-panel-toggle', listener);
+  },
+  /** Register/unregister the TTS toggle hotkey in main. */
+  setTtsToggleKeybind: (opts: { enabled: boolean; key: string; mode: 'toggle' }): Promise<void> =>
+    ipcRenderer.invoke('chickadee:set-tts-toggle-keybind', opts),
+  onTtsToggle: (cb: () => void): (() => void) => {
+    const listener = (): void => cb();
+    ipcRenderer.on('chickadee:tts-toggle', listener);
+    return () => ipcRenderer.removeListener('chickadee:tts-toggle', listener);
+  },
+  /** Register/unregister the TTS stop hotkey in main. */
+  setTtsStopKeybind: (opts: { enabled: boolean; key: string; mode: 'toggle' }): Promise<void> =>
+    ipcRenderer.invoke('chickadee:set-tts-stop-keybind', opts),
+  onTtsStop: (cb: () => void): (() => void) => {
+    const listener = (): void => cb();
+    ipcRenderer.on('chickadee:tts-stop', listener);
+    return () => ipcRenderer.removeListener('chickadee:tts-stop', listener);
+  },
   /** Tray: set its icon (data URL), current room label, and mute-from-tray. */
   setTrayIcon: (dataUrl: string): Promise<void> => ipcRenderer.invoke('chickadee:set-tray-icon', dataUrl),
   setTrayRoom: (label: string | null): Promise<void> =>

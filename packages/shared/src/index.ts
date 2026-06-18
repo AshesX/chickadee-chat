@@ -197,6 +197,13 @@ export interface PersistedSettings {
   /** User-chosen accent color (`#rrggbb`), or '' to fall back to an auto-assigned color. */
   accentColor: string;
   defaultVideoAction: 'camera' | 'screen';
+  deafenKey: string;
+  deafenMode: 'hold' | 'toggle';
+  cameraKey: string;
+  screenShareKey: string;
+  chatPanelKey: string;
+  ttsToggleKey: string;
+  ttsStopKey: string;
 }
 
 export const DEFAULT_ROOMS: Room[] = [
@@ -225,8 +232,8 @@ export function defaultSettings(): PersistedSettings {
     openMicReductionDb: -20,
     inputDeviceId: '',
     outputDeviceId: '',
-    // Default to F8 — captured system-wide, so Space would swallow the spacebar in-game.
-    pushToTalkKey: 'F8',
+    // Default to unbound
+    pushToTalkKey: '',
     pttMode: 'hold',
     sfxEnabled: true,
     sfxVolume: 0.25,
@@ -259,6 +266,13 @@ export function defaultSettings(): PersistedSettings {
     avatarDataUrl: null,
     accentColor: '',
     defaultVideoAction: 'camera',
+    deafenKey: '',
+    deafenMode: 'toggle',
+    cameraKey: '',
+    screenShareKey: '',
+    chatPanelKey: '',
+    ttsToggleKey: '',
+    ttsStopKey: '',
   };
 }
 

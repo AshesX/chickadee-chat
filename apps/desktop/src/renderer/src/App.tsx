@@ -101,6 +101,13 @@ export function App(): React.JSX.Element {
   const [pttMode, setPttMode] = useState<'hold' | 'toggle'>(() => store.getPttMode());
   const [muteKey, setMuteKey] = useState(() => store.getMuteKey());
   const [muteMode, setMuteMode] = useState<'hold' | 'toggle'>(() => store.getMuteMode());
+  const [deafenKey, setDeafenKey] = useState(() => store.getDeafenKey());
+  const [deafenMode, setDeafenMode] = useState<'hold' | 'toggle'>(() => store.getDeafenMode());
+  const [cameraKey, setCameraKey] = useState(() => store.getCameraKey());
+  const [screenShareKey, setScreenShareKey] = useState(() => store.getScreenShareKey());
+  const [chatPanelKey, setChatPanelKey] = useState(() => store.getChatPanelKey());
+  const [ttsToggleKey, setTtsToggleKey] = useState(() => store.getTtsToggleKey());
+  const [ttsStopKey, setTtsStopKey] = useState(() => store.getTtsStopKey());
   const [windowFocused, setWindowFocused] = useState(() => document.hasFocus());
   // Distinct from focus: false only while minimized/hidden (signalled from main).
   // Gates incoming video decode so frames nobody can see aren't decoded.
@@ -627,6 +634,41 @@ export function App(): React.JSX.Element {
     store.setMuteMode(mode);
   }
 
+  function applyDeafenKey(key: string): void {
+    setDeafenKey(key);
+    store.setDeafenKey(key);
+  }
+
+  function applyDeafenMode(mode: 'hold' | 'toggle'): void {
+    setDeafenMode(mode);
+    store.setDeafenMode(mode);
+  }
+
+  function applyCameraKey(key: string): void {
+    setCameraKey(key);
+    store.setCameraKey(key);
+  }
+
+  function applyScreenShareKey(key: string): void {
+    setScreenShareKey(key);
+    store.setScreenShareKey(key);
+  }
+
+  function applyChatPanelKey(key: string): void {
+    setChatPanelKey(key);
+    store.setChatPanelKey(key);
+  }
+
+  function applyTtsToggleKey(key: string): void {
+    setTtsToggleKey(key);
+    store.setTtsToggleKey(key);
+  }
+
+  function applyTtsStopKey(key: string): void {
+    setTtsStopKey(key);
+    store.setTtsStopKey(key);
+  }
+
   function applySfxEnabled(on: boolean): void {
     setSfxEnabled(on);
     store.setSfxEnabled(on);
@@ -871,6 +913,21 @@ export function App(): React.JSX.Element {
     onMuteStart,
     onMuteStop,
     onMuteToggle,
+    deafenKey,
+    deafenMode,
+    onDeafenStart: () => { if (!deafened) toggleDeafen(); },
+    onDeafenStop: () => { if (deafened) toggleDeafen(); },
+    onDeafenToggle: toggleDeafen,
+    cameraKey,
+    onCameraToggle: mesh.toggleCamera,
+    screenShareKey,
+    onScreenShareToggle: () => { mesh.sharingScreen ? mesh.stopScreenShare() : setPickerOpen(true); },
+    chatPanelKey,
+    onChatPanelToggle: toggleChat,
+    ttsToggleKey,
+    onTtsToggle: () => applyChatTtsEnabled(!chatTtsEnabled),
+    ttsStopKey,
+    onTtsStop: cancelSpeech,
     localStream: mesh.localStream,
   });
 
@@ -1365,6 +1422,20 @@ export function App(): React.JSX.Element {
           onChangeMuteKey={applyMuteKey}
           muteMode={muteMode}
           onChangeMuteMode={applyMuteMode}
+          deafenKey={deafenKey}
+          onChangeDeafenKey={applyDeafenKey}
+          deafenMode={deafenMode}
+          onChangeDeafenMode={applyDeafenMode}
+          cameraKey={cameraKey}
+          onChangeCameraKey={applyCameraKey}
+          screenShareKey={screenShareKey}
+          onChangeScreenShareKey={applyScreenShareKey}
+          chatPanelKey={chatPanelKey}
+          onChangeChatPanelKey={applyChatPanelKey}
+          ttsToggleKey={ttsToggleKey}
+          onChangeTtsToggleKey={applyTtsToggleKey}
+          ttsStopKey={ttsStopKey}
+          onChangeTtsStopKey={applyTtsStopKey}
           sfxEnabled={sfxEnabled}
           onChangeSfxEnabled={applySfxEnabled}
           sfxVolume={sfxVolume}
