@@ -6,7 +6,6 @@ interface RoomHeaderProps {
   room: Room | null;
   count: number;
   maxCount: number;
-  timer: string;
   chatOpen: boolean;
   onToggleChat: () => void;
   hasSpace: boolean;
@@ -16,7 +15,6 @@ export function RoomHeader({
   room,
   count,
   maxCount,
-  timer,
   chatOpen,
   onToggleChat,
   hasSpace,
@@ -33,9 +31,6 @@ export function RoomHeader({
               <span className="room-header__count">
                 {count} / {maxCount}
               </span>
-            </div>
-            <div className="room-header__sub">
-              {timer}
             </div>
           </>
         ) : hasSpace ? (

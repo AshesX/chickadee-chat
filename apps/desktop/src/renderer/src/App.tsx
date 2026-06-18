@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DEFAULT_ICE_SERVERS, MAX_PEERS_PER_ROOM, type Room } from '@chickadee/shared';
 import { useSignaling } from './hooks/useSignaling';
 import { usePeerMesh } from './hooks/usePeerMesh';
-import { useSessionTimer } from './hooks/useSessionTimer';
 import { useRoomChat } from './hooks/useRoomChat';
 import { useSpacePresence } from './hooks/useSpacePresence';
 import { useSpaces, type AddSpaceResult } from './hooks/useSpaces';
@@ -71,7 +70,6 @@ export function App(): React.JSX.Element {
   const [localAccentColor, setLocalAccentColor] = useState(() => store.getAccentColor());
   const mesh = usePeerMesh(signaling, iceServers, noiseSuppression, micVolume, cameraResolution, cameraFramerate, screenResolution, screenFramerate, echoCancellation, autoGainControl, inputDeviceId, localAvatarUrl, localVoicePreference, localAccentColor);
   const colors = useUserColors(signaling.peers.map((p) => p.id));
-  const timer = useSessionTimer(signaling.status === 'connected');
 
   const userId = useMemo(() => store.getUserId(), []);
   const [displayName, setDisplayName] = useState(() => store.getName());
@@ -1070,7 +1068,6 @@ export function App(): React.JSX.Element {
           room={currentRoom}
           count={totalInRoom}
           maxCount={MAX_PEERS_PER_ROOM}
-          timer={timer}
           chatOpen={chatOpen}
           onToggleChat={toggleChat}
           hasSpace={currentSpaceId !== null}
