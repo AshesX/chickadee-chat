@@ -123,6 +123,22 @@ export function App(): React.JSX.Element {
     [signaling.peers],
   );
 
+  // Click-to-silence: mute = volume 0, remembering the pre-mute level (by peer.id,
+  // session-only) so a later un-silence restores it. Reuses the volume persistence path.
+  const lastNonZeroVolumeRef = useRef<Record<string, number>>({});
+  const togglePeerMute = useCallback(
+    (peerId: string) => {
+      const cur = volumes[peerId] ?? 1;
+      if (cur > 0) {
+        lastNonZeroVolumeRef.current[peerId] = cur;
+        handleVolumeChange(peerId, 0);
+      } else {
+        handleVolumeChange(peerId, lastNonZeroVolumeRef.current[peerId] ?? 1);
+      }
+    },
+    [volumes, handleVolumeChange],
+  );
+
   // Hydrate per-peer volume from persisted (userId-keyed) values when peers appear.
   // Fill-missing-only so an in-session edit is never clobbered.
   useEffect(() => {
@@ -964,6 +980,7 @@ export function App(): React.JSX.Element {
             volume={deafened ? 0 : (volumes[peer.id] ?? 1) * outputVolume}
             peerVolume={volumes[peer.id] ?? 1}
             onVolumeChange={(v) => handleVolumeChange(peer.id, v)}
+            onToggleMute={() => togglePeerMute(peer.id)}
             deafened={peer.deafened}
             normalize={normalizeVoices}
             screenSharing={!!peer.screenStreamId}

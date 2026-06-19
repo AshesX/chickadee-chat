@@ -662,7 +662,7 @@ button {
 
 .tile__badge {
   position: absolute;
-  bottom: 10px;
+  top: 10px;
   left: 10px;
   z-index: 2;
   display: flex;
@@ -686,7 +686,7 @@ button {
 .tile__conn {
   position: absolute;
   top: 8px;
-  left: 8px;
+  right: 8px;
   z-index: 2;
   background: rgba(0, 0, 0, 0.72);
   border-radius: 5px;
@@ -696,23 +696,23 @@ button {
   color: var(--idle);
 }
 
-/* Per-listener volume: corner icon that expands to a slider on hover. */
+/* Per-listener volume: bottom-left icon (click to silence) in a pill that
+   expands to the right on hover to reveal a horizontal slider. */
 .tile__volume {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  bottom: 10px;
+  left: 10px;
   z-index: 3;
   display: flex;
   align-items: center;
-  gap: 6px;
-  max-width: 26px; /* collapsed: just the icon; slider/pct clipped */
-  padding: 4px 6px;
-  background: rgba(0, 0, 0, 0.72);
+  gap: 8px;
+  max-width: 32px; /* collapsed: icon only; slider + label clipped */
+  padding: 3px;
+  background: rgba(0, 0, 0, 0.62);
   border-radius: var(--radius-pill);
-  color: var(--text);
-  opacity: 0.5;
   overflow: hidden;
-  transition: max-width 0.22s ease, opacity 0.18s ease;
+  opacity: 0.5;
+  transition: max-width 0.24s ease, opacity 0.18s ease;
 }
 
 .tile:hover .tile__volume {
@@ -720,32 +720,52 @@ button {
 }
 
 .tile__volume:hover {
-  max-width: 190px;
+  max-width: 186px;
   opacity: 1;
 }
 
-.tile__volume-icon {
+.tile__volume-icon-btn {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
   flex-shrink: 0;
+  transition: transform 0.18s ease, color 0.18s ease;
 }
 
-.tile__volume--boost .tile__volume-icon,
+.tile__volume-icon-btn:hover {
+  transform: scale(1.08);
+}
+
+.tile__volume--boost .tile__volume-icon-btn,
 .tile__volume--boost .tile__volume-pct {
   color: #f59e0b;
 }
 
+.tile__volume--muted .tile__volume-icon-btn,
+.tile__volume--muted .tile__volume-pct {
+  color: #f87171;
+}
+
 .tile__volume-slider {
-  width: 92px;
+  width: 90px;
   flex-shrink: 0;
   cursor: pointer;
 }
 
 .tile__volume-pct {
   font-size: 10px;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
-  width: 30px;
+  color: var(--dim);
+  min-width: 36px;
   text-align: right;
   flex-shrink: 0;
-  color: var(--dim);
 }
 
 /* ── Screen share (presentation) ──────────────────────────── */

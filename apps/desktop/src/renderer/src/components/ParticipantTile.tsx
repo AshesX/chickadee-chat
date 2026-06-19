@@ -25,6 +25,8 @@ export interface ParticipantTileProps {
   peerVolume?: number;
   /** Remote only: set this peer's per-listener volume (presence enables the hover control). */
   onVolumeChange?: (v: number) => void;
+  /** Remote only: toggle silence for this peer (click the volume icon). */
+  onToggleMute?: () => void;
   /** Whether this participant is currently deafened. */
   deafened?: boolean;
   /** Remote only: auto-level incoming audio (compressor + makeup gain) to even out quiet/loud talkers. */
@@ -58,6 +60,7 @@ export function ParticipantTile({
   volume,
   peerVolume,
   onVolumeChange,
+  onToggleMute,
   deafened,
   avatarUrl,
   normalize,
@@ -167,6 +170,7 @@ export function ParticipantTile({
   const pv = peerVolume ?? 1;
   const pvPct = Math.round(pv * 100);
   const pvBoosted = pv > 1;
+  const pvMuted = pv <= 0;
 
   return (
     <li
@@ -222,20 +226,28 @@ export function ParticipantTile({
       {connNote && <div className="tile__conn">{connNote}</div>}
 
       {showVolumeControl && (
-        <div className={`tile__volume${pvBoosted ? ' tile__volume--boost' : ''}`}>
-          <Volume2 size={14} className="tile__volume-icon" />
+        <div className={`tile__volume${pvBoosted ? ' tile__volume--boost' : ''}${pvMuted ? ' tile__volume--muted' : ''}`}>
+          <button
+            type="button"
+            className="tile__volume-icon-btn"
+            onClick={onToggleMute}
+            title={pvMuted ? `Unmute ${displayName}` : `Mute ${displayName}`}
+            aria-label={pvMuted ? `Unmute ${displayName}` : `Mute ${displayName}`}
+          >
+            {pvMuted ? <VolumeX size={15} strokeWidth={2.5} /> : <Volume2 size={15} />}
+          </button>
           <input
             type="range"
             className="tile__volume-slider"
             min={0}
             max={200}
+            step={5}
             value={pvPct}
             style={{ accentColor: pvBoosted ? '#f59e0b' : '#8b5cf6' }}
             onChange={(e) => onVolumeChange(Number(e.target.value) / 100)}
-            title={`Volume ${pvPct}%`}
             aria-label={`Volume for ${displayName}`}
           />
-          <span className="tile__volume-pct">{pvPct}%</span>
+          <span className="tile__volume-pct">{pvMuted ? 'Muted' : `${pvPct}%`}</span>
         </div>
       )}
     </li>
