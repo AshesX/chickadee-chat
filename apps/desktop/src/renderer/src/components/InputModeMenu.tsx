@@ -1,4 +1,5 @@
 import { Settings } from 'lucide-react';
+import { GATE_THRESHOLD_MIN, GATE_THRESHOLD_MAX, thresholdToPct } from '../lib/audioGate';
 
 interface InputModeMenuProps {
   inputMode: 'open' | 'voice' | 'ptt';
@@ -45,8 +46,8 @@ export function InputModeMenu({
   const rawLeft = anchorRect.left + anchorRect.width / 2 - menuWidth / 2;
   const left = Math.max(8, Math.min(rawLeft, window.innerWidth - menuWidth - 8));
 
-  const vadPct = Math.round(((vadThreshold - 0.01) / (0.1 - 0.01)) * 100);
-  const openMicPct = Math.round(((openMicThreshold - 0.01) / (0.1 - 0.01)) * 100);
+  const vadPct = thresholdToPct(vadThreshold);
+  const openMicPct = thresholdToPct(openMicThreshold);
 
   return (
     <>
@@ -104,12 +105,12 @@ export function InputModeMenu({
 
         {inputMode === 'voice' && (
           <>
-            <div className="audio-menu__section-label">Sensitivity — {vadPct}%</div>
+            <div className="audio-menu__section-label">Threshold — {vadPct}%</div>
             <input
               type="range"
               className="audio-menu__slider"
-              min={0.01}
-              max={0.1}
+              min={GATE_THRESHOLD_MIN}
+              max={GATE_THRESHOLD_MAX}
               step={0.001}
               value={vadThreshold}
               onChange={(e) => onChangeVadThreshold(Number(e.target.value))}
@@ -133,12 +134,12 @@ export function InputModeMenu({
             </label>
             {openMicNoiseReductionEnabled && (
               <>
-                <div className="audio-menu__section-label">Sensitivity — {openMicPct}%</div>
+                <div className="audio-menu__section-label">Threshold — {openMicPct}%</div>
                 <input
                   type="range"
                   className="audio-menu__slider"
-                  min={0.01}
-                  max={0.1}
+                  min={GATE_THRESHOLD_MIN}
+                  max={GATE_THRESHOLD_MAX}
                   step={0.001}
                   value={openMicThreshold}
                   onChange={(e) => onChangeOpenMicThreshold(Number(e.target.value))}

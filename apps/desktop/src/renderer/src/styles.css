@@ -696,6 +696,58 @@ button {
   color: var(--idle);
 }
 
+/* Per-listener volume: corner icon that expands to a slider on hover. */
+.tile__volume {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 26px; /* collapsed: just the icon; slider/pct clipped */
+  padding: 4px 6px;
+  background: rgba(0, 0, 0, 0.72);
+  border-radius: var(--radius-pill);
+  color: var(--text);
+  opacity: 0.5;
+  overflow: hidden;
+  transition: max-width 0.22s ease, opacity 0.18s ease;
+}
+
+.tile:hover .tile__volume {
+  opacity: 0.85;
+}
+
+.tile__volume:hover {
+  max-width: 190px;
+  opacity: 1;
+}
+
+.tile__volume-icon {
+  flex-shrink: 0;
+}
+
+.tile__volume--boost .tile__volume-icon,
+.tile__volume--boost .tile__volume-pct {
+  color: #f59e0b;
+}
+
+.tile__volume-slider {
+  width: 92px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.tile__volume-pct {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  width: 30px;
+  text-align: right;
+  flex-shrink: 0;
+  color: var(--dim);
+}
+
 /* ── Screen share (presentation) ──────────────────────────── */
 .presentation {
   flex: 1;
@@ -1730,82 +1782,6 @@ button {
   z-index: 60;
 }
 
-.volume-pop {
-  position: fixed;
-  max-height: 320px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-panel);
-  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.5);
-  animation: msgIn 0.14s ease;
-}
-
-.volume-pop__head {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.11em;
-  text-transform: uppercase;
-  color: var(--dim);
-}
-
-.volume-pop__empty {
-  font-size: 12px;
-  color: var(--dim);
-  text-align: center;
-  padding: 6px 0;
-}
-
-.volume-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.volume-row__avatar {
-  width: 24px;
-  height: 24px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  font-size: 11px;
-  font-weight: 800;
-  color: #fff;
-}
-
-.volume-row__name {
-  flex: 1;
-  min-width: 0;
-  font-size: 12px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.volume-row__slider {
-  width: 96px;
-  flex-shrink: 0;
-  accent-color: #8b5cf6;
-}
-
-.volume-row__pct {
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-  color: var(--dim);
-  width: 34px;
-  text-align: right;
-  flex-shrink: 0;
-}
-
-.volume-row__pct--boost {
-  color: #f59e0b;
-}
-
 /* ── Room right-click context menu ────────────────────────── */
 .ctx-backdrop {
   position: fixed;
@@ -2373,6 +2349,42 @@ button {
 .settings-slider:disabled {
   opacity: 0.3;
   cursor: not-allowed;
+}
+
+/* Two-tone "boost" variant: filled track is purple up to --boost, orange beyond
+   it (clamped to --fill), so the over-100% portion reads as non-standard. */
+.settings-slider--boost {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 16px;
+  background: transparent;
+}
+
+.settings-slider--boost::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(
+    to right,
+    #8b5cf6 0,
+    #8b5cf6 min(var(--fill), var(--boost)),
+    #f59e0b min(var(--fill), var(--boost)),
+    #f59e0b var(--fill),
+    #090918 var(--fill),
+    #090918 100%
+  );
+}
+
+.settings-slider--boost::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid var(--thumb, #8b5cf6);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
 }
 
 /* ── Mic Volume & Level Meter ──────────────────────────────── */

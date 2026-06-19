@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { MicOff, VolumeX } from 'lucide-react';
+import { MicOff, VolumeX, Volume2 } from 'lucide-react';
 import { sanitizeAvatarDataUrl } from '@chickadee/shared';
 import { getSharedAudioContext, getMasterBus } from '../lib/audioContext';
 
@@ -21,6 +21,10 @@ export interface ParticipantTileProps {
   speaking?: boolean;
   /** Remote only: output volume 0–2 (default 1, where 2 = 200% boost). */
   volume?: number;
+  /** Remote only: this peer's raw per-listener volume factor 0–2 (drives the hover slider). */
+  peerVolume?: number;
+  /** Remote only: set this peer's per-listener volume (presence enables the hover control). */
+  onVolumeChange?: (v: number) => void;
   /** Whether this participant is currently deafened. */
   deafened?: boolean;
   /** Remote only: auto-level incoming audio (compressor + makeup gain) to even out quiet/loud talkers. */
@@ -52,6 +56,8 @@ export function ParticipantTile({
   connectionState,
   speaking = false,
   volume,
+  peerVolume,
+  onVolumeChange,
   deafened,
   avatarUrl,
   normalize,
@@ -155,6 +161,13 @@ export function ParticipantTile({
   const connNote = !isSelf && connectionState ? CONN_LABEL[connectionState] : undefined;
   const initial = displayName.trim().charAt(0).toUpperCase() || '?';
 
+  // Per-listener volume control (remote peers only): a corner icon that reveals a
+  // slider on hover. Edits this peer's raw volume factor; master/deafen apply separately.
+  const showVolumeControl = !isSelf && onVolumeChange != null;
+  const pv = peerVolume ?? 1;
+  const pvPct = Math.round(pv * 100);
+  const pvBoosted = pv > 1;
+
   return (
     <li
       className={`tile${isSelf ? ' tile--self' : ''}${showFrame ? ' tile--speaking' : ''}`}
@@ -207,6 +220,24 @@ export function ParticipantTile({
       </div>
 
       {connNote && <div className="tile__conn">{connNote}</div>}
+
+      {showVolumeControl && (
+        <div className={`tile__volume${pvBoosted ? ' tile__volume--boost' : ''}`}>
+          <Volume2 size={14} className="tile__volume-icon" />
+          <input
+            type="range"
+            className="tile__volume-slider"
+            min={0}
+            max={200}
+            value={pvPct}
+            style={{ accentColor: pvBoosted ? '#f59e0b' : '#8b5cf6' }}
+            onChange={(e) => onVolumeChange(Number(e.target.value) / 100)}
+            title={`Volume ${pvPct}%`}
+            aria-label={`Volume for ${displayName}`}
+          />
+          <span className="tile__volume-pct">{pvPct}%</span>
+        </div>
+      )}
     </li>
   );
 }

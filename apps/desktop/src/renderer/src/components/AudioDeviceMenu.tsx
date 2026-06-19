@@ -33,8 +33,9 @@ export function AudioDeviceMenu({
   const left = Math.max(8, Math.min(rawLeft, window.innerWidth - menuWidth - 8));
 
   const isInput = mode === 'input';
-  const volumeMax = isInput ? 4 : 1;
+  const volumeMax = 2;
   const volumePct = Math.round(volume * 100);
+  const boosted = volume > 1;
 
   const deviceOptions = [
     { value: '', label: 'System Default' },
@@ -66,21 +67,15 @@ export function AudioDeviceMenu({
           className="audio-menu__slider"
           min={0}
           max={volumeMax}
-          step={isInput ? 0.05 : 0.01}
+          step={0.05}
           value={volume}
+          style={{ accentColor: boosted ? '#f59e0b' : undefined }}
           onChange={(e) => onChangeVolume(Number(e.target.value))}
         />
         <div className="audio-menu__vol-labels">
           <span>0%</span>
-          {isInput ? (
-            <>
-              <span>100%</span>
-              <span>200%</span>
-              <span>400%</span>
-            </>
-          ) : (
-            <span>100%</span>
-          )}
+          <span>100%</span>
+          <span>200%</span>
         </div>
 
         <hr className="audio-menu__divider" />

@@ -8,6 +8,7 @@ import { CustomSelect } from './CustomSelect';
 import { VOICE_CATEGORIES } from '../lib/voices';
 import { previewVoice } from '../lib/tts';
 import { USER_COLORS } from '../lib/userColors';
+import { GATE_THRESHOLD_MIN, GATE_THRESHOLD_MAX, METER_FULL_SCALE } from '../lib/audioGate';
 
 interface SettingsModalProps {
   displayName: string;
@@ -137,6 +138,7 @@ function SettingsSlider({
   snapThreshold = 0.03,
   commitOnRelease = false,
   snapValues,
+  boostFrom,
 }: {
   min?: number;
   max?: number;
@@ -150,6 +152,9 @@ function SettingsSlider({
   /** When provided, the slider only lands on these exact values, rendered as
    *  uniformly spaced detents (index-based). Overrides min/max/step/markers. */
   snapValues?: number[];
+  /** When set (non-discrete sliders only), the filled track turns orange for the
+   *  portion of the value above this point — a visual cue that it's beyond normal. */
+  boostFrom?: number;
 }): React.JSX.Element {
   const [localValue, setLocalValue] = useState(value);
 
@@ -216,6 +221,19 @@ function SettingsSlider({
     }
   };
 
+  // Two-tone fill for "boost" sliders (e.g. mic volume >100%): paint the track
+  // purple up to `boostFrom`, orange beyond it, via CSS vars on the track gradient.
+  const displayValue = commitOnRelease ? localValue : value;
+  const boostActive = boostFrom != null && !discrete;
+  const clampPct = (p: number): number => Math.max(0, Math.min(100, p));
+  const boostStyle = boostActive
+    ? ({
+        '--fill': `${clampPct(posPercent(displayValue))}%`,
+        '--boost': `${clampPct(posPercent(boostFrom as number))}%`,
+        '--thumb': displayValue > (boostFrom as number) ? '#f59e0b' : '#8b5cf6',
+      } as React.CSSProperties)
+    : undefined;
+
   return (
     <div style={{ flex: 1, minWidth: 0 }}>
       <div className="mic-slider-container">
@@ -229,7 +247,8 @@ function SettingsSlider({
           onPointerUp={commitOnRelease ? handleCommit : undefined}
           onKeyUp={commitOnRelease ? handleKeyUp : undefined}
           onBlur={commitOnRelease ? handleCommit : undefined}
-          className="settings-slider"
+          className={`settings-slider${boostActive ? ' settings-slider--boost' : ''}`}
+          style={boostStyle}
         />
         {(discrete ? snapValues : markers).map((m) => {
           const percent = posPercent(m);
@@ -308,8 +327,8 @@ function useSharedMicMeter(
       }
       const rms = Math.sqrt(sumSquares / dataArray.length);
 
-      // Normalize RMS relative to the 0.1 maximum sensitivity threshold.
-      const percentage = Math.min(100, Math.round((rms / 0.1) * 100));
+      // Normalize RMS relative to the meter's full-scale (the max gate threshold).
+      const percentage = Math.min(100, Math.round((rms / METER_FULL_SCALE) * 100));
       // Clip warning if boosted audio is excessively high (clipping begins above ~0.95)
       const className = `mic-meter__fill${rms > 0.95 ? ' mic-meter__fill--clipping' : ''}`;
 
@@ -353,7 +372,7 @@ function MicLevelMeter({
     };
   }, [bars]);
 
-  const markerPosition = threshold !== undefined ? Math.min(100, (threshold / 0.1) * 100) : null;
+  const markerPosition = threshold !== undefined ? Math.min(100, (threshold / METER_FULL_SCALE) * 100) : null;
 
   return (
     <div className="mic-meter">
@@ -511,11 +530,11 @@ export function SettingsModal({
     { label: 'Input Device', description: 'Choose your microphone', tab: 'audio', sectionId: 'section-devices', keywords: ['microphone', 'mic', 'input', 'device'] },
     { label: 'Output Device', description: 'Choose your speakers or headphones', tab: 'audio', sectionId: 'section-devices', keywords: ['speaker', 'headphones', 'output', 'device', 'playback'] },
     { label: 'Mic Volume', description: 'Adjust microphone gain and boost', tab: 'audio', sectionId: 'section-devices', keywords: ['gain', 'volume', 'boost', 'mic level'] },
-    { label: 'Input Mode', description: 'Open Mic, Voice Activation, or Push-to-Talk', tab: 'audio', sectionId: 'section-input-mode', keywords: ['ptt', 'push to talk', 'voice activation', 'vad', 'open mic', 'transmit'] },
+    { label: 'Input Mode', description: 'Open Mic, Voice Activation, or Push-to-Talk', tab: 'audio', sectionId: 'section-input-mode', keywords: ['ptt', 'push to talk', 'voice activation', 'vad', 'open mic', 'transmit', 'sensitivity', 'threshold'] },
     { label: 'Push-to-Talk Key', description: 'Set the keybind for push-to-talk', tab: 'keybindings', sectionId: 'section-kb-voice', keywords: ['ptt', 'push to talk', 'keybind', 'hotkey', 'key', 'bind'] },
     { label: 'Mute Key', description: 'Set the keybind to mute/unmute mic', tab: 'keybindings', sectionId: 'section-kb-voice', keywords: ['mute', 'unmute', 'keybind', 'hotkey', 'key', 'bind'] },
     { label: 'Noise Suppression', description: 'Remove background noise from your mic', tab: 'audio', sectionId: 'section-processing', keywords: ['noise', 'background', 'suppress', 'filter', 'processing'] },
-    { label: 'Noise Gate', description: 'Quiet your mic during pauses in Open Mic mode', tab: 'audio', sectionId: 'section-input-mode', keywords: ['noise gate', 'gate', 'open mic', 'background', 'expander', 'quiet', 'pauses', 'hold', 'release', 'hangover'] },
+    { label: 'Noise Gate', description: 'Quiet your mic during pauses in Open Mic mode', tab: 'audio', sectionId: 'section-input-mode', keywords: ['noise gate', 'gate', 'open mic', 'background', 'expander', 'quiet', 'pauses', 'hold', 'release', 'hangover', 'sensitivity', 'threshold'] },
     { label: 'Echo Cancellation', description: 'Prevent speaker audio feeding back into mic', tab: 'audio', sectionId: 'section-processing', keywords: ['echo', 'feedback', 'cancellation', 'processing'] },
     { label: 'Auto Gain Control', description: 'Automatically adjust mic input level', tab: 'audio', sectionId: 'section-processing', keywords: ['agc', 'auto gain', 'automatic', 'level', 'processing'] },
     { label: 'Camera Resolution', description: 'Set streaming resolution for your camera', tab: 'video', sectionId: 'section-camera', keywords: ['camera', 'resolution', '720p', '1080p', '4k', 'quality', 'fps', 'framerate'] },
@@ -993,22 +1012,21 @@ export function SettingsModal({
                 <div className="settings-row">
                   <div className="settings-row__label">
                     <span>Mic volume</span>
-                    <span className="settings-row__hint">Adjust mic volume. Levels above 100% act as a gain boost (which also helps voice sensitivity triggers).</span>
+                    <span className="settings-row__hint">Adjust mic volume. Levels above 100% act as a gain boost (which also helps the voice threshold trigger).</span>
                   </div>
                   <div className="mic-control-wrap">
                     <SettingsSlider
                       min={0}
-                      max={4}
+                      max={2}
                       step={0.05}
                       value={micVolume}
                       onChange={onChangeMicVolume}
-                      markers={[0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0]}
+                      boostFrom={1.0}
+                      markers={[0, 0.5, 1.0, 1.5, 2.0]}
                       labels={[
                         { value: 0, text: '0%' },
                         { value: 1.0, text: '100% (Normal)' },
-                        { value: 2.0, text: '200%' },
-                        { value: 3.0, text: '300%' },
-                        { value: 4.0, text: '400%' }
+                        { value: 2.0, text: '200%' }
                       ]}
                       snapThreshold={0.08}
                     />
@@ -1035,18 +1053,20 @@ export function SettingsModal({
                 <div className="settings-row">
                   <div className="settings-row__label">
                     <span>Output volume</span>
-                    <span className="settings-row__hint">Master volume for all incoming peer audio.</span>
+                    <span className="settings-row__hint">Master volume for all incoming peer audio. Levels above 100% act as a boost and may distort.</span>
                   </div>
                   <SettingsSlider
                     min={0}
-                    max={1}
+                    max={2}
                     step={0.05}
                     value={outputVolume}
                     onChange={onChangeOutputVolume}
-                    markers={[0, 0.25, 0.5, 0.75, 1.0]}
+                    boostFrom={1.0}
+                    markers={[0, 0.5, 1.0, 1.5, 2.0]}
                     labels={[
                       { value: 0, text: '0%' },
                       { value: 1.0, text: '100%' },
+                      { value: 2.0, text: '200%' },
                     ]}
                     snapThreshold={0.04}
                   />
@@ -1080,21 +1100,21 @@ export function SettingsModal({
                   <>
                     <div className="settings-row">
                       <div className="settings-row__label">
-                        <span>Voice sensitivity</span>
-                        <span className="settings-row__hint">Speak normally and adjust until the meter consistently crosses the gate. Higher = needs louder sound to transmit.</span>
+                        <span>Voice threshold</span>
+                        <span className="settings-row__hint">How loud you must be before your voice transmits. Higher = you must speak louder. The line on the meter is the cutoff — you transmit when the bar passes it.</span>
                       </div>
                       <div className="mic-control-wrap">
                         <SettingsSlider
-                          min={0.01}
-                          max={0.1}
+                          min={GATE_THRESHOLD_MIN}
+                          max={GATE_THRESHOLD_MAX}
                           step={0.001}
                           value={vadThreshold}
                           onChange={onChangeVadThreshold}
-                          markers={[0.01, 0.05, 0.1]}
+                          markers={[GATE_THRESHOLD_MIN, 0.1, GATE_THRESHOLD_MAX]}
                           labels={[
-                            { value: 0.01, text: 'Low' },
-                            { value: 0.05, text: 'Medium' },
-                            { value: 0.1, text: 'High' },
+                            { value: GATE_THRESHOLD_MIN, text: 'Low' },
+                            { value: 0.1, text: 'Medium' },
+                            { value: GATE_THRESHOLD_MAX, text: 'High' },
                           ]}
                           snapThreshold={0.0005}
                         />
@@ -1135,21 +1155,21 @@ export function SettingsModal({
                       <>
                         <div className="settings-row">
                           <div className="settings-row__label">
-                            <span>Speech sensitivity</span>
-                            <span className="settings-row__hint">Speak normally and adjust until the meter consistently crosses the gate. Higher = needs louder sound to count as speech.</span>
+                            <span>Speech threshold</span>
+                            <span className="settings-row__hint">How loud a sound must be to count as speech and open the gate. Higher = you must speak louder. The line on the meter is the cutoff — the gate opens when the bar passes it.</span>
                           </div>
                           <div className="mic-control-wrap">
                             <SettingsSlider
-                              min={0.01}
-                              max={0.1}
+                              min={GATE_THRESHOLD_MIN}
+                              max={GATE_THRESHOLD_MAX}
                               step={0.001}
                               value={openMicThreshold}
                               onChange={onChangeOpenMicThreshold}
-                              markers={[0.01, 0.05, 0.1]}
+                              markers={[GATE_THRESHOLD_MIN, 0.1, GATE_THRESHOLD_MAX]}
                               labels={[
-                                { value: 0.01, text: 'Low' },
-                                { value: 0.05, text: 'Medium' },
-                                { value: 0.1, text: 'High' },
+                                { value: GATE_THRESHOLD_MIN, text: 'Low' },
+                                { value: 0.1, text: 'Medium' },
+                                { value: GATE_THRESHOLD_MAX, text: 'High' },
                               ]}
                               snapThreshold={0.0005}
                             />
@@ -1202,7 +1222,7 @@ export function SettingsModal({
                   <>
                     <div className="settings-row">
                       <div className="settings-row__label">
-                        <span>PTT mode</span>
+                        <span>Push-to-talk mode</span>
                         <span className="settings-row__hint">Hold: mic live while key held. Toggle: press to unmute, press again to mute.</span>
                       </div>
                       <div className="seg-group">
@@ -1698,7 +1718,7 @@ export function SettingsModal({
                 
                 <div className="settings-row">
                   <div className="settings-row__label">
-                    <span>PTT mode</span>
+                    <span>Push-to-talk mode</span>
                     <span className="settings-row__hint">Hold: mic live while key held. Toggle: press to unmute, press again to mute.</span>
                   </div>
                   <div className="seg-group">
