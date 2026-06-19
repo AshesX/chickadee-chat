@@ -1128,6 +1128,11 @@ export function App(): React.JSX.Element {
                 onSelectDevice={(id) => { setInputDeviceId(id); store.setInputDeviceId(id); }}
                 volume={micVolume}
                 onChangeVolume={applyMicVolume}
+                keybindLabel="Mute/Unmute key"
+                keybindValue={muteKey}
+                onChangeKeybind={applyMuteKey}
+                keybindMode={muteMode}
+                onChangeKeybindMode={applyMuteMode}
                 onOpenVoiceSettings={() => { setInputMenuOpen(false); setSettingsInitialTab('audio'); setSettingsOpen(true); }}
                 onClose={() => setInputMenuOpen(false)}
                 anchorRect={inputMenuAnchor}
@@ -1141,6 +1146,11 @@ export function App(): React.JSX.Element {
                 onSelectDevice={(id) => { setOutputDeviceId(id); store.setOutputDeviceId(id); }}
                 volume={outputVolume}
                 onChangeVolume={applyOutputVolume}
+                keybindLabel="Deafen/Undeafen key"
+                keybindValue={deafenKey}
+                onChangeKeybind={applyDeafenKey}
+                keybindMode={deafenMode}
+                onChangeKeybindMode={applyDeafenMode}
                 onOpenVoiceSettings={() => { setOutputMenuOpen(false); setSettingsInitialTab('audio'); setSettingsOpen(true); }}
                 onClose={() => setOutputMenuOpen(false)}
                 anchorRect={outputMenuAnchor}
@@ -1153,6 +1163,7 @@ export function App(): React.JSX.Element {
                 pttMode={pttMode}
                 onChangePttMode={applyPttMode}
                 pushToTalkKey={pushToTalkKey}
+                onChangePushToTalkKey={applyPushToTalkKey}
                 vadThreshold={vadThreshold}
                 onChangeVadThreshold={applyVadThreshold}
                 openMicNoiseReductionEnabled={openMicNoiseReductionEnabled}

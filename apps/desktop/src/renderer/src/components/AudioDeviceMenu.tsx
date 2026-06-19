@@ -1,6 +1,7 @@
 import { Settings } from 'lucide-react';
 import type { MediaDeviceOption } from '../hooks/useMediaDevices';
 import { CustomSelect } from './CustomSelect';
+import { KeybindControl } from './KeybindControl';
 
 interface AudioDeviceMenuProps {
   mode: 'input' | 'output';
@@ -9,6 +10,12 @@ interface AudioDeviceMenuProps {
   onSelectDevice: (id: string) => void;
   volume: number;
   onChangeVolume: (v: number) => void;
+  /** Optional inline keybind capture (Mute key for input, Deafen key for output). */
+  keybindLabel?: string;
+  keybindValue?: string;
+  onChangeKeybind?: (k: string) => void;
+  keybindMode?: 'hold' | 'toggle';
+  onChangeKeybindMode?: (m: 'hold' | 'toggle') => void;
   onOpenVoiceSettings: () => void;
   onClose: () => void;
   anchorRect: DOMRect;
@@ -21,11 +28,16 @@ export function AudioDeviceMenu({
   onSelectDevice,
   volume,
   onChangeVolume,
+  keybindLabel,
+  keybindValue,
+  onChangeKeybind,
+  keybindMode,
+  onChangeKeybindMode,
   onOpenVoiceSettings,
   onClose,
   anchorRect,
 }: AudioDeviceMenuProps): React.JSX.Element {
-  const menuWidth = 220;
+  const menuWidth = 280;
   const gap = 8;
 
   const bottom = window.innerHeight - anchorRect.top + gap;
@@ -77,6 +89,16 @@ export function AudioDeviceMenu({
           <span>100%</span>
           <span>200%</span>
         </div>
+
+        {onChangeKeybind && onChangeKeybindMode && (
+          <KeybindControl
+            mode={keybindMode ?? 'toggle'}
+            onChangeMode={onChangeKeybindMode}
+            value={keybindValue ?? ''}
+            onChange={onChangeKeybind}
+            clearLabel={`${keybindLabel} keybind`}
+          />
+        )}
 
         <hr className="audio-menu__divider" />
 

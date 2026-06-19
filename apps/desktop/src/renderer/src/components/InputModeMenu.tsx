@@ -1,5 +1,6 @@
 import { Settings } from 'lucide-react';
 import { GATE_THRESHOLD_MIN, GATE_THRESHOLD_MAX, thresholdToPct } from '../lib/audioGate';
+import { KeybindControl } from './KeybindControl';
 
 interface InputModeMenuProps {
   inputMode: 'open' | 'voice' | 'ptt';
@@ -7,6 +8,7 @@ interface InputModeMenuProps {
   pttMode: 'hold' | 'toggle';
   onChangePttMode: (mode: 'hold' | 'toggle') => void;
   pushToTalkKey: string;
+  onChangePushToTalkKey: (k: string) => void;
   vadThreshold: number;
   onChangeVadThreshold: (v: number) => void;
   openMicNoiseReductionEnabled: boolean;
@@ -30,6 +32,7 @@ export function InputModeMenu({
   pttMode,
   onChangePttMode,
   pushToTalkKey,
+  onChangePushToTalkKey,
   vadThreshold,
   onChangeVadThreshold,
   openMicNoiseReductionEnabled,
@@ -40,7 +43,7 @@ export function InputModeMenu({
   onClose,
   anchorRect,
 }: InputModeMenuProps): React.JSX.Element {
-  const menuWidth = 260;
+  const menuWidth = 280;
   const gap = 8;
   const bottom = window.innerHeight - anchorRect.top + gap;
   const rawLeft = anchorRect.left + anchorRect.width / 2 - menuWidth / 2;
@@ -71,36 +74,13 @@ export function InputModeMenu({
         </div>
 
         {inputMode === 'ptt' && (
-          <>
-            <div className="audio-menu__section-label">Mode</div>
-            <div className="seg-group">
-              <button
-                type="button"
-                className={`seg-btn${pttMode === 'hold' ? ' seg-btn--active' : ''}`}
-                onClick={() => onChangePttMode('hold')}
-              >
-                Hold
-              </button>
-              <button
-                type="button"
-                className={`seg-btn${pttMode === 'toggle' ? ' seg-btn--active' : ''}`}
-                onClick={() => onChangePttMode('toggle')}
-              >
-                Toggle
-              </button>
-            </div>
-            <div className="input-mode-menu__key-row">
-              <span className="input-mode-menu__key-label">Key</span>
-              <span className="input-mode-menu__key-value">{pushToTalkKey || '—'}</span>
-              <button
-                type="button"
-                className="input-mode-menu__change-link"
-                onClick={onOpenVoiceSettings}
-              >
-                change
-              </button>
-            </div>
-          </>
+          <KeybindControl
+            mode={pttMode}
+            onChangeMode={onChangePttMode}
+            value={pushToTalkKey}
+            onChange={onChangePushToTalkKey}
+            clearLabel="Push-to-talk keybind"
+          />
         )}
 
         {inputMode === 'voice' && (
