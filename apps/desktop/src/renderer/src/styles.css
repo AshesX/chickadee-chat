@@ -184,6 +184,10 @@ input:focus-visible,
   font-weight: 700;
 }
 
+.room-row--active .room-row__count {
+  background: var(--room-active-count-bg);
+}
+
 .room-row--create {
   border: 1px dashed var(--border);
   opacity: 0.75;
@@ -633,7 +637,6 @@ input:focus-visible,
   font-size: 26px;
   font-weight: 800;
   color: #fff;
-  box-shadow: 0 4px 22px rgba(0, 0, 0, 0.55);
 }
 
 /* Speaking cue for voice-only tiles (camera off, not screen-sharing): a solid accent

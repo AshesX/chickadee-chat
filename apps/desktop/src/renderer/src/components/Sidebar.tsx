@@ -119,10 +119,11 @@ export function Sidebar({
   // Typewriter effect for Copy Space Code hover
   useEffect(() => {
     if (!activeSpace) return;
-    if (copyHovered) {
-      let index = 0;
-      setTypedCode('');
+    
+    if (copyHovered && !copied) {
       const fullText = `#${activeSpace.id}`;
+      let index = 1;
+      setTypedCode(fullText.substring(0, index));
       const interval = setInterval(() => {
         index++;
         setTypedCode(fullText.substring(0, index));
@@ -131,10 +132,10 @@ export function Sidebar({
         }
       }, 15);
       return () => clearInterval(interval);
-    } else {
+    } else if (!copyHovered) {
       setTypedCode('');
     }
-  }, [copyHovered, activeSpace]);
+  }, [copyHovered, copied, activeSpace]);
 
   function copySpaceCode(): void {
     if (!activeSpace) return;
@@ -144,7 +145,7 @@ export function Sidebar({
       navigator.clipboard.writeText(activeSpace.id);
     }
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setTimeout(() => setCopied(false), 1500);
   }
 
   return (
@@ -160,7 +161,18 @@ export function Sidebar({
             <button className="space-switcher-btn" onClick={() => setSwitcherOpen(!switcherOpen)}>
               <div className="space-switcher-btn__meta">
                 <span className={`space-switcher-btn__name${!activeSpace ? ' space-switcher-btn__name--empty' : ''}`}>
-                  {copyHovered && typedCode ? (
+                  {copied ? (
+                    <span 
+                      className="space-switcher-btn__name--code"
+                      style={{ 
+                        background: 'none',
+                        WebkitTextFillColor: 'var(--green)',
+                        color: 'var(--green)'
+                      }}
+                    >
+                      copied
+                    </span>
+                  ) : copyHovered ? (
                     <span className="space-switcher-btn__name--code">
                       {typedCode}
                     </span>
@@ -180,9 +192,6 @@ export function Sidebar({
               onMouseLeave={() => setCopyHovered(false)}
             >
               {copied ? <Check size={13} style={{ color: '#4ade80' }} /> : <Copy size={13} />}
-              <span className="space-copy-btn__tooltip">
-                {copied ? 'Copied!' : 'Copy Space Code'}
-              </span>
             </button>
           )}
         </div>

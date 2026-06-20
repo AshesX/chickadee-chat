@@ -40,7 +40,8 @@
   --gradient: linear-gradient(135deg, var(--orange), #f59000);
   --active-bg: color-mix(in srgb, var(--orange) 16%, transparent);
   --active-border: var(--orange);
-  --active-text: #9b8be6;
+  --active-text: var(--orange);
+  --room-active-count-bg: var(--bg);
 
   /* Per-user avatars — vivid on dark (orange / periwinkle / brick / teal) */
   --user-1: var(--orange);
@@ -110,7 +111,8 @@
   --danger-text: #c20114; /* brick reads as danger text on the alabaster canvas */
 
   /* Twilight active text + palette avatars (user-1 orange / user-3 red inherited) */
-  --active-text: #1b065e;
+  --active-text: #ab4e00;
+  --room-active-count-bg: var(--active-border);
   --user-2: #1b065e;
   --user-4: #0e7c86;
 
