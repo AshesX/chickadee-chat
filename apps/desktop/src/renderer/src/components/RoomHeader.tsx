@@ -49,7 +49,7 @@ export function RoomHeader({
             className={`pill pill--chat${chatOpen ? ' pill--chat-on' : ''}`}
             onClick={onToggleChat}
           >
-            <MessageSquare size={13} />
+            <MessageSquare size={14} />
             Chat
           </button>
         </>

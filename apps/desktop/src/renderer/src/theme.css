@@ -8,9 +8,10 @@
   --border: #171736;
 
   /* Text */
-  --dim: #8585c4;
+  --dim: #9a9ad8;
   --text: #e0deef;
   --text-sub: #aeaccc;
+  --fade: #6a6aa0; /* very-subtle icons (e.g. faded control buttons), AA for icon/large */
 
   /* Brand gradient — logo, active states, send button */
   --gradient: linear-gradient(135deg, #7c3aed, #3b82f6);
@@ -36,7 +37,7 @@
 
   /* Misc surfaces driven by the theme */
   --scrollbar: #22224e;
-  --placeholder: #22225a;
+  --placeholder: #7c7cb0;
   --glow: rgba(139, 92, 246, 0.07);
 
   /* Radius & spacing */
@@ -47,6 +48,15 @@
   --radius-btn: 10px;
   --gap-grid: 10px;
   --gap-layout: 14px;
+
+  /* 4px-based spacing scale (theme-independent) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --icon-gap: 8px; /* canonical icon-to-text gap */
 }
 
 /* ── Theme variants (data-theme on <html>) ──────────────────── */
@@ -57,15 +67,16 @@
   --panel: #15151c;
   --card: #1b1b26;
   --border: #2a2a38;
-  --dim: #8a8aa0;
+  --dim: #9a9ab2;
   --text: #e8e8f0;
   --text-sub: #b4b4c4;
+  --fade: #6e6e88;
   --gradient: linear-gradient(135deg, #4f6bed, #3b82f6);
   --active-bg: rgba(79, 107, 237, 0.18);
   --active-border: rgba(79, 107, 237, 0.4);
   --active-text: #aec3ff;
   --scrollbar: #303044;
-  --placeholder: #3a3a4e;
+  --placeholder: #7c7ca6;
   --glow: rgba(79, 107, 237, 0.05);
 }
 
@@ -85,8 +96,9 @@
   --online: #2ee65f;
   --idle: #ffb020;
   --dnd: #ff4d4d;
+  --fade: #8a8a8a;
   --scrollbar: #444444;
-  --placeholder: #555555;
+  --placeholder: #7a7a7a;
   --glow: transparent;
 }
 

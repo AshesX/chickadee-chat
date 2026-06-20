@@ -38,7 +38,7 @@ function ControlButton({
       disabled={disabled}
       title={title}
     >
-      <Icon size={17} />
+      <Icon size={16} />
       <span className="ctrl-btn__label">{label}</span>
     </button>
   );
@@ -190,7 +190,7 @@ export function ControlBar({
       <div className="control-bar__divider" />
 
       <button className="leave-btn" onClick={onLeave}>
-        <PhoneOff size={15} />
+        <PhoneOff size={16} />
         Leave
       </button>
     </footer>
