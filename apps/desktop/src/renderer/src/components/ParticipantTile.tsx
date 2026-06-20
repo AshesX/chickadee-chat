@@ -243,7 +243,7 @@ export function ParticipantTile({
             max={200}
             step={5}
             value={pvPct}
-            style={{ accentColor: pvBoosted ? '#f59e0b' : '#8b5cf6' }}
+            style={{ accentColor: pvBoosted ? 'var(--orange)' : 'var(--text-sub)' }}
             onChange={(e) => onVolumeChange(Number(e.target.value) / 100)}
             aria-label={`Volume for ${displayName}`}
           />

@@ -2,6 +2,7 @@ import { Settings } from 'lucide-react';
 import type { MediaDeviceOption } from '../hooks/useMediaDevices';
 import { CustomSelect } from './CustomSelect';
 import { KeybindControl } from './KeybindControl';
+import { SettingsSlider } from './SettingsSlider';
 
 interface AudioDeviceMenuProps {
   mode: 'input' | 'output';
@@ -47,7 +48,6 @@ export function AudioDeviceMenu({
   const isInput = mode === 'input';
   const volumeMax = 2;
   const volumePct = Math.round(volume * 100);
-  const boosted = volume > 1;
 
   const deviceOptions = [
     { value: '', label: 'System Default' },
@@ -74,21 +74,20 @@ export function AudioDeviceMenu({
         <div className="audio-menu__section-label" style={{ marginTop: 10 }}>
           {isInput ? `Mic Volume — ${volumePct}%` : `Output Volume — ${volumePct}%`}
         </div>
-        <input
-          type="range"
-          className="audio-menu__slider"
+        <SettingsSlider
           min={0}
           max={volumeMax}
           step={0.05}
           value={volume}
-          style={{ accentColor: boosted ? '#f59e0b' : undefined }}
-          onChange={(e) => onChangeVolume(Number(e.target.value))}
+          onChange={onChangeVolume}
+          boostFrom={1}
+          markers={[0, 0.5, 1, 1.5, 2]}
+          labels={[
+            { value: 0, text: '0%' },
+            { value: 1, text: '100%' },
+            { value: 2, text: '200%' },
+          ]}
         />
-        <div className="audio-menu__vol-labels">
-          <span>0%</span>
-          <span>100%</span>
-          <span>200%</span>
-        </div>
 
         {onChangeKeybind && onChangeKeybindMode && (
           <KeybindControl

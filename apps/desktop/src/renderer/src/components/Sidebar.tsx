@@ -289,7 +289,6 @@ export function Sidebar({
             <p className="sidebar__label">
               USERS{users.length > 0 ? ` — ${onlineCount} online` : ''}
             </p>
-            {users.length === 0 && <p className="sidebar__hint">It's just you!</p>}
             {users.map((u) => {
               // Validate peer-supplied avatar before rendering (defense in depth).
               const uAvatar = sanitizeAvatarDataUrl(u.avatarUrl);

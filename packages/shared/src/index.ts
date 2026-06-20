@@ -112,6 +112,9 @@ export interface SpaceInfo {
   joinSecret?: string;
 }
 
+/** Active color theme identifier. */
+export type ThemeName = 'dark' | 'light';
+
 /** Settings persisted to Electron userData (the renderer reads/writes via IPC). */
 export interface PersistedSettings {
   /** Stable per-user id; generated once in main if missing. */
@@ -181,7 +184,7 @@ export interface PersistedSettings {
   /** Pin the window above all other apps. */
   alwaysOnTop: boolean;
   /** Active color theme. */
-  theme: 'midnight' | 'classic' | 'oled';
+  theme: ThemeName;
   /** Chat Font Scale (relative to normal, e.g. 0.5 to 2.0). */
   chatFontScale: number;
   /** Chat Panel Position (left or right). */
@@ -259,7 +262,7 @@ export function defaultSettings(): PersistedSettings {
     launchOnStartup: false,
     closeBehavior: 'quit',
     alwaysOnTop: false,
-    theme: 'midnight',
+    theme: 'dark',
     chatFontScale: 1.0,
     chatPosition: 'right',
     chatWidthScale: 1.0,

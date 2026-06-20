@@ -1,55 +1,81 @@
-/* Chickadee Chat — "Midnight Gamer Lounge" design tokens & globals. */
+/* Chickadee Chat — design tokens & globals. Two themes, both Swiss "Editorial":
+   Dark = "Coffee Bean" (default; this :root) and Light = "Alabaster"
+   ([data-theme='light']). The shared Swiss structure (squared geometry, grid rules,
+   solid selection blocks, relit surfaces) lives in the [data-theme] override section
+   of styles.css and is driven entirely by the tokens below. */
 
 :root {
-  /* Surfaces */
-  --bg: #06060f;
-  --panel: #0a0a1c;
-  --card: #0e0e23;
-  --border: #171736;
+  /* Surfaces — warm near-black; panel/card lifted only by tone + hairline (flat) */
+  --bg: #17110a;
+  --panel: #211810;
+  --card: #2a1f14;
+  --border: #3a2c1c;
 
-  /* Text */
-  --dim: #9a9ad8;
-  --text: #e0deef;
-  --text-sub: #aeaccc;
-  --fade: #6a6aa0; /* very-subtle icons (e.g. faded control buttons), AA for icon/large */
+  /* Text — warm alabaster + warm greys (AA on the coffee-bean canvas) */
+  --dim: #9c9081;
+  --text: #efeae2;
+  --text-sub: #c4bbac;
+  --fade: #7c6f5b;
 
-  /* Brand gradient — logo, active states, send button */
-  --gradient: linear-gradient(135deg, #7c3aed, #3b82f6);
+  /* Semantic accent colors — each theme defines its own green/orange/red; the
+     status + danger tokens below derive from them so one set drives every dot,
+     warning and destructive cue. (Brick/green brightened to read on dark.) */
+  --green: #6cc72a;
+  --orange: #ffa400;
+  --red: #e0432e;
 
-  /* Status */
-  --online: #22c55e;
-  --idle: #f59e0b;
-  --offline: #404070;
-  --dnd: #ef4444;
+  /* Status (derived) */
+  --online: var(--green);
+  /* --idle intentionally aliases the brand --orange. Keep this token as the seam:
+     to make "Away" read distinctly later, give --idle its own value per theme
+     (e.g. a warm amber) — do NOT replace var(--idle) usages with var(--orange). */
+  --idle: var(--orange);
+  --offline: #5a4c3a;
+  --dnd: var(--red);
 
-  /* Actions */
-  --danger: #ef4444;
-  --danger-glow: rgba(239, 68, 68, 0.26);
-  --active-bg: rgba(139, 92, 246, 0.18);
-  --active-border: rgba(139, 92, 246, 0.38);
-  --active-text: #c4b5fd;
+  /* Actions / active — warm orange; twilight lightened to a periwinkle for dark */
+  --danger: var(--red);
+  --danger-glow: color-mix(in srgb, var(--red) 26%, transparent);
+  --danger-text: #f87171; /* danger as text/icon on a subtle/transparent bg (light-red for dark) */
+  --gradient: linear-gradient(135deg, var(--orange), #f59000);
+  --active-bg: color-mix(in srgb, var(--orange) 16%, transparent);
+  --active-border: var(--orange);
+  --active-text: #9b8be6;
 
-  /* Per-user accent colors (assigned on join) */
-  --user-1: #f59e0b;
-  --user-2: #8b5cf6;
-  --user-3: #3b82f6;
-  --user-4: #ec4899;
+  /* Per-user avatars — vivid on dark (orange / periwinkle / brick / teal) */
+  --user-1: var(--orange);
+  --user-2: #8b7bd6;
+  --user-3: var(--red);
+  --user-4: #1fa9a0;
 
-  /* Misc surfaces driven by the theme */
-  --scrollbar: #22224e;
-  --placeholder: #7c7cb0;
-  --glow: rgba(139, 92, 246, 0.07);
+  /* Supporting */
+  --scrollbar: #43331f;
+  --placeholder: #8a7c68;
+  --glow: transparent;
 
-  /* Radius & spacing */
-  --radius-tile: 16px;
-  --radius-panel: 14px;
-  --radius-badge: 8px;
-  --radius-pill: 99px;
-  --radius-btn: 10px;
+  /* Logo bird → warm alabaster, visible on the dark canvas (pupils use --bg) */
+  --logo-fill: #efeae2;
+
+  /* Structural tokens for the shared Swiss section ([data-theme] in styles.css).
+     Dark values here; the light theme redefines them. */
+  --tint: #efeae2;            /* base for surface veils / hovers / gate marker */
+  --block-bg: var(--orange);  /* selected nav block = orange */
+  --block-fg: #1f1300;        /* text/icon on the block */
+  --on-accent: #1f1300;       /* text on an orange block (active control buttons) */
+  --badge-fg: #efeae2;        /* light text on dark media (tile badges) */
+  --scrim: rgba(0, 0, 0, 0.62);
+  --shadow-color: rgba(0, 0, 0, 0.55);
+
+  /* Geometry — near-square Swiss grid (avatars/dots stay round via hardcoded 50%) */
+  --radius-tile: 3px;
+  --radius-panel: 3px;
+  --radius-badge: 2px;
+  --radius-pill: 2px;
+  --radius-btn: 2px;
   --gap-grid: 10px;
   --gap-layout: 14px;
 
-  /* 4px-based spacing scale (theme-independent) */
+  /* 4px-based spacing scale */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -59,47 +85,49 @@
   --icon-gap: 8px; /* canonical icon-to-text gap */
 }
 
-/* ── Theme variants (data-theme on <html>) ──────────────────── */
+/* Light — "Alabaster Editorial": light Swiss theme on the logo's Alabaster Grey.
+   Overrides only what differs from the dark :root; it inherits --orange, --gradient,
+   --active-bg/-border, --on-accent, --user-1, --user-3 (via --red), --glow, the
+   geometry, the status/danger mapping and the spacing scale. Palette: Alabaster
+   #E9E9E9, Orange #FFA400, Deep Twilight #1B065E, Brick Ember #C20114, Coffee Bean #1F1300. */
+:root[data-theme='light'] {
+  /* Surfaces — alabaster canvas, near-white panels, hairline borders */
+  --bg: #e9e9e9;
+  --panel: #fdfdfc;
+  --card: #ffffff;
+  --border: #d4d4d0;
 
-/* Classic Dark — neutral slate/blue, less purple. */
-:root[data-theme='classic'] {
-  --bg: #0d0d12;
-  --panel: #15151c;
-  --card: #1b1b26;
-  --border: #2a2a38;
-  --dim: #9a9ab2;
-  --text: #e8e8f0;
-  --text-sub: #b4b4c4;
-  --fade: #6e6e88;
-  --gradient: linear-gradient(135deg, #4f6bed, #3b82f6);
-  --active-bg: rgba(79, 107, 237, 0.18);
-  --active-border: rgba(79, 107, 237, 0.4);
-  --active-text: #aec3ff;
-  --scrollbar: #303044;
-  --placeholder: #7c7ca6;
-  --glow: rgba(79, 107, 237, 0.05);
-}
+  /* Text — coffee-bean ink + warm greys (all AA on the alabaster canvas) */
+  --dim: #5e574d;
+  --text: #1f1300;
+  --text-sub: #4a4036;
+  --fade: #807868;
 
-/* OLED Black — pure black, high contrast for accessibility. */
-:root[data-theme='oled'] {
-  --bg: #000000;
-  --panel: #050505;
-  --card: #0b0b0b;
-  --border: #333333;
-  --dim: #b8b8b8;
-  --text: #ffffff;
-  --text-sub: #d0d0d0;
-  --gradient: linear-gradient(135deg, #a855f7, #60a5fa);
-  --active-bg: rgba(168, 85, 247, 0.28);
-  --active-border: rgba(168, 85, 247, 0.6);
-  --active-text: #e9d5ff;
-  --online: #2ee65f;
-  --idle: #ffb020;
-  --dnd: #ff4d4d;
-  --fade: #8a8a8a;
-  --scrollbar: #444444;
-  --placeholder: #7a7a7a;
-  --glow: transparent;
+  /* Accents — vivid grass green + brick red (orange shared with dark) */
+  --green: #5fb81f;
+  --red: #c20114;
+  --offline: #b5b0a8;
+  --danger-text: #c20114; /* brick reads as danger text on the alabaster canvas */
+
+  /* Twilight active text + palette avatars (user-1 orange / user-3 red inherited) */
+  --active-text: #1b065e;
+  --user-2: #1b065e;
+  --user-4: #0e7c86;
+
+  /* Supporting */
+  --scrollbar: #c7c7c2;
+  --placeholder: #6e665b;
+
+  /* Logo bird → ink, readable on the alabaster canvas */
+  --logo-fill: #1f1300;
+
+  /* Structural tokens — light values (ink selection block, ink-based tints) */
+  --tint: #1f1300;
+  --block-bg: #1f1300;
+  --block-fg: #e9e9e9;
+  --badge-fg: #e9e9e9;
+  --scrim: rgba(31, 19, 0, 0.45);
+  --shadow-color: rgba(31, 19, 0, 0.18);
 }
 
 * {
@@ -115,7 +143,7 @@ body,
 }
 
 body {
-  font-family: 'Outfit', -apple-system, system-ui, sans-serif;
+  font-family: 'Space Grotesk', 'Outfit', -apple-system, system-ui, sans-serif;
   font-size: 14px;
   color: var(--text);
   background: var(--bg);

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { DEFAULT_ICE_SERVERS, MAX_PEERS_PER_ROOM, type Room } from '@chickadee/shared';
+import { DEFAULT_ICE_SERVERS, MAX_PEERS_PER_ROOM, type Room, type ThemeName } from '@chickadee/shared';
 import { useSignaling } from './hooks/useSignaling';
 import { usePeerMesh } from './hooks/usePeerMesh';
 import { useRoomChat } from './hooks/useRoomChat';
@@ -227,7 +227,7 @@ export function App(): React.JSX.Element {
   const [chatWidthScale, setChatWidthScale] = useState(() => store.getChatWidthScale());
   const [chatTtsEnabled, setChatTtsEnabled] = useState(() => store.getChatTtsEnabled());
   const [chatTtsSpeakName, setChatTtsSpeakName] = useState(() => store.getChatTtsSpeakName());
-  const [theme, setTheme] = useState<'midnight' | 'classic' | 'oled'>(() => store.getTheme());
+  const [theme, setTheme] = useState<ThemeName>(() => store.getTheme());
   const [launchOnStartup, setLaunchOnStartup] = useState(() => store.getLaunchOnStartup());
   const [closeBehavior, setCloseBehavior] = useState<'quit' | 'tray'>(() => store.getCloseBehavior());
   const [alwaysOnTop, setAlwaysOnTop] = useState(() => store.getAlwaysOnTop());
@@ -706,7 +706,7 @@ export function App(): React.JSX.Element {
     store.setChatTtsSpeakName(on);
   }
 
-  function applyTheme(next: 'midnight' | 'classic' | 'oled'): void {
+  function applyTheme(next: ThemeName): void {
     setTheme(next);
     store.setTheme(next);
   }

@@ -4,6 +4,7 @@ import {
   type PersistedSettings,
   type Room,
   type SpaceInfo,
+  type ThemeName,
 } from '@chickadee/shared';
 
 export type { Room, SpaceInfo };
@@ -165,8 +166,14 @@ export const store = {
   setCloseBehavior: (closeBehavior: 'quit' | 'tray'): void => persist({ closeBehavior }),
   getAlwaysOnTop: (): boolean => cache.alwaysOnTop ?? false,
   setAlwaysOnTop: (alwaysOnTop: boolean): void => persist({ alwaysOnTop }),
-  getTheme: (): 'midnight' | 'classic' | 'oled' => cache.theme ?? 'midnight',
-  setTheme: (theme: 'midnight' | 'classic' | 'oled'): void => persist({ theme }),
+  // Migrate any legacy/persisted value to the current two-theme union: the old
+  // 'experimental' (light) → 'light'; everything else (incl. 'experimental-dark'
+  // and the removed 'midnight'/'classic'/'oled', or unset) → 'dark' (default).
+  getTheme: (): ThemeName => {
+    const t = cache.theme as string | undefined;
+    return t === 'light' || t === 'experimental' ? 'light' : 'dark';
+  },
+  setTheme: (theme: ThemeName): void => persist({ theme }),
   getChatFontScale: (): number => cache.chatFontScale ?? 1.0,
   setChatFontScale: (chatFontScale: number): void => persist({ chatFontScale }),
   getChatPosition: (): 'left' | 'right' => cache.chatPosition ?? 'right',

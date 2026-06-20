@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { User, Mic, Volume2, Sliders, X, Video, Monitor, MessageSquare, Search, Keyboard } from 'lucide-react';
-import { defaultSettings } from '@chickadee/shared';
+import { defaultSettings, type ThemeName } from '@chickadee/shared';
 import { useKeyCapture } from '../hooks/useKeyCapture';
 import type { MediaDeviceOption } from '../hooks/useMediaDevices';
 import { AvatarCropModal } from './AvatarCropModal';
 import { CustomSelect } from './CustomSelect';
+import { SettingsSlider } from './SettingsSlider';
 import { VOICE_CATEGORIES } from '../lib/voices';
 import { previewVoice } from '../lib/tts';
 import { USER_COLORS } from '../lib/userColors';
@@ -41,8 +42,8 @@ interface SettingsModalProps {
   onChangeOpenMicReductionDb: (v: number) => void;
   openMicReleaseMs: number;
   onChangeOpenMicReleaseMs: (v: number) => void;
-  theme: 'midnight' | 'classic' | 'oled';
-  onChangeTheme: (t: 'midnight' | 'classic' | 'oled') => void;
+  theme: ThemeName;
+  onChangeTheme: (t: ThemeName) => void;
   launchOnStartup: boolean;
   onChangeLaunchOnStartup: (on: boolean) => void;
   closeBehavior: 'quit' | 'tray';
@@ -125,161 +126,6 @@ interface SettingsModalProps {
   onChangeTtsToggleKey: (key: string) => void;
   ttsStopKey: string;
   onChangeTtsStopKey: (key: string) => void;
-}
-
-function SettingsSlider({
-  min = 0,
-  max = 100,
-  step = 1,
-  value,
-  onChange,
-  markers = [],
-  labels,
-  snapThreshold = 0.03,
-  commitOnRelease = false,
-  snapValues,
-  boostFrom,
-}: {
-  min?: number;
-  max?: number;
-  step?: number;
-  value: number;
-  onChange: (val: number) => void;
-  markers?: number[];
-  labels: { value: number; text: string }[];
-  snapThreshold?: number;
-  commitOnRelease?: boolean;
-  /** When provided, the slider only lands on these exact values, rendered as
-   *  uniformly spaced detents (index-based). Overrides min/max/step/markers. */
-  snapValues?: number[];
-  /** When set (non-discrete sliders only), the filled track turns orange for the
-   *  portion of the value above this point — a visual cue that it's beyond normal. */
-  boostFrom?: number;
-}): React.JSX.Element {
-  const [localValue, setLocalValue] = useState(value);
-
-  useEffect(() => {
-    if (commitOnRelease) {
-      setLocalValue(value);
-    }
-  }, [value, commitOnRelease]);
-
-  const discrete = snapValues != null && snapValues.length > 0;
-
-  // Index of the stop closest to a value (tolerates legacy/off-grid values).
-  const nearestIndex = (v: number): number => {
-    if (!discrete) return 0;
-    let best = 0;
-    let bestDist = Infinity;
-    for (let i = 0; i < snapValues.length; i++) {
-      const d = Math.abs(snapValues[i] - v);
-      if (d < bestDist) {
-        bestDist = d;
-        best = i;
-      }
-    }
-    return best;
-  };
-
-  // Horizontal position (0..100%) of a value: by index in discrete mode (even
-  // detents), by linear interpolation otherwise.
-  const posPercent = (v: number): number =>
-    discrete ? (nearestIndex(v) / (snapValues.length - 1)) * 100 : ((v - min) / (max - min)) * 100;
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let val = parseFloat(e.target.value);
-
-    if (discrete) {
-      const idx = Math.min(snapValues.length - 1, Math.max(0, Math.round(val)));
-      val = snapValues[idx];
-    } else {
-      // Magnetic snap
-      for (const m of markers) {
-        if (Math.abs(m - val) <= snapThreshold) {
-          val = m;
-          break;
-        }
-      }
-    }
-
-    if (commitOnRelease) {
-      setLocalValue(val);
-    } else {
-      onChange(val);
-    }
-  };
-
-  const handleCommit = () => {
-    if (commitOnRelease && localValue !== value) {
-      onChange(localValue);
-    }
-  };
-
-  const handleKeyUp = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (commitOnRelease && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'].includes(e.key)) {
-      handleCommit();
-    }
-  };
-
-  // Two-tone fill for "boost" sliders (e.g. mic volume >100%): paint the track
-  // purple up to `boostFrom`, orange beyond it, via CSS vars on the track gradient.
-  const displayValue = commitOnRelease ? localValue : value;
-  const boostActive = boostFrom != null && !discrete;
-  const clampPct = (p: number): number => Math.max(0, Math.min(100, p));
-  const boostStyle = boostActive
-    ? ({
-        '--fill': `${clampPct(posPercent(displayValue))}%`,
-        '--boost': `${clampPct(posPercent(boostFrom as number))}%`,
-        '--thumb': displayValue > (boostFrom as number) ? '#f59e0b' : '#8b5cf6',
-      } as React.CSSProperties)
-    : undefined;
-
-  return (
-    <div style={{ flex: 1, minWidth: 0 }}>
-      <div className="mic-slider-container">
-        <input
-          type="range"
-          min={discrete ? 0 : min}
-          max={discrete ? snapValues.length - 1 : max}
-          step={discrete ? 1 : step}
-          value={discrete ? nearestIndex(commitOnRelease ? localValue : value) : commitOnRelease ? localValue : value}
-          onChange={handleChange}
-          onPointerUp={commitOnRelease ? handleCommit : undefined}
-          onKeyUp={commitOnRelease ? handleKeyUp : undefined}
-          onBlur={commitOnRelease ? handleCommit : undefined}
-          className={`settings-slider${boostActive ? ' settings-slider--boost' : ''}`}
-          style={boostStyle}
-        />
-        {(discrete ? snapValues : markers).map((m) => {
-          const percent = posPercent(m);
-          // Thumb is ~16px diameter (8px radius)
-          const leftCalc = `calc(${percent}% + ${8 - (percent / 100) * 16}px)`;
-          return (
-            <div
-              key={m}
-              className="mic-slider-tick"
-              style={{ left: leftCalc }}
-            />
-          );
-        })}
-      </div>
-      <div className="mic-slider-labels" style={{ position: 'relative', height: '14px', marginTop: '-6px' }}>
-        {labels.map((l) => {
-          const percent = posPercent(l.value);
-          const leftCalc = `calc(${percent}% + ${8 - (percent / 100) * 16}px)`;
-          return (
-            <span
-              key={l.value}
-              className="mic-slider-labels__center"
-              style={{ left: leftCalc }}
-            >
-              {l.text}
-            </span>
-          );
-        })}
-      </div>
-    </div>
-  );
 }
 
 function Toggle({
@@ -547,7 +393,7 @@ export function SettingsModal({
     { label: 'Chat Font Size', description: 'Scale the size of chat text', tab: 'chat', sectionId: 'section-chat-settings', keywords: ['font', 'size', 'scale', 'text', 'chat', 'zoom'] },
     { label: 'Chat Width', description: 'Adjust how wide the chat panel is', tab: 'chat', sectionId: 'section-chat-settings', keywords: ['width', 'panel', 'chat', 'size', 'scale'] },
     { label: 'Chat Position', description: 'Place the chat panel on left or right', tab: 'chat', sectionId: 'section-chat-settings', keywords: ['chat', 'position', 'left', 'right', 'layout', 'side'] },
-    { label: 'Theme', description: 'Midnight, Classic Dark, or OLED Black', tab: 'ui', keywords: ['theme', 'color', 'dark', 'midnight', 'oled', 'appearance', 'colours'] },
+    { label: 'Theme', description: 'Light or Dark', tab: 'ui', keywords: ['theme', 'color', 'dark', 'light', 'swiss', 'alabaster', 'coffee', 'appearance', 'colours'] },
     { label: 'UI Scale', description: 'Zoom the entire app interface', tab: 'ui', keywords: ['scale', 'zoom', 'size', 'ui', 'interface', 'accessibility', 'dpi'] },
     { label: 'Launch on Startup', description: 'Open automatically when Windows starts', tab: 'app', keywords: ['startup', 'autostart', 'boot', 'launch', 'windows', 'login'] },
     { label: 'Minimize to Tray', description: 'Keep running in background when window is closed', tab: 'app', keywords: ['tray', 'close', 'minimize', 'background', 'quit', 'system tray'] },
@@ -1328,7 +1174,7 @@ export function SettingsModal({
                 <div id="section-camera" className="settings-subdivision" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span>Camera Constraints</span>
                   {!hasCamera && (
-                    <span style={{ color: '#ef4444', fontSize: '11px', fontWeight: 600, textTransform: 'initial' }}>
+                    <span style={{ color: 'var(--danger-text)', fontSize: '11px', fontWeight: 600, textTransform: 'initial' }}>
                       (No camera detected)
                     </span>
                   )}
@@ -1488,17 +1334,13 @@ export function SettingsModal({
                 </div>
                 <div className="seg-group">
                   <button
-                    className={`seg-btn${theme === 'midnight' ? ' seg-btn--active' : ''}`}
-                    onClick={() => onChangeTheme('midnight')}
-                  >Midnight</button>
+                    className={`seg-btn${theme === 'light' ? ' seg-btn--active' : ''}`}
+                    onClick={() => onChangeTheme('light')}
+                  >Light</button>
                   <button
-                    className={`seg-btn${theme === 'classic' ? ' seg-btn--active' : ''}`}
-                    onClick={() => onChangeTheme('classic')}
-                  >Classic Dark</button>
-                  <button
-                    className={`seg-btn${theme === 'oled' ? ' seg-btn--active' : ''}`}
-                    onClick={() => onChangeTheme('oled')}
-                  >OLED Black</button>
+                    className={`seg-btn${theme === 'dark' ? ' seg-btn--active' : ''}`}
+                    onClick={() => onChangeTheme('dark')}
+                  >Dark</button>
                 </div>
               </div>
 
@@ -1990,7 +1832,7 @@ export function SettingsModal({
 
                 <div className="settings-row" style={{ marginTop: '10px' }}>
                   <div className="settings-row__label">
-                    <span style={{ color: '#f87171', fontWeight: 600 }}>Reset Application Settings</span>
+                    <span style={{ color: 'var(--danger-text)', fontWeight: 600 }}>Reset Application Settings</span>
                     <span className="settings-row__hint">Restore all settings (audio, video, hotkeys, UI) to default. Profile and Spaces are kept.</span>
                   </div>
                   <button
