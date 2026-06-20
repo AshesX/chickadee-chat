@@ -121,7 +121,7 @@ export function Sidebar({
     if (!activeSpace) return;
     
     if (copyHovered && !copied) {
-      const fullText = `#${activeSpace.id}`;
+      const fullText = activeSpace.id;
       let index = 1;
       setTypedCode(fullText.substring(0, index));
       const interval = setInterval(() => {
@@ -145,6 +145,7 @@ export function Sidebar({
       navigator.clipboard.writeText(activeSpace.id);
     }
     setCopied(true);
+    setTypedCode('');
     setTimeout(() => setCopied(false), 1500);
   }
 
