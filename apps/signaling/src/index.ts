@@ -73,6 +73,40 @@ const spaceTimeouts = new Map<string, Map<string, ReturnType<typeof setTimeout>>
 /** space id -> (peer id -> connection). In-memory only; cleared when no users remain in the space. */
 const spaceConnections = new Map<string, Map<PeerId, Connection>>();
 
+/** Grace window before a Space with no remaining connections is torn down, so a
+ *  sole member reconnecting (heartbeat blip, dev same-userId handoff) doesn't make
+ *  the Space momentarily report as non-existent to a check-space probe. */
+const SPACE_EXISTENCE_GRACE_MS = 5_000;
+
+/** space id -> pending teardown timer. */
+const spaceGraceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+/**
+ * Tear down a Space's in-memory state after a grace window, but only if it still
+ * has no live connections by the time the timer fires. A (re)join cancels this
+ * via `spaceGraceTimers`, so a brief reconnect of the last member keeps the Space
+ * continuously "live" for `check-space` probes.
+ */
+function scheduleSpaceCleanup(spaceId: string): void {
+  if (spaceGraceTimers.has(spaceId)) return;
+  const timer = setTimeout(() => {
+    spaceGraceTimers.delete(spaceId);
+    const conns = spaceConnections.get(spaceId);
+    if (conns && conns.size === 0) {
+      spaceConnections.delete(spaceId);
+      spaces.delete(spaceId);
+      spacePresence.delete(spaceId);
+      const timeouts = spaceTimeouts.get(spaceId);
+      if (timeouts) {
+        for (const t of timeouts.values()) clearTimeout(t);
+        spaceTimeouts.delete(spaceId);
+      }
+      console.log(`[space-cleanup] space "${spaceId}" empty after grace; removed from server memory`);
+    }
+  }, SPACE_EXISTENCE_GRACE_MS);
+  spaceGraceTimers.set(spaceId, timer);
+}
+
 function broadcastSpace(spaceId: string, message: ServerMessage, exceptConn?: Connection): void {
   const conns = spaceConnections.get(spaceId);
   if (!conns) return;
@@ -175,6 +209,13 @@ function handleJoin(socket: WebSocket, msg: Extract<ClientMessage, { type: 'join
   const spaceConns = spaceConnections.get(spaceId) ?? new Map<PeerId, Connection>();
   spaceConns.set(peer.id, conn);
   spaceConnections.set(spaceId, spaceConns);
+
+  // Someone is here again — cancel any pending grace teardown for this space.
+  const grace = spaceGraceTimers.get(spaceId);
+  if (grace) {
+    clearTimeout(grace);
+    spaceGraceTimers.delete(spaceId);
+  }
 
   // Tell the newcomer who is already here (newcomer will initiate offers in Phase 2) and the current room list.
   send(socket, { type: 'welcome', selfId: peer.id, peers: existingPeers, rooms: spaceRooms, wasEmpty });
@@ -426,14 +467,13 @@ function handleDisconnect(conn: Connection): void {
     }
   }
 
-  // Remove from spaceConnections
+  // Remove from spaceConnections. Keep the (possibly now-empty) map in place; the
+  // empty-Space teardown is deferred via scheduleSpaceCleanup below so a sole member
+  // reconnecting doesn't make the Space momentarily report as non-existent.
   const spaceConns = spaceConnections.get(conn.space);
   if (spaceConns) {
     spaceConns.delete(conn.peer.id);
-    if (spaceConns.size === 0) spaceConnections.delete(conn.space);
   }
-
-  const spaceHasUsers = spaceConnections.has(conn.space);
 
   // Update space presence to offline
   const presenceMap = spacePresence.get(conn.space);
@@ -458,18 +498,10 @@ function handleDisconnect(conn: Connection): void {
     }
   }
 
-  if (!spaceHasUsers) {
-    spaces.delete(conn.space);
-    spacePresence.delete(conn.space);
-    
-    // Clear any dangling timeouts for this space
-    const timeouts = spaceTimeouts.get(conn.space);
-    if (timeouts) {
-      for (const t of timeouts.values()) clearTimeout(t);
-      spaceTimeouts.delete(conn.space);
-    }
-
-    console.log(`[space-cleanup] space "${conn.space}" is now empty; removed from server memory`);
+  // If no live connections remain, defer the Space teardown by a grace window
+  // instead of deleting immediately — a rejoin within the window cancels it.
+  if (spaceConns && spaceConns.size === 0) {
+    scheduleSpaceCleanup(conn.space);
   }
 }
 
