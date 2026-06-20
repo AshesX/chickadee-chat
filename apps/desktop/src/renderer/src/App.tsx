@@ -292,14 +292,13 @@ export function App(): React.JSX.Element {
   const totalInRoom = inRoom ? signaling.peers.length + 1 : 0;
   const rawUsers = useSpacePresence(signaling, signaling.rooms);
 
-  // Override self's avatar with the local value (immediate, no round-trip wait).
-  // Peer avatars come from signaling state (Peer.avatarDataUrl), populated space-wide.
+  // The USERS list shows only OTHER users — self has its own section at the
+  // bottom of the sidebar, so listing self here would be redundant.
   const users = useMemo(
-    () => rawUsers.map((u) => ({
-      ...u,
-      avatarUrl: (u.id === userId ? localAvatarUrl : u.avatarUrl) ?? undefined,
-    })),
-    [rawUsers, userId, localAvatarUrl],
+    () => rawUsers
+      .filter((u) => u.id !== userId)
+      .map((u) => ({ ...u, avatarUrl: u.avatarUrl ?? undefined })),
+    [rawUsers, userId],
   );
 
   const handleSaveAvatar = useCallback(
