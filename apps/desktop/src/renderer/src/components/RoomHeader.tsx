@@ -1,6 +1,7 @@
 import { MessageSquare } from 'lucide-react';
 import type { Room } from '@chickadee/shared';
 import { WindowControls } from './WindowControls';
+import { RoomIcon } from './RoomIcon';
 
 interface RoomHeaderProps {
   room: Room | null;
@@ -26,7 +27,7 @@ export function RoomHeader({
         {room ? (
           <>
             <div className="room-header__title">
-              <span>{room.icon}</span>
+              <span><RoomIcon name={room.icon} size={16} /></span>
               {room.label}
               <span className="room-header__count">
                 {count} / {maxCount}

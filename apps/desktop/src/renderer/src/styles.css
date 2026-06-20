@@ -3204,3 +3204,67 @@ button {
 .avatar-crop-btn--save:hover {
   opacity: 0.92;
 }
+
+/* ── Custom Room SVG Icons ─────────────────────────────────── */
+.room-icon-svg {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+}
+
+.room-icon-svg svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.room-icon-svg svg path {
+  fill: currentColor !important;
+}
+
+/* ── Room Modal Icon Picker Search & Container ────────────── */
+.room-modal__search-input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-badge);
+  color: var(--text);
+  font-size: 13.5px;
+  padding: 9px 12px;
+  margin-bottom: 8px;
+  transition: border-color 0.15s ease;
+}
+
+.room-modal__search-input:focus {
+  border-color: var(--active-border);
+  outline: none;
+}
+
+.room-modal__icon-container {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-badge);
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  margin-bottom: 16px;
+}
+
+/* Custom scrollbar for room icon container */
+.room-modal__icon-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.room-modal__icon-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.room-modal__icon-container::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.room-modal__icon-container::-webkit-scrollbar-thumb:hover {
+  background: var(--dim);
+}

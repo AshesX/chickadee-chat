@@ -3,6 +3,7 @@ import { Pencil, Plus, Settings, Trash2, ChevronDown, Copy, Check } from 'lucide
 import { sanitizeAvatarDataUrl, type Room, type SpaceInfo } from '@chickadee/shared';
 
 import type { SpaceUser } from '../hooks/useSpacePresence';
+import { RoomIcon } from './RoomIcon';
 
 interface SidebarProps {
   rooms: Room[];
@@ -272,7 +273,7 @@ export function Sidebar({
                     setMenu({ room: r, x: e.clientX, y: e.clientY });
                   }}
                 >
-                  <span className="room-row__icon">{r.icon}</span>
+                  <span className="room-row__icon"><RoomIcon name={r.icon} size={15} /></span>
                   <span className="room-row__name">{r.label}</span>
                   {active && currentRoomCount > 0 && (
                     <span className="room-row__count">{currentRoomCount}</span>

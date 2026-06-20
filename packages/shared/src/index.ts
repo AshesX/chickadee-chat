@@ -209,9 +209,9 @@ export interface PersistedSettings {
 }
 
 export const DEFAULT_ROOMS: Room[] = [
-  { id: 'general', label: 'General', icon: '💬' },
-  { id: 'gaming', label: 'Gaming', icon: '🎮' },
-  { id: 'lounge', label: 'Lounge', icon: '🛋️' },
+  { id: 'general', label: 'General', icon: 'chat-bubble' },
+  { id: 'gaming', label: 'Gaming', icon: 'dice-twenty-faces-twenty' },
+  { id: 'lounge', label: 'Lounge', icon: 'sofa' },
 ];
 
 export function defaultSettings(): PersistedSettings {
