@@ -93,13 +93,15 @@ export interface PeerLink {
    */
   setLocalScreenStream: (stream: MediaStream | null) => void;
   /**
-   * Pause/resume sending *video* (camera + screen-share video) to this peer
-   * without renegotiation, leaving screen-share *audio* flowing. Used when the
-   * remote peer is docked/compact and isn't rendering video — saves our encode +
-   * upload to them while they still hear shared audio. Resume re-applies whatever
-   * the current local video tracks are.
+   * Gate what media this peer receives, without renegotiation (glare-free
+   * replaceTrack). `video` controls camera + screen-share *video*; `screenAudio`
+   * controls screen-share *system audio*. Mic/voice audio is never gated. Both
+   * default to **false** (opt-in): a peer receives our video/screen-audio only
+   * once they've joined us (`video`) and aren't docked (also `video`), with
+   * screen audio while subscribed (`screenAudio`). Enabling re-applies whatever
+   * the current local tracks are; disabling stops that sender (keeps the m-line).
    */
-  setVideoPaused: (paused: boolean) => void;
+  setMediaActive: (active: { video: boolean; screenAudio: boolean }) => void;
   /** Tear down the connection and detach all handlers. */
   close: () => void;
 }
@@ -127,10 +129,12 @@ export function createPeerLink(opts: PeerLinkOptions): PeerLink {
   let screenVideoSender: RTCRtpSender | null = null;
   let screenAudioSender: RTCRtpSender | null = null;
 
-  // Video-pause state (see setVideoPaused): when paused, video tracks are held
-  // (replaceTrack(null)) but remembered here so resume can re-apply the current
-  // ones. Screen *audio* is never paused.
-  let videoPaused = false;
+  // Per-viewer media gating (see setMediaActive). Default false = opt-in: we send
+  // this peer no video/screen-audio until they join us. When inactive, tracks are
+  // held (replaceTrack(null)) but remembered here so re-enabling re-applies the
+  // current ones. Mic/voice audio is independent and never gated.
+  let videoActive = false;
+  let screenAudioActive = false;
   let lastVideoTrack: MediaStreamTrack | null = null;
   let lastVideoStream: MediaStream | null = null;
   let lastScreenVideoTrack: MediaStreamTrack | null = null;
@@ -201,7 +205,7 @@ export function createPeerLink(opts: PeerLinkOptions): PeerLink {
   function setLocalVideoTrack(track: MediaStreamTrack | null, stream: MediaStream): void {
     lastVideoTrack = track;
     lastVideoStream = stream;
-    if (videoPaused) return; // hold; re-applied on resume
+    if (!videoActive) return; // hold; re-applied when the viewer joins
     if (track) {
       if (videoSender) {
         void videoSender.replaceTrack(track); // swap, no renegotiation
@@ -233,27 +237,37 @@ export function createPeerLink(opts: PeerLinkOptions): PeerLink {
     const audioTrack = stream?.getAudioTracks()[0] ?? null;
     lastScreenVideoTrack = videoTrack;
     lastScreenStream = stream;
-    // Screen *audio* always flows — a docked peer pauses video but still hears
-    // shared (game) audio.
-    screenAudioSender = applyTrack(screenAudioSender, audioTrack, stream);
-    // Screen *video* is gated by the pause flag (held until resume).
-    if (!videoPaused) {
+    // Both gated per-viewer: screen audio flows only while subscribed; screen
+    // video only while subscribed AND not docked. Held (not applied) otherwise.
+    if (screenAudioActive) {
+      screenAudioSender = applyTrack(screenAudioSender, audioTrack, stream);
+    }
+    if (videoActive) {
       screenVideoSender = applyTrack(screenVideoSender, videoTrack, stream);
     }
   }
 
-  function setVideoPaused(paused: boolean): void {
-    if (paused === videoPaused) return;
-    videoPaused = paused;
-    if (paused) {
-      // Stop sending video without renegotiation; the m-lines stay so resume
-      // is a cheap replaceTrack. Screen audio is untouched.
-      if (videoSender) void videoSender.replaceTrack(null);
-      if (screenVideoSender) void screenVideoSender.replaceTrack(null);
-    } else {
-      // Re-apply whatever the current local video/screen tracks are.
-      setLocalVideoTrack(lastVideoTrack, lastVideoStream ?? new MediaStream());
-      screenVideoSender = applyTrack(screenVideoSender, lastScreenVideoTrack, lastScreenStream);
+  function setMediaActive(active: { video: boolean; screenAudio: boolean }): void {
+    if (active.screenAudio !== screenAudioActive) {
+      screenAudioActive = active.screenAudio;
+      if (screenAudioActive) {
+        // Re-apply the current screen audio track (if sharing).
+        screenAudioSender = applyTrack(screenAudioSender, lastScreenStream?.getAudioTracks()[0] ?? null, lastScreenStream);
+      } else if (screenAudioSender) {
+        void screenAudioSender.replaceTrack(null);
+      }
+    }
+    if (active.video !== videoActive) {
+      videoActive = active.video;
+      if (videoActive) {
+        // Re-apply whatever the current camera + screen video tracks are.
+        setLocalVideoTrack(lastVideoTrack, lastVideoStream ?? new MediaStream());
+        screenVideoSender = applyTrack(screenVideoSender, lastScreenVideoTrack, lastScreenStream);
+      } else {
+        // Stop sending video without renegotiation; the m-lines stay.
+        if (videoSender) void videoSender.replaceTrack(null);
+        if (screenVideoSender) void screenVideoSender.replaceTrack(null);
+      }
     }
   }
 
@@ -302,5 +316,5 @@ export function createPeerLink(opts: PeerLinkOptions): PeerLink {
     pc.close();
   }
 
-  return { pc, handleSignal, setLocalAudioTrack, setLocalVideoTrack, setLocalScreenStream, setVideoPaused, close };
+  return { pc, handleSignal, setLocalAudioTrack, setLocalVideoTrack, setLocalScreenStream, setMediaActive, close };
 }

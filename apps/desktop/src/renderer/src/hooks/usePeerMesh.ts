@@ -118,8 +118,15 @@ export function usePeerMesh(
   localAvatarUrl: string | null,
   localVoicePreference: string,
   localAccentColor: string,
+  localUserId: string,
 ): PeerMesh {
   const { subscribe, send, status } = signaling;
+
+  // Our stable userId, used to decide whether a viewer's subscription set
+  // includes us (so we should send them video/screen-audio). In a ref so the
+  // stable message handler/ensureLink always read the latest value.
+  const localUserIdRef = useRef(localUserId);
+  localUserIdRef.current = localUserId;
 
   // Kept in a ref so the stable ensureLink callback always sees the latest set.
   const iceServersRef = useRef(iceServers);
@@ -218,8 +225,12 @@ export function usePeerMesh(
   const sharingScreenRef = useRef(false);
   /** peerId -> the MediaStream id that peer is using for its screen share. */
   const screenIdsRef = useRef<Map<PeerId, string>>(new Map());
-  /** Peers who don't want incoming video (docked/compact) — we pause video to them. */
-  const peersNoVideoRef = useRef<Set<PeerId>>(new Set());
+  /**
+   * peerId -> what media that peer wants from us, derived from their opt-in
+   * state (videoSubscriptions + wantsVideo) against our own userId. Defaults to
+   * nothing until they join us (opt-in). Consulted at link creation + on change.
+   */
+  const peerMediaWantsRef = useRef<Map<PeerId, { video: boolean; screenAudio: boolean }>>(new Map());
   /** peerId -> (streamId -> received MediaStream), to (re)classify on demand. */
   const remoteStreamsRef = useRef<Map<PeerId, Map<string, MediaStream>>>(new Map());
   const disposedRef = useRef(false);
@@ -358,6 +369,17 @@ export function usePeerMesh(
     [recomputeRemote],
   );
 
+  // What a viewer wants from us, derived from their opt-in state against our
+  // own userId: screen audio while they're subscribed to us; video while
+  // subscribed AND rendering (not docked). Camera + screen video move together.
+  const computeWants = useCallback(
+    (subscriptions: string[] | undefined, wantsVideo: boolean): { video: boolean; screenAudio: boolean } => {
+      const subscribed = !!subscriptions && subscriptions.includes(localUserIdRef.current);
+      return { screenAudio: subscribed, video: subscribed && wantsVideo };
+    },
+    [],
+  );
+
   const ensureLink = useCallback(
     (peerId: PeerId): PeerLink => {
       const existing = linksRef.current.get(peerId);
@@ -380,9 +402,11 @@ export function usePeerMesh(
       linksRef.current.set(peerId, link);
       patchRemote(peerId, { connectionState: link.pc.connectionState });
 
-      // If this peer is docked (doesn't want video), pause before applying tracks
-      // so the camera/screen video is held (audio still flows) from the first frame.
-      if (peersNoVideoRef.current.has(peerId)) link.setVideoPaused(true);
+      // Apply this peer's current media wants (what they've opted into) before
+      // applying tracks, so a peer already subscribed to us gets the first frame
+      // while everyone else stays held by the opt-in (false) defaults.
+      const wants = peerMediaWantsRef.current.get(peerId);
+      if (wants) link.setMediaActive(wants);
 
       // A peer joining while our camera is already on should receive video.
       const videoTrack = videoTrackRef.current;
@@ -445,7 +469,7 @@ export function usePeerMesh(
     screenStreamRef.current = null;
     sharingScreenRef.current = false;
     screenIdsRef.current.clear();
-    peersNoVideoRef.current.clear();
+    peerMediaWantsRef.current.clear();
     remoteStreamsRef.current.clear();
     setRemote({});
     setLocalStream(null);
@@ -759,11 +783,12 @@ export function usePeerMesh(
           remoteStreamsRef.current.clear();
           screenIdsRef.current.clear();
           setRemote({});
-          peersNoVideoRef.current.clear();
+          peerMediaWantsRef.current.clear();
           for (const peer of msg.peers) {
             if (peer.screenStreamId) screenIdsRef.current.set(peer.id, peer.screenStreamId);
-            // Seed before ensureLink so we never send the first video frame to a docked peer.
-            if (peer.wantsVideo === false) peersNoVideoRef.current.add(peer.id);
+            // Seed before ensureLink so a peer already subscribed to us (e.g. across
+            // our own reconnect) receives the first frame, and nobody else does.
+            peerMediaWantsRef.current.set(peer.id, computeWants(peer.videoSubscriptions, peer.wantsVideo));
           }
           void (async () => {
             await ensureLocalStream();
@@ -774,12 +799,15 @@ export function usePeerMesh(
           break;
         }
         case 'peer-joined':
-          // Seed before ensureLink so a peer that joined while docked never gets the first video frame.
-          if (msg.peer.wantsVideo === false) peersNoVideoRef.current.add(msg.peer.id);
+          // Seed before ensureLink with whatever this peer has already opted into.
+          peerMediaWantsRef.current.set(
+            msg.peer.id,
+            computeWants(msg.peer.videoSubscriptions, msg.peer.wantsVideo),
+          );
           ensureLink(msg.peer.id);
           break;
         case 'peer-left':
-          peersNoVideoRef.current.delete(msg.peerId);
+          peerMediaWantsRef.current.delete(msg.peerId);
           closeLink(msg.peerId);
           break;
         case 'offer':
@@ -792,17 +820,19 @@ export function usePeerMesh(
           else screenIdsRef.current.delete(msg.from);
           recomputeRemote(msg.from);
           break;
-        case 'sink-state':
-          // A peer docked/undocked: pause or resume the video we send to just them
-          // (their screen-share audio keeps flowing either way).
-          if (msg.wantsVideo) peersNoVideoRef.current.delete(msg.from);
-          else peersNoVideoRef.current.add(msg.from);
-          linksRef.current.get(msg.from)?.setVideoPaused(!msg.wantsVideo);
+        case 'sink-state': {
+          // A peer changed who they've joined and/or their dock state: recompute
+          // what they want from us and apply it to just their link. Mic/voice is
+          // never affected (separate sender).
+          const wants = computeWants(msg.subscriptions, msg.wantsVideo);
+          peerMediaWantsRef.current.set(msg.from, wants);
+          linksRef.current.get(msg.from)?.setMediaActive(wants);
           break;
+        }
       }
     };
     return subscribe(handle);
-  }, [subscribe, ensureLocalStream, ensureLink, closeLink, recomputeRemote, reannounceLocalState]);
+  }, [subscribe, ensureLocalStream, ensureLink, closeLink, recomputeRemote, reannounceLocalState, computeWants]);
 
   // Tear everything down when the call ends (leave / disconnect / error).
   useEffect(() => {

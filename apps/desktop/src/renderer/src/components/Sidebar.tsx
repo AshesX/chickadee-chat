@@ -12,6 +12,7 @@ import {
   MicOff,
   Headphones,
   HeadphoneOff,
+  VideoOff,
 } from 'lucide-react';
 import { sanitizeAvatarDataUrl, type Room, type SpaceInfo } from '@chickadee/shared';
 
@@ -55,6 +56,10 @@ interface SidebarProps {
   onToggleDeafen: () => void;
   inputMode: 'open' | 'voice' | 'ptt';
   onCycleInputMode: () => void;
+  /** Whether we've joined any peer's video (drives the compact leave-video button). */
+  hasVideoSubs: boolean;
+  /** Leave all joined video streams (compact-mode control). */
+  onLeaveAllVideo: () => void;
 }
 
 export function Sidebar({
@@ -90,6 +95,8 @@ export function Sidebar({
   onToggleDeafen,
   inputMode,
   onCycleInputMode,
+  hasVideoSubs,
+  onLeaveAllVideo,
 }: SidebarProps): React.JSX.Element {
   const onlineCount = users.filter((u) => u.status !== 'offline').length;
   const selfInitial = selfName.trim().charAt(0).toUpperCase() || 'Y';
@@ -401,6 +408,16 @@ export function Sidebar({
                       >
                         <InputModeIcon size={14} />
                       </button>
+                      {hasVideoSubs && (
+                        <button
+                          className="room-row__mini-btn room-row__mini-btn--end room-row__mini-btn--danger"
+                          onClick={onLeaveAllVideo}
+                          title="Leave video"
+                          aria-label="Leave video"
+                        >
+                          <VideoOff size={14} />
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

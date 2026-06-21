@@ -43,6 +43,8 @@ interface ActiveScreen {
   displayName: string;
   isSelf: boolean;
   stream: MediaStream;
+  /** Stable userId of the sharer (remote only), so the viewer can leave the stream. */
+  userId?: string;
 }
 
 function slugify(label: string): string {
@@ -67,10 +69,10 @@ export function App(): React.JSX.Element {
   const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(() => store.getAvatarDataUrl());
   const [localVoicePreference, setLocalVoicePreference] = useState(() => store.getVoicePreference());
   const [localAccentColor, setLocalAccentColor] = useState(() => store.getAccentColor());
-  const mesh = usePeerMesh(signaling, iceServers, noiseSuppression, micVolume, cameraResolution, cameraFramerate, screenResolution, screenFramerate, echoCancellation, autoGainControl, inputDeviceId, localAvatarUrl, localVoicePreference, localAccentColor);
+  const userId = useMemo(() => store.getUserId(), []);
+  const mesh = usePeerMesh(signaling, iceServers, noiseSuppression, micVolume, cameraResolution, cameraFramerate, screenResolution, screenFramerate, echoCancellation, autoGainControl, inputDeviceId, localAvatarUrl, localVoicePreference, localAccentColor, userId);
   const colors = useUserColors(signaling.peers.map((p) => p.id));
 
-  const userId = useMemo(() => store.getUserId(), []);
   const [displayName, setDisplayName] = useState(() => store.getName());
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(null);
   const leaveRoom = useCallback(() => {
@@ -82,6 +84,18 @@ export function App(): React.JSX.Element {
 
   const [chatOpen, setChatOpen] = useState(() => store.getChatVisible());
   const [compactMode, setCompactMode] = useState(() => store.getCompactMode());
+  // Opt-in video: stable userIds whose video/screen we've joined ("Watch").
+  // Session-only (cleared on room change); broadcast to the room via sink-state.
+  const [videoSubscriptions, setVideoSubscriptions] = useState<string[]>([]);
+  const joinVideo = useCallback(
+    (uid: string) => setVideoSubscriptions((prev) => (prev.includes(uid) ? prev : [...prev, uid])),
+    [],
+  );
+  const leaveVideo = useCallback(
+    (uid: string) => setVideoSubscriptions((prev) => prev.filter((u) => u !== uid)),
+    [],
+  );
+  const leaveAllVideo = useCallback(() => setVideoSubscriptions([]), []);
   const [createOpen, setCreateOpen] = useState(false);
   const [renameTarget, setRenameTarget] = useState<Room | null>(null);
   const [spaceSettingsTarget, setSpaceSettingsTarget] = useState<string | null>(null);
@@ -863,14 +877,20 @@ export function App(): React.JSX.Element {
     }
   }, [selfSpeaking, signaling.status, signaling.send]);
 
-  // Tell the room whether we want incoming video. False while docked (compact) so
-  // senders pause the video they send us (audio keeps flowing). Re-announces on
-  // (re)connect — keyed on signaling.status — since the server resets us to default.
+  // Tell the room our video opt-in state: which peers we've joined (subscriptions)
+  // and whether we're rendering video (false while docked, so senders pause our
+  // subscribed video but keep its audio). Re-announces on (re)connect — keyed on
+  // signaling.status — since the server resets us to default.
   useEffect(() => {
     if (signaling.status === 'connected') {
-      signaling.send({ type: 'sink-state', wantsVideo: !compactMode });
+      signaling.send({ type: 'sink-state', subscriptions: videoSubscriptions, wantsVideo: !compactMode });
     }
-  }, [compactMode, signaling.status, signaling.send]);
+  }, [videoSubscriptions, compactMode, signaling.status, signaling.send]);
+
+  // Subscriptions are room-scoped: starting in a new room means re-opting-in.
+  useEffect(() => {
+    setVideoSubscriptions([]);
+  }, [currentRoomId]);
 
   // Keep local rooms in sync with the signaling server's room list for this Space.
   useEffect(() => {
@@ -1004,6 +1024,7 @@ export function App(): React.JSX.Element {
       />
       {signaling.peers.map((peer) => {
         const media = mesh.remote[peer.id];
+        const subscribed = videoSubscriptions.includes(peer.userId);
         return (
           <ParticipantTile
             key={peer.id}
@@ -1024,6 +1045,9 @@ export function App(): React.JSX.Element {
             normalize={normalizeVoices}
             screenSharing={!!peer.screenStreamId}
             windowVisible={mediaVisible}
+            subscribed={subscribed}
+            onJoinVideo={() => joinVideo(peer.userId)}
+            onLeaveVideo={() => leaveVideo(peer.userId)}
           />
         );
       })}
@@ -1038,10 +1062,12 @@ export function App(): React.JSX.Element {
   for (const peer of signaling.peers) {
     const screen = peer.screenStreamId ? mesh.remote[peer.id]?.screenStream : null;
     if (screen) {
-      activeScreens.push({ key: `${peer.id}-screen`, displayName: peer.displayName, isSelf: false, stream: screen });
+      activeScreens.push({ key: `${peer.id}-screen`, displayName: peer.displayName, isSelf: false, stream: screen, userId: peer.userId });
     }
   }
   const presenting = activeScreens.length > 0;
+  // How many peers have joined our stream (their subscriptions include our userId).
+  const selfWatcherCount = signaling.peers.filter((p) => p.videoSubscriptions?.includes(userId)).length;
 
   const errors = [mesh.micError, mesh.cameraError, mesh.screenError, signaling.error].filter(Boolean);
 
@@ -1098,6 +1124,8 @@ export function App(): React.JSX.Element {
         onToggleDeafen={toggleDeafen}
         inputMode={inputMode}
         onCycleInputMode={cycleInputMode}
+        hasVideoSubs={videoSubscriptions.length > 0}
+        onLeaveAllVideo={leaveAllVideo}
       />
 
       <div className="main">
@@ -1121,7 +1149,16 @@ export function App(): React.JSX.Element {
                 <div className="presentation">
                   <div className="stage" data-count={Math.min(activeScreens.length, 4)}>
                     {activeScreens.map((s) => (
-                      <ScreenView key={s.key} displayName={s.displayName} isSelf={s.isSelf} stream={s.stream} outputDeviceId={outputDeviceId} windowVisible={mediaVisible} />
+                      <ScreenView
+                        key={s.key}
+                        displayName={s.displayName}
+                        isSelf={s.isSelf}
+                        stream={s.stream}
+                        outputDeviceId={outputDeviceId}
+                        windowVisible={mediaVisible}
+                        watcherCount={s.isSelf ? selfWatcherCount : undefined}
+                        onLeave={s.userId ? () => leaveVideo(s.userId!) : undefined}
+                      />
                     ))}
                   </div>
                   <ul className="filmstrip">{tiles}</ul>

@@ -186,6 +186,7 @@ function handleJoin(socket: WebSocket, msg: Extract<ClientMessage, { type: 'join
     voicePreference: clampString(msg.voicePreference, MAX_VOICE_PREF_LEN),
     accentColor: sanitizeAccentColor(msg.accentColor),
     wantsVideo: true,
+    videoSubscriptions: [],
   };
   const conn: Connection = { socket, peer, space: spaceId, room: fullRoomId };
 
@@ -406,10 +407,27 @@ function handleVoiceState(conn: Connection, voicePreference: string): void {
   broadcast(conn.room, { type: 'voice-state', from: conn.peer.id, voicePreference: conn.peer.voicePreference }, conn.peer.id);
 }
 
-/** Record whether a peer wants incoming video (false while docked) and tell the room (room-only — media is room-scoped). */
-function handleSinkState(conn: Connection, wantsVideo: boolean): void {
-  conn.peer.wantsVideo = wantsVideo;
-  broadcast(conn.room, { type: 'sink-state', from: conn.peer.id, wantsVideo }, conn.peer.id);
+/**
+ * Record a peer's video opt-in state — which userIds it has joined
+ * (subscriptions) and whether it's rendering video (false while docked) — and
+ * tell the room (room-only — media is room-scoped). Subscriptions are clamped:
+ * an array of clamped-string userIds, capped at the room size.
+ */
+function handleSinkState(conn: Connection, subscriptions: unknown, wantsVideo: unknown): void {
+  const safeSubs = Array.isArray(subscriptions)
+    ? subscriptions
+        .filter((s): s is string => typeof s === 'string')
+        .slice(0, MAX_PEERS_PER_ROOM)
+        .map((s) => clampString(s, MAX_ID_LEN))
+        .filter((s) => s.length > 0)
+    : [];
+  conn.peer.videoSubscriptions = safeSubs;
+  conn.peer.wantsVideo = Boolean(wantsVideo);
+  broadcast(
+    conn.room,
+    { type: 'sink-state', from: conn.peer.id, subscriptions: safeSubs, wantsVideo: conn.peer.wantsVideo },
+    conn.peer.id,
+  );
 }
 
 /** Record a peer's presence status and tell the room (mirror pattern). */
@@ -615,7 +633,7 @@ wss.on('connection', (socket) => {
     } else if (msg.type === 'voice-state') {
       handleVoiceState(conn, msg.voicePreference);
     } else if (msg.type === 'sink-state') {
-      handleSinkState(conn, msg.wantsVideo);
+      handleSinkState(conn, msg.subscriptions, msg.wantsVideo);
     } else if (msg.type === 'accent-state') {
       handleAccentState(conn, msg.accentColor);
     } else if (msg.type === 'update-rooms') {

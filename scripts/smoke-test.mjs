@@ -71,6 +71,10 @@ check('welcome carries screenStreamId=null for existing peers', wb.peers[0].scre
 check('welcome carries voicePreference="" for existing peers', wb.peers[0].voicePreference === '');
 check('welcome carries accentColor="" for existing peers', wb.peers[0].accentColor === '');
 check('welcome carries wantsVideo=true for existing peers', wb.peers[0].wantsVideo === true);
+check(
+  'welcome carries empty videoSubscriptions for existing peers',
+  Array.isArray(wb.peers[0].videoSubscriptions) && wb.peers[0].videoSubscriptions.length === 0,
+);
 check('welcome carries userId for existing peers', wb.peers[0].userId === 'uid-Alpha');
 
 await wait(150);
@@ -153,12 +157,19 @@ check('A receives C voice-state', a.events.some(cVoice));
 check('D receives C voice-state', d.events.some(cVoice));
 check('C does not receive its own voice-state', !c.events.some((ev) => ev.type === 'voice-state'));
 
-// Compact-dock video sink mirror — C docks (wantsVideo:false); A/D told, C not echoed.
-c.ws.send(JSON.stringify({ type: 'sink-state', wantsVideo: false }));
+// Opt-in video sink mirror — C joins A (subscriptions:['uid-Alpha']) and stays
+// undocked (wantsVideo:true); A/D told, C not echoed.
+c.ws.send(JSON.stringify({ type: 'sink-state', subscriptions: ['uid-Alpha'], wantsVideo: true }));
 await wait(200);
-const cSink = (ev) => ev.type === 'sink-state' && ev.from === wc.selfId && ev.wantsVideo === false;
-check('A receives C sink-state(wantsVideo:false)', a.events.some(cSink));
-check('D receives C sink-state(wantsVideo:false)', d.events.some(cSink));
+const cSink = (ev) =>
+  ev.type === 'sink-state' &&
+  ev.from === wc.selfId &&
+  ev.wantsVideo === true &&
+  Array.isArray(ev.subscriptions) &&
+  ev.subscriptions.length === 1 &&
+  ev.subscriptions[0] === 'uid-Alpha';
+check('A receives C sink-state(subscriptions:[uid-Alpha], wantsVideo:true)', a.events.some(cSink));
+check('D receives C sink-state(subscriptions:[uid-Alpha], wantsVideo:true)', d.events.some(cSink));
 check('C does not receive its own sink-state', !c.events.some((ev) => ev.type === 'sink-state'));
 
 // Accent color mirror — C sets a color, A/D told (space-wide), C not echoed.

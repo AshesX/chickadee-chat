@@ -286,14 +286,19 @@ input:focus-visible,
 }
 
 /* Mini voice controls shown under the active room's row in compact mode
-   (mute / deafen / cycle input-mode). Fixed light/orange/red button colors
-   (rather than the room row's --block-bg) keep these legible in either theme. */
+   (mute / deafen / cycle input-mode, + an optional right-aligned leave-video).
+   Fixed light/orange/red button colors (rather than the room row's --block-bg)
+   keep these legible in either theme. Spans the row so --end can push right. */
 .room-row__mini-controls {
   display: flex;
   align-items: center;
   gap: 5px;
-  width: fit-content;
-  margin: 3px 0 5px 8px;
+  margin: 3px 8px 5px 8px;
+}
+
+/* Pushed to the right edge of the row (e.g. the leave-video button). */
+.room-row__mini-btn--end {
+  margin-left: auto;
 }
 
 .room-row__mini-btn {
@@ -925,6 +930,71 @@ input:focus-visible,
   flex-shrink: 0;
 }
 
+/* Opt-in video: centered "Watch" button shown over an un-joined peer's avatar. */
+.tile__watch {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--on-accent);
+  background: var(--orange);
+  border: none;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.tile__watch:hover {
+  transform: translate(-50%, -50%) scale(1.06);
+  filter: brightness(1.06);
+}
+
+.tile__watch:active {
+  transform: translate(-50%, -50%) scale(0.96);
+}
+
+/* Opt-in video: bottom-right "stop watching" button on a joined camera tile. */
+.tile__leave {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.18s ease, background 0.18s ease, transform 0.12s ease;
+}
+
+.tile:hover .tile__leave {
+  opacity: 0.9;
+}
+
+.tile__leave:hover {
+  opacity: 1;
+  background: var(--red);
+  border-color: var(--red);
+}
+
+.tile__leave:active {
+  transform: scale(0.92);
+}
+
 /* ── Screen share (presentation) ──────────────────────────── */
 .presentation {
   flex: 1;
@@ -981,6 +1051,58 @@ input:focus-visible,
   color: #fff;
   background: rgba(0, 0, 0, 0.6);
   border-radius: var(--radius-pill);
+}
+
+/* Self stream: small "N watching" chip, top-left of the presentation. */
+.screen__watchers {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: var(--radius-pill);
+}
+
+/* Joined remote stream: top-right "stop watching" button. */
+.screen__leave {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity 0.18s ease, background 0.18s ease, transform 0.12s ease;
+}
+
+.screen:hover .screen__leave {
+  opacity: 0.95;
+}
+
+.screen__leave:hover {
+  opacity: 1;
+  background: var(--red);
+  border-color: var(--red);
+}
+
+.screen__leave:active {
+  transform: scale(0.95);
 }
 
 .filmstrip {

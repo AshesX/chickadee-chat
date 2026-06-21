@@ -93,8 +93,18 @@ export interface Peer {
   voicePreference: string;
   /** User-chosen accent color (`#rrggbb`), or '' to fall back to an auto-assigned color. */
   accentColor: string;
-  /** Whether this peer wants to receive video; false while docked/compact so senders pause video (not audio) to it. */
+  /**
+   * Whether this peer is currently rendering video (true) or docked/compact
+   * (false). While false, senders pause the *video* of this peer's
+   * subscriptions but keep their *audio* flowing (audio-only dock).
+   */
   wantsVideo: boolean;
+  /**
+   * Stable userIds whose video this peer has opted into ("joined"). Video and
+   * screen-audio are sent to this peer only for senders in this set; empty =
+   * watching nobody (the opt-in default).
+   */
+  videoSubscriptions: string[];
 }
 
 /** A sidebar room entry (local; the server uses arbitrary room ids). */
@@ -314,8 +324,9 @@ export type ClientMessage =
   | { type: 'avatar-state'; avatarDataUrl: string | null }
   | { type: 'voice-state'; voicePreference: string }
   | { type: 'accent-state'; accentColor: string }
-  // Whether this peer wants incoming video (false while docked/compact); senders pause video to it.
-  | { type: 'sink-state'; wantsVideo: boolean }
+  // This peer's video opt-in state: which userIds it has joined (subscriptions)
+  // and whether it's rendering video now (wantsVideo false while docked/compact).
+  | { type: 'sink-state'; subscriptions: string[]; wantsVideo: boolean }
   // Broadcast room list changes to the active space.
   | { type: 'update-rooms'; spaceId: string; rooms: Room[] }
   // Broadcast space rename to active peers.
@@ -371,8 +382,9 @@ export type ServerMessage =
   | { type: 'voice-state'; from: PeerId; voicePreference: string }
   // A peer changed their accent color; broadcast to all space members.
   | { type: 'accent-state'; from: PeerId; accentColor: string }
-  // A peer toggled whether it wants incoming video (compact/dock); broadcast to the room.
-  | { type: 'sink-state'; from: PeerId; wantsVideo: boolean }
+  // A peer updated its video opt-in state (joined subscriptions and/or dock
+  // state); broadcast to the room (the mesh is room-scoped).
+  | { type: 'sink-state'; from: PeerId; subscriptions: string[]; wantsVideo: boolean }
   // Broadcast room list changes to the active space.
   | { type: 'rooms-updated'; spaceId: string; rooms: Room[] }
   // Broadcast space rename to all clients in the space.

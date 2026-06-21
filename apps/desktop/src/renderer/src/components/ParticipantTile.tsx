@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { MicOff, VolumeX, Volume2 } from 'lucide-react';
+import { MicOff, VolumeX, Volume2, Play, EyeOff } from 'lucide-react';
 import { sanitizeAvatarDataUrl } from '@chickadee/shared';
 import { getSharedAudioContext, getMasterBus } from '../lib/audioContext';
 import { SettingsSlider } from './SettingsSlider';
@@ -38,6 +38,12 @@ export interface ParticipantTileProps {
   screenSharing?: boolean;
   /** False while the window is minimized/hidden; detaches video to stop decode. */
   windowVisible?: boolean;
+  /** Remote only: whether we've opted into ("joined") this peer's video/screen. */
+  subscribed?: boolean;
+  /** Remote only: join this peer's video (Watch). */
+  onJoinVideo?: () => void;
+  /** Remote only: leave this peer's video (stop watching). */
+  onLeaveVideo?: () => void;
 }
 
 const CONN_LABEL: Partial<Record<RTCPeerConnectionState, string>> = {
@@ -67,6 +73,9 @@ export function ParticipantTile({
   normalize,
   screenSharing = false,
   windowVisible = true,
+  subscribed = false,
+  onJoinVideo,
+  onLeaveVideo,
 }: ParticipantTileProps): React.JSX.Element {
   // Validate peer-supplied avatar data URLs before rendering (defense in depth;
   // the server already sanitizes, but never trust an <img src> from the wire).
@@ -82,10 +91,16 @@ export function ParticipantTile({
   // windowVisible so the speaking ring/glow never renders while minimized.
   const showMuteIcon = intentionallyMuted ?? muted;
   const showSpeaking = speaking && windowVisible;
-  // Two mutually-exclusive cues: video tiles (camera on) and screen-sharers get the
-  // rectangular frame outline; voice-only tiles get the round avatar ring instead.
-  const showFrame = showSpeaking && (cameraOn || screenSharing);
-  const showAvatarRing = showSpeaking && !cameraOn && !screenSharing;
+  // Opt-in video: we only render a peer's camera/screen once we've joined them
+  // (self always sees its own). Un-joined peers show their avatar + a Watch button.
+  const showVideo = cameraOn && (isSelf || subscribed);
+  const mediaShown = showVideo || (screenSharing && (isSelf || subscribed));
+  // Two mutually-exclusive cues: tiles actually showing video/screen get the
+  // rectangular frame outline; avatar (voice-only / un-joined) tiles get the ring.
+  const showFrame = showSpeaking && mediaShown;
+  const showAvatarRing = showSpeaking && !mediaShown;
+  // Watch (join) appears when this peer has video available but we haven't joined.
+  const showWatch = !isSelf && !subscribed && (cameraOn || screenSharing);
 
   // The <video> is always mounted so remote audio plays even with camera off.
   // While the window is minimized/hidden, detach the stream so Chromium stops
@@ -189,10 +204,10 @@ export function ParticipantTile({
         autoPlay
         playsInline
         muted={isSelf || audioRouted}
-        style={{ visibility: cameraOn ? 'visible' : 'hidden' }}
+        style={{ visibility: showVideo ? 'visible' : 'hidden' }}
       />
 
-      {!cameraOn && (
+      {!showVideo && (
         <div className="tile__center">
           <div
             className={`tile__avatar${showAvatarRing ? ' tile__avatar--speaking' : ''}`}
@@ -220,8 +235,8 @@ export function ParticipantTile({
           {displayName}
           {isSelf && ' (you)'}
         </span>
-        {deafened && cameraOn && <VolumeX size={12} className="tile__badge-mute" />}
-        {showMuteIcon && cameraOn && <MicOff size={12} className="tile__badge-mute" />}
+        {deafened && showVideo && <VolumeX size={12} className="tile__badge-mute" />}
+        {showMuteIcon && showVideo && <MicOff size={12} className="tile__badge-mute" />}
       </div>
 
       {connNote && <div className="tile__conn">{connNote}</div>}
@@ -248,6 +263,25 @@ export function ParticipantTile({
           />
           <span className="tile__volume-pct">{pvMuted ? 'Muted' : `${pvPct}%`}</span>
         </div>
+      )}
+
+      {showWatch && (
+        <button type="button" className="tile__watch" onClick={onJoinVideo}>
+          <Play size={15} strokeWidth={2.5} fill="currentColor" />
+          Watch
+        </button>
+      )}
+
+      {!isSelf && subscribed && showVideo && (
+        <button
+          type="button"
+          className="tile__leave"
+          onClick={onLeaveVideo}
+          title={`Stop watching ${displayName}`}
+          aria-label={`Stop watching ${displayName}`}
+        >
+          <EyeOff size={14} strokeWidth={2.5} />
+        </button>
       )}
     </li>
   );

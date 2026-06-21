@@ -154,7 +154,9 @@ function applyPresenceUpdate(state: SignalingState, msg: ServerMessage): Signali
       return {
         ...state,
         peers: state.peers.map((p) =>
-          p.id === msg.from ? { ...p, wantsVideo: msg.wantsVideo } : p,
+          p.id === msg.from
+            ? { ...p, wantsVideo: msg.wantsVideo, videoSubscriptions: msg.subscriptions }
+            : p,
         ),
       };
     case 'room-full':
