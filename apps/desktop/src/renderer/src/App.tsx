@@ -1016,7 +1016,6 @@ export function App(): React.JSX.Element {
       <Sidebar
         rooms={rooms}
         currentRoomId={currentRoomId}
-        currentRoomCount={totalInRoom}
         onSelectRoom={joinRoom}
         onCreateRoom={() => setCreateOpen(true)}
         onRequestRename={(room) => setRenameTarget(room)}

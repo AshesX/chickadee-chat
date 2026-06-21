@@ -14,7 +14,7 @@ export function SettingsSlider({
   value,
   onChange,
   markers = [],
-  labels,
+  labels = [],
   snapThreshold = 0.03,
   commitOnRelease = false,
   snapValues,
@@ -26,7 +26,7 @@ export function SettingsSlider({
   value: number;
   onChange: (val: number) => void;
   markers?: number[];
-  labels: { value: number; text: string }[];
+  labels?: { value: number; text: string }[];
   snapThreshold?: number;
   commitOnRelease?: boolean;
   /** When provided, the slider only lands on these exact values, rendered as
@@ -143,21 +143,23 @@ export function SettingsSlider({
           );
         })}
       </div>
-      <div className="mic-slider-labels" style={{ position: 'relative', height: '14px', marginTop: '-6px' }}>
-        {labels.map((l) => {
-          const percent = posPercent(l.value);
-          const leftCalc = `calc(${percent}% + ${8 - (percent / 100) * 16}px)`;
-          return (
-            <span
-              key={l.value}
-              className="mic-slider-labels__center"
-              style={{ left: leftCalc }}
-            >
-              {l.text}
-            </span>
-          );
-        })}
-      </div>
+      {labels.length > 0 && (
+        <div className="mic-slider-labels" style={{ position: 'relative', height: '14px', marginTop: '-6px' }}>
+          {labels.map((l) => {
+            const percent = posPercent(l.value);
+            const leftCalc = `calc(${percent}% + ${8 - (percent / 100) * 16}px)`;
+            return (
+              <span
+                key={l.value}
+                className="mic-slider-labels__center"
+                style={{ left: leftCalc }}
+              >
+                {l.text}
+              </span>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

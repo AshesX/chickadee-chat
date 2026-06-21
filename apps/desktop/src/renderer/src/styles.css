@@ -187,6 +187,40 @@ input:focus-visible,
   background: var(--room-active-count-bg);
 }
 
+.room-row__avatars {
+  display: flex;
+  align-items: center;
+}
+
+.room-row__avatar {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 8px;
+  font-weight: 800;
+  color: #fff;
+  overflow: hidden;
+  border: 1.5px solid var(--panel);
+  margin-left: -6px;
+  flex-shrink: 0;
+}
+
+.room-row--active .room-row__avatar {
+  border-color: var(--block-bg);
+}
+
+.room-row__avatar:first-child {
+  margin-left: 0;
+}
+
+.room-row__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .room-row--create {
   border: 1px dashed var(--border);
   opacity: 0.75;
@@ -256,7 +290,7 @@ input:focus-visible,
 .friend-row__name {
   font-size: 13.5px;
   font-weight: 500;
-  color: #d0cee8;
+  color: var(--text);
   line-height: 1.25;
 }
 
@@ -629,7 +663,7 @@ input:focus-visible,
   position: absolute;
   inset: -3px;
   border-radius: 50%;
-  box-shadow: 0 0 0 3px var(--accent), 0 0 34px 6px var(--accent-glow);
+  box-shadow: 0 0 0 3px var(--accent);
   opacity: 0;
   transition: opacity 0.18s ease;
   pointer-events: none;
@@ -644,7 +678,7 @@ input:focus-visible,
    transition. Voice-only tiles use the avatar ring above instead, not this frame. */
 .tile--speaking {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent), 0 0 26px var(--accent-glow);
+  box-shadow: 0 0 0 2px var(--accent);
 }
 
 .tile__avatar-mute {
@@ -715,7 +749,10 @@ input:focus-visible,
   gap: 8px;
   max-width: 32px; /* collapsed: icon only; slider + label clipped */
   padding: 3px;
-  background: rgba(0, 0, 0, 0.62);
+  background: color-mix(in srgb, var(--card) 90%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
   border-radius: var(--radius-pill);
   overflow: hidden;
   opacity: 0.5;
@@ -727,7 +764,7 @@ input:focus-visible,
 }
 
 .tile__volume:hover {
-  max-width: 186px;
+  max-width: 194px;
   opacity: 1;
 }
 
@@ -757,12 +794,6 @@ input:focus-visible,
 .tile__volume--muted .tile__volume-icon-btn,
 .tile__volume--muted .tile__volume-pct {
   color: #f87171;
-}
-
-.tile__volume-slider {
-  width: 90px;
-  flex-shrink: 0;
-  cursor: pointer;
 }
 
 .tile__volume-pct {

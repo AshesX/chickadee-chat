@@ -8,8 +8,6 @@ import { RoomIcon } from './RoomIcon';
 interface SidebarProps {
   rooms: Room[];
   currentRoomId: string | null;
-  /** Participant count for the current room (peers + self); 0 if not in one. */
-  currentRoomCount: number;
   onSelectRoom: (id: string) => void;
   onCreateRoom: () => void;
   onRequestRename: (room: Room) => void;
@@ -36,7 +34,6 @@ interface SidebarProps {
 export function Sidebar({
   rooms,
   currentRoomId,
-  currentRoomCount,
   onSelectRoom,
   onCreateRoom,
   onRequestRename,
@@ -273,6 +270,21 @@ export function Sidebar({
             <p className="sidebar__label">ROOMS</p>
             {rooms.map((r) => {
               const active = r.id === currentRoomId;
+              
+              const roomUsers = users.filter((u) => u.roomId === r.id);
+              if (active) {
+                roomUsers.unshift({
+                  id: 'self',
+                  name: selfName,
+                  initial: selfInitial,
+                  color: selfColor,
+                  status: selfStatus,
+                  where: '',
+                  roomId: r.id,
+                  avatarUrl: selfAvatarUrl || undefined,
+                });
+              }
+
               return (
                 <button
                   key={r.id}
@@ -285,8 +297,30 @@ export function Sidebar({
                 >
                   <span className="room-row__icon"><RoomIcon name={r.icon} size={15} /></span>
                   <span className="room-row__name">{r.label}</span>
-                  {active && currentRoomCount > 0 && (
-                    <span className="room-row__count">{currentRoomCount}</span>
+                  {roomUsers.length > 0 && (
+                    <div className="room-row__avatars">
+                      {roomUsers.slice(0, 4).map((u) => {
+                        const uAvatar = sanitizeAvatarDataUrl(u.avatarUrl);
+                        return (
+                          <div
+                            key={u.id}
+                            className="room-row__avatar"
+                            style={uAvatar ? undefined : { background: `linear-gradient(135deg, ${u.color}, ${u.color}66)` }}
+                          >
+                            {uAvatar ? (
+                              <img src={uAvatar} alt={u.name} />
+                            ) : (
+                              u.initial
+                            )}
+                          </div>
+                        );
+                      })}
+                      {roomUsers.length > 4 && (
+                        <div className="room-row__avatar" style={{ background: 'var(--border)' }}>
+                          +{roomUsers.length - 4}
+                        </div>
+                      )}
+                    </div>
                   )}
                 </button>
               );

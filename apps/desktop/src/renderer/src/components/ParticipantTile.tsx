@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { MicOff, VolumeX, Volume2 } from 'lucide-react';
 import { sanitizeAvatarDataUrl } from '@chickadee/shared';
 import { getSharedAudioContext, getMasterBus } from '../lib/audioContext';
+import { SettingsSlider } from './SettingsSlider';
 
 export interface ParticipantTileProps {
   displayName: string;
@@ -236,16 +237,14 @@ export function ParticipantTile({
           >
             {pvMuted ? <VolumeX size={15} strokeWidth={2.5} /> : <Volume2 size={15} />}
           </button>
-          <input
-            type="range"
-            className="tile__volume-slider"
+          <SettingsSlider
             min={0}
             max={200}
             step={5}
             value={pvPct}
-            style={{ accentColor: pvBoosted ? 'var(--orange)' : 'var(--text-sub)' }}
-            onChange={(e) => onVolumeChange(Number(e.target.value) / 100)}
-            aria-label={`Volume for ${displayName}`}
+            boostFrom={100}
+            onChange={(v) => onVolumeChange(v / 100)}
+            markers={[100]}
           />
           <span className="tile__volume-pct">{pvMuted ? 'Muted' : `${pvPct}%`}</span>
         </div>
