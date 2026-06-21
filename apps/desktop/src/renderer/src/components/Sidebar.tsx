@@ -12,11 +12,11 @@ import {
   MicOff,
   Headphones,
   HeadphoneOff,
-  Radio,
 } from 'lucide-react';
 import { sanitizeAvatarDataUrl, type Room, type SpaceInfo } from '@chickadee/shared';
 
 import type { SpaceUser } from '../hooks/useSpacePresence';
+import { INPUT_MODE_ICONS } from '../lib/inputModeIcons';
 import { RoomIcon } from './RoomIcon';
 import { WindowControls } from './WindowControls';
 
@@ -93,6 +93,7 @@ export function Sidebar({
 }: SidebarProps): React.JSX.Element {
   const onlineCount = users.filter((u) => u.status !== 'offline').length;
   const selfInitial = selfName.trim().charAt(0).toUpperCase() || 'Y';
+  const InputModeIcon = INPUT_MODE_ICONS[inputMode];
   const [menu, setMenu] = useState<{ room: Room; x: number; y: number } | null>(null);
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
   
@@ -393,12 +394,12 @@ export function Sidebar({
                         {deafened ? <HeadphoneOff size={14} /> : <Headphones size={14} />}
                       </button>
                       <button
-                        className={`room-row__mini-btn${inputMode === 'open' ? '' : ' room-row__mini-btn--active'}`}
+                        className="room-row__mini-btn"
                         onClick={onCycleInputMode}
                         title={inputMode === 'ptt' ? 'Push-Talk' : inputMode === 'voice' ? 'Voice' : 'Open Mic'}
                         aria-label="Cycle input mode"
                       >
-                        <Radio size={14} />
+                        <InputModeIcon size={14} />
                       </button>
                     </div>
                   )}

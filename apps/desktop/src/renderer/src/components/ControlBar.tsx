@@ -6,13 +6,13 @@ import {
   VideoOff,
   ScreenShare,
   ScreenShareOff,
-  Radio,
   PhoneOff,
   Headphones,
   HeadphoneOff,
   ChevronUp,
   Smile,
 } from 'lucide-react';
+import { INPUT_MODE_ICONS } from '../lib/inputModeIcons';
 
 type ButtonState = 'default' | 'active' | 'danger' | 'fade';
 
@@ -130,9 +130,9 @@ export function ControlBar({
 
       <div className="ctrl-group">
         <ControlButton
-          icon={Radio}
+          icon={INPUT_MODE_ICONS[inputMode]}
           label={inputMode === 'ptt' ? 'Push-Talk' : inputMode === 'voice' ? 'Voice' : 'Open Mic'}
-          state={inputMode === 'open' ? 'default' : 'active'}
+          state="default"
           title="Click to cycle: Open Mic → Voice Activation → Push-to-Talk"
           onClick={onCycleInputMode}
         />
