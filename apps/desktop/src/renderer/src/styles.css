@@ -257,7 +257,7 @@ input:focus-visible,
   color: #fff;
   overflow: hidden;
   border: 1.5px solid var(--panel);
-  margin-left: -6px;
+  margin-left: -4px;
   flex-shrink: 0;
 }
 
@@ -275,37 +275,10 @@ input:focus-visible,
   object-fit: cover;
 }
 
-/* Compact dock, selected room: each avatar shows a neutral circle frame slightly
-   bigger than itself (dark in dark theme / light in light), always on. It's a
-   negative-z pseudo so it stays BEHIND every avatar image at all times (never
-   drawn over a neighbour); the bar isolates a stacking context so the frame still
-   sits in front of the orange row. overflow:visible lets the frame extend past
-   the avatar, so the image keeps its own round clip via border-radius. */
-.app--compact .room-row--active .room-row__avatars {
-  isolation: isolate;
-}
-.app--compact .room-row--active .room-row__avatar {
-  position: relative;
-  overflow: visible;
-  border-color: var(--bg);
-}
-.app--compact .room-row--active .room-row__avatar img {
-  border-radius: 50%;
-}
-.app--compact .room-row--active .room-row__avatar::before {
-  content: '';
-  position: absolute;
-  inset: -3px;
-  border-radius: 50%;
-  background: var(--bg);
-  z-index: -1;
-}
-
-/* Speaking: 1px user-colored ring pulled inward (offset -1) onto the neutral rim.
-   No z-index lift — that would create a stacking context and pull this avatar's
-   frame in front of its neighbours, which we explicitly don't want. */
+/* Compact dock, selected room: avatars render exactly like the expanded sidebar;
+   the only addition is a green speaking ring (pulled inward) on talking users. */
 .app--compact .room-row--active .room-row__avatar--speaking {
-  outline: 1px solid var(--avatar-accent);
+  outline: 1px solid var(--green);
   outline-offset: -1px;
 }
 
@@ -827,7 +800,7 @@ input:focus-visible,
 .tile__avatar::after {
   content: '';
   position: absolute;
-  inset: -3px;
+  inset: -1px;
   border-radius: 50%;
   box-shadow: 0 0 0 3px var(--accent);
   opacity: 0;
@@ -913,7 +886,8 @@ input:focus-visible,
   display: flex;
   align-items: center;
   gap: 8px;
-  max-width: 32px; /* collapsed: icon only; slider + label clipped */
+  max-width: 32px;
+  /* collapsed: icon only; slider + label clipped */
   padding: 3px;
   background: color-mix(in srgb, var(--card) 90%, transparent);
   backdrop-filter: blur(16px);
@@ -2675,15 +2649,13 @@ input:focus-visible,
 .settings-slider--boost::-webkit-slider-runnable-track {
   height: 6px;
   border-radius: var(--radius-pill);
-  background: linear-gradient(
-    to right,
-    var(--orange) 0,
-    var(--orange) min(var(--fill), var(--boost)),
-    var(--red) min(var(--fill), var(--boost)),
-    var(--red) var(--fill),
-    var(--border) var(--fill),
-    var(--border) 100%
-  );
+  background: linear-gradient(to right,
+      var(--orange) 0,
+      var(--orange) min(var(--fill), var(--boost)),
+      var(--red) min(var(--fill), var(--boost)),
+      var(--red) var(--fill),
+      var(--border) var(--fill),
+      var(--border) 100%);
 }
 
 .settings-slider--boost::-webkit-slider-thumb {
