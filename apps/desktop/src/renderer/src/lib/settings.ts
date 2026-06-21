@@ -192,6 +192,8 @@ export const store = {
   setAccentColor: (accentColor: string): void => persist({ accentColor }),
   getDefaultVideoAction: (): 'camera' | 'screen' => cache.defaultVideoAction ?? 'camera',
   setDefaultVideoAction: (defaultVideoAction: 'camera' | 'screen'): void => persist({ defaultVideoAction }),
+  getCompactMode: (): boolean => cache.compactMode ?? false,
+  setCompactMode: (compactMode: boolean): void => persist({ compactMode }),
 };
 
 const FRIEND_PALETTE = [

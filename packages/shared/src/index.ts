@@ -93,6 +93,8 @@ export interface Peer {
   voicePreference: string;
   /** User-chosen accent color (`#rrggbb`), or '' to fall back to an auto-assigned color. */
   accentColor: string;
+  /** Whether this peer wants to receive video; false while docked/compact so senders pause video (not audio) to it. */
+  wantsVideo: boolean;
 }
 
 /** A sidebar room entry (local; the server uses arbitrary room ids). */
@@ -209,6 +211,8 @@ export interface PersistedSettings {
   chatPanelKey: string;
   ttsToggleKey: string;
   ttsStopKey: string;
+  /** Sidebar-only dock mode: window shrinks, room header/grid/control-bar hidden. */
+  compactMode: boolean;
 }
 
 export const DEFAULT_ROOMS: Room[] = [
@@ -279,6 +283,7 @@ export function defaultSettings(): PersistedSettings {
     chatPanelKey: '',
     ttsToggleKey: '',
     ttsStopKey: '',
+    compactMode: false,
   };
 }
 
@@ -309,6 +314,8 @@ export type ClientMessage =
   | { type: 'avatar-state'; avatarDataUrl: string | null }
   | { type: 'voice-state'; voicePreference: string }
   | { type: 'accent-state'; accentColor: string }
+  // Whether this peer wants incoming video (false while docked/compact); senders pause video to it.
+  | { type: 'sink-state'; wantsVideo: boolean }
   // Broadcast room list changes to the active space.
   | { type: 'update-rooms'; spaceId: string; rooms: Room[] }
   // Broadcast space rename to active peers.
@@ -364,6 +371,8 @@ export type ServerMessage =
   | { type: 'voice-state'; from: PeerId; voicePreference: string }
   // A peer changed their accent color; broadcast to all space members.
   | { type: 'accent-state'; from: PeerId; accentColor: string }
+  // A peer toggled whether it wants incoming video (compact/dock); broadcast to the room.
+  | { type: 'sink-state'; from: PeerId; wantsVideo: boolean }
   // Broadcast room list changes to the active space.
   | { type: 'rooms-updated'; spaceId: string; rooms: Room[] }
   // Broadcast space rename to all clients in the space.

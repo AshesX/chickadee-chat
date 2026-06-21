@@ -122,6 +122,17 @@ function configureMediaPermissions(): void {
   );
 }
 
+const NORMAL_MIN_WIDTH = 760;
+const NORMAL_MIN_HEIGHT = 520;
+const COMPACT_WIDTH = 260;
+const COMPACT_MIN_HEIGHT = 360;
+
+// Sidebar-only "compact mode" (dock-style window): tracked here so the resize
+// handler and createWindow()'s initial sizing branch agree on the current state.
+let isCompact = false;
+let savedBounds: Electron.Rectangle | null = null;
+let wasMaximized = false;
+
 function registerWindowControls(): void {
   ipcMain.on('chickadee:window-minimize', (e) => BrowserWindow.fromWebContents(e.sender)?.minimize());
   ipcMain.on('chickadee:window-maximize-toggle', (e) => {
@@ -131,6 +142,25 @@ function registerWindowControls(): void {
     else win.maximize();
   });
   ipcMain.on('chickadee:window-close', (e) => BrowserWindow.fromWebContents(e.sender)?.close());
+  ipcMain.on('chickadee:window-set-compact', (e, compact: boolean) => {
+    const win = BrowserWindow.fromWebContents(e.sender);
+    if (!win || compact === isCompact) return;
+    isCompact = compact;
+    if (compact) {
+      wasMaximized = win.isMaximized();
+      if (wasMaximized) win.unmaximize();
+      savedBounds = win.getBounds();
+      win.setMinimumSize(COMPACT_WIDTH, COMPACT_MIN_HEIGHT);
+      win.setResizable(false);
+      win.setBounds({ x: savedBounds.x, y: savedBounds.y, width: COMPACT_WIDTH, height: savedBounds.height });
+    } else {
+      win.setResizable(true);
+      win.setMinimumSize(NORMAL_MIN_WIDTH, NORMAL_MIN_HEIGHT);
+      win.setBounds(savedBounds ?? { ...win.getBounds(), width: 1100, height: 720 });
+      if (wasMaximized) win.maximize();
+      savedBounds = null;
+    }
+  });
 }
 
 let mainWindow: BrowserWindow | null = null;
@@ -141,11 +171,17 @@ let isQuitting = false;
 function createWindow(): void {
   const config = buildConfig();
 
+  // Read the persisted compact-mode flag up front so a relaunch into compact
+  // mode opens at the right size instead of flashing full-size first.
+  const startCompact = getSettings().compactMode ?? false;
+  isCompact = startCompact;
+
   const window = new BrowserWindow({
-    width: 1100,
+    width: startCompact ? COMPACT_WIDTH : 1100,
     height: 720,
-    minWidth: 760,
-    minHeight: 520,
+    minWidth: startCompact ? COMPACT_WIDTH : NORMAL_MIN_WIDTH,
+    minHeight: startCompact ? COMPACT_MIN_HEIGHT : NORMAL_MIN_HEIGHT,
+    resizable: !startCompact,
     show: false,
     frame: false,
     autoHideMenuBar: true,

@@ -92,6 +92,14 @@ export interface PeerLink {
    * later calls use replaceTrack. Pass null to stop sharing (keeps the m-lines).
    */
   setLocalScreenStream: (stream: MediaStream | null) => void;
+  /**
+   * Pause/resume sending *video* (camera + screen-share video) to this peer
+   * without renegotiation, leaving screen-share *audio* flowing. Used when the
+   * remote peer is docked/compact and isn't rendering video — saves our encode +
+   * upload to them while they still hear shared audio. Resume re-applies whatever
+   * the current local video tracks are.
+   */
+  setVideoPaused: (paused: boolean) => void;
   /** Tear down the connection and detach all handlers. */
   close: () => void;
 }
@@ -118,6 +126,15 @@ export function createPeerLink(opts: PeerLinkOptions): PeerLink {
   let videoSender: RTCRtpSender | null = null;
   let screenVideoSender: RTCRtpSender | null = null;
   let screenAudioSender: RTCRtpSender | null = null;
+
+  // Video-pause state (see setVideoPaused): when paused, video tracks are held
+  // (replaceTrack(null)) but remembered here so resume can re-apply the current
+  // ones. Screen *audio* is never paused.
+  let videoPaused = false;
+  let lastVideoTrack: MediaStreamTrack | null = null;
+  let lastVideoStream: MediaStream | null = null;
+  let lastScreenVideoTrack: MediaStreamTrack | null = null;
+  let lastScreenStream: MediaStream | null = null;
 
   pc.onnegotiationneeded = async () => {
     try {
@@ -182,6 +199,9 @@ export function createPeerLink(opts: PeerLinkOptions): PeerLink {
   }
 
   function setLocalVideoTrack(track: MediaStreamTrack | null, stream: MediaStream): void {
+    lastVideoTrack = track;
+    lastVideoStream = stream;
+    if (videoPaused) return; // hold; re-applied on resume
     if (track) {
       if (videoSender) {
         void videoSender.replaceTrack(track); // swap, no renegotiation
@@ -211,8 +231,30 @@ export function createPeerLink(opts: PeerLinkOptions): PeerLink {
   function setLocalScreenStream(stream: MediaStream | null): void {
     const videoTrack = stream?.getVideoTracks()[0] ?? null;
     const audioTrack = stream?.getAudioTracks()[0] ?? null;
-    screenVideoSender = applyTrack(screenVideoSender, videoTrack, stream);
+    lastScreenVideoTrack = videoTrack;
+    lastScreenStream = stream;
+    // Screen *audio* always flows — a docked peer pauses video but still hears
+    // shared (game) audio.
     screenAudioSender = applyTrack(screenAudioSender, audioTrack, stream);
+    // Screen *video* is gated by the pause flag (held until resume).
+    if (!videoPaused) {
+      screenVideoSender = applyTrack(screenVideoSender, videoTrack, stream);
+    }
+  }
+
+  function setVideoPaused(paused: boolean): void {
+    if (paused === videoPaused) return;
+    videoPaused = paused;
+    if (paused) {
+      // Stop sending video without renegotiation; the m-lines stay so resume
+      // is a cheap replaceTrack. Screen audio is untouched.
+      if (videoSender) void videoSender.replaceTrack(null);
+      if (screenVideoSender) void screenVideoSender.replaceTrack(null);
+    } else {
+      // Re-apply whatever the current local video/screen tracks are.
+      setLocalVideoTrack(lastVideoTrack, lastVideoStream ?? new MediaStream());
+      screenVideoSender = applyTrack(screenVideoSender, lastScreenVideoTrack, lastScreenStream);
+    }
   }
 
   async function handleSignal(signal: PeerSignal): Promise<void> {
@@ -260,5 +302,5 @@ export function createPeerLink(opts: PeerLinkOptions): PeerLink {
     pc.close();
   }
 
-  return { pc, handleSignal, setLocalAudioTrack, setLocalVideoTrack, setLocalScreenStream, close };
+  return { pc, handleSignal, setLocalAudioTrack, setLocalVideoTrack, setLocalScreenStream, setVideoPaused, close };
 }

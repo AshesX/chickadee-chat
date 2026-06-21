@@ -150,6 +150,13 @@ function applyPresenceUpdate(state: SignalingState, msg: ServerMessage): Signali
           p.id === msg.from ? { ...p, accentColor: msg.accentColor } : p,
         ),
       };
+    case 'sink-state':
+      return {
+        ...state,
+        peers: state.peers.map((p) =>
+          p.id === msg.from ? { ...p, wantsVideo: msg.wantsVideo } : p,
+        ),
+      };
     case 'room-full':
       return {
         ...INITIAL,

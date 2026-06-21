@@ -1,9 +1,24 @@
 import { useState, useRef, useEffect } from 'react';
-import { Pencil, Plus, Settings, Trash2, ChevronDown, Copy, Check } from 'lucide-react';
+import {
+  Pencil,
+  Plus,
+  Settings,
+  Trash2,
+  ChevronDown,
+  ChevronsLeft,
+  Copy,
+  Check,
+  Mic,
+  MicOff,
+  Headphones,
+  HeadphoneOff,
+  Radio,
+} from 'lucide-react';
 import { sanitizeAvatarDataUrl, type Room, type SpaceInfo } from '@chickadee/shared';
 
 import type { SpaceUser } from '../hooks/useSpacePresence';
 import { RoomIcon } from './RoomIcon';
+import { WindowControls } from './WindowControls';
 
 interface SidebarProps {
   rooms: Room[];
@@ -29,6 +44,17 @@ interface SidebarProps {
   onJoinSpace: () => void;
   onDeleteSpace: (id: string, name: string) => void;
   onSpaceSettings: (id: string) => void;
+
+  // Compact (sidebar-only dock) mode
+  compact: boolean;
+  onToggleCompact: () => void;
+  micEnabled: boolean;
+  hasMic: boolean;
+  onToggleMic: () => void;
+  deafened: boolean;
+  onToggleDeafen: () => void;
+  inputMode: 'open' | 'voice' | 'ptt';
+  onCycleInputMode: () => void;
 }
 
 export function Sidebar({
@@ -54,6 +80,16 @@ export function Sidebar({
   onJoinSpace,
   onDeleteSpace,
   onSpaceSettings,
+
+  compact,
+  onToggleCompact,
+  micEnabled,
+  hasMic,
+  onToggleMic,
+  deafened,
+  onToggleDeafen,
+  inputMode,
+  onCycleInputMode,
 }: SidebarProps): React.JSX.Element {
   const onlineCount = users.filter((u) => u.status !== 'offline').length;
   const selfInitial = selfName.trim().charAt(0).toUpperCase() || 'Y';
@@ -183,15 +219,16 @@ export function Sidebar({
             </button>
           </div>
           {activeSpace && (
-            <button 
-              className="space-copy-btn" 
-              onClick={copySpaceCode} 
+            <button
+              className="space-copy-btn"
+              onClick={copySpaceCode}
               onMouseEnter={() => setCopyHovered(true)}
               onMouseLeave={() => setCopyHovered(false)}
             >
               {copied ? <Check size={13} style={{ color: '#4ade80' }} /> : <Copy size={13} />}
             </button>
           )}
+          {compact && <WindowControls showMaximize={false} />}
         </div>
 
         {switcherOpen && (
@@ -267,7 +304,20 @@ export function Sidebar({
       <div className="sidebar__scroll">
         {activeSpace && (
           <>
-            <p className="sidebar__label">ROOMS</p>
+            <div className="sidebar__rooms-header">
+              <p className="sidebar__label">ROOMS</p>
+              <button
+                className="sidebar__collapse-btn"
+                onClick={onToggleCompact}
+                title={compact ? 'Expand' : 'Collapse to sidebar'}
+                aria-label={compact ? 'Expand' : 'Collapse to sidebar'}
+              >
+                <ChevronsLeft
+                  size={14}
+                  className={`sidebar__collapse-icon${compact ? ' sidebar__collapse-icon--flipped' : ''}`}
+                />
+              </button>
+            </div>
             {rooms.map((r) => {
               const active = r.id === currentRoomId;
               
@@ -286,43 +336,73 @@ export function Sidebar({
               }
 
               return (
-                <button
-                  key={r.id}
-                  className={`room-row${active ? ' room-row--active' : ''}`}
-                  onClick={() => onSelectRoom(r.id)}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    setMenu({ room: r, x: e.clientX, y: e.clientY });
-                  }}
-                >
-                  <span className="room-row__icon"><RoomIcon name={r.icon} size={15} /></span>
-                  <span className="room-row__name">{r.label}</span>
-                  {roomUsers.length > 0 && (
-                    <div className="room-row__avatars">
-                      {roomUsers.slice(0, 4).map((u) => {
-                        const uAvatar = sanitizeAvatarDataUrl(u.avatarUrl);
-                        return (
-                          <div
-                            key={u.id}
-                            className="room-row__avatar"
-                            style={uAvatar ? undefined : { background: `linear-gradient(135deg, ${u.color}, ${u.color}66)` }}
-                          >
-                            {uAvatar ? (
-                              <img src={uAvatar} alt={u.name} />
-                            ) : (
-                              u.initial
-                            )}
+                <div key={r.id} className={`room-row${active ? ' room-row--active' : ''}`}>
+                  <button
+                    className="room-row__main"
+                    onClick={() => onSelectRoom(r.id)}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      setMenu({ room: r, x: e.clientX, y: e.clientY });
+                    }}
+                  >
+                    <span className="room-row__icon"><RoomIcon name={r.icon} size={15} /></span>
+                    <span className="room-row__name">{r.label}</span>
+                    {roomUsers.length > 0 && (
+                      <div className="room-row__avatars">
+                        {roomUsers.slice(0, 4).map((u) => {
+                          const uAvatar = sanitizeAvatarDataUrl(u.avatarUrl);
+                          return (
+                            <div
+                              key={u.id}
+                              className="room-row__avatar"
+                              style={uAvatar ? undefined : { background: `linear-gradient(135deg, ${u.color}, ${u.color}66)` }}
+                            >
+                              {uAvatar ? (
+                                <img src={uAvatar} alt={u.name} />
+                              ) : (
+                                u.initial
+                              )}
+                            </div>
+                          );
+                        })}
+                        {roomUsers.length > 4 && (
+                          <div className="room-row__avatar" style={{ background: 'var(--border)' }}>
+                            +{roomUsers.length - 4}
                           </div>
-                        );
-                      })}
-                      {roomUsers.length > 4 && (
-                        <div className="room-row__avatar" style={{ background: 'var(--border)' }}>
-                          +{roomUsers.length - 4}
-                        </div>
-                      )}
+                        )}
+                      </div>
+                    )}
+                  </button>
+                  {compact && active && (
+                    <div className="room-row__mini-controls">
+                      <button
+                        className={`room-row__mini-btn${micEnabled ? '' : ' room-row__mini-btn--danger'}`}
+                        onClick={onToggleMic}
+                        disabled={!hasMic}
+                        title={micEnabled ? 'Mute' : 'Unmute'}
+                        aria-label={micEnabled ? 'Mute' : 'Unmute'}
+                      >
+                        {micEnabled ? <Mic size={14} /> : <MicOff size={14} />}
+                      </button>
+                      <button
+                        className={`room-row__mini-btn${deafened ? ' room-row__mini-btn--danger' : ''}`}
+                        onClick={onToggleDeafen}
+                        title={deafened ? 'Undeafen' : 'Deafen'}
+                        aria-label={deafened ? 'Undeafen' : 'Deafen'}
+                      >
+                        {deafened ? <HeadphoneOff size={14} /> : <Headphones size={14} />}
+                      </button>
+                      <button
+                        className={`room-row__mini-btn${inputMode === 'open' ? '' : ' room-row__mini-btn--active'}`}
+                        onClick={onCycleInputMode}
+                        title={inputMode === 'ptt' ? 'Push-Talk' : inputMode === 'voice' ? 'Voice' : 'Open Mic'}
+                        aria-label="Cycle input mode"
+                      >
+                        <Radio size={14} />
+                      </button>
                     </div>
                   )}
-                </button>
+                </div>
               );
             })}
             <button className="room-row room-row--create" onClick={onCreateRoom}>

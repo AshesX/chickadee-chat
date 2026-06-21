@@ -81,6 +81,7 @@ export function App(): React.JSX.Element {
     useSpaces(leaveRoom, signaling.verifySpace);
 
   const [chatOpen, setChatOpen] = useState(() => store.getChatVisible());
+  const [compactMode, setCompactMode] = useState(() => store.getCompactMode());
   const [createOpen, setCreateOpen] = useState(false);
   const [renameTarget, setRenameTarget] = useState<Room | null>(null);
   const [spaceSettingsTarget, setSpaceSettingsTarget] = useState<string | null>(null);
@@ -570,6 +571,32 @@ export function App(): React.JSX.Element {
     applyInputMode(order[(order.indexOf(inputMode) + 1) % order.length]);
   }, [inputMode, applyInputMode]);
 
+  const toggleCompactMode = useCallback(() => {
+    setCompactMode((c) => {
+      const next = !c;
+      store.setCompactMode(next);
+      return next;
+    });
+  }, []);
+
+  // Sidebar actions that open a real modal (Settings, Create/Rename Room, Space
+  // Settings, Create/Join Space) need real screen space, so expand the window
+  // first if it's currently docked to the compact sidebar-only strip.
+  const openExpanded = useCallback(
+    (action: () => void) => {
+      if (compactMode) {
+        setCompactMode(false);
+        store.setCompactMode(false);
+      }
+      action();
+    },
+    [compactMode],
+  );
+
+  useEffect(() => {
+    window.chickadee?.windowControls?.setCompact?.(compactMode);
+  }, [compactMode]);
+
   const applyVadThreshold = useCallback((threshold: number) => {
     setVadThreshold(threshold);
     store.setVadThreshold(threshold);
@@ -836,6 +863,15 @@ export function App(): React.JSX.Element {
     }
   }, [selfSpeaking, signaling.status, signaling.send]);
 
+  // Tell the room whether we want incoming video. False while docked (compact) so
+  // senders pause the video they send us (audio keeps flowing). Re-announces on
+  // (re)connect — keyed on signaling.status — since the server resets us to default.
+  useEffect(() => {
+    if (signaling.status === 'connected') {
+      signaling.send({ type: 'sink-state', wantsVideo: !compactMode });
+    }
+  }, [compactMode, signaling.status, signaling.send]);
+
   // Keep local rooms in sync with the signaling server's room list for this Space.
   useEffect(() => {
     if (signaling.status === 'connected' && signaling.rooms) {
@@ -945,6 +981,10 @@ export function App(): React.JSX.Element {
 
   useTraySync({ currentRoomLabel: currentRoom?.label ?? null, handleToggleMic, toggleDeafen });
 
+  // A tile/stream is only truly on-screen when the window is visible AND not docked
+  // to the sidebar. Drives the incoming-video detach so a docked user stops decoding.
+  const mediaVisible = windowVisible && !compactMode;
+
   // Camera tiles (self + peers), reused in grid and filmstrip layouts.
   const tiles = inRoom && (
     <>
@@ -960,7 +1000,7 @@ export function App(): React.JSX.Element {
         deafened={deafened}
         avatarUrl={localAvatarUrl}
         screenSharing={mesh.sharingScreen}
-        windowVisible={windowVisible}
+        windowVisible={mediaVisible}
       />
       {signaling.peers.map((peer) => {
         const media = mesh.remote[peer.id];
@@ -983,7 +1023,7 @@ export function App(): React.JSX.Element {
             deafened={peer.deafened}
             normalize={normalizeVoices}
             screenSharing={!!peer.screenStreamId}
-            windowVisible={windowVisible}
+            windowVisible={mediaVisible}
           />
         );
       })}
@@ -1006,7 +1046,7 @@ export function App(): React.JSX.Element {
   const errors = [mesh.micError, mesh.cameraError, mesh.screenError, signaling.error].filter(Boolean);
 
   return (
-    <div className={`app${windowFocused ? '' : ' app--unfocused'}`}>
+    <div className={`app${windowFocused ? '' : ' app--unfocused'}${compactMode ? ' app--compact' : ''}`}>
       {chat.floats.map((f) => (
         <div key={f.id} className="float-reaction" style={{ left: `${f.x}%` }}>
           {f.emoji}
@@ -1017,34 +1057,47 @@ export function App(): React.JSX.Element {
         rooms={rooms}
         currentRoomId={currentRoomId}
         onSelectRoom={joinRoom}
-        onCreateRoom={() => setCreateOpen(true)}
-        onRequestRename={(room) => setRenameTarget(room)}
+        onCreateRoom={() => openExpanded(() => setCreateOpen(true))}
+        onRequestRename={(room) => openExpanded(() => setRenameTarget(room))}
         onRemoveRoom={removeRoom}
         users={users}
         selfName={displayName}
         selfColor={selfColor}
         selfAvatarUrl={localAvatarUrl}
         online={signaling.status === 'connected'}
-        onOpenSettings={() => setSettingsOpen(true)}
+        onOpenSettings={() => openExpanded(() => setSettingsOpen(true))}
         spaces={spaces}
         activeSpaceId={currentSpaceId}
         onSelectSpace={switchSpace}
-        onCreateSpace={() => {
-          setCreateSpaceOpen(true);
-          setAdvancedOpen(false);
-          setCustomSignalingUrl('');
-          setJoinSecret('');
-        }}
-        onJoinSpace={() => {
-          setJoinSpaceOpen(true);
-          setAdvancedOpen(false);
-          setCustomSignalingUrl('');
-          setJoinSecret('');
-        }}
+        onCreateSpace={() =>
+          openExpanded(() => {
+            setCreateSpaceOpen(true);
+            setAdvancedOpen(false);
+            setCustomSignalingUrl('');
+            setJoinSecret('');
+          })
+        }
+        onJoinSpace={() =>
+          openExpanded(() => {
+            setJoinSpaceOpen(true);
+            setAdvancedOpen(false);
+            setCustomSignalingUrl('');
+            setJoinSecret('');
+          })
+        }
         onDeleteSpace={deleteSpace}
-        onSpaceSettings={(id) => setSpaceSettingsTarget(id)}
+        onSpaceSettings={(id) => openExpanded(() => setSpaceSettingsTarget(id))}
         selfStatus={selfStatus}
         onChangeStatus={applyStatus}
+        compact={compactMode}
+        onToggleCompact={toggleCompactMode}
+        micEnabled={micButtonOn}
+        hasMic={!!mesh.localStream}
+        onToggleMic={handleToggleMic}
+        deafened={deafened}
+        onToggleDeafen={toggleDeafen}
+        inputMode={inputMode}
+        onCycleInputMode={cycleInputMode}
       />
 
       <div className="main">
@@ -1068,7 +1121,7 @@ export function App(): React.JSX.Element {
                 <div className="presentation">
                   <div className="stage" data-count={Math.min(activeScreens.length, 4)}>
                     {activeScreens.map((s) => (
-                      <ScreenView key={s.key} displayName={s.displayName} isSelf={s.isSelf} stream={s.stream} outputDeviceId={outputDeviceId} windowVisible={windowVisible} />
+                      <ScreenView key={s.key} displayName={s.displayName} isSelf={s.isSelf} stream={s.stream} outputDeviceId={outputDeviceId} windowVisible={mediaVisible} />
                     ))}
                   </div>
                   <ul className="filmstrip">{tiles}</ul>

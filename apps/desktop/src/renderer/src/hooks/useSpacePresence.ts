@@ -33,7 +33,7 @@ export function useSpacePresence(signaling: Signaling, rooms: Room[]): SpaceUser
       color: p.peer.accentColor || userColor(p.peer.userId),
       status: isOffline ? 'offline' : p.peer.status,
       where,
-      roomId: p.roomId,
+      roomId: p.roomId ?? undefined,
       avatarUrl: p.peer.avatarDataUrl ?? undefined,
     };
   });

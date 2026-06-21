@@ -70,6 +70,7 @@ check('welcome carries cameraOn=false for existing peers', wb.peers[0].cameraOn 
 check('welcome carries screenStreamId=null for existing peers', wb.peers[0].screenStreamId === null);
 check('welcome carries voicePreference="" for existing peers', wb.peers[0].voicePreference === '');
 check('welcome carries accentColor="" for existing peers', wb.peers[0].accentColor === '');
+check('welcome carries wantsVideo=true for existing peers', wb.peers[0].wantsVideo === true);
 check('welcome carries userId for existing peers', wb.peers[0].userId === 'uid-Alpha');
 
 await wait(150);
@@ -151,6 +152,14 @@ const cVoice = (ev) => ev.type === 'voice-state' && ev.from === wc.selfId && ev.
 check('A receives C voice-state', a.events.some(cVoice));
 check('D receives C voice-state', d.events.some(cVoice));
 check('C does not receive its own voice-state', !c.events.some((ev) => ev.type === 'voice-state'));
+
+// Compact-dock video sink mirror — C docks (wantsVideo:false); A/D told, C not echoed.
+c.ws.send(JSON.stringify({ type: 'sink-state', wantsVideo: false }));
+await wait(200);
+const cSink = (ev) => ev.type === 'sink-state' && ev.from === wc.selfId && ev.wantsVideo === false;
+check('A receives C sink-state(wantsVideo:false)', a.events.some(cSink));
+check('D receives C sink-state(wantsVideo:false)', d.events.some(cSink));
+check('C does not receive its own sink-state', !c.events.some((ev) => ev.type === 'sink-state'));
 
 // Accent color mirror — C sets a color, A/D told (space-wide), C not echoed.
 c.ws.send(JSON.stringify({ type: 'accent-state', accentColor: '#8B5CF6' }));

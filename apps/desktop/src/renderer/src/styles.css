@@ -20,6 +20,16 @@
   min-width: 0;
 }
 
+/* Sidebar-only "compact mode" (dock-style window): hide everything except the
+   sidebar; the main process shrinks the OS window to match (see main/index.ts). */
+.app--compact .main {
+  display: none;
+}
+
+.app--compact .sidebar {
+  width: 100%;
+}
+
 button {
   font-family: inherit;
   cursor: pointer;
@@ -97,6 +107,41 @@ input:focus-visible,
   padding-top: 28px;
 }
 
+.sidebar__rooms-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sidebar__rooms-header .sidebar__label {
+  padding: 0;
+}
+
+.sidebar__collapse-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-right: var(--space-3);
+  border-radius: var(--radius-badge);
+  color: var(--dim);
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.sidebar__collapse-btn:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--tint) 6%, transparent);
+}
+
+.sidebar__collapse-icon {
+  transition: transform 0.2s ease;
+}
+
+.sidebar__collapse-icon--flipped {
+  transform: rotate(180deg);
+}
+
 .sidebar__hint {
   font-size: 12px;
   color: var(--dim);
@@ -104,26 +149,34 @@ input:focus-visible,
 }
 
 .room-row {
+  position: relative;
+  margin-bottom: 3px;
+  border-radius: var(--radius-badge);
+  border: 1px solid transparent;
+  color: var(--text);
+  transition: all 0.15s ease;
+}
+
+/* Box-model rules shared by the inner button of a restructured row
+   (`.room-row__main`) and the flat "create room" row, which has no inner
+   button and so still needs them directly. */
+.room-row__main,
+.room-row--create {
   width: 100%;
   display: flex;
   align-items: center;
   gap: var(--icon-gap);
   padding: var(--space-2) var(--space-3) var(--space-2) 10px;
-  margin-bottom: 3px;
-  border-radius: var(--radius-badge);
-  border: 1px solid transparent;
-  color: var(--text);
   font-size: 13.5px;
   text-align: left;
-  transition: all 0.15s ease;
-  position: relative;
 }
 
 .room-row:hover {
   background: color-mix(in srgb, var(--tint) 6%, transparent);
 }
 
-.room-row:active {
+.room-row__main:active,
+.room-row--create:active {
   transform: scale(0.97);
 }
 
@@ -230,6 +283,56 @@ input:focus-visible,
 .room-row--create:hover {
   opacity: 1;
   border-color: var(--active-border);
+}
+
+/* Mini voice controls shown under the active room's row in compact mode
+   (mute / deafen / cycle input-mode) — icon-only, smaller siblings of the
+   control-bar's .ctrl-btn, copying its color semantics at a smaller size. */
+.room-row__mini-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3) var(--space-2) 10px;
+  margin-top: 2px;
+}
+
+.room-row__mini-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: var(--radius-btn);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-sub);
+  transition: all 0.15s ease;
+}
+
+.room-row__mini-btn:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+
+.room-row__mini-btn:active:not(:disabled) {
+  transform: scale(0.9);
+}
+
+.room-row__mini-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.room-row__mini-btn--active {
+  background: var(--orange);
+  border-color: var(--orange);
+  color: var(--on-accent);
+}
+
+.room-row__mini-btn--danger {
+  background: color-mix(in srgb, var(--red) 18%, transparent);
+  border-color: color-mix(in srgb, var(--red) 38%, transparent);
+  color: var(--danger-text);
 }
 
 .friend-row {

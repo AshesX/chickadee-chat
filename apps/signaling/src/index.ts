@@ -185,6 +185,7 @@ function handleJoin(socket: WebSocket, msg: Extract<ClientMessage, { type: 'join
     avatarDataUrl: sanitizeAvatarDataUrl(msg.avatarDataUrl),
     voicePreference: clampString(msg.voicePreference, MAX_VOICE_PREF_LEN),
     accentColor: sanitizeAccentColor(msg.accentColor),
+    wantsVideo: true,
   };
   const conn: Connection = { socket, peer, space: spaceId, room: fullRoomId };
 
@@ -405,6 +406,12 @@ function handleVoiceState(conn: Connection, voicePreference: string): void {
   broadcast(conn.room, { type: 'voice-state', from: conn.peer.id, voicePreference: conn.peer.voicePreference }, conn.peer.id);
 }
 
+/** Record whether a peer wants incoming video (false while docked) and tell the room (room-only — media is room-scoped). */
+function handleSinkState(conn: Connection, wantsVideo: boolean): void {
+  conn.peer.wantsVideo = wantsVideo;
+  broadcast(conn.room, { type: 'sink-state', from: conn.peer.id, wantsVideo }, conn.peer.id);
+}
+
 /** Record a peer's presence status and tell the room (mirror pattern). */
 function handleStatusState(conn: Connection, status: 'online' | 'idle' | 'dnd'): void {
   const safe = sanitizeStatus(status);
@@ -607,6 +614,8 @@ wss.on('connection', (socket) => {
       handleAvatarState(conn, msg.avatarDataUrl);
     } else if (msg.type === 'voice-state') {
       handleVoiceState(conn, msg.voicePreference);
+    } else if (msg.type === 'sink-state') {
+      handleSinkState(conn, msg.wantsVideo);
     } else if (msg.type === 'accent-state') {
       handleAccentState(conn, msg.accentColor);
     } else if (msg.type === 'update-rooms') {
