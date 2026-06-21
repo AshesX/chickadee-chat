@@ -804,9 +804,17 @@ export function SettingsModal({
                       aria-label={`Use accent color ${c}`}
                     />
                   ))}
+                  {accentColor && !USER_COLORS.some((c) => c.toLowerCase() === accentColor.toLowerCase()) && (
+                    <button
+                      type="button"
+                      className="accent-swatch accent-swatch--active"
+                      style={{ background: accentColor }}
+                      onClick={() => {}}
+                      aria-label={`Use custom accent color ${accentColor}`}
+                    />
+                  )}
                   <label
-                    className={`accent-swatch accent-swatch--custom${accentColor && !USER_COLORS.some((c) => c.toLowerCase() === accentColor.toLowerCase()) ? ' accent-swatch--active' : ''}`}
-                    style={accentColor ? { background: accentColor } : undefined}
+                    className="accent-swatch accent-swatch--custom"
                     aria-label="Pick a custom accent color"
                   >
                     +

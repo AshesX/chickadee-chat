@@ -3295,9 +3295,15 @@ input:focus-visible,
   display: grid;
   place-items: center;
   font-size: 18px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.7);
-  background: rgba(255, 255, 255, 0.06);
+  font-weight: 400;
+  color: var(--text-sub, rgba(255, 255, 255, 0.7));
+  background: transparent;
+  border: 1.5px dashed var(--border);
+}
+
+.accent-swatch--custom:hover {
+  color: var(--text);
+  border-color: var(--text);
 }
 
 .accent-swatch--custom input[type='color'] {

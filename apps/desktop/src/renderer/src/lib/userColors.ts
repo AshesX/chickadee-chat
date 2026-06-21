@@ -1,16 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import type { PeerId } from '@chickadee/shared';
 
-/** Eight per-user accent colors. The local user is always index 0 (gold). */
+/** Five per-user accent colors. The local user is always index 0 (gold). */
 export const USER_COLORS = [
   '#f59e0b', // Amber
   '#8b5cf6', // Violet
   '#3b82f6', // Blue
   '#ec4899', // Pink
   '#10b981', // Emerald
-  '#ef4444', // Red
-  '#14b8a6', // Teal
-  '#6366f1', // Indigo
 ] as const;
 export const SELF_COLOR = USER_COLORS[0];
 
