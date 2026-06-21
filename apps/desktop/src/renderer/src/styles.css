@@ -81,7 +81,7 @@ input:focus-visible,
 
 .sidebar__scroll {
   flex: 1;
-  padding: 12px 8px;
+  padding: 18px 8px 12px 8px;
   overflow-y: auto;
 }
 
@@ -90,12 +90,11 @@ input:focus-visible,
   font-weight: 700;
   letter-spacing: 0.16em;
   color: var(--text);
-  padding: 0 var(--space-4) var(--space-2);
-  border-bottom: 1px solid var(--border);
+  padding: 0 var(--space-4) 2px 10px;
 }
 
 .sidebar__label:not(:first-child) {
-  padding-top: var(--space-6);
+  padding-top: 28px;
 }
 
 .sidebar__hint {
@@ -109,7 +108,7 @@ input:focus-visible,
   display: flex;
   align-items: center;
   gap: var(--icon-gap);
-  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
+  padding: var(--space-2) var(--space-3) var(--space-2) 10px;
   margin-bottom: 3px;
   border-radius: var(--radius-badge);
   border: 1px solid transparent;
@@ -203,7 +202,7 @@ input:focus-visible,
   display: flex;
   align-items: center;
   gap: var(--icon-gap);
-  padding: var(--space-1) var(--space-3);
+  padding: var(--space-1) var(--space-3) var(--space-1) 10px;
   margin-bottom: 3px;
   border-radius: var(--radius-badge);
   transition: background 0.15s ease;
