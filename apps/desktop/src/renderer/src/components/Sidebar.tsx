@@ -363,7 +363,7 @@ export function Sidebar({
                             <div
                               key={u.id}
                               className="room-row__avatar"
-                              style={uAvatar ? undefined : { background: `linear-gradient(135deg, ${u.color}, ${u.color}66)` }}
+                              style={uAvatar ? undefined : { background: u.color }}
                             >
                               {uAvatar ? (
                                 <img src={uAvatar} alt={u.name} />
@@ -439,7 +439,7 @@ export function Sidebar({
                 <div className="friend-row__avatar-wrap">
                   <div
                     className="friend-row__avatar"
-                    style={uAvatar ? undefined : { background: `linear-gradient(135deg, ${u.color}, ${u.color}66)` }}
+                    style={uAvatar ? undefined : { background: u.color }}
                   >
                     {uAvatar ? (
                       <img src={uAvatar} alt={u.name} className="friend-avatar-img" />
@@ -471,7 +471,7 @@ export function Sidebar({
           <div className="friend-row__avatar-wrap">
             <div
               className="self__avatar"
-              style={selfAvatarUrl ? undefined : { background: `linear-gradient(135deg, ${selfColor}, ${selfColor}99)` }}
+              style={selfAvatarUrl ? undefined : { background: selfColor }}
             >
               {selfAvatarUrl ? (
                 <img src={selfAvatarUrl} alt={selfName} className="friend-avatar-img" />

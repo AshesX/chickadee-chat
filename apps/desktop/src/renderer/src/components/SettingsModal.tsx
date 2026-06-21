@@ -750,7 +750,7 @@ export function SettingsModal({
                 <div className="avatar-settings-row">
                   <div
                     className="avatar-settings-preview"
-                    style={avatarDataUrl ? undefined : { background: `linear-gradient(145deg, ${selfColor}ee, ${selfColor}66)` }}
+                    style={avatarDataUrl ? undefined : { background: selfColor }}
                   >
                     {avatarDataUrl ? (
                       <img src={avatarDataUrl} alt="Your avatar" className="avatar-settings-preview__img" />

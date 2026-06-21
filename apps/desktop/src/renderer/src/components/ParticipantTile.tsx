@@ -212,7 +212,7 @@ export function ParticipantTile({
           <div
             className={`tile__avatar${showAvatarRing ? ' tile__avatar--speaking' : ''}`}
             style={{
-              background: safeAvatarUrl ? undefined : `linear-gradient(145deg, ${color}ee, ${color}66)`,
+              background: safeAvatarUrl ? undefined : color,
             }}
           >
             {safeAvatarUrl ? (
