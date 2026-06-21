@@ -300,6 +300,12 @@ export function App(): React.JSX.Element {
     inputMode === 'open' && mesh.micEnabled ? mesh.localStream : null,
   );
   const selfSpeaking = inputMode === 'open' ? selfAudioSpeaking : transmitting;
+  // Stable userIds of peers currently speaking — drives the compact sidebar's
+  // per-avatar speaking outline (self handled separately via selfSpeaking).
+  const speakingUserIds = useMemo(
+    () => new Set(signaling.peers.filter((p) => p.speaking).map((p) => p.userId)),
+    [signaling.peers],
+  );
 
   const onboardingNeeded = !displayName;
   const inRoom = currentRoomId !== null;
@@ -1126,6 +1132,8 @@ export function App(): React.JSX.Element {
         onCycleInputMode={cycleInputMode}
         hasVideoSubs={videoSubscriptions.length > 0}
         onLeaveAllVideo={leaveAllVideo}
+        selfSpeaking={selfSpeaking}
+        speakingUserIds={speakingUserIds}
       />
 
       <div className="main">

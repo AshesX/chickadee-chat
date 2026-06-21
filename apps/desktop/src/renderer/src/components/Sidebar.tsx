@@ -60,6 +60,10 @@ interface SidebarProps {
   hasVideoSubs: boolean;
   /** Leave all joined video streams (compact-mode control). */
   onLeaveAllVideo: () => void;
+  /** Whether our own voice is currently active (greens the compact input-mode icon). */
+  selfSpeaking: boolean;
+  /** Stable userIds of peers currently speaking (drives compact avatar outlines). */
+  speakingUserIds: Set<string>;
 }
 
 export function Sidebar({
@@ -97,6 +101,8 @@ export function Sidebar({
   onCycleInputMode,
   hasVideoSubs,
   onLeaveAllVideo,
+  selfSpeaking,
+  speakingUserIds,
 }: SidebarProps): React.JSX.Element {
   const onlineCount = users.filter((u) => u.status !== 'offline').length;
   const selfInitial = selfName.trim().charAt(0).toUpperCase() || 'Y';
@@ -359,11 +365,15 @@ export function Sidebar({
                       <div className="room-row__avatars">
                         {roomUsers.slice(0, 4).map((u) => {
                           const uAvatar = sanitizeAvatarDataUrl(u.avatarUrl);
+                          const isSpeaking = u.id === 'self' ? selfSpeaking : speakingUserIds.has(u.id);
                           return (
                             <div
                               key={u.id}
-                              className="room-row__avatar"
-                              style={uAvatar ? undefined : { background: u.color }}
+                              className={`room-row__avatar${isSpeaking ? ' room-row__avatar--speaking' : ''}`}
+                              style={{
+                                ...(uAvatar ? {} : { background: u.color }),
+                                '--avatar-accent': u.color,
+                              } as React.CSSProperties}
                             >
                               {uAvatar ? (
                                 <img src={uAvatar} alt={u.name} />
@@ -401,7 +411,7 @@ export function Sidebar({
                         {deafened ? <HeadphoneOff size={14} /> : <Headphones size={14} />}
                       </button>
                       <button
-                        className="room-row__mini-btn"
+                        className={`room-row__mini-btn${selfSpeaking ? ' room-row__mini-btn--speaking' : ''}`}
                         onClick={onCycleInputMode}
                         title={inputMode === 'ptt' ? 'Push-Talk' : inputMode === 'voice' ? 'Voice' : 'Open Mic'}
                         aria-label="Cycle input mode"

@@ -211,8 +211,9 @@ input:focus-visible,
   opacity: 1;
 }
 
-.room-row--active::before {
-  height: 26px;
+.room-row--active::before,
+.room-row--active:hover::before {
+  height: calc(100% - 12px);
   opacity: 1;
 }
 
@@ -272,6 +273,40 @@ input:focus-visible,
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+/* Compact dock, selected room: each avatar shows a neutral circle frame slightly
+   bigger than itself (dark in dark theme / light in light), always on. It's a
+   negative-z pseudo so it stays BEHIND every avatar image at all times (never
+   drawn over a neighbour); the bar isolates a stacking context so the frame still
+   sits in front of the orange row. overflow:visible lets the frame extend past
+   the avatar, so the image keeps its own round clip via border-radius. */
+.app--compact .room-row--active .room-row__avatars {
+  isolation: isolate;
+}
+.app--compact .room-row--active .room-row__avatar {
+  position: relative;
+  overflow: visible;
+  border-color: var(--bg);
+}
+.app--compact .room-row--active .room-row__avatar img {
+  border-radius: 50%;
+}
+.app--compact .room-row--active .room-row__avatar::before {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  background: var(--bg);
+  z-index: -1;
+}
+
+/* Speaking: 1px user-colored ring pulled inward (offset -1) onto the neutral rim.
+   No z-index lift — that would create a stacking context and pull this avatar's
+   frame in front of its neighbours, which we explicitly don't want. */
+.app--compact .room-row--active .room-row__avatar--speaking {
+  outline: 1px solid var(--avatar-accent);
+  outline-offset: -1px;
 }
 
 .room-row--create {
@@ -354,6 +389,13 @@ input:focus-visible,
 
 .room-row__mini-btn--danger:hover:not(:disabled) {
   filter: brightness(1.08);
+}
+
+/* Self voice active: the compact input-mode icon greens (online-status style).
+   Only sets color (the lucide icon is currentColor) — defined after the base so
+   it wins in both themes without touching the light-theme bg/border override. */
+.room-row__mini-btn--speaking {
+  color: var(--green);
 }
 
 .friend-row {
@@ -617,9 +659,9 @@ input:focus-visible,
   font-weight: 700;
   padding: 2px 7px;
   border-radius: var(--radius-pill);
-  background: color-mix(in srgb, var(--active-text) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--active-text) 30%, transparent);
-  color: var(--active-text);
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--orange) 30%, transparent);
+  color: var(--orange);
   letter-spacing: 0.03em;
 }
 
