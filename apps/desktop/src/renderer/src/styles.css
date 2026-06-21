@@ -1583,6 +1583,7 @@ input:focus-visible,
 .field input:focus,
 .welcome__input:focus {
   border-color: var(--active-border);
+  outline: none;
 }
 
 .icon-grid {
@@ -2578,9 +2579,10 @@ input:focus-visible,
   color: var(--text);
 }
 
-.settings-sidebar__item--active {
-  background: var(--active-bg);
-  color: var(--active-text);
+.settings-sidebar__item--active,
+.settings-sidebar__item--active:hover {
+  background: transparent;
+  color: var(--text);
   font-weight: 600;
   border-left: 3px solid var(--orange);
   border-top-left-radius: 2px;
