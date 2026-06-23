@@ -130,6 +130,8 @@ export function Sidebar({
   const [copyHovered, setCopyHovered] = useState(false);
   const [typedCode, setTypedCode] = useState('');
 
+  const [usersCollapsed, setUsersCollapsed] = useState(false);
+
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function startCloseTimeout(): void {
@@ -490,10 +492,19 @@ export function Sidebar({
               <span>Create Room</span>
             </button>
 
-            <p className="sidebar__label">
-              USERS{users.length > 0 ? ` — ${onlineCount} online` : ''}
-            </p>
-            {users.map((u) => {
+            <button
+              className="sidebar__section-header sidebar__section-header--spaced"
+              onClick={() => setUsersCollapsed(!usersCollapsed)}
+              title={usersCollapsed ? 'Expand users' : 'Collapse users'}
+            >
+              <ChevronDown
+                size={12}
+                className={`sidebar__section-chevron${usersCollapsed ? ' sidebar__section-chevron--collapsed' : ''}`}
+              />
+              <span>USERS</span>
+              {users.length > 0 && <span className="sidebar__section-count">— {onlineCount} online</span>}
+            </button>
+            {!usersCollapsed && users.map((u) => {
               // Validate peer-supplied avatar before rendering (defense in depth).
               const uAvatar = sanitizeAvatarDataUrl(u.avatarUrl);
               return (

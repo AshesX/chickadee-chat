@@ -122,7 +122,7 @@ input:focus-visible,
   margin-right: 4px;
   border-radius: var(--radius-badge);
   color: var(--dim);
-  opacity: 0.55;
+  opacity: 1.0;
   transition: color 0.15s ease, background 0.15s ease, opacity 0.15s ease;
 }
 
@@ -2454,7 +2454,7 @@ input:focus-visible,
 
 .space-copy-btn {
   color: var(--dim);
-  opacity: 0.55;
+  opacity: 1.0;
   cursor: pointer;
   transition: all 0.15s ease;
   display: grid;
