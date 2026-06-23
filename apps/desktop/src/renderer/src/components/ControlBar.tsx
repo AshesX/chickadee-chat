@@ -54,6 +54,8 @@ interface ControlBarProps {
   sharingScreen: boolean;
   onToggleShare: () => void;
   onVideoMenu: (rect: DOMRect) => void;
+  /** Whether to show the camera/screen-share control (false in voice rooms). */
+  allowVideo: boolean;
   defaultAction: 'camera' | 'screen';
   inputMode: 'open' | 'voice' | 'ptt';
   /** Cycle Open Mic → Voice Activation → Push-to-Talk. */
@@ -78,6 +80,7 @@ export function ControlBar({
   sharingScreen,
   onToggleShare,
   onVideoMenu,
+  allowVideo,
   defaultAction,
   inputMode,
   onCycleInputMode,
@@ -145,35 +148,39 @@ export function ControlBar({
         </button>
       </div>
 
-      <div className="ctrl-group">
-        <ControlButton
-          icon={cameraEnabled ? VideoOff : (sharingScreen ? ScreenShareOff : (defaultAction === 'screen' ? ScreenShare : Video))}
-          label={cameraEnabled ? 'Stop Cam' : (sharingScreen ? 'Stop Share' : (defaultAction === 'screen' ? 'Share' : 'Camera'))}
-          state={(cameraEnabled || sharingScreen) ? 'active' : 'default'}
-          onClick={() => {
-            if (cameraEnabled) {
-              onToggleCamera();
-            } else if (sharingScreen) {
-              onToggleShare();
-            } else {
-              if (defaultAction === 'screen') {
-                onToggleShare();
-              } else {
-                onToggleCamera();
-              }
-            }
-          }}
-        />
-        <button
-          className="ctrl-btn--chevron"
-          title="Video settings"
-          onClick={(e) => onVideoMenu(e.currentTarget.getBoundingClientRect())}
-        >
-          <ChevronUp size={11} />
-        </button>
-      </div>
+      {allowVideo && (
+        <>
+          <div className="ctrl-group">
+            <ControlButton
+              icon={cameraEnabled ? VideoOff : (sharingScreen ? ScreenShareOff : (defaultAction === 'screen' ? ScreenShare : Video))}
+              label={cameraEnabled ? 'Stop Cam' : (sharingScreen ? 'Stop Share' : (defaultAction === 'screen' ? 'Share' : 'Camera'))}
+              state={(cameraEnabled || sharingScreen) ? 'active' : 'default'}
+              onClick={() => {
+                if (cameraEnabled) {
+                  onToggleCamera();
+                } else if (sharingScreen) {
+                  onToggleShare();
+                } else {
+                  if (defaultAction === 'screen') {
+                    onToggleShare();
+                  } else {
+                    onToggleCamera();
+                  }
+                }
+              }}
+            />
+            <button
+              className="ctrl-btn--chevron"
+              title="Video settings"
+              onClick={(e) => onVideoMenu(e.currentTarget.getBoundingClientRect())}
+            >
+              <ChevronUp size={11} />
+            </button>
+          </div>
 
-      <div className="control-bar__divider" />
+          <div className="control-bar__divider" />
+        </>
+      )}
 
       <div
         onMouseEnter={onMouseEnterReact}

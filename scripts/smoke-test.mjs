@@ -1,19 +1,20 @@
 // Signaling smoke test: verifies presence (welcome/peer-joined/peer-left), the
-// 4-peer room cap, and Phase 2 mute broadcast (mic-state) against a running
-// signaling server on ws://localhost:8080.
+// per-type room caps (4 video / 8 voice), and Phase 2 mute broadcast (mic-state)
+// against a running signaling server on ws://localhost:8080.
 import { WebSocket } from 'ws';
 
 const URL = 'ws://localhost:8080';
 const ROOM = 'smoke';
 const SPACE = 'smoke-space';
 
-function client(displayName, { room = ROOM, userId = `uid-${displayName}`, spaceId = SPACE } = {}) {
+function client(displayName, { room = ROOM, userId = `uid-${displayName}`, spaceId = SPACE, rooms } = {}) {
   const events = [];
   const ws = new WebSocket(URL);
   const ready = new Promise((resolve) => {
     ws.on('open', () => {
       const join = { type: 'join', spaceId, room, displayName };
       if (userId !== null) join.userId = userId;
+      if (rooms) join.rooms = rooms;
       ws.send(JSON.stringify(join));
     });
     ws.on('message', (d) => {
@@ -88,7 +89,31 @@ check('D is 4th peer -> welcome lists 3 existing', wd.type === 'welcome' && wd.p
 
 const e = client('Echo');
 const we = await e.ready;
-check('E is 5th peer -> rejected with room-full', we.type === 'room-full');
+check('E is 5th peer -> rejected with room-full (video cap 4)', we.type === 'room-full');
+
+// Voice rooms hold up to 8 (vs 4 for video). The first joiner seeds the room
+// list (carrying type:'voice') into the server's in-memory space map, so the
+// server derives the larger cap from the room type.
+const VOICE_SPACE = 'voice-space';
+const VOICE_ROOM = 'vroom';
+const VOICE_ROOMS = [{ id: VOICE_ROOM, label: 'V', icon: 'sofa', type: 'voice' }];
+const voiceClients = [];
+for (let i = 0; i < 8; i++) {
+  const vc = client(`Voice${i}`, { room: VOICE_ROOM, spaceId: VOICE_SPACE, userId: `uid-v${i}`, rooms: VOICE_ROOMS });
+  vc.welcome = await vc.ready;
+  voiceClients.push(vc);
+}
+check('voice room accepts a 5th peer (cap > 4)', voiceClients[4].welcome.type === 'welcome');
+check(
+  'voice room 8th peer welcomed listing 7 existing',
+  voiceClients[7].welcome.type === 'welcome' && voiceClients[7].welcome.peers.length === 7,
+);
+const v9 = client('Voice8', { room: VOICE_ROOM, spaceId: VOICE_SPACE, userId: 'uid-v8', rooms: VOICE_ROOMS });
+const wv9 = await v9.ready;
+check('voice room rejects a 9th peer with room-full (voice cap 8)', wv9.type === 'room-full');
+for (const vc of voiceClients) vc.ws.close();
+v9.ws.close();
+await wait(150);
 
 // B leaves; remaining peers should get peer-left for B.
 b.ws.close();

@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { Mic, Video } from 'lucide-react';
+import { capacityForType, type RoomType } from '@chickadee/shared';
 import { Modal } from './Modal';
 import { ROOM_ICONS, RoomIcon } from './RoomIcon';
 
@@ -7,21 +9,27 @@ interface RoomModalProps {
   submitLabel: string;
   initialLabel?: string;
   initialIcon?: string;
-  onSubmit: (label: string, icon: string) => void;
+  initialType?: RoomType;
+  /** Show the Voice/Video segmented picker (create only; type is fixed on rename). */
+  showTypePicker?: boolean;
+  onSubmit: (label: string, icon: string, type: RoomType) => void;
   onClose: () => void;
 }
 
-/** Create-or-rename a room: name input + SVG icon search picker. */
+/** Create-or-rename a room: optional type picker + name input + SVG icon search picker. */
 export function RoomModal({
   title,
   submitLabel,
   initialLabel = '',
   initialIcon = '',
+  initialType = 'voice',
+  showTypePicker = false,
   onSubmit,
   onClose,
 }: RoomModalProps): React.JSX.Element {
   const [label, setLabel] = useState(initialLabel);
-  
+  const [type, setType] = useState<RoomType>(initialType);
+
   // Clean default: if initialIcon is not in the list of custom SVGs (e.g. legacy emoji), fall back to ROOM_ICONS[0]
   const defaultIcon = ROOM_ICONS.includes(initialIcon) ? initialIcon : ROOM_ICONS[0];
   const [icon, setIcon] = useState(defaultIcon);
@@ -29,7 +37,7 @@ export function RoomModal({
 
   function submit(): void {
     const trimmed = label.trim();
-    if (trimmed) onSubmit(trimmed, icon);
+    if (trimmed) onSubmit(trimmed, icon, type);
   }
 
   const filteredIcons = ROOM_ICONS.filter((name) =>
@@ -38,6 +46,26 @@ export function RoomModal({
 
   return (
     <Modal title={title} onClose={onClose}>
+      {showTypePicker && (
+        <>
+          <span className="field-label" style={{ display: 'block', marginBottom: '6px' }}>Room type</span>
+          <div className="seg-group seg-group--room-type" style={{ marginBottom: '14px' }}>
+            <button
+              className={`seg-btn${type === 'voice' ? ' seg-btn--active' : ''}`}
+              onClick={() => setType('voice')}
+            >
+              <Mic size={13} /> Voice <span className="seg-btn__cap">{capacityForType('voice')}</span>
+            </button>
+            <button
+              className={`seg-btn${type === 'video' ? ' seg-btn--active' : ''}`}
+              onClick={() => setType('video')}
+            >
+              <Video size={13} /> Video <span className="seg-btn__cap">{capacityForType('video')}</span>
+            </button>
+          </div>
+        </>
+      )}
+
       <label className="field" style={{ marginBottom: '14px' }}>
         <span>Room name</span>
         <input

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { DEFAULT_ICE_SERVERS, MAX_PEERS_PER_ROOM, type Room, type ThemeName } from '@chickadee/shared';
+import { DEFAULT_ICE_SERVERS, capacityForType, type Room, type RoomType, type ThemeName } from '@chickadee/shared';
 import { useSignaling } from './hooks/useSignaling';
 import { usePeerMesh } from './hooks/usePeerMesh';
 import { useRoomChat } from './hooks/useRoomChat';
@@ -84,6 +84,8 @@ export function App(): React.JSX.Element {
 
   const [chatOpen, setChatOpen] = useState(() => store.getChatVisible());
   const [compactMode, setCompactMode] = useState(() => store.getCompactMode());
+  const [voiceSectionCollapsed, setVoiceSectionCollapsed] = useState(() => store.getVoiceSectionCollapsed());
+  const [videoSectionCollapsed, setVideoSectionCollapsed] = useState(() => store.getVideoSectionCollapsed());
   // Opt-in video: stable userIds whose video/screen we've joined ("Watch").
   // Session-only (cleared on room change); broadcast to the room via sink-state.
   const [videoSubscriptions, setVideoSubscriptions] = useState<string[]>([]);
@@ -310,6 +312,9 @@ export function App(): React.JSX.Element {
   const onboardingNeeded = !displayName;
   const inRoom = currentRoomId !== null;
   const currentRoom = rooms.find((r) => r.id === currentRoomId) ?? null;
+  const currentRoomCap = capacityForType(currentRoom?.type);
+  // Voice rooms are audio-only: hide camera/screen-share controls and ignore their keybinds.
+  const allowVideo = (currentRoom?.type ?? 'video') === 'video';
   const totalInRoom = inRoom ? signaling.peers.length + 1 : 0;
   const rawUsers = useSpacePresence(signaling, signaling.rooms);
 
@@ -417,15 +422,20 @@ export function App(): React.JSX.Element {
       return;
     }
 
+    // Block joining a room that's already at capacity (server rejects too, as a backstop).
+    const target = rooms.find((r) => r.id === id);
+    const occupancy = users.filter((u) => u.roomId === id).length;
+    if (target && occupancy >= capacityForType(target.type)) return;
+
     lastJoinTimeRef.current = Date.now();
     setCurrentRoomId(id);
     mesh.prepareMedia();
     signaling.joinRoom(id);
   }
 
-  function createRoom(label: string, icon: string): void {
+  function createRoom(label: string, icon: string, type: RoomType): void {
     const id = slugify(label);
-    const next = rooms.some((r) => r.id === id) ? rooms : [...rooms, { id, label, icon }];
+    const next = rooms.some((r) => r.id === id) ? rooms : [...rooms, { id, label, icon, type }];
     updateRooms(next);
     setCreateOpen(false);
     if (signaling.status === 'connected' && currentSpaceId) {
@@ -434,7 +444,7 @@ export function App(): React.JSX.Element {
     joinRoom(id);
   }
 
-  // Rename is cosmetic — the room `id` (signaling room) stays stable.
+  // Rename is cosmetic — the room `id` (signaling room) and `type` stay stable.
   function renameRoom(id: string, label: string, icon: string): void {
     const next = rooms.map((r) => (r.id === id ? { ...r, label, icon } : r));
     updateRooms(next);
@@ -595,6 +605,22 @@ export function App(): React.JSX.Element {
     setCompactMode((c) => {
       const next = !c;
       store.setCompactMode(next);
+      return next;
+    });
+  }, []);
+
+  const toggleVoiceSection = useCallback(() => {
+    setVoiceSectionCollapsed((c) => {
+      const next = !c;
+      store.setVoiceSectionCollapsed(next);
+      return next;
+    });
+  }, []);
+
+  const toggleVideoSection = useCallback(() => {
+    setVideoSectionCollapsed((c) => {
+      const next = !c;
+      store.setVideoSectionCollapsed(next);
       return next;
     });
   }, []);
@@ -967,9 +993,12 @@ export function App(): React.JSX.Element {
     onDeafenStop: () => { if (deafened) toggleDeafen(); },
     onDeafenToggle: toggleDeafen,
     cameraKey,
-    onCameraToggle: mesh.toggleCamera,
+    onCameraToggle: () => { if (allowVideo) mesh.toggleCamera(); },
     screenShareKey,
-    onScreenShareToggle: () => { mesh.sharingScreen ? mesh.stopScreenShare() : setPickerOpen(true); },
+    onScreenShareToggle: () => {
+      if (!allowVideo) return;
+      mesh.sharingScreen ? mesh.stopScreenShare() : setPickerOpen(true);
+    },
     chatPanelKey,
     onChatPanelToggle: toggleChat,
     ttsToggleKey,
@@ -1121,6 +1150,10 @@ export function App(): React.JSX.Element {
         onSpaceSettings={(id) => openExpanded(() => setSpaceSettingsTarget(id))}
         selfStatus={selfStatus}
         onChangeStatus={applyStatus}
+        voiceCollapsed={voiceSectionCollapsed}
+        videoCollapsed={videoSectionCollapsed}
+        onToggleVoiceSection={toggleVoiceSection}
+        onToggleVideoSection={toggleVideoSection}
         compact={compactMode}
         onToggleCompact={toggleCompactMode}
         micEnabled={micButtonOn}
@@ -1140,7 +1173,7 @@ export function App(): React.JSX.Element {
         <RoomHeader
           room={currentRoom}
           count={totalInRoom}
-          maxCount={MAX_PEERS_PER_ROOM}
+          maxCount={currentRoomCap}
           chatOpen={chatOpen}
           onToggleChat={toggleChat}
           hasSpace={currentSpaceId !== null}
@@ -1172,7 +1205,7 @@ export function App(): React.JSX.Element {
                   <ul className="filmstrip">{tiles}</ul>
                 </div>
               ) : (
-                <ul className="grid" data-count={Math.min(totalInRoom, MAX_PEERS_PER_ROOM)}>
+                <ul className="grid" data-count={Math.min(totalInRoom, currentRoomCap)}>
                   {tiles}
                 </ul>
               )}
@@ -1187,6 +1220,7 @@ export function App(): React.JSX.Element {
               hasMic={!!mesh.localStream}
               onToggleMic={handleToggleMic}
               onInputMenu={(rect) => { setInputMenuAnchor(rect); setInputMenuOpen(true); setOutputMenuOpen(false); setInputModeMenuOpen(false); setVideoMenuOpen(false); setReactionMenuOpen(false); }}
+              allowVideo={allowVideo}
               cameraEnabled={mesh.cameraEnabled}
               onToggleCamera={mesh.toggleCamera}
               sharingScreen={mesh.sharingScreen}
@@ -1438,6 +1472,7 @@ export function App(): React.JSX.Element {
         <RoomModal
           title="Create a room"
           submitLabel="Create room"
+          showTypePicker
           onSubmit={createRoom}
           onClose={() => setCreateOpen(false)}
         />
@@ -1448,6 +1483,7 @@ export function App(): React.JSX.Element {
           submitLabel="Save"
           initialLabel={renameTarget.label}
           initialIcon={renameTarget.icon}
+          initialType={renameTarget.type}
           onSubmit={(label, icon) => renameRoom(renameTarget.id, label, icon)}
           onClose={() => setRenameTarget(null)}
         />

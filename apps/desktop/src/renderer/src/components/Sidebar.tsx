@@ -14,7 +14,7 @@ import {
   HeadphoneOff,
   VideoOff,
 } from 'lucide-react';
-import { sanitizeAvatarDataUrl, type Room, type SpaceInfo } from '@chickadee/shared';
+import { capacityForType, sanitizeAvatarDataUrl, type Room, type SpaceInfo } from '@chickadee/shared';
 
 import type { SpaceUser } from '../hooks/useSpacePresence';
 import { INPUT_MODE_ICONS } from '../lib/inputModeIcons';
@@ -45,6 +45,12 @@ interface SidebarProps {
   onJoinSpace: () => void;
   onDeleteSpace: (id: string, name: string) => void;
   onSpaceSettings: (id: string) => void;
+
+  // Collapsible room category sections (VOICE / VIDEO)
+  voiceCollapsed: boolean;
+  videoCollapsed: boolean;
+  onToggleVoiceSection: () => void;
+  onToggleVideoSection: () => void;
 
   // Compact (sidebar-only dock) mode
   compact: boolean;
@@ -89,6 +95,11 @@ export function Sidebar({
   onJoinSpace,
   onDeleteSpace,
   onSpaceSettings,
+
+  voiceCollapsed,
+  videoCollapsed,
+  onToggleVoiceSection,
+  onToggleVideoSection,
 
   compact,
   onToggleCompact,
@@ -195,6 +206,121 @@ export function Sidebar({
     setTypedCode('');
     setTimeout(() => setCopied(false), 1500);
   }
+
+  function renderRoom(r: Room): React.JSX.Element {
+    const active = r.id === currentRoomId;
+
+    const roomUsers = users.filter((u) => u.roomId === r.id);
+    if (active) {
+      roomUsers.unshift({
+        id: 'self',
+        name: selfName,
+        initial: selfInitial,
+        color: selfColor,
+        status: selfStatus,
+        where: '',
+        roomId: r.id,
+        avatarUrl: selfAvatarUrl || undefined,
+      });
+    }
+
+    const cap = capacityForType(r.type);
+    const occupancy = roomUsers.length;
+    const full = occupancy >= cap;
+
+    return (
+      <div
+        key={r.id}
+        className={`room-row${active ? ' room-row--active' : ''}${full && !active ? ' room-row--full' : ''}`}
+      >
+        <button
+          className="room-row__main"
+          onClick={() => onSelectRoom(r.id)}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            setMenu({ room: r, x: e.clientX, y: e.clientY });
+          }}
+        >
+          <span className="room-row__icon"><RoomIcon name={r.icon} size={15} /></span>
+          <span className="room-row__name">{r.label}</span>
+          {roomUsers.length > 0 && (
+            <div className="room-row__avatars">
+              {roomUsers.slice(0, 4).map((u) => {
+                const uAvatar = sanitizeAvatarDataUrl(u.avatarUrl);
+                const isSpeaking = u.id === 'self' ? selfSpeaking : speakingUserIds.has(u.id);
+                return (
+                  <div
+                    key={u.id}
+                    className={`room-row__avatar${isSpeaking ? ' room-row__avatar--speaking' : ''}`}
+                    style={{
+                      ...(uAvatar ? {} : { background: u.color }),
+                      '--avatar-accent': u.color,
+                    } as React.CSSProperties}
+                  >
+                    {uAvatar ? (
+                      <img src={uAvatar} alt={u.name} />
+                    ) : (
+                      u.initial
+                    )}
+                  </div>
+                );
+              })}
+              {roomUsers.length > 4 && (
+                <div className="room-row__avatar" style={{ background: 'var(--border)' }}>
+                  +{roomUsers.length - 4}
+                </div>
+              )}
+            </div>
+          )}
+          <span className={`room-row__count${full ? ' room-row__count--full' : ''}`}>
+            {occupancy}/{cap}
+          </span>
+        </button>
+        {compact && active && (
+          <div className="room-row__mini-controls">
+            <button
+              className={`room-row__mini-btn${micEnabled ? '' : ' room-row__mini-btn--danger'}`}
+              onClick={onToggleMic}
+              disabled={!hasMic}
+              title={micEnabled ? 'Mute' : 'Unmute'}
+              aria-label={micEnabled ? 'Mute' : 'Unmute'}
+            >
+              {micEnabled ? <Mic size={14} /> : <MicOff size={14} />}
+            </button>
+            <button
+              className={`room-row__mini-btn${deafened ? ' room-row__mini-btn--danger' : ''}`}
+              onClick={onToggleDeafen}
+              title={deafened ? 'Undeafen' : 'Deafen'}
+              aria-label={deafened ? 'Undeafen' : 'Deafen'}
+            >
+              {deafened ? <HeadphoneOff size={14} /> : <Headphones size={14} />}
+            </button>
+            <button
+              className={`room-row__mini-btn${selfSpeaking ? ' room-row__mini-btn--speaking' : ''}`}
+              onClick={onCycleInputMode}
+              title={inputMode === 'ptt' ? 'Push-Talk' : inputMode === 'voice' ? 'Voice' : 'Open Mic'}
+              aria-label="Cycle input mode"
+            >
+              <InputModeIcon size={14} />
+            </button>
+            {hasVideoSubs && (
+              <button
+                className="room-row__mini-btn room-row__mini-btn--end room-row__mini-btn--danger"
+                onClick={onLeaveAllVideo}
+                title="Leave video"
+                aria-label="Leave video"
+              >
+                <VideoOff size={14} />
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const voiceRooms = rooms.filter((r) => (r.type ?? 'video') === 'voice');
+  const videoRooms = rooms.filter((r) => (r.type ?? 'video') === 'video');
 
   return (
     <nav className="sidebar">
@@ -319,7 +445,18 @@ export function Sidebar({
         {activeSpace && (
           <>
             <div className="sidebar__rooms-header">
-              <p className="sidebar__label">ROOMS</p>
+              <button
+                className="sidebar__section-header"
+                onClick={onToggleVoiceSection}
+                title={voiceCollapsed ? 'Expand voice rooms' : 'Collapse voice rooms'}
+              >
+                <ChevronDown
+                  size={12}
+                  className={`sidebar__section-chevron${voiceCollapsed ? ' sidebar__section-chevron--collapsed' : ''}`}
+                />
+                <span>VOICE</span>
+                <span className="sidebar__section-count">{voiceRooms.length}</span>
+              </button>
               <button
                 className="sidebar__collapse-btn"
                 onClick={onToggleCompact}
@@ -332,107 +469,22 @@ export function Sidebar({
                 />
               </button>
             </div>
-            {rooms.map((r) => {
-              const active = r.id === currentRoomId;
-              
-              const roomUsers = users.filter((u) => u.roomId === r.id);
-              if (active) {
-                roomUsers.unshift({
-                  id: 'self',
-                  name: selfName,
-                  initial: selfInitial,
-                  color: selfColor,
-                  status: selfStatus,
-                  where: '',
-                  roomId: r.id,
-                  avatarUrl: selfAvatarUrl || undefined,
-                });
-              }
+            {!voiceCollapsed && voiceRooms.map(renderRoom)}
 
-              return (
-                <div key={r.id} className={`room-row${active ? ' room-row--active' : ''}`}>
-                  <button
-                    className="room-row__main"
-                    onClick={() => onSelectRoom(r.id)}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      setMenu({ room: r, x: e.clientX, y: e.clientY });
-                    }}
-                  >
-                    <span className="room-row__icon"><RoomIcon name={r.icon} size={15} /></span>
-                    <span className="room-row__name">{r.label}</span>
-                    {roomUsers.length > 0 && (
-                      <div className="room-row__avatars">
-                        {roomUsers.slice(0, 4).map((u) => {
-                          const uAvatar = sanitizeAvatarDataUrl(u.avatarUrl);
-                          const isSpeaking = u.id === 'self' ? selfSpeaking : speakingUserIds.has(u.id);
-                          return (
-                            <div
-                              key={u.id}
-                              className={`room-row__avatar${isSpeaking ? ' room-row__avatar--speaking' : ''}`}
-                              style={{
-                                ...(uAvatar ? {} : { background: u.color }),
-                                '--avatar-accent': u.color,
-                              } as React.CSSProperties}
-                            >
-                              {uAvatar ? (
-                                <img src={uAvatar} alt={u.name} />
-                              ) : (
-                                u.initial
-                              )}
-                            </div>
-                          );
-                        })}
-                        {roomUsers.length > 4 && (
-                          <div className="room-row__avatar" style={{ background: 'var(--border)' }}>
-                            +{roomUsers.length - 4}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </button>
-                  {compact && active && (
-                    <div className="room-row__mini-controls">
-                      <button
-                        className={`room-row__mini-btn${micEnabled ? '' : ' room-row__mini-btn--danger'}`}
-                        onClick={onToggleMic}
-                        disabled={!hasMic}
-                        title={micEnabled ? 'Mute' : 'Unmute'}
-                        aria-label={micEnabled ? 'Mute' : 'Unmute'}
-                      >
-                        {micEnabled ? <Mic size={14} /> : <MicOff size={14} />}
-                      </button>
-                      <button
-                        className={`room-row__mini-btn${deafened ? ' room-row__mini-btn--danger' : ''}`}
-                        onClick={onToggleDeafen}
-                        title={deafened ? 'Undeafen' : 'Deafen'}
-                        aria-label={deafened ? 'Undeafen' : 'Deafen'}
-                      >
-                        {deafened ? <HeadphoneOff size={14} /> : <Headphones size={14} />}
-                      </button>
-                      <button
-                        className={`room-row__mini-btn${selfSpeaking ? ' room-row__mini-btn--speaking' : ''}`}
-                        onClick={onCycleInputMode}
-                        title={inputMode === 'ptt' ? 'Push-Talk' : inputMode === 'voice' ? 'Voice' : 'Open Mic'}
-                        aria-label="Cycle input mode"
-                      >
-                        <InputModeIcon size={14} />
-                      </button>
-                      {hasVideoSubs && (
-                        <button
-                          className="room-row__mini-btn room-row__mini-btn--end room-row__mini-btn--danger"
-                          onClick={onLeaveAllVideo}
-                          title="Leave video"
-                          aria-label="Leave video"
-                        >
-                          <VideoOff size={14} />
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            <button
+              className="sidebar__section-header sidebar__section-header--spaced"
+              onClick={onToggleVideoSection}
+              title={videoCollapsed ? 'Expand video rooms' : 'Collapse video rooms'}
+            >
+              <ChevronDown
+                size={12}
+                className={`sidebar__section-chevron${videoCollapsed ? ' sidebar__section-chevron--collapsed' : ''}`}
+              />
+              <span>VIDEO</span>
+              <span className="sidebar__section-count">{videoRooms.length}</span>
+            </button>
+            {!videoCollapsed && videoRooms.map(renderRoom)}
+
             <button className="room-row room-row--create" onClick={onCreateRoom}>
               <Plus size={14} />
               <span>Create Room</span>

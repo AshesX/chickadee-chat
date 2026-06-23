@@ -146,6 +146,41 @@ input:focus-visible,
   padding: 0 var(--space-4) var(--space-1);
 }
 
+/* Click-to-collapse room category header (VOICE / VIDEO). Reuses .sidebar__label
+   typography but is a full-width button with a leading rotating chevron. */
+.sidebar__section-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 0 var(--space-4) 4px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: var(--text);
+}
+
+/* The VIDEO header sits below the voice list — give it breathing room like the
+   old label's :not(:first-child) top padding. */
+.sidebar__section-header--spaced {
+  padding-top: 22px;
+}
+
+.sidebar__section-chevron {
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.sidebar__section-chevron--collapsed {
+  transform: rotate(-90deg);
+}
+
+.sidebar__section-count {
+  margin-left: 4px;
+  font-weight: 600;
+  opacity: 0.6;
+}
+
 .room-row {
   position: relative;
   margin-bottom: 3px;
@@ -216,6 +251,9 @@ input:focus-visible,
 }
 
 .room-row__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 16px;
 }
 
@@ -226,17 +264,27 @@ input:focus-visible,
   white-space: nowrap;
 }
 
+/* Compact occupancy badge (n/cap) — a smaller sibling of .room-header__count. */
 .room-row__count {
-  background: var(--active-border);
-  color: #fff;
-  border-radius: var(--radius-pill);
-  padding: 1px 6px;
-  font-size: 10px;
+  flex-shrink: 0;
+  font-size: 9px;
   font-weight: 700;
+  padding: 1px 5px;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--orange) 30%, transparent);
+  color: var(--orange);
+  letter-spacing: 0.02em;
 }
 
-.room-row--active .room-row__count {
-  background: var(--room-active-count-bg);
+/* Full room: red badge + signals the row is unjoinable. */
+.room-row__count--full {
+  border-color: color-mix(in srgb, var(--red) 45%, transparent);
+  color: var(--red);
+}
+
+.room-row--full .room-row__main {
+  cursor: not-allowed;
 }
 
 .room-row__avatars {

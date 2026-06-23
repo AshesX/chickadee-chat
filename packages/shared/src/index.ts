@@ -6,8 +6,25 @@
  * `ice-candidate`) verbatim and never inspects their payloads.
  */
 
-/** Maximum number of peers allowed in a single room (full-mesh limit). */
+/** Maximum number of peers allowed in a single video room (full-mesh limit). */
 export const MAX_PEERS_PER_ROOM = 4;
+
+/** Maximum number of peers allowed in a single voice room (audio-only, lighter mesh). */
+export const MAX_PEERS_VOICE = 8;
+
+/** The kind of a room: 'voice' (audio only, larger cap) or 'video' (camera/screen, smaller cap). */
+export type RoomType = 'voice' | 'video';
+
+/** Peer capacity per room type. */
+export const ROOM_CAPACITY: Record<RoomType, number> = {
+  video: MAX_PEERS_PER_ROOM,
+  voice: MAX_PEERS_VOICE,
+};
+
+/** Resolve a room's peer capacity from its type; rooms without a type default to 'video'. */
+export function capacityForType(type: RoomType | undefined): number {
+  return ROOM_CAPACITY[type ?? 'video'];
+}
 
 // --- Input bounds (enforced server-side; reused client-side for defense in depth) ---
 /** Max length of a chat message / reaction. */
@@ -112,6 +129,8 @@ export interface Room {
   id: string;
   label: string;
   icon: string;
+  /** 'voice' (audio only, 8-cap) or 'video' (camera/screen, 4-cap). Omitted = legacy 'video'. */
+  type?: RoomType;
 }
 
 
@@ -223,12 +242,16 @@ export interface PersistedSettings {
   ttsStopKey: string;
   /** Sidebar-only dock mode: window shrinks, room header/grid/control-bar hidden. */
   compactMode: boolean;
+  /** Whether the sidebar VOICE room section is collapsed. */
+  voiceSectionCollapsed: boolean;
+  /** Whether the sidebar VIDEO room section is collapsed. */
+  videoSectionCollapsed: boolean;
 }
 
 export const DEFAULT_ROOMS: Room[] = [
-  { id: 'general', label: 'General', icon: 'chat-bubble' },
-  { id: 'gaming', label: 'Gaming', icon: 'dice-twenty-faces-twenty' },
-  { id: 'lounge', label: 'Lounge', icon: 'sofa' },
+  { id: 'general', label: 'General', icon: 'chat-bubble', type: 'voice' },
+  { id: 'gaming', label: 'Gaming', icon: 'dice-twenty-faces-twenty', type: 'video' },
+  { id: 'lounge', label: 'Lounge', icon: 'sofa', type: 'voice' },
 ];
 
 export function defaultSettings(): PersistedSettings {
@@ -294,6 +317,8 @@ export function defaultSettings(): PersistedSettings {
     ttsToggleKey: '',
     ttsStopKey: '',
     compactMode: false,
+    voiceSectionCollapsed: false,
+    videoSectionCollapsed: false,
   };
 }
 

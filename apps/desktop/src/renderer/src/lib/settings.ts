@@ -194,6 +194,10 @@ export const store = {
   setDefaultVideoAction: (defaultVideoAction: 'camera' | 'screen'): void => persist({ defaultVideoAction }),
   getCompactMode: (): boolean => cache.compactMode ?? false,
   setCompactMode: (compactMode: boolean): void => persist({ compactMode }),
+  getVoiceSectionCollapsed: (): boolean => cache.voiceSectionCollapsed ?? false,
+  setVoiceSectionCollapsed: (voiceSectionCollapsed: boolean): void => persist({ voiceSectionCollapsed }),
+  getVideoSectionCollapsed: (): boolean => cache.videoSectionCollapsed ?? false,
+  setVideoSectionCollapsed: (videoSectionCollapsed: boolean): void => persist({ videoSectionCollapsed }),
 };
 
 const FRIEND_PALETTE = [

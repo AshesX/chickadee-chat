@@ -5,8 +5,9 @@ import {
   MAX_AVATAR_DATA_URL_LEN,
   MAX_DISPLAY_NAME_LEN,
   MAX_ID_LEN,
-  MAX_PEERS_PER_ROOM,
+  MAX_PEERS_VOICE,
   MAX_VOICE_PREF_LEN,
+  capacityForType,
   clampString,
   parseClientMessage,
   sanitizeAccentColor,
@@ -164,7 +165,13 @@ function handleJoin(socket: WebSocket, msg: Extract<ClientMessage, { type: 'join
   const fullRoomId = room ? `${spaceId}:${room}` : null;
   const members = fullRoomId ? (rooms.get(fullRoomId) ?? new Map<PeerId, Connection>()) : null;
 
-  if (members && members.size >= MAX_PEERS_PER_ROOM) {
+  // Resolve the space's room list (existing, else the joiner's local list) so the
+  // joining room's type drives the capacity — voice rooms hold 8, video rooms 4.
+  const joinRooms = Array.isArray(msg.rooms) ? msg.rooms : [];
+  const knownRooms = spaces.get(spaceId) ?? joinRooms;
+  const roomCap = capacityForType(knownRooms.find((r) => r.id === room)?.type);
+
+  if (members && members.size >= roomCap) {
     // members is non-null only when fullRoomId (and thus room) is non-null.
     send(socket, { type: 'room-full', room: room! });
     return null;
@@ -191,7 +198,6 @@ function handleJoin(socket: WebSocket, msg: Extract<ClientMessage, { type: 'join
   const conn: Connection = { socket, peer, space: spaceId, room: fullRoomId };
 
   const wasEmpty = !spaces.has(spaceId);
-  const joinRooms = Array.isArray(msg.rooms) ? msg.rooms : [];
 
   // Track/sync rooms for the space
   if (wasEmpty && joinRooms.length > 0) {
@@ -251,7 +257,7 @@ function handleJoin(socket: WebSocket, msg: Extract<ClientMessage, { type: 'join
   // Tell everyone else about the newcomer.
   if (fullRoomId) {
     broadcast(fullRoomId, { type: 'peer-joined', peer }, peer.id);
-    console.log(`[join] ${peer.displayName} (${peer.id}) -> room "${fullRoomId}" (${members!.size}/${MAX_PEERS_PER_ROOM})`);
+    console.log(`[join] ${peer.displayName} (${peer.id}) -> room "${fullRoomId}" (${members!.size}/${roomCap})`);
   } else {
     console.log(`[join] ${peer.displayName} (${peer.id}) -> Space "${spaceId}" (no room)`);
   }
@@ -264,13 +270,15 @@ function handleJoinRoom(conn: Connection, newRoom: RoomId | null): void {
   const newFullRoomId = newRoom ? `${conn.space}:${newRoom}` : null;
   if (oldFullRoomId === newFullRoomId) return;
 
+  const spaceRooms = spaces.get(conn.space) ?? [];
+
   // 1. Leave old room if in one
   if (oldFullRoomId) {
     const members = rooms.get(oldFullRoomId);
     if (members) {
       members.delete(conn.peer.id);
       broadcast(oldFullRoomId, { type: 'peer-left', peerId: conn.peer.id });
-      console.log(`[leave-room] ${conn.peer.displayName} (${conn.peer.id}) <- room "${oldFullRoomId}" (${members.size}/${MAX_PEERS_PER_ROOM})`);
+      console.log(`[leave-room] ${conn.peer.displayName} (${conn.peer.id}) <- room "${oldFullRoomId}" (${members.size})`);
       if (members.size === 0) rooms.delete(oldFullRoomId);
     }
   }
@@ -284,7 +292,8 @@ function handleJoinRoom(conn: Connection, newRoom: RoomId | null): void {
   // 3. Join new room if not null
   if (newRoom && newFullRoomId) {
     const members = rooms.get(newFullRoomId) ?? new Map<PeerId, Connection>();
-    if (members.size >= MAX_PEERS_PER_ROOM) {
+    const roomCap = capacityForType(spaceRooms.find((r) => r.id === newRoom)?.type);
+    if (members.size >= roomCap) {
       send(conn.socket, { type: 'room-full', room: newRoom });
       conn.room = null;
     } else {
@@ -294,17 +303,15 @@ function handleJoinRoom(conn: Connection, newRoom: RoomId | null): void {
       rooms.set(newFullRoomId, members);
 
       // Send welcome to newcomer
-      const spaceRooms = spaces.get(conn.space) ?? [];
       send(conn.socket, { type: 'welcome', selfId: conn.peer.id, peers: existingPeers, rooms: spaceRooms });
 
       // Broadcast peer-joined to new room
       broadcast(newFullRoomId, { type: 'peer-joined', peer: conn.peer }, conn.peer.id);
-      console.log(`[join-room] ${conn.peer.displayName} (${conn.peer.id}) -> room "${newFullRoomId}" (${members.size}/${MAX_PEERS_PER_ROOM})`);
+      console.log(`[join-room] ${conn.peer.displayName} (${conn.peer.id}) -> room "${newFullRoomId}" (${members.size}/${roomCap})`);
     }
   } else {
     conn.room = null;
     // Send welcome with empty peers to newcomer to clear their peer mesh
-    const spaceRooms = spaces.get(conn.space) ?? [];
     send(conn.socket, { type: 'welcome', selfId: conn.peer.id, peers: [], rooms: spaceRooms });
     console.log(`[leave-room-complete] ${conn.peer.displayName} (${conn.peer.id}) -> no room`);
   }
@@ -417,7 +424,7 @@ function handleSinkState(conn: Connection, subscriptions: unknown, wantsVideo: u
   const safeSubs = Array.isArray(subscriptions)
     ? subscriptions
         .filter((s): s is string => typeof s === 'string')
-        .slice(0, MAX_PEERS_PER_ROOM)
+        .slice(0, MAX_PEERS_VOICE)
         .map((s) => clampString(s, MAX_ID_LEN))
         .filter((s) => s.length > 0)
     : [];
@@ -487,7 +494,7 @@ function handleDisconnect(conn: Connection): void {
     if (members) {
       members.delete(conn.peer.id);
       broadcast(conn.room, { type: 'peer-left', peerId: conn.peer.id });
-      console.log(`[leave] ${conn.peer.displayName} (${conn.peer.id}) <- room "${conn.room}" (${members.size}/${MAX_PEERS_PER_ROOM})`);
+      console.log(`[leave] ${conn.peer.displayName} (${conn.peer.id}) <- room "${conn.room}" (${members.size})`);
       if (members.size === 0) rooms.delete(conn.room);
     }
   }
