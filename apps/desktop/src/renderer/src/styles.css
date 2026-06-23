@@ -123,6 +123,9 @@ input:focus-visible,
   border-radius: var(--radius-badge);
   color: var(--dim);
   opacity: 1.0;
+  /* Lives in the .sidebar__space-header drag region (frameless window); without
+     no-drag the OS swallows clicks as a window drag. */
+  -webkit-app-region: no-drag;
   transition: color 0.15s ease, background 0.15s ease, opacity 0.15s ease;
 }
 
@@ -158,6 +161,7 @@ input:focus-visible,
   font-weight: 700;
   letter-spacing: 0.16em;
   color: var(--text);
+  cursor: pointer;
 }
 
 /* The VIDEO header sits below the voice list — give it breathing room like the
@@ -173,6 +177,26 @@ input:focus-visible,
 
 .sidebar__section-chevron--collapsed {
   transform: rotate(-90deg);
+}
+
+.sidebar__section-create-btn {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  color: var(--dim);
+  opacity: 0;
+  transition: all 0.15s ease;
+}
+
+.sidebar__section-header:hover .sidebar__section-create-btn {
+  opacity: 1;
+}
+
+.sidebar__section-create-btn:hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--tint) 6%, transparent);
 }
 
 .sidebar__section-count {
@@ -337,6 +361,21 @@ input:focus-visible,
 .room-row--create:hover {
   opacity: 1;
   border-color: var(--active-border);
+}
+
+.room-row--create-inline {
+  border: 1px dashed var(--border);
+  padding: 6px 10px;
+  margin: 4px 0;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  color: var(--dim);
+}
+
+.room-row--create-inline:hover {
+  background: color-mix(in srgb, var(--tint) 6%, transparent);
+  border-color: var(--active-border);
+  color: var(--text);
 }
 
 /* Mini voice controls shown under the active room's row in compact mode

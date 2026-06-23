@@ -120,14 +120,14 @@ export function Sidebar({
   const InputModeIcon = INPUT_MODE_ICONS[inputMode];
   const [menu, setMenu] = useState<{ room: Room; x: number; y: number } | null>(null);
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
-  
+
   // Space switcher states
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const activeSpace = spaces.find((s) => s.id === activeSpaceId);
 
   // Typewriter state for copy hover effect
-  const [copyHovered, setCopyHovered] = useState(false);
+  const [hoveredSpaceId, setHoveredSpaceId] = useState<string | null>(null);
   const [typedCode, setTypedCode] = useState('');
 
   const [usersCollapsed, setUsersCollapsed] = useState(false);
@@ -178,10 +178,14 @@ export function Sidebar({
 
   // Typewriter effect for Copy Space Code hover
   useEffect(() => {
-    if (!activeSpace) return;
-    
-    if (copyHovered && !copied) {
-      const fullText = activeSpace.id;
+    const hoveredSpace = spaces.find((s) => s.id === hoveredSpaceId);
+    if (!hoveredSpace) {
+      setTypedCode('');
+      return;
+    }
+
+    if (!copied) {
+      const fullText = hoveredSpace.id;
       let index = 1;
       setTypedCode(fullText.substring(0, index));
       const interval = setInterval(() => {
@@ -192,17 +196,16 @@ export function Sidebar({
         }
       }, 15);
       return () => clearInterval(interval);
-    } else if (!copyHovered) {
+    } else {
       setTypedCode('');
     }
-  }, [copyHovered, copied, activeSpace]);
+  }, [hoveredSpaceId, copied, spaces]);
 
-  function copySpaceCode(): void {
-    if (!activeSpace) return;
+  function copySpaceCode(spaceId: string): void {
     if (window.chickadee?.writeClipboard) {
-      void window.chickadee.writeClipboard(activeSpace.id);
+      void window.chickadee.writeClipboard(spaceId);
     } else {
-      navigator.clipboard.writeText(activeSpace.id);
+      navigator.clipboard.writeText(spaceId);
     }
     setCopied(true);
     setTypedCode('');
@@ -326,7 +329,7 @@ export function Sidebar({
 
   return (
     <nav className="sidebar">
-      <div 
+      <div
         id="sidebar-space-header-container"
         className="sidebar__space-header-container"
         onMouseLeave={startCloseTimeout}
@@ -338,9 +341,9 @@ export function Sidebar({
               <div className="space-switcher-btn__meta">
                 <span className={`space-switcher-btn__name${!activeSpace ? ' space-switcher-btn__name--empty' : ''}`}>
                   {copied ? (
-                    <span 
+                    <span
                       className="space-switcher-btn__name--code"
-                      style={{ 
+                      style={{
                         background: 'none',
                         WebkitTextFillColor: 'var(--green)',
                         color: 'var(--green)'
@@ -348,7 +351,7 @@ export function Sidebar({
                     >
                       copied
                     </span>
-                  ) : copyHovered ? (
+                  ) : hoveredSpaceId ? (
                     <span className="space-switcher-btn__name--code">
                       {typedCode}
                     </span>
@@ -357,19 +360,19 @@ export function Sidebar({
                   )}
                 </span>
               </div>
-              <ChevronDown size={12} className={`space-switcher-btn__chevron${switcherOpen ? ' space-switcher-btn__chevron--open' : ''}`} />
             </button>
           </div>
-          {activeSpace && (
-            <button
-              className="space-copy-btn"
-              onClick={copySpaceCode}
-              onMouseEnter={() => setCopyHovered(true)}
-              onMouseLeave={() => setCopyHovered(false)}
-            >
-              {copied ? <Check size={13} style={{ color: '#4ade80' }} /> : <Copy size={13} />}
-            </button>
-          )}
+          <button
+            className="sidebar__collapse-btn"
+            onClick={onToggleCompact}
+            title={compact ? 'Expand' : 'Collapse to sidebar'}
+            aria-label={compact ? 'Expand' : 'Collapse to sidebar'}
+          >
+            <ChevronsLeft
+              size={14}
+              className={`sidebar__collapse-icon${compact ? ' sidebar__collapse-icon--flipped' : ''}`}
+            />
+          </button>
           {compact && <WindowControls showMaximize={false} />}
         </div>
 
@@ -389,7 +392,18 @@ export function Sidebar({
                         }}
                       >
                         <span className="space-dropdown__item-name">{s.name}</span>
-                        {isActive && <span className="space-dropdown__item-dot" />}
+                      </button>
+                      <button
+                        className="space-dropdown__item-settings"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          copySpaceCode(s.id);
+                        }}
+                        onMouseEnter={() => setHoveredSpaceId(s.id)}
+                        onMouseLeave={() => setHoveredSpaceId(null)}
+                        title="Copy Space Code"
+                      >
+                        {copied && hoveredSpaceId === s.id ? <Check size={12} strokeWidth={2.5} style={{ color: '#4ade80' }} /> : <Copy size={12} strokeWidth={2.5} />}
                       </button>
                       <button
                         className="space-dropdown__item-settings"
@@ -446,37 +460,39 @@ export function Sidebar({
       <div className="sidebar__scroll">
         {activeSpace && (
           <>
-            <div className="sidebar__rooms-header">
+            <div
+              className="sidebar__section-header"
+              onClick={onToggleVoiceSection}
+              title={voiceCollapsed ? 'Expand voice rooms' : 'Collapse voice rooms'}
+              role="button"
+              tabIndex={0}
+            >
+              <ChevronDown
+                size={12}
+                className={`sidebar__section-chevron${voiceCollapsed ? ' sidebar__section-chevron--collapsed' : ''}`}
+              />
+              <span>VOICE</span>
+              <span className="sidebar__section-count">{voiceRooms.length}</span>
+              <div style={{ flex: 1 }} />
               <button
-                className="sidebar__section-header"
-                onClick={onToggleVoiceSection}
-                title={voiceCollapsed ? 'Expand voice rooms' : 'Collapse voice rooms'}
+                className="sidebar__section-create-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCreateRoom();
+                }}
+                title="Create Room"
               >
-                <ChevronDown
-                  size={12}
-                  className={`sidebar__section-chevron${voiceCollapsed ? ' sidebar__section-chevron--collapsed' : ''}`}
-                />
-                <span>VOICE</span>
-                <span className="sidebar__section-count">{voiceRooms.length}</span>
-              </button>
-              <button
-                className="sidebar__collapse-btn"
-                onClick={onToggleCompact}
-                title={compact ? 'Expand' : 'Collapse to sidebar'}
-                aria-label={compact ? 'Expand' : 'Collapse to sidebar'}
-              >
-                <ChevronsLeft
-                  size={14}
-                  className={`sidebar__collapse-icon${compact ? ' sidebar__collapse-icon--flipped' : ''}`}
-                />
+                <Plus size={14} />
               </button>
             </div>
             {!voiceCollapsed && voiceRooms.map(renderRoom)}
 
-            <button
+            <div
               className="sidebar__section-header sidebar__section-header--spaced"
               onClick={onToggleVideoSection}
               title={videoCollapsed ? 'Expand video rooms' : 'Collapse video rooms'}
+              role="button"
+              tabIndex={0}
             >
               <ChevronDown
                 size={12}
@@ -484,18 +500,28 @@ export function Sidebar({
               />
               <span>VIDEO</span>
               <span className="sidebar__section-count">{videoRooms.length}</span>
-            </button>
+              <div style={{ flex: 1 }} />
+              <button
+                className="sidebar__section-create-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCreateRoom();
+                }}
+                title="Create Room"
+              >
+                <Plus size={14} />
+              </button>
+            </div>
             {!videoCollapsed && videoRooms.map(renderRoom)}
 
-            <button className="room-row room-row--create" onClick={onCreateRoom}>
-              <Plus size={14} />
-              <span>Create Room</span>
-            </button>
 
-            <button
+
+            <div
               className="sidebar__section-header sidebar__section-header--spaced"
               onClick={() => setUsersCollapsed(!usersCollapsed)}
               title={usersCollapsed ? 'Expand users' : 'Collapse users'}
+              role="button"
+              tabIndex={0}
             >
               <ChevronDown
                 size={12}
@@ -503,32 +529,32 @@ export function Sidebar({
               />
               <span>USERS</span>
               {users.length > 0 && <span className="sidebar__section-count">— {onlineCount} online</span>}
-            </button>
+            </div>
             {!usersCollapsed && users.map((u) => {
               // Validate peer-supplied avatar before rendering (defense in depth).
               const uAvatar = sanitizeAvatarDataUrl(u.avatarUrl);
               return (
-              <div key={u.id} className="friend-row">
-                <div className="friend-row__avatar-wrap">
-                  <div
-                    className="friend-row__avatar"
-                    style={uAvatar ? undefined : { background: u.color }}
-                  >
-                    {uAvatar ? (
-                      <img src={uAvatar} alt={u.name} className="friend-avatar-img" />
-                    ) : (
-                      u.initial
-                    )}
+                <div key={u.id} className="friend-row">
+                  <div className="friend-row__avatar-wrap">
+                    <div
+                      className="friend-row__avatar"
+                      style={uAvatar ? undefined : { background: u.color }}
+                    >
+                      {uAvatar ? (
+                        <img src={uAvatar} alt={u.name} className="friend-avatar-img" />
+                      ) : (
+                        u.initial
+                      )}
+                    </div>
+                    <span className={`presence-dot presence-dot--${u.status}`} />
                   </div>
-                  <span className={`presence-dot presence-dot--${u.status}`} />
-                </div>
-                <div className="friend-row__meta">
-                  <div className={`friend-row__name${u.status === 'offline' ? ' friend-row__name--off' : ''}`}>
-                    {u.name}
+                  <div className="friend-row__meta">
+                    <div className={`friend-row__name${u.status === 'offline' ? ' friend-row__name--off' : ''}`}>
+                      {u.name}
+                    </div>
+                    <div className="friend-row__where">{u.where}</div>
                   </div>
-                  <div className="friend-row__where">{u.where}</div>
                 </div>
-              </div>
               );
             })}
           </>
