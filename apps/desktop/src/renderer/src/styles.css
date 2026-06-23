@@ -113,23 +113,21 @@ input:focus-visible,
   justify-content: space-between;
 }
 
-.sidebar__rooms-header .sidebar__label {
-  padding: 0;
-}
-
 .sidebar__collapse-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
-  margin-right: var(--space-3);
+  width: 24px;
+  height: 24px;
+  margin-right: 4px;
   border-radius: var(--radius-badge);
   color: var(--dim);
-  transition: color 0.15s ease, background 0.15s ease;
+  opacity: 0.55;
+  transition: color 0.15s ease, background 0.15s ease, opacity 0.15s ease;
 }
 
 .sidebar__collapse-btn:hover {
+  opacity: 1;
   color: var(--text);
   background: color-mix(in srgb, var(--tint) 6%, transparent);
 }
