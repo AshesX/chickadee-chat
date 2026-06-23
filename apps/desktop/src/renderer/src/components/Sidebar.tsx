@@ -340,24 +340,7 @@ export function Sidebar({
             <button className="space-switcher-btn" onClick={() => setSwitcherOpen(!switcherOpen)}>
               <div className="space-switcher-btn__meta">
                 <span className={`space-switcher-btn__name${!activeSpace ? ' space-switcher-btn__name--empty' : ''}`}>
-                  {copied ? (
-                    <span
-                      className="space-switcher-btn__name--code"
-                      style={{
-                        background: 'none',
-                        WebkitTextFillColor: 'var(--green)',
-                        color: 'var(--green)'
-                      }}
-                    >
-                      copied
-                    </span>
-                  ) : hoveredSpaceId ? (
-                    <span className="space-switcher-btn__name--code">
-                      {typedCode}
-                    </span>
-                  ) : (
-                    activeSpace?.name ?? 'Create / Join Space'
-                  )}
+                  {activeSpace?.name ?? 'Create / Join Space'}
                 </span>
               </div>
             </button>
@@ -391,7 +374,26 @@ export function Sidebar({
                           setSwitcherOpen(false);
                         }}
                       >
-                        <span className="space-dropdown__item-name">{s.name}</span>
+                        <span className="space-dropdown__item-name">
+                          {copied && hoveredSpaceId === s.id ? (
+                            <span
+                              className="space-switcher-btn__name--code"
+                              style={{
+                                background: 'none',
+                                WebkitTextFillColor: 'var(--green)',
+                                color: 'var(--green)'
+                              }}
+                            >
+                              copied
+                            </span>
+                          ) : hoveredSpaceId === s.id ? (
+                            <span className="space-switcher-btn__name--code">
+                              {typedCode}
+                            </span>
+                          ) : (
+                            s.name
+                          )}
+                        </span>
                       </button>
                       <button
                         className="space-dropdown__item-settings"
@@ -403,7 +405,7 @@ export function Sidebar({
                         onMouseLeave={() => setHoveredSpaceId(null)}
                         title="Copy Space Code"
                       >
-                        {copied && hoveredSpaceId === s.id ? <Check size={12} strokeWidth={2.5} style={{ color: '#4ade80' }} /> : <Copy size={12} strokeWidth={2.5} />}
+                        {copied && hoveredSpaceId === s.id ? <Check size={12} style={{ color: '#4ade80' }} /> : <Copy size={12} />}
                       </button>
                       <button
                         className="space-dropdown__item-settings"
