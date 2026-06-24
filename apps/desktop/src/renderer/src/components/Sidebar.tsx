@@ -243,9 +243,10 @@ export function Sidebar({
     const cap = capacityForType(r.type);
     const occupancy = roomUsers.length;
     const full = occupancy >= cap;
-    // Compact + active room: avatars get a dedicated full-width strip below the name
-    // (fits the whole roster incl. self, no scroll); otherwise an inline cluster.
-    const useStrip = compact && active;
+    // Active (joined) room, both modes: avatars get a dedicated full-width strip
+    // below the name (fits the whole roster incl. self); non-active rooms keep the
+    // lightweight inline cluster (4 + "+N").
+    const useStrip = active;
 
     const renderAvatar = (u: SpaceUser): React.JSX.Element => {
       const uAvatar = sanitizeAvatarDataUrl(u.avatarUrl);

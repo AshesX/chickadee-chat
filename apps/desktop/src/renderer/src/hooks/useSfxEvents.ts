@@ -1,6 +1,14 @@
 import { useEffect, useRef } from 'react';
 import { playSfx } from '../lib/sfx';
 
+// After a local room change the roster arrives async (welcome); suppress peer
+// join/leave cues until it settles so the populate/swap doesn't fire a second
+// cue over your own join/leave. Matches the mute-guard window.
+const ROSTER_SETTLE_MS = 1000;
+// Min spacing between peer join/leave cues (~one cue length) so near-simultaneous
+// peer events (separate WS messages → separate renders) don't stack/distort.
+const PEER_SFX_GAP_MS = 300;
+
 interface UseSfxEventsOpts {
   sfxEnabled: boolean;
   sfxVolume: number;
@@ -39,7 +47,11 @@ export function useSfxEvents({
   const prevRoomIdRef = useRef<string | null>(null);
   const prevMicButtonOnRef = useRef<boolean | null>(null);
   const prevMicEnabledRef = useRef<boolean | null>(null);
-  const lastJoinTimeRef = useRef<number>(0);
+  // Timestamp of the last local room change (join / leave / switch); gates both
+  // the roster-settle window and the post-room-change mute-cue suppression.
+  const lastRoomChangeRef = useRef<number>(0);
+  // Timestamp of the last peer join/leave cue, for coalescing rapid ones.
+  const lastPeerSfxRef = useRef<number>(0);
 
   // Peer join/leave sounds + local room join/leave sounds.
   useEffect(() => {
@@ -53,21 +65,33 @@ export function useSfxEvents({
     if (currentRoomId !== prevRoomIdRef.current) {
       if (currentRoomId) {
         if (sfxJoinLeaveEnabled) playSfx('join', sfxVolume);
-        lastJoinTimeRef.current = Date.now();
       } else if (prevRoomIdRef.current) {
         if (sfxJoinLeaveEnabled) playSfx('leave', sfxVolume);
       }
+      // Reset the settle window on ANY local room change so the async roster
+      // populate/swap that follows doesn't fire a second (overlapping) cue.
+      lastRoomChangeRef.current = Date.now();
       prevRoomIdRef.current = currentRoomId;
       prevPeerIdsRef.current = peerIdsStr;
       return;
     }
 
-    // Peer join/leave (only while in a room).
-    if (currentRoomId && sfxJoinLeaveEnabled) {
+    // Peer join/leave (only while in a room, and only once the roster has settled
+    // after a local room change — otherwise the initial populate looks like joins).
+    if (
+      currentRoomId &&
+      sfxJoinLeaveEnabled &&
+      Date.now() - lastRoomChangeRef.current > ROSTER_SETTLE_MS
+    ) {
       const prevPeers = prevPeerIdsRef.current ? prevPeerIdsRef.current.split(',').filter(Boolean) : [];
       const currentPeers = peerIdsStr ? peerIdsStr.split(',').filter(Boolean) : [];
-      if (currentPeers.length > prevPeers.length) playSfx('join', sfxVolume);
-      else if (currentPeers.length < prevPeers.length) playSfx('leave', sfxVolume);
+      const grew = currentPeers.length > prevPeers.length;
+      const shrank = currentPeers.length < prevPeers.length;
+      // Coalesce rapid peer events so two near-simultaneous ones don't overlap.
+      if ((grew || shrank) && Date.now() - lastPeerSfxRef.current > PEER_SFX_GAP_MS) {
+        lastPeerSfxRef.current = Date.now();
+        playSfx(grew ? 'join' : 'leave', sfxVolume);
+      }
     }
 
     prevPeerIdsRef.current = peerIdsStr;
@@ -87,8 +111,8 @@ export function useSfxEvents({
     }
     prevMicButtonOnRef.current = micButtonOn;
 
-    const timeSinceJoin = Date.now() - lastJoinTimeRef.current;
-    if (inRoom && timeSinceJoin > 1000 && sfxEnabled && sfxMuteEnabled && inputMode !== 'ptt') {
+    const timeSinceRoomChange = Date.now() - lastRoomChangeRef.current;
+    if (inRoom && timeSinceRoomChange > 1000 && sfxEnabled && sfxMuteEnabled && inputMode !== 'ptt') {
       playSfx(micButtonOn ? 'unmute' : 'mute', sfxVolume);
     }
   }, [micButtonOn, inRoom, sfxEnabled, sfxVolume, sfxMuteEnabled, inputMode]);
@@ -109,8 +133,8 @@ export function useSfxEvents({
     if (!sfxEnabled || !sfxTransmitEnabled || !inRoom || inputMode === 'open') return;
     // Voice mode: don't play transmission sound when the gate closes due to manual mute.
     if (inputMode === 'voice' && !micButtonOn) return;
-    const timeSinceJoin = Date.now() - lastJoinTimeRef.current;
-    if (timeSinceJoin > 1000) {
+    const timeSinceRoomChange = Date.now() - lastRoomChangeRef.current;
+    if (timeSinceRoomChange > 1000) {
       playSfx(micEnabled ? 'transmit-open' : 'transmit-close', sfxVolume);
     }
   }, [micEnabled, sfxEnabled, sfxTransmitEnabled, sfxVolume, inRoom, inputMode, micButtonOn]);

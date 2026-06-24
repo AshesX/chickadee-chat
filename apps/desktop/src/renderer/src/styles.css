@@ -346,9 +346,9 @@ input:focus-visible,
   object-fit: cover;
 }
 
-/* Compact dock, selected room: avatars render exactly like the expanded sidebar;
-   the only addition is a green speaking ring (pulled inward) on talking users. */
-.app--compact .room-row--active .room-row__avatar--speaking {
+/* Active (joined) room, both modes: a green speaking ring (pulled inward) on
+   talking users' avatars. Only the current room ever gets the speaking class. */
+.room-row--active .room-row__avatar--speaking {
   outline: 1px solid var(--green);
   outline-offset: -1px;
 }
@@ -379,7 +379,7 @@ input:focus-visible,
   background: color-mix(in srgb, var(--red) 100%, transparent);
 }
 
-/* Compact, active room: full-width avatar roster on its own line (fits all ~8). */
+/* Active room (both modes): full-width avatar roster on its own line (fits all ~8). */
 .room-row__avatar-strip {
   display: flex;
   align-items: center;

@@ -98,8 +98,24 @@ per-peer gain there is a **master output volume**, a **Deafen** switch (silences
 **output-device selection** (`setSinkId`).
 
 ### 3.6 Supporting systems
-- **Speaking indicators** (`useAudioActivity.ts`): a separate level meter per stream that
-  drives the "talking" ripple animation. It deliberately uses its **own** audio context.
+- **Speaking indicators** (`useAudioActivity.ts`): drive the grid avatar rings, the sidebar
+  avatar outlines, and the green voice-mode button. The path is **detect → edge-triggered
+  relay → static render**, and is deliberately lean:
+  - **Detect (self only):** one `AnalyserNode` (RMS, ~50 Hz, debounced with hysteresis)
+    measures only the **local** mic, and **only in open-mic mode** — PTT/voice modes run no
+    analyser (`selfSpeaking = transmitting`, the mic-live gate). Remote peers do **not** each
+    run a meter; their state arrives off the wire. It deliberately uses its **own** audio
+    context (independent mount/unmount lifecycle).
+  - **Relay (not P2P media):** the resulting boolean is broadcast as the `speaking-state`
+    mirror message over the **signaling WebSocket** (`App.tsx` → server `handleSpeakingState`
+    → room). The send is **edge-triggered** (a `useEffect` keyed on the boolean), so it fires
+    only on transitions — ~8/s worst case via the 120 ms debounce, far under the server's
+    200 msg/s/conn rate limit.
+  - **Render:** a static CSS class toggle (no per-frame animation), gated on window visibility.
+  This was reviewed for performance and left as-is; the obvious alternatives (per-tile
+  analysers, a continuous/interval broadcast, or deriving remote speaking from RTP
+  `getSynchronizationSources().audioLevel` to drop the relay) were rejected as either
+  regressions or non-trivial refactors with negligible savings.
 - **Sound effects** (`lib/sfx.ts`): short synthesized tones (join/leave/mute/etc.) on the
   shared context.
 - **Shared audio context** (`lib/audioContext.ts`): one shared context for the mic graph,
