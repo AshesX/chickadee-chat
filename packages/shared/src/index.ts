@@ -303,7 +303,7 @@ export function defaultSettings(): PersistedSettings {
     launchOnStartup: false,
     closeBehavior: 'quit',
     alwaysOnTop: false,
-    theme: 'dark',
+    theme: 'light',
     chatFontScale: 1.0,
     chatPosition: 'right',
     chatWidthScale: 1.0,

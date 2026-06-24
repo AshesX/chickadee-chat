@@ -168,12 +168,11 @@ export const store = {
   setCloseBehavior: (closeBehavior: 'quit' | 'tray'): void => persist({ closeBehavior }),
   getAlwaysOnTop: (): boolean => cache.alwaysOnTop ?? false,
   setAlwaysOnTop: (alwaysOnTop: boolean): void => persist({ alwaysOnTop }),
-  // Migrate any legacy/persisted value to the current two-theme union: the old
-  // 'experimental' (light) → 'light'; everything else (incl. 'experimental-dark'
-  // and the removed 'midnight'/'classic'/'oled', or unset) → 'dark' (default).
+  // Migrate any legacy/persisted value to the current two-theme union.
+  // Now defaults to 'light'. Explicitly dark legacy themes map to 'dark'.
   getTheme: (): ThemeName => {
     const t = cache.theme as string | undefined;
-    return t === 'light' || t === 'experimental' ? 'light' : 'dark';
+    return t === 'dark' || t === 'experimental-dark' || t === 'midnight' || t === 'classic' || t === 'oled' ? 'dark' : 'light';
   },
   setTheme: (theme: ThemeName): void => persist({ theme }),
   getChatFontScale: (): number => cache.chatFontScale ?? 1.0,
