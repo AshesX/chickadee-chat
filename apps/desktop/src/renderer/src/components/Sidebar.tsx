@@ -227,22 +227,18 @@ export function Sidebar({
       return;
     }
 
-    if (!copied) {
-      const fullText = hoveredSpace.id;
-      let index = 1;
+    const fullText = hoveredSpace.id;
+    let index = 1;
+    setTypedCode(fullText.substring(0, index));
+    const interval = setInterval(() => {
+      index++;
       setTypedCode(fullText.substring(0, index));
-      const interval = setInterval(() => {
-        index++;
-        setTypedCode(fullText.substring(0, index));
-        if (index >= fullText.length) {
-          clearInterval(interval);
-        }
-      }, 15);
-      return () => clearInterval(interval);
-    } else {
-      setTypedCode('');
-    }
-  }, [hoveredSpaceId, copied, spaces]);
+      if (index >= fullText.length) {
+        clearInterval(interval);
+      }
+    }, 15);
+    return () => clearInterval(interval);
+  }, [hoveredSpaceId, spaces]);
 
   function copySpaceCode(spaceId: string): void {
     if (window.chickadee?.writeClipboard) {
@@ -251,7 +247,6 @@ export function Sidebar({
       navigator.clipboard.writeText(spaceId);
     }
     setCopied(true);
-    setTypedCode('');
     setTimeout(() => setCopied(false), 1500);
   }
 
@@ -321,6 +316,11 @@ export function Sidebar({
         key={r.id}
         className={`room-row${active ? ' room-row--active' : ''}${full && !active ? ' room-row--full' : ''}`}
       >
+        {active && (
+          <div className="room-row__bg-icon">
+            <RoomIcon name={r.icon} size={100} />
+          </div>
+        )}
         <button
           className="room-row__main"
           onClick={() => onSelectRoom(r.id)}
