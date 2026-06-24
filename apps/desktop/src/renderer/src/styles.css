@@ -383,7 +383,7 @@ input:focus-visible,
 .room-row__avatar-strip {
   display: flex;
   align-items: center;
-  margin: 2px 8px 4px 10px;
+  margin: -4px 8px 4px 8px;
 }
 
 .room-row--create {
