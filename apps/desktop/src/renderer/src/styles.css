@@ -329,6 +329,7 @@ input:focus-visible,
   border: 1.5px solid var(--panel);
   margin-left: -4px;
   flex-shrink: 0;
+  transition: transform 0.1s ease;
 }
 
 .room-row--active .room-row__avatar {
@@ -350,6 +351,39 @@ input:focus-visible,
 .app--compact .room-row--active .room-row__avatar--speaking {
   outline: 1px solid var(--green);
   outline-offset: -1px;
+}
+
+/* Active room (both modes): avatars are click-to-mute other users. */
+.room-row__avatar--mutable {
+  position: relative;
+  cursor: pointer;
+}
+
+/* Press feedback bounces the avatar itself; cancel the row's press-scale so the
+   whole bar doesn't bounce when you click an (inline) avatar to mute. */
+.room-row__avatar--mutable:active {
+  transform: scale(0.9);
+}
+
+.room-row__main:has(.room-row__avatar--mutable:active) {
+  transform: none;
+}
+
+/* A silenced peer: white speaker-off icon over a subtle red dim. */
+.room-row__avatar-mute {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: color-mix(in srgb, var(--red) 100%, transparent);
+}
+
+/* Compact, active room: full-width avatar roster on its own line (fits all ~8). */
+.room-row__avatar-strip {
+  display: flex;
+  align-items: center;
+  margin: 2px 8px 4px 10px;
 }
 
 .room-row--create {

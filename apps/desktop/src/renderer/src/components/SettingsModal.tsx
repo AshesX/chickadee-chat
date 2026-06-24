@@ -66,6 +66,8 @@ interface SettingsModalProps {
   onChangeSfxJoinLeaveEnabled: (on: boolean) => void;
   sfxMuteEnabled: boolean;
   onChangeSfxMuteEnabled: (on: boolean) => void;
+  sfxMuteOtherEnabled: boolean;
+  onChangeSfxMuteOtherEnabled: (on: boolean) => void;
   sfxTransmitEnabled: boolean;
   onChangeSfxTransmitEnabled: (on: boolean) => void;
   sfxChatEnabled: boolean;
@@ -294,6 +296,8 @@ export function SettingsModal({
   onChangeSfxJoinLeaveEnabled,
   sfxMuteEnabled,
   onChangeSfxMuteEnabled,
+  sfxMuteOtherEnabled,
+  onChangeSfxMuteOtherEnabled,
   sfxTransmitEnabled,
   onChangeSfxTransmitEnabled,
   sfxChatEnabled,
@@ -529,6 +533,7 @@ export function SettingsModal({
     onChangeSfxVolume(defaults.sfxVolume);
     onChangeSfxJoinLeaveEnabled(defaults.sfxJoinLeaveEnabled);
     onChangeSfxMuteEnabled(defaults.sfxMuteEnabled);
+    onChangeSfxMuteOtherEnabled(defaults.sfxMuteOtherEnabled);
     onChangeSfxTransmitEnabled(defaults.sfxTransmitEnabled);
     onChangeSfxChatEnabled(defaults.sfxChatEnabled);
     onChangeSfxDeafenEnabled(defaults.sfxDeafenEnabled);
@@ -1288,6 +1293,14 @@ export function SettingsModal({
                     <span className="settings-row__hint">When you mute or unmute your microphone.</span>
                   </div>
                   <Toggle on={sfxMuteEnabled} onClick={() => onChangeSfxMuteEnabled(!sfxMuteEnabled)} />
+                </div>
+
+                <div className="settings-row" style={{ paddingLeft: 16, opacity: sfxEnabled ? 1 : 0.45, pointerEvents: sfxEnabled ? undefined : 'none' }}>
+                  <div className="settings-row__label">
+                    <span>Mute / unmute others</span>
+                    <span className="settings-row__hint">When you silence or unsilence another user.</span>
+                  </div>
+                  <Toggle on={sfxMuteOtherEnabled} onClick={() => onChangeSfxMuteOtherEnabled(!sfxMuteOtherEnabled)} />
                 </div>
 
                 <div className="settings-row" style={{ paddingLeft: 16, opacity: sfxEnabled ? 1 : 0.45, pointerEvents: sfxEnabled ? undefined : 'none' }}>

@@ -13,6 +13,8 @@ import {
   Headphones,
   HeadphoneOff,
   VideoOff,
+  VolumeX,
+  PhoneOff,
 } from 'lucide-react';
 import { capacityForType, sanitizeAvatarDataUrl, type Room, type SpaceInfo } from '@chickadee/shared';
 
@@ -70,6 +72,12 @@ interface SidebarProps {
   selfSpeaking: boolean;
   /** Stable userIds of peers currently speaking (drives compact avatar outlines). */
   speakingUserIds: Set<string>;
+  /** Stable userIds of peers we've silenced (drives the compact avatar mute overlay). */
+  mutedUserIds: Set<string>;
+  /** Toggle silence for a peer by stable userId (compact avatar click). */
+  onTogglePeerMute: (userId: string) => void;
+  /** Leave the current room (compact Leave mini-button). */
+  onLeaveRoom: () => void;
 }
 
 export function Sidebar({
@@ -114,6 +122,9 @@ export function Sidebar({
   onLeaveAllVideo,
   selfSpeaking,
   speakingUserIds,
+  mutedUserIds,
+  onTogglePeerMute,
+  onLeaveRoom,
 }: SidebarProps): React.JSX.Element {
   const onlineCount = users.filter((u) => u.status !== 'offline').length;
   const selfInitial = selfName.trim().charAt(0).toUpperCase() || 'Y';
@@ -232,6 +243,45 @@ export function Sidebar({
     const cap = capacityForType(r.type);
     const occupancy = roomUsers.length;
     const full = occupancy >= cap;
+    // Compact + active room: avatars get a dedicated full-width strip below the name
+    // (fits the whole roster incl. self, no scroll); otherwise an inline cluster.
+    const useStrip = compact && active;
+
+    const renderAvatar = (u: SpaceUser): React.JSX.Element => {
+      const uAvatar = sanitizeAvatarDataUrl(u.avatarUrl);
+      const isSpeaking = u.id === 'self' ? selfSpeaking : speakingUserIds.has(u.id);
+      // Click another user's avatar to mute/unmute them — active room only, never self.
+      const muteClickable = active && u.id !== 'self';
+      const muted = mutedUserIds.has(u.id);
+      return (
+        <div
+          key={u.id}
+          className={`room-row__avatar${isSpeaking ? ' room-row__avatar--speaking' : ''}${muteClickable ? ' room-row__avatar--mutable' : ''}`}
+          style={{
+            ...(uAvatar ? {} : { background: u.color }),
+            '--avatar-accent': u.color,
+          } as React.CSSProperties}
+          {...(muteClickable
+            ? {
+                role: 'button',
+                title: muted ? `Unmute ${u.name}` : `Mute ${u.name}`,
+                'aria-label': muted ? `Unmute ${u.name}` : `Mute ${u.name}`,
+                onClick: (e: React.MouseEvent) => {
+                  e.stopPropagation();
+                  onTogglePeerMute(u.id);
+                },
+              }
+            : {})}
+        >
+          {uAvatar ? <img src={uAvatar} alt={u.name} /> : u.initial}
+          {muteClickable && muted && (
+            <span className="room-row__avatar-mute">
+              <VolumeX size={11} strokeWidth={2.5} />
+            </span>
+          )}
+        </div>
+      );
+    };
 
     return (
       <div
@@ -248,28 +298,9 @@ export function Sidebar({
         >
           <span className="room-row__icon"><RoomIcon name={r.icon} size={15} /></span>
           <span className="room-row__name">{r.label}</span>
-          {roomUsers.length > 0 && (
+          {!useStrip && roomUsers.length > 0 && (
             <div className="room-row__avatars">
-              {roomUsers.slice(0, 4).map((u) => {
-                const uAvatar = sanitizeAvatarDataUrl(u.avatarUrl);
-                const isSpeaking = u.id === 'self' ? selfSpeaking : speakingUserIds.has(u.id);
-                return (
-                  <div
-                    key={u.id}
-                    className={`room-row__avatar${isSpeaking ? ' room-row__avatar--speaking' : ''}`}
-                    style={{
-                      ...(uAvatar ? {} : { background: u.color }),
-                      '--avatar-accent': u.color,
-                    } as React.CSSProperties}
-                  >
-                    {uAvatar ? (
-                      <img src={uAvatar} alt={u.name} />
-                    ) : (
-                      u.initial
-                    )}
-                  </div>
-                );
-              })}
+              {roomUsers.slice(0, 4).map(renderAvatar)}
               {roomUsers.length > 4 && (
                 <div className="room-row__avatar" style={{ background: 'var(--border)' }}>
                   +{roomUsers.length - 4}
@@ -281,6 +312,9 @@ export function Sidebar({
             {occupancy}/{cap}
           </span>
         </button>
+        {useStrip && roomUsers.length > 0 && (
+          <div className="room-row__avatar-strip">{roomUsers.map(renderAvatar)}</div>
+        )}
         {compact && active && (
           <div className="room-row__mini-controls">
             <button
@@ -318,6 +352,14 @@ export function Sidebar({
                 <VideoOff size={14} />
               </button>
             )}
+            <button
+              className="room-row__mini-btn room-row__mini-btn--end room-row__mini-btn--danger"
+              onClick={onLeaveRoom}
+              title="Leave room"
+              aria-label="Leave room"
+            >
+              <PhoneOff size={14} />
+            </button>
           </div>
         )}
       </div>

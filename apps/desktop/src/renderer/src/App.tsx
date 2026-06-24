@@ -110,8 +110,10 @@ export function App(): React.JSX.Element {
   const [openMicThreshold, setOpenMicThreshold] = useState(() => store.getOpenMicThreshold());
   const [openMicReductionDb, setOpenMicReductionDb] = useState(() => store.getOpenMicReductionDb());
   const [openMicReleaseMs, setOpenMicReleaseMs] = useState(() => store.getOpenMicReleaseMs());
-  // In voice mode the mic button pauses VAD (master mute) rather than toggling directly.
-  const [voiceMuted, setVoiceMuted] = useState(false);
+  // Persistent mute intent — a single master switch that survives input-mode
+  // switches (open/voice/PTT). The mic gate (mesh.micEnabled) is forced off while
+  // muted, regardless of mode; modes only manage the gate when unmuted.
+  const [micMuted, setMicMuted] = useState(false);
   const [pushToTalkKey, setPushToTalkKey] = useState(() => store.getPushToTalkKey());
   const [pttMode, setPttMode] = useState<'hold' | 'toggle'>(() => store.getPttMode());
   const [muteKey, setMuteKey] = useState(() => store.getMuteKey());
@@ -143,6 +145,9 @@ export function App(): React.JSX.Element {
   // Click-to-silence: mute = volume 0, remembering the pre-mute level (by peer.id,
   // session-only) so a later un-silence restores it. Reuses the volume persistence path.
   const lastNonZeroVolumeRef = useRef<Record<string, number>>({});
+  // Live SFX config read by togglePeerMute (defined above the sfx state), so the
+  // "mute other" cue plays for both compact avatars and full-view tiles.
+  const muteOtherSfxRef = useRef({ enabled: false, on: true, volume: 0.25 });
   const togglePeerMute = useCallback(
     (peerId: string) => {
       const cur = volumes[peerId] ?? 1;
@@ -152,8 +157,24 @@ export function App(): React.JSX.Element {
       } else {
         handleVolumeChange(peerId, lastNonZeroVolumeRef.current[peerId] ?? 1);
       }
+      const sfx = muteOtherSfxRef.current;
+      if (sfx.enabled && sfx.on) playSfx('mute-other', sfx.volume);
     },
     [volumes, handleVolumeChange],
+  );
+
+  // Stable userIds of peers we've silenced (volume 0) — drives the compact avatar
+  // mute overlay; plus a userId→session-id bridge so the sidebar can mute by userId.
+  const mutedUserIds = useMemo(
+    () => new Set(signaling.peers.filter((p) => (volumes[p.id] ?? 1) <= 0).map((p) => p.userId)),
+    [signaling.peers, volumes],
+  );
+  const togglePeerMuteByUserId = useCallback(
+    (uid: string) => {
+      const pid = signaling.peers.find((p) => p.userId === uid)?.id;
+      if (pid) togglePeerMute(pid);
+    },
+    [signaling.peers, togglePeerMute],
   );
 
   // Hydrate per-peer volume from persisted (userId-keyed) values when peers appear.
@@ -195,9 +216,11 @@ export function App(): React.JSX.Element {
   const [sfxVolume, setSfxVolume] = useState(() => store.getSfxVolume());
   const [sfxJoinLeaveEnabled, setSfxJoinLeaveEnabled] = useState(() => store.getSfxJoinLeaveEnabled());
   const [sfxMuteEnabled, setSfxMuteEnabled] = useState(() => store.getSfxMuteEnabled());
+  const [sfxMuteOtherEnabled, setSfxMuteOtherEnabled] = useState(() => store.getSfxMuteOtherEnabled());
   const [sfxTransmitEnabled, setSfxTransmitEnabled] = useState(() => store.getSfxTransmitEnabled());
   const [sfxChatEnabled, setSfxChatEnabled] = useState(() => store.getSfxChatEnabled());
   const [sfxDeafenEnabled, setSfxDeafenEnabled] = useState(() => store.getSfxDeafenEnabled());
+  muteOtherSfxRef.current = { enabled: sfxEnabled, on: sfxMuteOtherEnabled, volume: sfxVolume };
   const [deafened, setDeafened] = useState(false);
   const lastJoinTimeRef = useRef<number>(0);
   const reactionCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -293,8 +316,9 @@ export function App(): React.JSX.Element {
   });
   // In gated modes (PTT / voice activation) a live mic means we're transmitting.
   const transmitting = inputMode !== 'open' && mesh.micEnabled;
-  // What the mic button reflects: in voice mode it's the master-pause state.
-  const micButtonOn = inputMode === 'voice' ? !voiceMuted : mesh.micEnabled;
+  // What the mic button reflects: the persistent mute intent, independent of mode
+  // and of the transient transmit gate (so it doesn't flicker with VAD/PTT).
+  const micButtonOn = !micMuted;
   // Unified local "speaking" value driving the self ripple AND the broadcast, so
   // every client renders an identical ripple. Open mic: RMS-detect the live mic.
   // Gated modes: the transmit gate already is the speaking signal.
@@ -415,6 +439,9 @@ export function App(): React.JSX.Element {
     if (!currentSpaceId) return;
 
     if (id === currentRoomId) {
+      // In compact mode the active row is easy to misclick; never leave on click
+      // there (the dedicated Leave mini-button handles it). Full view unchanged.
+      if (compactMode) return;
       if (Date.now() - lastJoinTimeRef.current < 600) {
         return;
       }
@@ -593,7 +620,8 @@ export function App(): React.JSX.Element {
   const applyInputMode = useCallback((mode: 'open' | 'voice' | 'ptt') => {
     setInputMode(mode);
     store.setInputMode(mode);
-    setVoiceMuted(false); // reset the voice-mode pause when switching modes
+    // Mute intent (micMuted) intentionally persists across mode switches — the
+    // baseline mic-gating effect re-derives the transmit gate for the new mode.
   }, []);
 
   const cycleInputMode = useCallback(() => {
@@ -748,6 +776,11 @@ export function App(): React.JSX.Element {
     store.setSfxMuteEnabled(on);
   }
 
+  function applySfxMuteOtherEnabled(on: boolean): void {
+    setSfxMuteOtherEnabled(on);
+    store.setSfxMuteOtherEnabled(on);
+  }
+
   function applySfxTransmitEnabled(on: boolean): void {
     setSfxTransmitEnabled(on);
     store.setSfxTransmitEnabled(on);
@@ -860,17 +893,14 @@ export function App(): React.JSX.Element {
   }, [signaling.status, signaling.send]);
 
   const handleToggleMic = useCallback(() => {
-    if (inputMode === 'voice') {
-      // Master mute: pause/resume the VAD gate instead of toggling directly.
-      setVoiceMuted((m) => {
-        const next = !m;
-        if (next) mesh.setMicEnabled(false);
-        return next;
-      });
-      return;
-    }
-    mesh.toggleMic();
-  }, [mesh.toggleMic, mesh.setMicEnabled, inputMode]);
+    // Flip the persistent mute intent; the baseline gating effect re-derives the
+    // transmit gate per mode. Cut transmit immediately on mute so it feels instant.
+    setMicMuted((m) => {
+      const next = !m;
+      if (next) mesh.setMicEnabled(false);
+      return next;
+    });
+  }, [mesh.setMicEnabled]);
 
   // Acquire mic for test when settings is open, release if not in room when closed.
   useEffect(() => {
@@ -955,21 +985,13 @@ export function App(): React.JSX.Element {
   }, [mesh.toggleMic]);
 
   const onMuteStart = useCallback(() => {
-    if (inputMode === 'voice') {
-      setVoiceMuted(true);
-      mesh.setMicEnabled(false);
-    } else {
-      mesh.setMicEnabled(false);
-    }
-  }, [inputMode, mesh.setMicEnabled]);
+    setMicMuted(true);
+    mesh.setMicEnabled(false); // cut transmit immediately; the gating effect reasserts
+  }, [mesh.setMicEnabled]);
 
   const onMuteStop = useCallback(() => {
-    if (inputMode === 'voice') {
-      setVoiceMuted(false);
-    } else {
-      mesh.setMicEnabled(true);
-    }
-  }, [inputMode, mesh.setMicEnabled]);
+    setMicMuted(false); // the baseline gating effect re-opens per the current mode
+  }, []);
 
   const onMuteToggle = useCallback(() => {
     handleToggleMic();
@@ -977,6 +999,7 @@ export function App(): React.JSX.Element {
 
   useKeybindSync({
     inputMode,
+    muted: micMuted,
     pushToTalkKey,
     pttMode,
     muteKey,
@@ -1008,10 +1031,10 @@ export function App(): React.JSX.Element {
     localStream: mesh.localStream,
   });
 
-  // Voice-activation gate (open-mic mode). Paused while manually muted (voiceMuted).
+  // Voice-activation gate (voice mode). Paused while manually muted (micMuted).
   // Reads the pre-gate analyser so it sees the live mic even while muted.
   useVoiceActivation({
-    active: inputMode === 'voice' && inRoom && !voiceMuted,
+    active: inputMode === 'voice' && inRoom && !micMuted,
     threshold: vadThreshold,
     releaseMs: vadReleaseMs,
     analyserNode: mesh.analyserNode,
@@ -1167,6 +1190,9 @@ export function App(): React.JSX.Element {
         onLeaveAllVideo={leaveAllVideo}
         selfSpeaking={selfSpeaking}
         speakingUserIds={speakingUserIds}
+        mutedUserIds={mutedUserIds}
+        onTogglePeerMute={togglePeerMuteByUserId}
+        onLeaveRoom={leaveRoom}
       />
 
       <div className="main">
@@ -1562,6 +1588,8 @@ export function App(): React.JSX.Element {
           onChangeSfxJoinLeaveEnabled={applySfxJoinLeaveEnabled}
           sfxMuteEnabled={sfxMuteEnabled}
           onChangeSfxMuteEnabled={applySfxMuteEnabled}
+          sfxMuteOtherEnabled={sfxMuteOtherEnabled}
+          onChangeSfxMuteOtherEnabled={applySfxMuteOtherEnabled}
           sfxTransmitEnabled={sfxTransmitEnabled}
           onChangeSfxTransmitEnabled={applySfxTransmitEnabled}
           sfxChatEnabled={sfxChatEnabled}

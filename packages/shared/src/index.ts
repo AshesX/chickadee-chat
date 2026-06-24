@@ -193,6 +193,7 @@ export interface PersistedSettings {
   sfxVolume: number;
   sfxJoinLeaveEnabled: boolean;
   sfxMuteEnabled: boolean;
+  sfxMuteOtherEnabled: boolean;
   sfxTransmitEnabled: boolean;
   sfxChatEnabled: boolean;
   sfxDeafenEnabled: boolean;
@@ -282,6 +283,7 @@ export function defaultSettings(): PersistedSettings {
     sfxVolume: 0.25,
     sfxJoinLeaveEnabled: true,
     sfxMuteEnabled: true,
+    sfxMuteOtherEnabled: true,
     sfxTransmitEnabled: false,
     sfxChatEnabled: true,
     sfxDeafenEnabled: true,
