@@ -11,7 +11,6 @@ interface AppConfig {
   iceServers: RTCIceServer[];
   appVersion: string;
   joinSecret: string;
-  profile: boolean;
 }
 
 /** Main passes small fixed runtime config synchronously via --chickadee-config=<json>. */
@@ -21,7 +20,6 @@ function readConfig(): AppConfig {
     iceServers: DEFAULT_ICE_SERVERS,
     appVersion: '0.1.0',
     joinSecret: '',
-    profile: false,
   };
   const arg = process.argv.find((a) => a.startsWith('--chickadee-config='));
   if (!arg) return fallback;
@@ -55,11 +53,6 @@ const api = {
     defaultSettings(),
   /** App version */
   appVersion: config.appVersion,
-  /** Idle-perf profiling harness toggle (CHICKADEE_PROFILE); false in normal use. */
-  profile: config.profile,
-  /** Report the renderer rAF callback rate to the main-process profiler (no-op sink when off). */
-  profileRaf: (p: { rafPerSec: number; hidden: boolean; focused: boolean }): void =>
-    ipcRenderer.send('chickadee:profile-raf', p),
   /** Merge + persist a partial settings update to userData. */
   saveSettings: (partial: Partial<PersistedSettings>): Promise<void> =>
     ipcRenderer.invoke('chickadee:save-settings', partial),

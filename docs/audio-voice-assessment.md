@@ -267,8 +267,6 @@ results). Ideally test with a deliberately quiet talker and a loud one.
       leave+rejoin) — the boost returns at 160 %.
 - [ ] Deafen silences everyone; undeafen restores per-peer levels.
 - [ ] Output-device switch routes audio correctly; falling back to default works.
-- [ ] (Optional) Profiler pass: confirm CPU delta with/without Normalize at 4 peers is within
-      noise.
 
 ---
 

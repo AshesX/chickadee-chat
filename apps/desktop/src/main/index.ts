@@ -19,7 +19,6 @@ import { loadSettings, saveSettings, getSettings } from './settings';
 import { registerPushToTalk, handleBeforeInput, setHotkeyMainWindow, stopHotkeys } from './hotkeys';
 import { configureTray, setTrayMainWindow, destroyTray } from './tray';
 import { configureScreenShare } from './screenShare';
-import { configureProfiler, startProfiler } from './profiler';
 
 // In dev, override userData per "instance slot" (default 0) so settings persist
 // across restarts (a fixed dir) while two instances stay isolated — run a second
@@ -74,8 +73,6 @@ interface AppConfig {
   appVersion: string;
   /** Optional shared join secret for private signaling deployments ('' = none). */
   joinSecret: string;
-  /** Idle-perf profiling harness toggle (CHICKADEE_PROFILE); inert when false. */
-  profile: boolean;
 }
 
 function buildConfig(): AppConfig {
@@ -105,7 +102,6 @@ function buildConfig(): AppConfig {
     iceServers,
     appVersion: app.getVersion(),
     joinSecret: process.env.CHICKADEE_JOIN_SECRET ?? '',
-    profile: !!process.env.CHICKADEE_PROFILE,
   };
 }
 
@@ -240,6 +236,8 @@ function createWindow(): void {
       sandbox: true,
       contextIsolation: true,
       nodeIntegration: false,
+      // DevTools (Ctrl+Shift+I) only in development; disabled in the packaged build.
+      devTools: !app.isPackaged,
       // Keep the renderer responsive (mic toggles, PTT) when unfocused/minimized.
       backgroundThrottling: false,
       // Pass runtime config to the preload synchronously via argv.
@@ -322,7 +320,6 @@ function createWindow(): void {
 
   setHotkeyMainWindow(window);
   setTrayMainWindow(window);
-  startProfiler(window);
 }
 
 app.on('render-process-gone', (_e, _wc, details) => {
@@ -371,7 +368,6 @@ app.whenReady().then(() => {
 
   configureMediaPermissions();
   configureScreenShare();
-  configureProfiler();
   registerWindowControls();
   registerPushToTalk();
   configureTray();
