@@ -57,6 +57,10 @@ interface SidebarProps {
   // Compact (sidebar-only dock) mode
   compact: boolean;
   onToggleCompact: () => void;
+  /** Current sidebar width scale (1.0–2.0), shared between compact + full view. */
+  widthScale: number;
+  /** Live sidebar resize from the drag handle; commit=true on pointer release. */
+  onResize: (scale: number, commit: boolean) => void;
   micEnabled: boolean;
   hasMic: boolean;
   onToggleMic: () => void;
@@ -111,6 +115,8 @@ export function Sidebar({
 
   compact,
   onToggleCompact,
+  widthScale,
+  onResize,
   micEnabled,
   hasMic,
   onToggleMic,
@@ -136,6 +142,32 @@ export function Sidebar({
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const activeSpace = spaces.find((s) => s.id === activeSpaceId);
+
+  const navRef = useRef<HTMLElement>(null);
+
+  // Drag-to-resize the sidebar width. Uses screenX (absolute) deltas so the math
+  // holds in compact mode too, where resizing the frameless window makes its right
+  // edge follow the cursor — the left edge stays fixed, so screenX delta == width
+  // delta. base 240px (full view) / 260px (compact dock) maps to the 1.0–2.0 scale.
+  function handleResizeStart(e: React.PointerEvent<HTMLDivElement>): void {
+    e.preventDefault();
+    const handle = e.currentTarget;
+    const startX = e.screenX;
+    const base = compact ? 260 : 240;
+    const startWidth = navRef.current?.getBoundingClientRect().width ?? base * widthScale;
+    handle.setPointerCapture(e.pointerId);
+    const scaleFor = (ev: PointerEvent): number =>
+      Math.max(1.0, Math.min(2.0, (startWidth + (ev.screenX - startX)) / base));
+    const onMove = (ev: PointerEvent): void => onResize(scaleFor(ev), false);
+    const onUp = (ev: PointerEvent): void => {
+      onResize(scaleFor(ev), true);
+      handle.releasePointerCapture?.(e.pointerId);
+      handle.removeEventListener('pointermove', onMove);
+      handle.removeEventListener('pointerup', onUp);
+    };
+    handle.addEventListener('pointermove', onMove);
+    handle.addEventListener('pointerup', onUp);
+  }
 
   // Typewriter state for copy hover effect
   const [hoveredSpaceId, setHoveredSpaceId] = useState<string | null>(null);
@@ -309,9 +341,11 @@ export function Sidebar({
               )}
             </div>
           )}
-          <span className={`room-row__count${full ? ' room-row__count--full' : ''}`}>
-            {occupancy}/{cap}
-          </span>
+          {occupancy > 0 && (
+            <span className={`room-row__count${full ? ' room-row__count--full' : ''}`}>
+              {occupancy}/{cap}
+            </span>
+          )}
         </button>
         {useStrip && roomUsers.length > 0 && (
           <div className="room-row__avatar-strip">{roomUsers.map(renderAvatar)}</div>
@@ -371,7 +405,7 @@ export function Sidebar({
   const videoRooms = rooms.filter((r) => (r.type ?? 'video') === 'video');
 
   return (
-    <nav className="sidebar">
+    <nav className="sidebar" ref={navRef}>
       <div
         id="sidebar-space-header-container"
         className="sidebar__space-header-container"
@@ -709,6 +743,14 @@ export function Sidebar({
           </div>
         </div>
       )}
+
+      <div
+        className="sidebar__resize-handle"
+        onPointerDown={handleResizeStart}
+        title="Drag to resize sidebar"
+        role="separator"
+        aria-orientation="vertical"
+      />
     </nav>
   );
 }

@@ -55,12 +55,39 @@ input:focus-visible,
 .sidebar {
   position: relative;
   z-index: 2;
-  width: 240px;
+  width: calc(240px * var(--sidebar-width-scale, 1));
   flex-shrink: 0;
   background: var(--panel);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
+}
+
+/* Drag handle on the sidebar's right edge — resizes the panel (full view) or the
+   docked window (compact, via IPC). no-drag so it overrides the header drag region. */
+.sidebar__resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+  z-index: 5;
+  -webkit-app-region: no-drag;
+  background: transparent;
+  transition: background 0.12s ease;
+}
+
+.sidebar__resize-handle:hover,
+.sidebar__resize-handle:active {
+  background: var(--active-border);
+}
+
+/* In compact mode the handle sits at the window's right edge, where the window
+   controls live in the 50px header — start it below them so it can't steal clicks
+   from the close button. */
+.app--compact .sidebar__resize-handle {
+  top: 50px;
 }
 
 .sidebar__logo {
@@ -305,6 +332,15 @@ input:focus-visible,
 .room-row__count--full {
   border-color: color-mix(in srgb, var(--red) 45%, transparent);
   color: var(--red);
+}
+
+/* Active room: the row background is --block-bg (= --orange in dark), so the
+   default orange badge vanishes against it. Recolor against the row bg via the
+   purpose-built --room-active-count-bg token (dark bg in dark, orange in light). */
+.room-row--active .room-row__count,
+.room-row--active .room-row__count--full {
+  border-color: color-mix(in srgb, var(--room-active-count-bg) 45%, transparent);
+  color: var(--room-active-count-bg);
 }
 
 .room-row--full .room-row__main {
@@ -1622,6 +1658,7 @@ input:focus-visible,
 
 /* ── Chat panel ───────────────────────────────────────────── */
 .chat-panel {
+  position: relative;
   width: calc(290px * var(--chat-width-scale, 1));
   flex-shrink: 0;
   display: flex;
@@ -1635,6 +1672,30 @@ input:focus-visible,
 
 .chat-panel--left {
   animation: slideInLeft 0.2s ease;
+}
+
+/* Drag handle on the chat panel's grid-facing edge (left when docked right,
+   right when docked left) — resizes the chat panel width. */
+.chat-panel__resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 6px;
+  cursor: ew-resize;
+  z-index: 5;
+  background: transparent;
+  transition: background 0.12s ease;
+}
+
+.chat-panel--left .chat-panel__resize-handle {
+  left: auto;
+  right: 0;
+}
+
+.chat-panel__resize-handle:hover,
+.chat-panel__resize-handle:active {
+  background: var(--active-border);
 }
 
 .chat-panel__head {

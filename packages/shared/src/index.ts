@@ -223,6 +223,8 @@ export interface PersistedSettings {
   chatPosition: 'left' | 'right';
   /** Chat Width Scale (relative to normal, e.g. 1.0 to 2.0). */
   chatWidthScale: number;
+  /** Sidebar Width Scale (relative to normal, e.g. 1.0 to 2.0). */
+  sidebarWidthScale: number;
   /** Read incoming chat messages aloud (Web Speech API) when the app is unfocused. */
   chatTtsEnabled: boolean;
   /** Speak the "[name] says:" prefix before each read-aloud message; false = message text only. */
@@ -305,6 +307,7 @@ export function defaultSettings(): PersistedSettings {
     chatFontScale: 1.0,
     chatPosition: 'right',
     chatWidthScale: 1.0,
+    sidebarWidthScale: 1.0,
     chatTtsEnabled: false,
     chatTtsSpeakName: true,
     voicePreference: '',

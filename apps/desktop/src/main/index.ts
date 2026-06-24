@@ -125,12 +125,23 @@ function configureMediaPermissions(): void {
 const NORMAL_MIN_WIDTH = 760;
 const NORMAL_MIN_HEIGHT = 520;
 const COMPACT_WIDTH = 260;
+const COMPACT_MIN_WIDTH = 220;
+const COMPACT_MAX_WIDTH = COMPACT_WIDTH * 2; // 200% — matches the sidebar width scale cap.
 const COMPACT_MIN_HEIGHT = 360;
+
+/** Clamp a requested compact-dock width to the allowed range. */
+function clampCompactWidth(px: number): number {
+  return Math.max(COMPACT_MIN_WIDTH, Math.min(COMPACT_MAX_WIDTH, Math.round(px)));
+}
 
 // Sidebar-only "compact mode" (dock-style window): tracked here so the resize
 // handler and createWindow()'s initial sizing branch agree on the current state.
 let isCompact = false;
-let savedBounds: Electron.Rectangle | null = null;
+// Full-view width remembered on entering compact, so expanding restores the
+// wide layout. Height is intentionally NOT saved — it stays continuous across
+// the compact↔full transition (full view adopts whatever height the user left
+// the dock at).
+let savedFullWidth: number | null = null;
 let wasMaximized = false;
 
 function registerWindowControls(): void {
@@ -142,24 +153,50 @@ function registerWindowControls(): void {
     else win.maximize();
   });
   ipcMain.on('chickadee:window-close', (e) => BrowserWindow.fromWebContents(e.sender)?.close());
-  ipcMain.on('chickadee:window-set-compact', (e, compact: boolean) => {
+  ipcMain.on('chickadee:window-set-compact', (e, compact: boolean, compactWidth?: number) => {
     const win = BrowserWindow.fromWebContents(e.sender);
     if (!win || compact === isCompact) return;
     isCompact = compact;
     if (compact) {
       wasMaximized = win.isMaximized();
       if (wasMaximized) win.unmaximize();
-      savedBounds = win.getBounds();
-      win.setMinimumSize(COMPACT_WIDTH, COMPACT_MIN_HEIGHT);
-      win.setResizable(false);
-      win.setBounds({ x: savedBounds.x, y: savedBounds.y, width: COMPACT_WIDTH, height: savedBounds.height });
+      const bounds = win.getBounds();
+      savedFullWidth = bounds.width;
+      // Dock is resizable (height + width), but width is capped at 200%.
+      // NOTE: the window is already resizable (constructor) and we never toggle
+      // it — calling setResizable() here would silently reset the min/max size on
+      // Windows, leaving OS-edge drag unconstrained (infinite horizontal stretch).
+      // So apply the size constraints and do NOT call setResizable.
+      win.setMinimumSize(COMPACT_MIN_WIDTH, COMPACT_MIN_HEIGHT);
+      win.setMaximumSize(COMPACT_MAX_WIDTH, 0);
+      win.setBounds({
+        x: bounds.x,
+        y: bounds.y,
+        width: clampCompactWidth(compactWidth ?? COMPACT_WIDTH),
+        height: bounds.height, // keep current height — continuous across the transition
+      });
     } else {
-      win.setResizable(true);
+      // Lift the dock's width cap, restore the wide layout, but keep the height.
+      // (No setResizable here either — see the note above; it would reset min/max.)
+      win.setMaximumSize(0, 0);
       win.setMinimumSize(NORMAL_MIN_WIDTH, NORMAL_MIN_HEIGHT);
-      win.setBounds(savedBounds ?? { ...win.getBounds(), width: 1100, height: 720 });
+      const bounds = win.getBounds();
+      win.setBounds({
+        x: bounds.x,
+        y: bounds.y,
+        width: savedFullWidth ?? 1100,
+        height: bounds.height,
+      });
       if (wasMaximized) win.maximize();
-      savedBounds = null;
+      savedFullWidth = null;
     }
+  });
+  // Live width-only resize while docked (in-app sidebar drag handle + slider).
+  ipcMain.on('chickadee:window-set-width', (e, px: number) => {
+    const win = BrowserWindow.fromWebContents(e.sender);
+    if (!win || !isCompact) return;
+    const bounds = win.getBounds();
+    win.setBounds({ x: bounds.x, y: bounds.y, width: clampCompactWidth(px), height: bounds.height });
   });
 }
 
@@ -175,13 +212,15 @@ function createWindow(): void {
   // mode opens at the right size instead of flashing full-size first.
   const startCompact = getSettings().compactMode ?? false;
   isCompact = startCompact;
+  const startCompactWidth = clampCompactWidth(COMPACT_WIDTH * (getSettings().sidebarWidthScale ?? 1));
 
   const window = new BrowserWindow({
-    width: startCompact ? COMPACT_WIDTH : 1100,
+    width: startCompact ? startCompactWidth : 1100,
     height: 720,
-    minWidth: startCompact ? COMPACT_WIDTH : NORMAL_MIN_WIDTH,
+    minWidth: startCompact ? COMPACT_MIN_WIDTH : NORMAL_MIN_WIDTH,
     minHeight: startCompact ? COMPACT_MIN_HEIGHT : NORMAL_MIN_HEIGHT,
-    resizable: !startCompact,
+    maxWidth: startCompact ? COMPACT_MAX_WIDTH : undefined,
+    resizable: true,
     show: false,
     frame: false,
     autoHideMenuBar: true,
@@ -211,6 +250,18 @@ function createWindow(): void {
   window.on('ready-to-show', () => {
     window.show();
     window.webContents.focus();
+  });
+
+  // Belt-and-suspenders: enforce the compact width cap on any user resize path
+  // (edge drag, Aero snap, double-click-maximize). setMaximumSize covers normal
+  // edge drags, but snap/maximize can bypass it; clamp the requested bounds here.
+  window.on('will-resize', (e, newBounds) => {
+    if (!isCompact) return;
+    const clamped = clampCompactWidth(newBounds.width);
+    if (clamped !== newBounds.width) {
+      e.preventDefault();
+      window.setBounds({ ...newBounds, width: clamped });
+    }
   });
 
   // Tell the renderer when the window becomes invisible (minimized/hidden) so it

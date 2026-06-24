@@ -19,6 +19,8 @@ interface ChatPanelProps {
   chatFontScale?: number;
   chatPosition?: 'left' | 'right';
   chatWidthScale?: number;
+  /** Live width resize from the drag handle; commit=true on pointer release. */
+  onResize?: (scale: number, commit: boolean) => void;
 }
 
 export function ChatPanel({
@@ -27,10 +29,12 @@ export function ChatPanel({
   chatFontScale,
   chatPosition,
   chatWidthScale,
+  onResize,
 }: ChatPanelProps): React.JSX.Element {
   const [input, setInput] = useState('');
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerAnchor, setPickerAnchor] = useState<DOMRect | null>(null);
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -102,14 +106,49 @@ export function ChatPanel({
     }, 0);
   }
 
+  // Drag-to-resize the chat panel width. The handle sits on the grid-facing edge
+  // (left when the chat is docked right, right when docked left), so the panel
+  // grows when dragging toward the grid. base 290px maps to the 1.0–2.0 scale.
+  function handleResizeStart(e: React.PointerEvent<HTMLDivElement>): void {
+    if (!onResize) return;
+    e.preventDefault();
+    const handle = e.currentTarget;
+    const startX = e.screenX;
+    const startWidth = panelRef.current?.getBoundingClientRect().width ?? 290 * (chatWidthScale ?? 1);
+    // Right-docked chat grows when dragging left (−delta); left-docked grows right (+delta).
+    const sign = chatPosition === 'left' ? 1 : -1;
+    handle.setPointerCapture(e.pointerId);
+    const scaleFor = (ev: PointerEvent): number =>
+      Math.max(1.0, Math.min(2.0, (startWidth + sign * (ev.screenX - startX)) / 290));
+    const onMove = (ev: PointerEvent): void => onResize(scaleFor(ev), false);
+    const onUp = (ev: PointerEvent): void => {
+      onResize(scaleFor(ev), true);
+      handle.releasePointerCapture?.(e.pointerId);
+      handle.removeEventListener('pointermove', onMove);
+      handle.removeEventListener('pointerup', onUp);
+    };
+    handle.addEventListener('pointermove', onMove);
+    handle.addEventListener('pointerup', onUp);
+  }
+
   return (
     <div
+      ref={panelRef}
       className={`chat-panel${chatPosition === 'left' ? ' chat-panel--left' : ''}`}
       style={{
         '--chat-font-scale': chatFontScale,
         '--chat-width-scale': chatWidthScale,
       } as React.CSSProperties}
     >
+      {onResize && (
+        <div
+          className="chat-panel__resize-handle"
+          onPointerDown={handleResizeStart}
+          title="Drag to resize chat"
+          role="separator"
+          aria-orientation="vertical"
+        />
+      )}
       <div className="chat-panel__head">ROOM CHAT</div>
 
       <div className="chat-panel__scroll">

@@ -265,6 +265,7 @@ export function App(): React.JSX.Element {
   const [chatFontScale, setChatFontScale] = useState(() => store.getChatFontScale());
   const [chatPosition, setChatPosition] = useState(() => store.getChatPosition());
   const [chatWidthScale, setChatWidthScale] = useState(() => store.getChatWidthScale());
+  const [sidebarWidthScale, setSidebarWidthScale] = useState(() => store.getSidebarWidthScale());
   const [chatTtsEnabled, setChatTtsEnabled] = useState(() => store.getChatTtsEnabled());
   const [chatTtsSpeakName, setChatTtsSpeakName] = useState(() => store.getChatTtsSpeakName());
   const [theme, setTheme] = useState<ThemeName>(() => store.getTheme());
@@ -617,6 +618,28 @@ export function App(): React.JSX.Element {
     store.setChatWidthScale(scale);
   }, []);
 
+  // Live chat-panel resize from the drag handle: update state every move, persist
+  // only on release (commit) so we don't write to disk on every pointermove.
+  const handleChatResize = useCallback((scale: number, commit: boolean) => {
+    const clamped = Math.max(1.0, Math.min(2.0, scale));
+    setChatWidthScale(clamped);
+    if (commit) store.setChatWidthScale(clamped);
+  }, []);
+
+  // Unified sidebar width: drives the CSS var in full view and the OS dock width
+  // (via IPC) in compact view. Persist on commit only.
+  const handleSidebarResize = useCallback(
+    (scale: number, commit: boolean) => {
+      const clamped = Math.max(1.0, Math.min(2.0, scale));
+      setSidebarWidthScale(clamped);
+      if (compactMode) {
+        window.chickadee?.windowControls?.setWindowWidth?.(Math.round(260 * clamped));
+      }
+      if (commit) store.setSidebarWidthScale(clamped);
+    },
+    [compactMode],
+  );
+
   const applyInputMode = useCallback((mode: 'open' | 'voice' | 'ptt') => {
     setInputMode(mode);
     store.setInputMode(mode);
@@ -668,7 +691,13 @@ export function App(): React.JSX.Element {
   );
 
   useEffect(() => {
-    window.chickadee?.windowControls?.setCompact?.(compactMode);
+    window.chickadee?.windowControls?.setCompact?.(
+      compactMode,
+      Math.round(260 * sidebarWidthScale),
+    );
+    // sidebarWidthScale intentionally omitted: the dock width is set on toggle and
+    // updated live via setWindowWidth in handleSidebarResize while already compact.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [compactMode]);
 
   const applyVadThreshold = useCallback((threshold: number) => {
@@ -1130,7 +1159,10 @@ export function App(): React.JSX.Element {
   const errors = [mesh.micError, mesh.cameraError, mesh.screenError, signaling.error].filter(Boolean);
 
   return (
-    <div className={`app${windowFocused ? '' : ' app--unfocused'}${compactMode ? ' app--compact' : ''}`}>
+    <div
+      className={`app${windowFocused ? '' : ' app--unfocused'}${compactMode ? ' app--compact' : ''}`}
+      style={{ '--sidebar-width-scale': sidebarWidthScale } as React.CSSProperties}
+    >
       {chat.floats.map((f) => (
         <div key={f.id} className="float-reaction" style={{ left: `${f.x}%` }}>
           {f.emoji}
@@ -1179,6 +1211,8 @@ export function App(): React.JSX.Element {
         onToggleVideoSection={toggleVideoSection}
         compact={compactMode}
         onToggleCompact={toggleCompactMode}
+        widthScale={sidebarWidthScale}
+        onResize={handleSidebarResize}
         micEnabled={micButtonOn}
         hasMic={!!mesh.localStream}
         onToggleMic={handleToggleMic}
@@ -1209,7 +1243,7 @@ export function App(): React.JSX.Element {
           <>
             <div className="content-area">
               {chatOpen && chatPosition === 'left' && (
-                <ChatPanel messages={chat.messages} onSend={chat.sendChat} chatFontScale={chatFontScale} chatPosition={chatPosition} chatWidthScale={chatWidthScale} />
+                <ChatPanel messages={chat.messages} onSend={chat.sendChat} chatFontScale={chatFontScale} chatPosition={chatPosition} chatWidthScale={chatWidthScale} onResize={handleChatResize} />
               )}
 
               {presenting ? (
@@ -1237,7 +1271,7 @@ export function App(): React.JSX.Element {
               )}
 
               {chatOpen && chatPosition === 'right' && (
-                <ChatPanel messages={chat.messages} onSend={chat.sendChat} chatFontScale={chatFontScale} chatPosition={chatPosition} chatWidthScale={chatWidthScale} />
+                <ChatPanel messages={chat.messages} onSend={chat.sendChat} chatFontScale={chatFontScale} chatPosition={chatPosition} chatWidthScale={chatWidthScale} onResize={handleChatResize} />
               )}
             </div>
 
@@ -1618,6 +1652,8 @@ export function App(): React.JSX.Element {
           onChangeChatPosition={applyChatPosition}
           chatWidthScale={chatWidthScale}
           onChangeChatWidthScale={applyChatWidthScale}
+          sidebarWidthScale={sidebarWidthScale}
+          onChangeSidebarWidthScale={(s) => handleSidebarResize(s, true)}
           chatTtsEnabled={chatTtsEnabled}
           onChangeChatTtsEnabled={applyChatTtsEnabled}
           chatTtsSpeakName={chatTtsSpeakName}
