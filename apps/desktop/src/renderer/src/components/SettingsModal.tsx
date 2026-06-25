@@ -373,7 +373,7 @@ export function SettingsModal({
   const [searchFocused, setSearchFocused] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const version = window.chickadee?.appVersion || '0.3.0';
+  const version = window.chickadee?.appVersion || '0.3.1';
 
   type TabId = 'profile' | 'audio' | 'video' | 'sfx' | 'chat' | 'ui' | 'app' | 'keybindings';
   interface SearchEntry { label: string; description?: string; tab: TabId; sectionId?: string; keywords: string[]; }

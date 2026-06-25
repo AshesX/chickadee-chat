@@ -415,6 +415,10 @@ export function Sidebar({
         <div className="sidebar__space-header">
           <div className="space-info-wrap">
             <button className="space-switcher-btn" onClick={() => setSwitcherOpen(!switcherOpen)}>
+              <ChevronDown
+                size={12}
+                className={`sidebar__section-chevron${!switcherOpen ? ' sidebar__section-chevron--collapsed' : ''}`}
+              />
               <div className="space-switcher-btn__meta">
                 <span className={`space-switcher-btn__name${!activeSpace ? ' space-switcher-btn__name--empty' : ''}`}>
                   {activeSpace?.name ?? 'Create / Join Space'}

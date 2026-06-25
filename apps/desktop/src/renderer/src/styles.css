@@ -2716,7 +2716,7 @@ input:focus-visible,
   position: absolute;
   top: 50px;
   left: 0;
-  width: 100%;
+  width: calc(100% + 1px);
   background: var(--card);
   border: 1px solid var(--border);
   border-top: none;
@@ -2727,6 +2727,7 @@ input:focus-visible,
   flex-direction: column;
   overflow: hidden;
   animation: spaceDropdownIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  clip-path: inset(0 0 -100px 0);
 }
 
 .space-dropdown__list {
