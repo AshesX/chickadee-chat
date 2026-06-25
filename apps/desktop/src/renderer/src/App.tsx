@@ -1102,6 +1102,7 @@ export function App(): React.JSX.Element {
         intentionallyMuted={!micButtonOn}
         cameraOn={mesh.cameraEnabled}
         cameraStream={mesh.localStream}
+        cameraVideoId={mesh.localStream?.getVideoTracks()[0]?.id ?? null}
         color={selfColor}
         speaking={selfSpeaking}
         deafened={deafened}
@@ -1121,6 +1122,7 @@ export function App(): React.JSX.Element {
             speaking={peer.speaking}
             cameraOn={peer.cameraOn}
             cameraStream={media?.cameraStream ?? null}
+            cameraVideoId={media?.cameraVideoId ?? null}
             color={peer.accentColor || colors[peer.id] || SELF_COLOR}
             connectionState={media?.connectionState ?? 'new'}
             avatarUrl={peer.avatarDataUrl ?? null}

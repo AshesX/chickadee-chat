@@ -14,6 +14,13 @@ export interface ParticipantTileProps {
   cameraOn: boolean;
   /** Camera+mic stream: local (muted preview) for self, remote otherwise. */
   cameraStream: MediaStream | null;
+  /**
+   * Remote only: id of the camera video track on `cameraStream` (null when none).
+   * Flips null → trackId when a gated video track arrives on the existing stream
+   * object (same msid as the mic), so the <video> re-binds without changing
+   * `cameraStream`'s reference (keeping the per-peer audio graph stable).
+   */
+  cameraVideoId?: string | null;
   /** This participant's assigned accent color. */
   color: string;
   /** Connection state for remote peers; omitted for self. */
@@ -61,6 +68,7 @@ export function ParticipantTile({
   intentionallyMuted,
   cameraOn,
   cameraStream,
+  cameraVideoId,
   color,
   connectionState,
   speaking = false,
@@ -117,10 +125,19 @@ export function ParticipantTile({
   // and Chromium only produces samples for a remote WebRTC track while it's still
   // consumed by a media element — detaching to null silenced all peers in compact/
   // minimized mode. (Self preview is muted; this is harmless for it.) Mirrors ScreenView.
+  //
+  // cameraVideoId is a dep so we re-bind when a gated video track arrives on the
+  // existing (audio-only) stream object — its msid is shared with the mic, so the
+  // `cameraStream` reference doesn't change, and Chromium won't start painting a
+  // track added to an already-bound srcObject on its own. We bind a fresh wrapper
+  // of the current tracks (a new object) to force the repaint; the audio graph
+  // keeps sourcing from the stable `cameraStream` prop, so it never rebuilds.
   useEffect(() => {
     const el = videoRef.current;
-    if (el) el.srcObject = windowVisible ? cameraStream : audioOnlyStream;
-  }, [cameraStream, windowVisible, audioOnlyStream]);
+    if (!el) return;
+    el.srcObject =
+      windowVisible && cameraStream ? new MediaStream(cameraStream.getTracks()) : audioOnlyStream;
+  }, [cameraStream, cameraVideoId, windowVisible, audioOnlyStream]);
 
   // Build a per-peer Web Audio graph (remote only) so gain > 1.0 is possible.
   // Source from the MediaStream, not the <video> element: createMediaElementSource

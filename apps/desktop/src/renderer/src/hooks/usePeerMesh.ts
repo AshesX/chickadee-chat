@@ -16,6 +16,14 @@ type ScreenAudioConstraints = MediaTrackConstraints & { restrictOwnAudio?: Const
 export interface RemoteMedia {
   /** The peer's camera+mic stream (mic audio + optional camera video). */
   cameraStream: MediaStream | null;
+  /**
+   * The id of the camera video track on `cameraStream`, or null when there's no
+   * video yet. Camera video shares the mic stream's msid, so a gated video track
+   * arriving after "Watch" lands in the *same* MediaStream object — `cameraStream`
+   * keeps a stable reference (the audio graph must not rebuild) while this scalar
+   * flips null → trackId so the tile knows to re-bind its <video>.
+   */
+  cameraVideoId: string | null;
   /** The peer's screen-share stream (screen video + optional system audio). */
   screenStream: MediaStream | null;
   connectionState: RTCPeerConnectionState;
@@ -328,6 +336,7 @@ export function usePeerMesh(
     setRemote((prev) => {
       const current = prev[peerId] ?? {
         cameraStream: null,
+        cameraVideoId: null,
         screenStream: null,
         connectionState: 'new' as const,
       };
@@ -347,11 +356,16 @@ export function usePeerMesh(
       let screenStream: MediaStream | null = null;
       if (streams) {
         for (const [id, stream] of streams) {
+          // Keep the raw MediaStream reference stable: the per-peer audio graph
+          // (ParticipantTile) sources from cameraStream and must not rebuild when
+          // a gated video track is later added to the same object. The video tile
+          // re-binds off the cameraVideoId scalar below instead of a new ref.
           if (screenId && id === screenId) screenStream = stream;
           else cameraStream = stream;
         }
       }
-      patchRemote(peerId, { cameraStream, screenStream });
+      const cameraVideoId = cameraStream?.getVideoTracks()[0]?.id ?? null;
+      patchRemote(peerId, { cameraStream, cameraVideoId, screenStream });
     },
     [patchRemote],
   );

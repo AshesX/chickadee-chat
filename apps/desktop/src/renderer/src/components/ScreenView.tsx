@@ -34,10 +34,16 @@ export function ScreenView({ displayName, isSelf, stream, outputDeviceId, window
     return audio.length ? new MediaStream(audio) : null;
   }, [stream]);
 
+  // Screen share usually arrives as a fresh stream object, but if loopback audio
+  // lands on it before the screen video track, the video would be a late addition
+  // to an already-bound srcObject (Chromium won't auto-paint it). Key on the video
+  // track id and bind a fresh wrapper to force a repaint when it appears.
+  const videoTrackId = stream?.getVideoTracks()[0]?.id ?? null;
   useEffect(() => {
     const el = videoRef.current;
-    if (el) el.srcObject = windowVisible ? stream : audioOnlyStream;
-  }, [stream, windowVisible, audioOnlyStream]);
+    if (!el) return;
+    el.srcObject = windowVisible && stream ? new MediaStream(stream.getTracks()) : audioOnlyStream;
+  }, [stream, videoTrackId, windowVisible, audioOnlyStream]);
 
   // Route remote screen audio to the chosen output device (remote only).
   useEffect(() => {
