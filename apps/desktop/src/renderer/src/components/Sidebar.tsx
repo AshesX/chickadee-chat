@@ -132,7 +132,6 @@ export function Sidebar({
   onTogglePeerMute,
   onLeaveRoom,
 }: SidebarProps): React.JSX.Element {
-  const onlineCount = users.filter((u) => u.status !== 'offline').length;
   const selfInitial = selfName.trim().charAt(0).toUpperCase() || 'Y';
   const InputModeIcon = INPUT_MODE_ICONS[inputMode];
   const [menu, setMenu] = useState<{ room: Room; x: number; y: number } | null>(null);
@@ -555,7 +554,6 @@ export function Sidebar({
                 className={`sidebar__section-chevron${voiceCollapsed ? ' sidebar__section-chevron--collapsed' : ''}`}
               />
               <span>VOICE</span>
-              <span className="sidebar__section-count">{voiceRooms.length}</span>
               <div style={{ flex: 1 }} />
               <button
                 className="sidebar__section-create-btn"
@@ -582,7 +580,6 @@ export function Sidebar({
                 className={`sidebar__section-chevron${videoCollapsed ? ' sidebar__section-chevron--collapsed' : ''}`}
               />
               <span>VIDEO</span>
-              <span className="sidebar__section-count">{videoRooms.length}</span>
               <div style={{ flex: 1 }} />
               <button
                 className="sidebar__section-create-btn"
@@ -611,7 +608,6 @@ export function Sidebar({
                 className={`sidebar__section-chevron${usersCollapsed ? ' sidebar__section-chevron--collapsed' : ''}`}
               />
               <span>USERS</span>
-              {users.length > 0 && <span className="sidebar__section-count">— {onlineCount} online</span>}
             </div>
             {!usersCollapsed && users.map((u) => {
               // Validate peer-supplied avatar before rendering (defense in depth).
