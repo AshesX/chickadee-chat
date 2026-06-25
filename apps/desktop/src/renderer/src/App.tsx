@@ -1149,7 +1149,8 @@ export function App(): React.JSX.Element {
     activeScreens.push({ key: 'self-screen', displayName, isSelf: true, stream: mesh.localScreenStream });
   }
   for (const peer of signaling.peers) {
-    const screen = peer.screenStreamId ? mesh.remote[peer.id]?.screenStream : null;
+    const subscribed = videoSubscriptions.includes(peer.userId);
+    const screen = subscribed && peer.screenStreamId ? mesh.remote[peer.id]?.screenStream : null;
     if (screen) {
       activeScreens.push({ key: `${peer.id}-screen`, displayName: peer.displayName, isSelf: false, stream: screen, userId: peer.userId });
     }
