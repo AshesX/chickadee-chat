@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { MicOff, VolumeX, Volume2, Play, EyeOff } from 'lucide-react';
 import { sanitizeAvatarDataUrl } from '@chickadee/shared';
 import { getSharedAudioContext, getMasterBus } from '../lib/audioContext';
@@ -102,15 +102,25 @@ export function ParticipantTile({
   // Watch (join) appears when this peer has video available but we haven't joined.
   const showWatch = !isSelf && !subscribed && (cameraOn || screenSharing);
 
+  // Audio-only view of the stream, used while hidden (see the srcObject effect).
+  const audioOnlyStream = useMemo(() => {
+    if (!cameraStream) return null;
+    const audio = cameraStream.getAudioTracks();
+    return audio.length ? new MediaStream(audio) : null;
+  }, [cameraStream]);
+
   // The <video> is always mounted so remote audio plays even with camera off.
-  // While the window is minimized/hidden, detach the stream so Chromium stops
-  // decoding video nobody can see. Safe for audio: remote audio plays through the
-  // Web Audio graph below (sourced from the MediaStream), and the self preview is
-  // muted — neither depends on the element's srcObject.
+  // While the window is minimized/hidden, swap in an audio-only stream (NOT null):
+  // Chromium stops decoding the video track nobody can see, but the remote audio
+  // track stays sunk to a playing media element. That matters because the per-peer
+  // Web Audio graph below sources from the MediaStream via createMediaStreamSource,
+  // and Chromium only produces samples for a remote WebRTC track while it's still
+  // consumed by a media element — detaching to null silenced all peers in compact/
+  // minimized mode. (Self preview is muted; this is harmless for it.) Mirrors ScreenView.
   useEffect(() => {
     const el = videoRef.current;
-    if (el) el.srcObject = windowVisible ? cameraStream : null;
-  }, [cameraStream, windowVisible]);
+    if (el) el.srcObject = windowVisible ? cameraStream : audioOnlyStream;
+  }, [cameraStream, windowVisible, audioOnlyStream]);
 
   // Build a per-peer Web Audio graph (remote only) so gain > 1.0 is possible.
   // Source from the MediaStream, not the <video> element: createMediaElementSource
