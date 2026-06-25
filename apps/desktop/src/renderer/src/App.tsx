@@ -983,6 +983,20 @@ export function App(): React.JSX.Element {
     setVideoSubscriptions([]);
   }, [currentRoomId]);
 
+  // Drop subscriptions to peers with nothing left to watch (stopped sharing /
+  // camera off / left), so `subscribed` flips false and the Watch button
+  // reappears when they share again. Also re-broadcasts the trimmed sink-state
+  // (the effect above keys on videoSubscriptions), releasing the sender's track.
+  useEffect(() => {
+    setVideoSubscriptions((prev) => {
+      const watchable = new Set(
+        signaling.peers.filter((p) => p.screenStreamId || p.cameraOn).map((p) => p.userId),
+      );
+      const next = prev.filter((uid) => watchable.has(uid));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [signaling.peers]);
+
   // Keep local rooms in sync with the signaling server's room list for this Space.
   useEffect(() => {
     if (signaling.status === 'connected' && signaling.rooms) {

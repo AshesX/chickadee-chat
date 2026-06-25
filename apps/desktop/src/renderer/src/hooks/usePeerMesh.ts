@@ -230,6 +230,12 @@ export function usePeerMesh(
   const videoTrackRef = useRef<MediaStreamTrack | null>(null);
   const cameraEnabledRef = useRef(false);
   const screenStreamRef = useRef<MediaStream | null>(null);
+  // Persistent wire stream for the screen share: capture tracks are swapped into
+  // this single MediaStream so its id (the SDP msid) stays stable across
+  // stop/restart. Receivers match the announced screen-state id against the
+  // received stream id; replaceTrack keeps the original msid, so without a stable
+  // wire id a restart would announce a new id that never matches what's on the wire.
+  const screenWireStreamRef = useRef<MediaStream | null>(null);
   const sharingScreenRef = useRef(false);
   /** peerId -> the MediaStream id that peer is using for its screen share. */
   const screenIdsRef = useRef<Map<PeerId, string>>(new Map());
@@ -428,9 +434,9 @@ export function usePeerMesh(
       if (cameraEnabledRef.current && videoTrack && stream) {
         link.setLocalVideoTrack(videoTrack, stream);
       }
-      // ...and our ongoing screen share, if any.
-      if (sharingScreenRef.current && screenStreamRef.current) {
-        link.setLocalScreenStream(screenStreamRef.current);
+      // ...and our ongoing screen share, if any (the stable wire stream).
+      if (sharingScreenRef.current && screenWireStreamRef.current) {
+        link.setLocalScreenStream(screenWireStreamRef.current);
       }
       return link;
     },
@@ -481,6 +487,8 @@ export function usePeerMesh(
     videoTrackRef.current = null;
     cameraEnabledRef.current = false;
     screenStreamRef.current = null;
+    // A fresh session rebuilds links/senders, so a fresh wire id is fine.
+    screenWireStreamRef.current = null;
     sharingScreenRef.current = false;
     screenIdsRef.current.clear();
     peerMediaWantsRef.current.clear();
@@ -675,6 +683,10 @@ export function usePeerMesh(
     for (const link of linksRef.current.values()) link.setLocalScreenStream(null);
     const screen = screenStreamRef.current;
     if (screen) for (const track of screen.getTracks()) track.stop();
+    // Empty the wire stream but keep the wrapper so the next share reuses its id
+    // (stable msid across stop/restart). Tracks are the same objects stopped above.
+    const wire = screenWireStreamRef.current;
+    if (wire) for (const track of wire.getTracks()) wire.removeTrack(track);
     screenStreamRef.current = null;
     sharingScreenRef.current = false;
     setSharingScreen(false);
@@ -748,14 +760,19 @@ export function usePeerMesh(
 
           screenStreamRef.current = screen;
           sharingScreenRef.current = true;
-          for (const link of linksRef.current.values()) link.setLocalScreenStream(screen);
+          // Swap the fresh capture tracks into the persistent wire stream so its
+          // id stays stable across stop/restart, and send/announce that wire id.
+          const wire = (screenWireStreamRef.current ??= new MediaStream());
+          for (const track of wire.getTracks()) wire.removeTrack(track);
+          for (const track of screen.getTracks()) wire.addTrack(track);
+          for (const link of linksRef.current.values()) link.setLocalScreenStream(wire);
           // The OS "Stop sharing" affordance / closing the source ends the track.
           const videoTrack = screen.getVideoTracks()[0];
           if (videoTrack) videoTrack.onended = () => stopScreenShare();
 
           setSharingScreen(true);
           setLocalScreenStream(screen);
-          send({ type: 'screen-state', streamId: screen.id });
+          send({ type: 'screen-state', streamId: wire.id });
         } catch (err) {
           console.error('screen share failed', err);
           setScreenError('Could not start screen share.');
@@ -771,8 +788,8 @@ export function usePeerMesh(
     // mic-state (mute intent) is re-announced by App.tsx's broadcast effect (keyed
     // on signaling.status), so it isn't sent here.
     if (cameraEnabledRef.current) send({ type: 'cam-state', on: true });
-    if (sharingScreenRef.current && screenStreamRef.current) {
-      send({ type: 'screen-state', streamId: screenStreamRef.current.id });
+    if (sharingScreenRef.current && screenWireStreamRef.current) {
+      send({ type: 'screen-state', streamId: screenWireStreamRef.current.id });
     }
     // Re-broadcast avatar so the server's fresh peer record reflects the current avatar.
     send({ type: 'avatar-state', avatarDataUrl: localAvatarUrlRef.current });
