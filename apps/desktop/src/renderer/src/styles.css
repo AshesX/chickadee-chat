@@ -260,10 +260,11 @@ input:focus-visible,
 .room-row__main,
 .room-row--create {
   width: 100%;
+  min-height: 33px;
   display: flex;
   align-items: center;
   gap: var(--icon-gap);
-  padding: var(--space-2) var(--space-3) var(--space-2) 10px;
+  padding: 6px var(--space-3) 6px 10px;
   font-size: 13.5px;
   text-align: left;
 }
@@ -306,7 +307,7 @@ input:focus-visible,
 }
 
 .room-row--active .room-row__icon {
-  color: var(--block-fg);
+  display: none;
 }
 
 .room-row::before {
@@ -346,6 +347,10 @@ input:focus-visible,
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.room-row--active .room-row__name {
+  font-weight: 700;
 }
 
 /* Compact occupancy badge (n/cap) — a smaller sibling of .room-header__count. */
@@ -453,6 +458,23 @@ input:focus-visible,
   display: flex;
   align-items: center;
   margin: -4px 8px 4px 8px;
+}
+
+/* In the active/joined room, make the avatars larger (27px) to match the control buttons. */
+.room-row__avatar-strip .room-row__avatar {
+  width: 27px;
+  height: 27px;
+  font-size: 11px;
+  margin-left: -6px;
+}
+
+.room-row__avatar-strip .room-row__avatar:first-child {
+  margin-left: 0;
+}
+
+.room-row__avatar-strip .room-row__avatar-mute svg {
+  width: 15px;
+  height: 15px;
 }
 
 .room-row--create {
