@@ -206,7 +206,7 @@ input:focus-visible,
 /* The VIDEO header sits below the voice list — give it breathing room like the
    old label's :not(:first-child) top padding. */
 .sidebar__section-header--spaced {
-  padding-top: 22px;
+  margin-top: 22px;
 }
 
 .sidebar__section-chevron {
