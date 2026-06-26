@@ -4,6 +4,18 @@ Lightweight P2P desktop **voice / video / screen-share** app — a "Discord Lite
 
 > Architecture, conventions, and detailed status live in [CLAUDE.md](CLAUDE.md).
 
+## Key Features
+
+- **P2P Audio & Video**: Direct WebRTC full-mesh connections (no media relay server) supporting up to 4 users per room.
+- **Screen Share with Loopback Audio**: Native system and game audio loopback that automatically filters out incoming peer voices (`restrictOwnAudio`).
+- **Global Hotkeys**: Push-to-Talk and Mute hotkeys that work system-wide even when the application is minimized or out-of-focus (powered by `uiohook-napi`).
+- **Advanced Audio Controls**: Per-peer volume controls (0–200%) and "Normalize voices" (listener-side automatic volume leveling).
+- **Customizable Avatars**: In-app crop tool with avatars synchronized space-wide over the signaling connection.
+- **Chat Text-to-Speech (TTS)**: Web Speech API-driven read-aloud support for incoming room chat, with synchronized voice category preferences.
+- **Resizable Layout & Compact Mode**: Drag-resizable sidebar and room chat panels, alongside a toggleable compact sidebar-dock.
+- **SVG Room Icons**: In-app icon browser and filter for customizable room SVGs.
+
+
 ## Quick start (development)
 
 ```bash
@@ -11,7 +23,7 @@ npm install     # installs all workspaces
 npm run dev     # signaling server (ws://localhost:8080) + desktop app together
 ```
 
-Other scripts: `npm run dev:desktop`, `npm run dev:signaling`, `npm run build`, `npm run typecheck`.
+Other scripts: `npm run dev:desktop`, `npm run dev:signaling`, `npm run build`, `npm run typecheck`, `npm test`.
 
 > **npm 11 note:** dependency install scripts are allow-listed in `package.json` (`allowScripts`), so `npm install` automatically downloads Electron's binary. If you bump Electron or `uiohook-napi` and the app won't launch, re-approve with `npm approve-scripts <pkg> --allow-scripts-pin`.
 
@@ -69,4 +81,6 @@ Mesh P2P connects peers directly. Many home networks traverse with STUN alone (a
 
 ## Testing
 
-`node scripts/smoke-test.mjs` exercises the signaling protocol (start the server first). WebRTC media is verified manually with two instances in the same room (use headphones so each mic doesn't re-capture the other peer's voice from your speakers). Screen sharing with system audio no longer relays peers' voices back to them — the loopback capture sets `restrictOwnAudio` to drop our own output (requires Chromium 141+, i.e. Electron 39+).
+- **Unit Tests**: Run `npm test` to execute the Vitest suite covering pure offline logic (audio gates, keybind string conversion, SDP munging, voice preferences, and WebRTC mesh logic).
+- **Signaling Smoke Test**: Run `node scripts/smoke-test.mjs` to exercise the signaling protocol (start the server first).
+- **Manual Verification**: WebRTC media is verified manually with two instances in the same room (use headphones so each mic doesn't re-capture the other peer's voice from your speakers). Screen sharing with system audio no longer relays peers' voices back to them — the loopback capture sets `restrictOwnAudio` to drop our own output (requires Chromium 141+, i.e. Electron 39+).
