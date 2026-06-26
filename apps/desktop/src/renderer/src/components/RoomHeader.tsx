@@ -27,7 +27,7 @@ export function RoomHeader({
         {room ? (
           <>
             <div className="room-header__title">
-              <span><RoomIcon name={room.icon} size={16} /></span>
+              <span><RoomIcon name={room.icon} size={36} /></span>
               {room.label}
               <span className="room-header__count">
                 {count} / {maxCount}
