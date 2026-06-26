@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { MicOff, VolumeX, Volume2, Play, EyeOff } from 'lucide-react';
+import { MicOff, VolumeX, Play, EyeOff } from 'lucide-react';
 import { sanitizeAvatarDataUrl } from '@chickadee/shared';
-import { getSharedAudioContext, getMasterBus } from '../lib/audioContext';
-import { SettingsSlider } from './SettingsSlider';
+import { usePeerAudioGraph } from '../hooks/usePeerAudioGraph';
+import { TileVolumeControl } from './TileVolumeControl';
 
 export interface ParticipantTileProps {
   displayName: string;
@@ -88,12 +87,18 @@ export function ParticipantTile({
   // Validate peer-supplied avatar data URLs before rendering (defense in depth;
   // the server already sanitizes, but never trust an <img src> from the wire).
   const safeAvatarUrl = sanitizeAvatarDataUrl(avatarUrl);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const gainNodeRef = useRef<GainNode | null>(null);
-  const sourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
-  // True once remote audio is routed through the Web Audio graph; mutes the <video>
-  // element so audio isn't played twice. Stays false (element audible) if no AudioContext.
-  const [audioRouted, setAudioRouted] = useState(false);
+
+  // Incoming-audio plumbing (remote only): <video> binding, per-peer Web Audio
+  // graph, live gain, and the no-AudioContext fallback. See usePeerAudioGraph.
+  const { videoRef, audioRouted } = usePeerAudioGraph({
+    cameraStream,
+    cameraVideoId,
+    isSelf,
+    volume,
+    normalize,
+    windowVisible,
+  });
+
   // `speaking` is computed by the owner (App.tsx) and synced over the signaling
   // relay (Peer.speaking) so every client renders an identical cue. Gate on
   // windowVisible so the speaking ring/glow never renders while minimized.
@@ -110,110 +115,12 @@ export function ParticipantTile({
   // Watch (join) appears when this peer has video available but we haven't joined.
   const showWatch = !isSelf && !subscribed && (cameraOn || screenSharing);
 
-  // Audio-only view of the stream, used while hidden (see the srcObject effect).
-  const audioOnlyStream = useMemo(() => {
-    if (!cameraStream) return null;
-    const audio = cameraStream.getAudioTracks();
-    return audio.length ? new MediaStream(audio) : null;
-  }, [cameraStream]);
-
-  // The <video> is always mounted so remote audio plays even with camera off.
-  // While the window is minimized/hidden, swap in an audio-only stream (NOT null):
-  // Chromium stops decoding the video track nobody can see, but the remote audio
-  // track stays sunk to a playing media element. That matters because the per-peer
-  // Web Audio graph below sources from the MediaStream via createMediaStreamSource,
-  // and Chromium only produces samples for a remote WebRTC track while it's still
-  // consumed by a media element — detaching to null silenced all peers in compact/
-  // minimized mode. (Self preview is muted; this is harmless for it.) Mirrors ScreenView.
-  //
-  // cameraVideoId is a dep so we re-bind when a gated video track arrives on the
-  // existing (audio-only) stream object — its msid is shared with the mic, so the
-  // `cameraStream` reference doesn't change, and Chromium won't start painting a
-  // track added to an already-bound srcObject on its own. We bind a fresh wrapper
-  // of the current tracks (a new object) to force the repaint; the audio graph
-  // keeps sourcing from the stable `cameraStream` prop, so it never rebuilds.
-  useEffect(() => {
-    const el = videoRef.current;
-    if (!el) return;
-    el.srcObject =
-      windowVisible && cameraStream ? new MediaStream(cameraStream.getTracks()) : audioOnlyStream;
-  }, [cameraStream, cameraVideoId, windowVisible, audioOnlyStream]);
-
-  // Build a per-peer Web Audio graph (remote only) so gain > 1.0 is possible.
-  // Source from the MediaStream, not the <video> element: createMediaElementSource
-  // binds the element permanently (crashes on StrictMode re-mount) and goes silent for
-  // remote WebRTC streams in Chromium. createMediaStreamSource has neither problem.
-  // When `normalize` is on, a compressor + makeup gain are inserted ahead of the manual
-  // gain to auto-level quiet/loud talkers (listener-side, no dependence on the sender):
-  //   normalize on:  source → compressor → makeup → gain → destination
-  //   normalize off: source → gain → destination
-  useEffect(() => {
-    if (isSelf || !cameraStream) return;
-    const ctx = getSharedAudioContext();
-    if (!ctx) return;
-    const src = ctx.createMediaStreamSource(cameraStream);
-    const gain = ctx.createGain();
-    gain.gain.value = Math.max(0, volume ?? 1);
-    let compressor: DynamicsCompressorNode | null = null;
-    let makeup: GainNode | null = null;
-    if (normalize) {
-      compressor = ctx.createDynamicsCompressor();
-      compressor.threshold.value = -28;
-      compressor.knee.value = 24;
-      compressor.ratio.value = 4;
-      compressor.attack.value = 0.003;
-      compressor.release.value = 0.25;
-      makeup = ctx.createGain();
-      makeup.gain.value = 1.8; // ≈ +5 dB to recover compressed level
-      src.connect(compressor);
-      compressor.connect(makeup);
-      makeup.connect(gain);
-    } else {
-      src.connect(gain);
-    }
-    gain.connect(getMasterBus() ?? ctx.destination);
-    sourceNodeRef.current = src;
-    gainNodeRef.current = gain;
-    setAudioRouted(true);
-    return () => {
-      src.disconnect();
-      compressor?.disconnect();
-      makeup?.disconnect();
-      gain.disconnect();
-      sourceNodeRef.current = null;
-      gainNodeRef.current = null;
-      setAudioRouted(false);
-    };
-  }, [cameraStream, isSelf, normalize]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Per-peer output volume via GainNode (supports 0–2 for 0–200% boost).
-  // cameraStream is a dep so the value re-applies after the graph rebuilds.
-  useEffect(() => {
-    if (gainNodeRef.current && !isSelf)
-      gainNodeRef.current.gain.value = Math.max(0, volume ?? 1);
-  }, [volume, isSelf, cameraStream]);
-
-  // Fallback when the Web Audio graph isn't wired (no AudioContext): apply volume +
-  // Deafen (volume 0) directly on the <video> so they still work. Near-dead-code in
-  // practice — Electron always provides an AudioContext — but it keeps Deafen correct
-  // instead of silently playing at full volume. When audioRouted, the element is muted
-  // and the gain node owns volume, so this is a no-op.
-  useEffect(() => {
-    const el = videoRef.current;
-    if (!el || isSelf || audioRouted) return;
-    el.volume = Math.max(0, Math.min(1, volume ?? 1));
-  }, [volume, isSelf, audioRouted]);
-
   const connNote = !isSelf && connectionState ? CONN_LABEL[connectionState] : undefined;
   const initial = displayName.trim().charAt(0).toUpperCase() || '?';
 
   // Per-listener volume control (remote peers only): a corner icon that reveals a
   // slider on hover. Edits this peer's raw volume factor; master/deafen apply separately.
   const showVolumeControl = !isSelf && onVolumeChange != null;
-  const pv = peerVolume ?? 1;
-  const pvPct = Math.round(pv * 100);
-  const pvBoosted = pv > 1;
-  const pvMuted = pv <= 0;
 
   return (
     <li
@@ -269,27 +176,12 @@ export function ParticipantTile({
       {connNote && <div className="tile__conn">{connNote}</div>}
 
       {showVolumeControl && (
-        <div className={`tile__volume${pvBoosted ? ' tile__volume--boost' : ''}${pvMuted ? ' tile__volume--muted' : ''}`}>
-          <button
-            type="button"
-            className="tile__volume-icon-btn"
-            onClick={onToggleMute}
-            title={pvMuted ? `Unmute ${displayName}` : `Mute ${displayName}`}
-            aria-label={pvMuted ? `Unmute ${displayName}` : `Mute ${displayName}`}
-          >
-            {pvMuted ? <VolumeX size={15} strokeWidth={2.5} /> : <Volume2 size={15} />}
-          </button>
-          <SettingsSlider
-            min={0}
-            max={200}
-            step={5}
-            value={pvPct}
-            boostFrom={100}
-            onChange={(v) => onVolumeChange(v / 100)}
-            markers={[100]}
-          />
-          <span className="tile__volume-pct">{pvMuted ? 'Muted' : `${pvPct}%`}</span>
-        </div>
+        <TileVolumeControl
+          displayName={displayName}
+          peerVolume={peerVolume ?? 1}
+          onVolumeChange={onVolumeChange}
+          onToggleMute={onToggleMute}
+        />
       )}
 
       {showWatch && (

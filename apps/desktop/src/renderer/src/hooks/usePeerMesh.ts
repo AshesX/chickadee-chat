@@ -3,15 +3,8 @@ import type { PeerId } from '@chickadee/shared';
 import { createPeerLink, type PeerLink } from '../webrtc/peerLink';
 import type { MessageListener, Signaling } from './useSignaling';
 import { getSharedAudioContext } from '../lib/audioContext';
-
-/**
- * `restrictOwnAudio` (Chromium 141+) tells the display-capture pipeline to drop
- * audio that originates from our own document — i.e. the incoming peer voices we
- * play through the Web Audio graph — from the captured system audio, so screen
- * sharing no longer echoes everyone's voice back to them. It's experimental and
- * not yet in the lib.dom typings, so we extend the constraint type locally.
- */
-type ScreenAudioConstraints = MediaTrackConstraints & { restrictOwnAudio?: ConstrainBoolean };
+import { RESOLUTION_MAP, createMicProcessingGraph, type ScreenAudioConstraints } from '../webrtc/mediaConstraints';
+import { useAutoClearError } from './useAutoClearError';
 
 export interface RemoteMedia {
   /** The peer's camera+mic stream (mic audio + optional camera video). */
@@ -70,41 +63,6 @@ export interface PeerMesh {
 }
 
 const TERMINAL_STATUSES = new Set(['idle', 'closed', 'error', 'room-full']);
-
-const RESOLUTION_MAP: Record<string, { width: number; height: number }> = {
-  '480p': { width: 854, height: 480 },
-  '720p': { width: 1280, height: 720 },
-  '1080p': { width: 1920, height: 1080 },
-  '1440p': { width: 2560, height: 1440 },
-  '4K': { width: 3840, height: 2160 },
-};
-
-const MIC_ANALYSER_FFT_SIZE = 256;
-
-function createMicProcessingGraph(
-  ctx: AudioContext,
-  rawStream: MediaStream,
-  volume: number,
-): { gainNode: GainNode; analyserNode: AnalyserNode; expanderGainNode: GainNode; processedStream: MediaStream } {
-  const source = ctx.createMediaStreamSource(rawStream);
-  const gainNode = ctx.createGain();
-  gainNode.gain.value = volume;
-  const analyserNode = ctx.createAnalyser();
-  analyserNode.fftSize = MIC_ANALYSER_FFT_SIZE;
-  // Downward-expander gain, driven by useNoiseExpander in open-mic mode.
-  // Starts transparent (0 dB); the analyser taps the signal *before* it so
-  // detection always sees the true pre-attenuation level.
-  const expanderGainNode = ctx.createGain();
-  expanderGainNode.gain.value = 1;
-  const destination = ctx.createMediaStreamDestination();
-
-  source.connect(gainNode);
-  gainNode.connect(analyserNode);
-  gainNode.connect(expanderGainNode);
-  expanderGainNode.connect(destination);
-
-  return { gainNode, analyserNode, expanderGainNode, processedStream: destination.stream };
-}
 
 /**
  * Owns the local mic stream and one RTCPeerConnection (peerLink) per remote
@@ -169,57 +127,11 @@ export function usePeerMesh(
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [localScreenStream, setLocalScreenStream] = useState<MediaStream | null>(null);
   const [micEnabled, setMicEnabled] = useState(true);
-  const [micError, setMicErrorState] = useState<string | null>(null);
+  const [micError, setMicError] = useAutoClearError();
   const [cameraEnabled, setCameraEnabled] = useState(false);
-  const [cameraError, setCameraErrorState] = useState<string | null>(null);
+  const [cameraError, setCameraError] = useAutoClearError();
   const [sharingScreen, setSharingScreen] = useState(false);
-  const [screenError, setScreenErrorState] = useState<string | null>(null);
-
-  const cameraErrorTimeoutRef = useRef<any>(null);
-  const screenErrorTimeoutRef = useRef<any>(null);
-  const micErrorTimeoutRef = useRef<any>(null);
-
-  const setCameraError = useCallback((msg: string | null) => {
-    if (cameraErrorTimeoutRef.current) {
-      clearTimeout(cameraErrorTimeoutRef.current);
-      cameraErrorTimeoutRef.current = null;
-    }
-    setCameraErrorState(msg);
-    if (msg) {
-      cameraErrorTimeoutRef.current = setTimeout(() => {
-        setCameraErrorState(null);
-        cameraErrorTimeoutRef.current = null;
-      }, 3000);
-    }
-  }, []);
-
-  const setScreenError = useCallback((msg: string | null) => {
-    if (screenErrorTimeoutRef.current) {
-      clearTimeout(screenErrorTimeoutRef.current);
-      screenErrorTimeoutRef.current = null;
-    }
-    setScreenErrorState(msg);
-    if (msg) {
-      screenErrorTimeoutRef.current = setTimeout(() => {
-        setScreenErrorState(null);
-        screenErrorTimeoutRef.current = null;
-      }, 3000);
-    }
-  }, []);
-
-  const setMicError = useCallback((msg: string | null) => {
-    if (micErrorTimeoutRef.current) {
-      clearTimeout(micErrorTimeoutRef.current);
-      micErrorTimeoutRef.current = null;
-    }
-    setMicErrorState(msg);
-    if (msg) {
-      micErrorTimeoutRef.current = setTimeout(() => {
-        setMicErrorState(null);
-        micErrorTimeoutRef.current = null;
-      }, 3000);
-    }
-  }, []);
+  const [screenError, setScreenError] = useAutoClearError();
   const [remote, setRemote] = useState<Record<PeerId, RemoteMedia>>({});
 
   const linksRef = useRef<Map<PeerId, PeerLink>>(new Map());

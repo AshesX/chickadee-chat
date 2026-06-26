@@ -5,6 +5,9 @@ import { usePeerMesh } from './hooks/usePeerMesh';
 import { useRoomChat } from './hooks/useRoomChat';
 import { useSpacePresence } from './hooks/useSpacePresence';
 import { useSpaces, type AddSpaceResult } from './hooks/useSpaces';
+import { useSpaceJoin } from './hooks/useSpaceJoin';
+import { useControlBarMenus } from './hooks/useControlBarMenus';
+import { usePersistedState } from './hooks/usePersistedState';
 import { useKeybindSync } from './hooks/useKeybindSync';
 import { useVoiceActivation } from './hooks/useVoiceActivation';
 import { useAudioActivity } from './hooks/useAudioActivity';
@@ -54,18 +57,20 @@ function slugify(label: string): string {
 export function App(): React.JSX.Element {
   const iceServers = useMemo(() => window.chickadee?.iceServers ?? DEFAULT_ICE_SERVERS, []);
   const signaling = useSignaling();
+  // Media-constraint settings with side effects (mesh.*) keep explicit apply handlers below;
+  // plain persisted mirrors use usePersistedState (seed from store + persist on change).
   const [noiseSuppression, setNoiseSuppression] = useState(() => store.getNoiseSuppression());
   const [echoCancellation, setEchoCancellation] = useState(() => store.getEchoCancellation());
   const [autoGainControl, setAutoGainControl] = useState(() => store.getAutoGainControl());
-  const [normalizeVoices, setNormalizeVoices] = useState(() => store.getNormalizeVoices());
+  const [normalizeVoices, applyNormalizeVoices] = usePersistedState(store.getNormalizeVoices, store.setNormalizeVoices);
   const [inputDeviceId, setInputDeviceId] = useState(() => store.getInputDeviceId());
   const [outputDeviceId, setOutputDeviceId] = useState(() => store.getOutputDeviceId());
-  const [micVolume, setMicVolume] = useState(() => store.getMicVolume());
-  const [outputVolume, setOutputVolume] = useState(() => store.getOutputVolume());
-  const [cameraResolution, setCameraResolution] = useState(() => store.getCameraResolution());
-  const [cameraFramerate, setCameraFramerate] = useState(() => store.getCameraFramerate());
-  const [screenResolution, setScreenResolution] = useState(() => store.getScreenResolution());
-  const [screenFramerate, setScreenFramerate] = useState(() => store.getScreenFramerate());
+  const [micVolume, applyMicVolume] = usePersistedState(store.getMicVolume, store.setMicVolume);
+  const [outputVolume, applyOutputVolume] = usePersistedState(store.getOutputVolume, store.setOutputVolume);
+  const [cameraResolution, applyCameraResolution] = usePersistedState(store.getCameraResolution, store.setCameraResolution);
+  const [cameraFramerate, applyCameraFramerate] = usePersistedState(store.getCameraFramerate, store.setCameraFramerate);
+  const [screenResolution, applyScreenResolution] = usePersistedState(store.getScreenResolution, store.setScreenResolution);
+  const [screenFramerate, applyScreenFramerate] = usePersistedState(store.getScreenFramerate, store.setScreenFramerate);
   const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(() => store.getAvatarDataUrl());
   const [localVoicePreference, setLocalVoicePreference] = useState(() => store.getVoicePreference());
   const [localAccentColor, setLocalAccentColor] = useState(() => store.getAccentColor());
@@ -81,6 +86,7 @@ export function App(): React.JSX.Element {
   }, [signaling.joinRoom]);
   const { spaces, currentSpaceId, rooms, switchSpace, addSpace, deleteSpace, initFirstSpace, updateRooms, updateSpaceSettings } =
     useSpaces(leaveRoom, signaling.verifySpace);
+  const spaceJoin = useSpaceJoin(addSpace);
 
   const [chatOpen, setChatOpen] = useState(() => store.getChatVisible());
   const [compactMode, setCompactMode] = useState(() => store.getCompactMode());
@@ -103,28 +109,28 @@ export function App(): React.JSX.Element {
   const [spaceSettingsTarget, setSpaceSettingsTarget] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [inputMode, setInputMode] = useState<'open' | 'voice' | 'ptt'>(() => store.getInputMode());
-  const [vadThreshold, setVadThreshold] = useState(() => store.getVadThreshold());
-  const [vadReleaseMs, setVadReleaseMs] = useState(() => store.getVadReleaseMs());
-  const [openMicNoiseReductionEnabled, setOpenMicNoiseReductionEnabled] = useState(() => store.getOpenMicNoiseReductionEnabled());
-  const [openMicThreshold, setOpenMicThreshold] = useState(() => store.getOpenMicThreshold());
-  const [openMicReductionDb, setOpenMicReductionDb] = useState(() => store.getOpenMicReductionDb());
-  const [openMicReleaseMs, setOpenMicReleaseMs] = useState(() => store.getOpenMicReleaseMs());
+  const [inputMode, applyInputMode] = usePersistedState<'open' | 'voice' | 'ptt'>(store.getInputMode, store.setInputMode);
+  const [vadThreshold, applyVadThreshold] = usePersistedState(store.getVadThreshold, store.setVadThreshold);
+  const [vadReleaseMs, applyVadReleaseMs] = usePersistedState(store.getVadReleaseMs, store.setVadReleaseMs);
+  const [openMicNoiseReductionEnabled, applyOpenMicNoiseReductionEnabled] = usePersistedState(store.getOpenMicNoiseReductionEnabled, store.setOpenMicNoiseReductionEnabled);
+  const [openMicThreshold, applyOpenMicThreshold] = usePersistedState(store.getOpenMicThreshold, store.setOpenMicThreshold);
+  const [openMicReductionDb, applyOpenMicReductionDb] = usePersistedState(store.getOpenMicReductionDb, store.setOpenMicReductionDb);
+  const [openMicReleaseMs, applyOpenMicReleaseMs] = usePersistedState(store.getOpenMicReleaseMs, store.setOpenMicReleaseMs);
   // Persistent mute intent — a single master switch that survives input-mode
   // switches (open/voice/PTT). The mic gate (mesh.micEnabled) is forced off while
   // muted, regardless of mode; modes only manage the gate when unmuted.
   const [micMuted, setMicMuted] = useState(false);
-  const [pushToTalkKey, setPushToTalkKey] = useState(() => store.getPushToTalkKey());
-  const [pttMode, setPttMode] = useState<'hold' | 'toggle'>(() => store.getPttMode());
-  const [muteKey, setMuteKey] = useState(() => store.getMuteKey());
-  const [muteMode, setMuteMode] = useState<'hold' | 'toggle'>(() => store.getMuteMode());
-  const [deafenKey, setDeafenKey] = useState(() => store.getDeafenKey());
-  const [deafenMode, setDeafenMode] = useState<'hold' | 'toggle'>(() => store.getDeafenMode());
-  const [cameraKey, setCameraKey] = useState(() => store.getCameraKey());
-  const [screenShareKey, setScreenShareKey] = useState(() => store.getScreenShareKey());
-  const [chatPanelKey, setChatPanelKey] = useState(() => store.getChatPanelKey());
-  const [ttsToggleKey, setTtsToggleKey] = useState(() => store.getTtsToggleKey());
-  const [ttsStopKey, setTtsStopKey] = useState(() => store.getTtsStopKey());
+  const [pushToTalkKey, applyPushToTalkKey] = usePersistedState(store.getPushToTalkKey, store.setPushToTalkKey);
+  const [pttMode, applyPttMode] = usePersistedState<'hold' | 'toggle'>(store.getPttMode, store.setPttMode);
+  const [muteKey, applyMuteKey] = usePersistedState(store.getMuteKey, store.setMuteKey);
+  const [muteMode, applyMuteMode] = usePersistedState<'hold' | 'toggle'>(store.getMuteMode, store.setMuteMode);
+  const [deafenKey, applyDeafenKey] = usePersistedState(store.getDeafenKey, store.setDeafenKey);
+  const [deafenMode, applyDeafenMode] = usePersistedState<'hold' | 'toggle'>(store.getDeafenMode, store.setDeafenMode);
+  const [cameraKey, applyCameraKey] = usePersistedState(store.getCameraKey, store.setCameraKey);
+  const [screenShareKey, applyScreenShareKey] = usePersistedState(store.getScreenShareKey, store.setScreenShareKey);
+  const [chatPanelKey, applyChatPanelKey] = usePersistedState(store.getChatPanelKey, store.setChatPanelKey);
+  const [ttsToggleKey, applyTtsToggleKey] = usePersistedState(store.getTtsToggleKey, store.setTtsToggleKey);
+  const [ttsStopKey, applyTtsStopKey] = usePersistedState(store.getTtsStopKey, store.setTtsStopKey);
   const [windowFocused, setWindowFocused] = useState(() => document.hasFocus());
   // Distinct from focus: false only while minimized/hidden (signalled from main).
   // Gates incoming video decode so frames nobody can see aren't decoded.
@@ -201,78 +207,38 @@ export function App(): React.JSX.Element {
   useEffect(() => {
     setOutputSink(outputDeviceId ?? '');
   }, [outputDeviceId]);
-  const [inputMenuOpen, setInputMenuOpen] = useState(false);
-  const [outputMenuOpen, setOutputMenuOpen] = useState(false);
-  const [inputModeMenuOpen, setInputModeMenuOpen] = useState(false);
-  const [videoMenuOpen, setVideoMenuOpen] = useState(false);
-  const [inputMenuAnchor, setInputMenuAnchor] = useState<DOMRect | null>(null);
-  const [outputMenuAnchor, setOutputMenuAnchor] = useState<DOMRect | null>(null);
-  const [inputModeMenuAnchor, setInputModeMenuAnchor] = useState<DOMRect | null>(null);
-  const [videoMenuAnchor, setVideoMenuAnchor] = useState<DOMRect | null>(null);
-  const [reactionMenuOpen, setReactionMenuOpen] = useState(false);
-  const [reactionMenuAnchor, setReactionMenuAnchor] = useState<DOMRect | null>(null);
+
+  // Control-bar chevron popovers + reaction popover (open flags, anchors, timeouts).
+  const menus = useControlBarMenus();
+
   const [settingsInitialTab, setSettingsInitialTab] = useState('profile');
-  const [sfxEnabled, setSfxEnabled] = useState(() => store.getSfxEnabled());
-  const [sfxVolume, setSfxVolume] = useState(() => store.getSfxVolume());
-  const [sfxJoinLeaveEnabled, setSfxJoinLeaveEnabled] = useState(() => store.getSfxJoinLeaveEnabled());
-  const [sfxMuteEnabled, setSfxMuteEnabled] = useState(() => store.getSfxMuteEnabled());
-  const [sfxMuteOtherEnabled, setSfxMuteOtherEnabled] = useState(() => store.getSfxMuteOtherEnabled());
-  const [sfxTransmitEnabled, setSfxTransmitEnabled] = useState(() => store.getSfxTransmitEnabled());
-  const [sfxChatEnabled, setSfxChatEnabled] = useState(() => store.getSfxChatEnabled());
-  const [sfxDeafenEnabled, setSfxDeafenEnabled] = useState(() => store.getSfxDeafenEnabled());
+  const [sfxEnabled, applySfxEnabled] = usePersistedState(store.getSfxEnabled, store.setSfxEnabled);
+  const [sfxVolume, applySfxVolume] = usePersistedState(store.getSfxVolume, store.setSfxVolume);
+  const [sfxJoinLeaveEnabled, applySfxJoinLeaveEnabled] = usePersistedState(store.getSfxJoinLeaveEnabled, store.setSfxJoinLeaveEnabled);
+  const [sfxMuteEnabled, applySfxMuteEnabled] = usePersistedState(store.getSfxMuteEnabled, store.setSfxMuteEnabled);
+  const [sfxMuteOtherEnabled, applySfxMuteOtherEnabled] = usePersistedState(store.getSfxMuteOtherEnabled, store.setSfxMuteOtherEnabled);
+  const [sfxTransmitEnabled, applySfxTransmitEnabled] = usePersistedState(store.getSfxTransmitEnabled, store.setSfxTransmitEnabled);
+  const [sfxChatEnabled, applySfxChatEnabled] = usePersistedState(store.getSfxChatEnabled, store.setSfxChatEnabled);
+  const [sfxDeafenEnabled, applySfxDeafenEnabled] = usePersistedState(store.getSfxDeafenEnabled, store.setSfxDeafenEnabled);
   muteOtherSfxRef.current = { enabled: sfxEnabled, on: sfxMuteOtherEnabled, volume: sfxVolume };
   const [deafened, setDeafened] = useState(false);
   const lastJoinTimeRef = useRef<number>(0);
-  const reactionCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const reactionHasEnteredPopoverRef = useRef(false);
 
-  const startReactionCloseTimeout = useCallback(() => {
-    if (reactionCloseTimeoutRef.current) clearTimeout(reactionCloseTimeoutRef.current);
-    const delay = reactionHasEnteredPopoverRef.current ? 1000 : 3000;
-    reactionCloseTimeoutRef.current = setTimeout(() => {
-      setReactionMenuOpen(false);
-    }, delay);
-  }, []);
-
-  const cancelReactionCloseTimeout = useCallback(() => {
-    if (reactionCloseTimeoutRef.current) {
-      clearTimeout(reactionCloseTimeoutRef.current);
-      reactionCloseTimeoutRef.current = null;
-    }
-  }, []);
-
-  useEffect(() => {
-    if (reactionMenuOpen) {
-      reactionHasEnteredPopoverRef.current = false;
-    } else {
-      if (reactionCloseTimeoutRef.current) {
-        clearTimeout(reactionCloseTimeoutRef.current);
-        reactionCloseTimeoutRef.current = null;
-      }
-    }
-  }, [reactionMenuOpen]);
-
-  useEffect(() => {
-    return () => {
-      if (reactionCloseTimeoutRef.current) clearTimeout(reactionCloseTimeoutRef.current);
-    };
-  }, []);
-
-  const [badgeNotificationsEnabled, setBadgeNotificationsEnabled] = useState(() => store.getBadgeNotificationsEnabled());
+  const [badgeNotificationsEnabled, applyBadgeNotificationsEnabled] = usePersistedState(store.getBadgeNotificationsEnabled, store.setBadgeNotificationsEnabled);
   const [unreadCount, setUnreadCount] = useState(0);
   const [selfStatus, setSelfStatus] = useState<'online' | 'idle' | 'dnd'>(() => store.getStatus());
-  const [uiScale, setUiScale] = useState(() => store.getUiScale());
-  const [chatFontScale, setChatFontScale] = useState(() => store.getChatFontScale());
-  const [chatPosition, setChatPosition] = useState(() => store.getChatPosition());
+  const [uiScale, applyUiScale] = usePersistedState(store.getUiScale, store.setUiScale);
+  const [chatFontScale, applyChatFontScale] = usePersistedState(store.getChatFontScale, store.setChatFontScale);
+  const [chatPosition, applyChatPosition] = usePersistedState<'left' | 'right'>(store.getChatPosition, store.setChatPosition);
   const [chatWidthScale, setChatWidthScale] = useState(() => store.getChatWidthScale());
   const [sidebarWidthScale, setSidebarWidthScale] = useState(() => store.getSidebarWidthScale());
   const [chatTtsEnabled, setChatTtsEnabled] = useState(() => store.getChatTtsEnabled());
-  const [chatTtsSpeakName, setChatTtsSpeakName] = useState(() => store.getChatTtsSpeakName());
-  const [theme, setTheme] = useState<ThemeName>(() => store.getTheme());
+  const [chatTtsSpeakName, applyChatTtsSpeakName] = usePersistedState(store.getChatTtsSpeakName, store.setChatTtsSpeakName);
+  const [theme, applyTheme] = usePersistedState<ThemeName>(store.getTheme, store.setTheme);
   const [launchOnStartup, setLaunchOnStartup] = useState(() => store.getLaunchOnStartup());
-  const [closeBehavior, setCloseBehavior] = useState<'quit' | 'tray'>(() => store.getCloseBehavior());
+  const [closeBehavior, applyCloseBehavior] = usePersistedState<'quit' | 'tray'>(store.getCloseBehavior, store.setCloseBehavior);
   const [alwaysOnTop, setAlwaysOnTop] = useState(() => store.getAlwaysOnTop());
-  const [defaultVideoAction, setDefaultVideoAction] = useState<'camera' | 'screen'>(() => store.getDefaultVideoAction());
+  const [defaultVideoAction, applyDefaultVideoAction] = usePersistedState<'camera' | 'screen'>(store.getDefaultVideoAction, store.setDefaultVideoAction);
 
   // Apply initial UI scale and whenever it changes
   useEffect(() => {
@@ -297,16 +263,6 @@ export function App(): React.JSX.Element {
       speakChatMessage(msg.senderName, msg.text, msg.voicePreference, store.getChatTtsSpeakName());
     }
   }, []);
-
-  const [createSpaceOpen, setCreateSpaceOpen] = useState(false);
-  const [joinSpaceOpen, setJoinSpaceOpen] = useState(false);
-  const [newSpaceName, setNewSpaceName] = useState('');
-  const [inviteCodeInput, setInviteCodeInput] = useState('');
-  const [joinChecking, setJoinChecking] = useState(false);
-  const [joinError, setJoinError] = useState<string | null>(null);
-  const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [customSignalingUrl, setCustomSignalingUrl] = useState('');
-  const [joinSecret, setJoinSecret] = useState('');
 
   const chat = useRoomChat({
     signaling,
@@ -404,7 +360,7 @@ export function App(): React.JSX.Element {
     // Room movement and status updates are sent dynamically over the active socket.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentSpaceId, userId, displayName, spaces]);
-  
+
   // Listen for space renames from other clients
   useEffect(() => {
     const unsubscribe = signaling.subscribe((msg) => {
@@ -502,26 +458,6 @@ export function App(): React.JSX.Element {
     return result;
   }
 
-  /** Shared async handler for the Join-a-Space modal (button + Enter). */
-  async function submitJoinSpace(): Promise<void> {
-    const code = inviteCodeInput.trim();
-    if (!code || joinChecking) return;
-    setJoinError(null);
-    setJoinChecking(true);
-    const result = await addSpace(code, 'join', customSignalingUrl.trim() || undefined, joinSecret || undefined);
-    setJoinChecking(false);
-    if (result.ok) {
-      setInviteCodeInput('');
-      setJoinSpaceOpen(false);
-      return;
-    }
-    setJoinError(
-      result.reason === 'unreachable'
-        ? "Couldn't reach the signaling server — check your connection."
-        : 'That Space does not exist (or no one is currently in it).',
-    );
-  }
-
   function toggleChat(): void {
     setChatOpen((v) => {
       store.setChatVisible(!v);
@@ -552,11 +488,6 @@ export function App(): React.JSX.Element {
     mesh.setAutoGainControl(on);
   }
 
-  function applyNormalizeVoices(on: boolean): void {
-    setNormalizeVoices(on);
-    store.setNormalizeVoices(on);
-  }
-
   const applyInputDevice = useCallback((id: string) => {
     setInputDeviceId(id);
     store.setInputDeviceId(id);
@@ -568,62 +499,18 @@ export function App(): React.JSX.Element {
     store.setOutputDeviceId(id);
   }, []);
 
-  const applyMicVolume = useCallback((vol: number) => {
-    setMicVolume(vol);
-    store.setMicVolume(vol);
-  }, []);
-
-  const applyOutputVolume = useCallback((vol: number) => {
-    setOutputVolume(vol);
-    store.setOutputVolume(vol);
-  }, []);
-
-  const applyCameraResolution = useCallback((res: string) => {
-    setCameraResolution(res);
-    store.setCameraResolution(res);
-  }, []);
-
-  const applyCameraFramerate = useCallback((fps: string) => {
-    setCameraFramerate(fps);
-    store.setCameraFramerate(fps);
-  }, []);
-
-  const applyScreenResolution = useCallback((res: string) => {
-    setScreenResolution(res);
-    store.setScreenResolution(res);
-  }, []);
-
-  const applyScreenFramerate = useCallback((fps: string) => {
-    setScreenFramerate(fps);
-    store.setScreenFramerate(fps);
-  }, []);
-
-  const applyUiScale = useCallback((scale: number) => {
-    setUiScale(scale);
-    store.setUiScale(scale);
-  }, []);
-
-  const applyChatFontScale = useCallback((scale: number) => {
-    setChatFontScale(scale);
-    store.setChatFontScale(scale);
-  }, []);
-
-  const applyChatPosition = useCallback((pos: 'left' | 'right') => {
-    setChatPosition(pos);
-    store.setChatPosition(pos);
-  }, []);
-
-  const applyChatWidthScale = useCallback((scale: number) => {
-    setChatWidthScale(scale);
-    store.setChatWidthScale(scale);
-  }, []);
-
   // Live chat-panel resize from the drag handle: update state every move, persist
   // only on release (commit) so we don't write to disk on every pointermove.
   const handleChatResize = useCallback((scale: number, commit: boolean) => {
     const clamped = Math.max(1.0, Math.min(2.0, scale));
     setChatWidthScale(clamped);
     if (commit) store.setChatWidthScale(clamped);
+  }, []);
+
+  // Settings slider commits chat width directly (persist immediately).
+  const applyChatWidthScale = useCallback((scale: number) => {
+    setChatWidthScale(scale);
+    store.setChatWidthScale(scale);
   }, []);
 
   // Unified sidebar width: drives the CSS var in full view and the OS dock width
@@ -639,13 +526,6 @@ export function App(): React.JSX.Element {
     },
     [compactMode],
   );
-
-  const applyInputMode = useCallback((mode: 'open' | 'voice' | 'ptt') => {
-    setInputMode(mode);
-    store.setInputMode(mode);
-    // Mute intent (micMuted) intentionally persists across mode switches — the
-    // baseline mic-gating effect re-derives the transmit gate for the new mode.
-  }, []);
 
   const cycleInputMode = useCallback(() => {
     const order = ['open', 'voice', 'ptt'] as const;
@@ -700,166 +580,16 @@ export function App(): React.JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [compactMode]);
 
-  const applyVadThreshold = useCallback((threshold: number) => {
-    setVadThreshold(threshold);
-    store.setVadThreshold(threshold);
-  }, []);
-
-  const applyVadReleaseMs = useCallback((ms: number) => {
-    setVadReleaseMs(ms);
-    store.setVadReleaseMs(ms);
-  }, []);
-
-  const applyOpenMicNoiseReductionEnabled = useCallback((on: boolean) => {
-    setOpenMicNoiseReductionEnabled(on);
-    store.setOpenMicNoiseReductionEnabled(on);
-  }, []);
-
-  const applyOpenMicThreshold = useCallback((threshold: number) => {
-    setOpenMicThreshold(threshold);
-    store.setOpenMicThreshold(threshold);
-  }, []);
-
-  const applyOpenMicReductionDb = useCallback((db: number) => {
-    setOpenMicReductionDb(db);
-    store.setOpenMicReductionDb(db);
-  }, []);
-
-  const applyOpenMicReleaseMs = useCallback((ms: number) => {
-    setOpenMicReleaseMs(ms);
-    store.setOpenMicReleaseMs(ms);
-  }, []);
-
-  function applyPushToTalkKey(key: string): void {
-    setPushToTalkKey(key);
-    store.setPushToTalkKey(key);
-  }
-
-  function applyPttMode(mode: 'hold' | 'toggle'): void {
-    setPttMode(mode);
-    store.setPttMode(mode);
-  }
-
-  function applyMuteKey(key: string): void {
-    setMuteKey(key);
-    store.setMuteKey(key);
-  }
-
-  function applyMuteMode(mode: 'hold' | 'toggle'): void {
-    setMuteMode(mode);
-    store.setMuteMode(mode);
-  }
-
-  function applyDeafenKey(key: string): void {
-    setDeafenKey(key);
-    store.setDeafenKey(key);
-  }
-
-  function applyDeafenMode(mode: 'hold' | 'toggle'): void {
-    setDeafenMode(mode);
-    store.setDeafenMode(mode);
-  }
-
-  function applyCameraKey(key: string): void {
-    setCameraKey(key);
-    store.setCameraKey(key);
-  }
-
-  function applyScreenShareKey(key: string): void {
-    setScreenShareKey(key);
-    store.setScreenShareKey(key);
-  }
-
-  function applyChatPanelKey(key: string): void {
-    setChatPanelKey(key);
-    store.setChatPanelKey(key);
-  }
-
-  function applyTtsToggleKey(key: string): void {
-    setTtsToggleKey(key);
-    store.setTtsToggleKey(key);
-  }
-
-  function applyTtsStopKey(key: string): void {
-    setTtsStopKey(key);
-    store.setTtsStopKey(key);
-  }
-
-  function applySfxEnabled(on: boolean): void {
-    setSfxEnabled(on);
-    store.setSfxEnabled(on);
-  }
-
-  function applySfxVolume(vol: number): void {
-    setSfxVolume(vol);
-    store.setSfxVolume(vol);
-  }
-
-  function applySfxJoinLeaveEnabled(on: boolean): void {
-    setSfxJoinLeaveEnabled(on);
-    store.setSfxJoinLeaveEnabled(on);
-  }
-
-  function applySfxMuteEnabled(on: boolean): void {
-    setSfxMuteEnabled(on);
-    store.setSfxMuteEnabled(on);
-  }
-
-  function applySfxMuteOtherEnabled(on: boolean): void {
-    setSfxMuteOtherEnabled(on);
-    store.setSfxMuteOtherEnabled(on);
-  }
-
-  function applySfxTransmitEnabled(on: boolean): void {
-    setSfxTransmitEnabled(on);
-    store.setSfxTransmitEnabled(on);
-  }
-
-  function applySfxChatEnabled(on: boolean): void {
-    setSfxChatEnabled(on);
-    store.setSfxChatEnabled(on);
-  }
-
-  function applySfxDeafenEnabled(on: boolean): void {
-    setSfxDeafenEnabled(on);
-    store.setSfxDeafenEnabled(on);
-  }
-
-  function applyBadgeNotificationsEnabled(on: boolean): void {
-    setBadgeNotificationsEnabled(on);
-    store.setBadgeNotificationsEnabled(on);
-  }
-
   function applyChatTtsEnabled(on: boolean): void {
     setChatTtsEnabled(on);
     store.setChatTtsEnabled(on);
     if (!on) cancelSpeech(); // stop any in-progress speech when disabled
   }
 
-  function applyChatTtsSpeakName(on: boolean): void {
-    setChatTtsSpeakName(on);
-    store.setChatTtsSpeakName(on);
-  }
-
-  function applyTheme(next: ThemeName): void {
-    setTheme(next);
-    store.setTheme(next);
-  }
-
-  const applyDefaultVideoAction = useCallback((action: 'camera' | 'screen') => {
-    setDefaultVideoAction(action);
-    store.setDefaultVideoAction(action);
-  }, []);
-
   function applyLaunchOnStartup(on: boolean): void {
     setLaunchOnStartup(on);
     store.setLaunchOnStartup(on);
     void window.chickadee?.setLoginItem?.(on);
-  }
-
-  function applyCloseBehavior(next: 'quit' | 'tray'): void {
-    setCloseBehavior(next);
-    store.setCloseBehavior(next);
   }
 
   function applyAlwaysOnTop(on: boolean): void {
@@ -1096,7 +826,7 @@ export function App(): React.JSX.Element {
   });
 
   // Audio/video device lists for Settings and the chevron menus.
-  const devices = useMediaDevices(inRoom || settingsOpen || inputMenuOpen || outputMenuOpen || videoMenuOpen);
+  const devices = useMediaDevices(inRoom || settingsOpen || menus.inputMenuOpen || menus.outputMenuOpen || menus.videoMenuOpen);
   const hasCamera = devices.videoInputs.length > 0;
   const defaultAction = hasCamera ? defaultVideoAction : 'screen';
 
@@ -1202,22 +932,8 @@ export function App(): React.JSX.Element {
         spaces={spaces}
         activeSpaceId={currentSpaceId}
         onSelectSpace={switchSpace}
-        onCreateSpace={() =>
-          openExpanded(() => {
-            setCreateSpaceOpen(true);
-            setAdvancedOpen(false);
-            setCustomSignalingUrl('');
-            setJoinSecret('');
-          })
-        }
-        onJoinSpace={() =>
-          openExpanded(() => {
-            setJoinSpaceOpen(true);
-            setAdvancedOpen(false);
-            setCustomSignalingUrl('');
-            setJoinSecret('');
-          })
-        }
+        onCreateSpace={() => openExpanded(spaceJoin.openCreateSpace)}
+        onJoinSpace={() => openExpanded(spaceJoin.openJoinSpace)}
         onDeleteSpace={deleteSpace}
         onSpaceSettings={(id) => openExpanded(() => setSpaceSettingsTarget(id))}
         selfStatus={selfStatus}
@@ -1296,39 +1012,32 @@ export function App(): React.JSX.Element {
               micEnabled={micButtonOn}
               hasMic={!!mesh.localStream}
               onToggleMic={handleToggleMic}
-              onInputMenu={(rect) => { setInputMenuAnchor(rect); setInputMenuOpen(true); setOutputMenuOpen(false); setInputModeMenuOpen(false); setVideoMenuOpen(false); setReactionMenuOpen(false); }}
+              onInputMenu={menus.openInputMenu}
               allowVideo={allowVideo}
               cameraEnabled={mesh.cameraEnabled}
               onToggleCamera={mesh.toggleCamera}
               sharingScreen={mesh.sharingScreen}
               onToggleShare={() => {
-                setVideoMenuOpen(false);
-                setReactionMenuOpen(false);
+                menus.closeVideoMenu();
+                menus.closeReactionMenu();
                 mesh.sharingScreen ? mesh.stopScreenShare() : setPickerOpen(true);
               }}
-              onVideoMenu={(rect) => { setVideoMenuAnchor(rect); setVideoMenuOpen(true); setInputMenuOpen(false); setOutputMenuOpen(false); setInputModeMenuOpen(false); setReactionMenuOpen(false); }}
+              onVideoMenu={menus.openVideoMenu}
               defaultAction={defaultAction}
               inputMode={inputMode}
               onCycleInputMode={cycleInputMode}
-              onInputModeMenu={(rect) => { setInputModeMenuAnchor(rect); setInputModeMenuOpen(true); setInputMenuOpen(false); setOutputMenuOpen(false); setVideoMenuOpen(false); setReactionMenuOpen(false); }}
-              onReactMenu={(rect) => {
-                setReactionMenuAnchor(rect);
-                setReactionMenuOpen(true);
-                setInputMenuOpen(false);
-                setOutputMenuOpen(false);
-                setInputModeMenuOpen(false);
-                setVideoMenuOpen(false);
-              }}
+              onInputModeMenu={menus.openInputModeMenu}
+              onReactMenu={menus.openReactionMenu}
               onLeave={leaveRoom}
               deafened={deafened}
               onToggleDeafen={toggleDeafen}
-              onOutputMenu={(rect) => { setOutputMenuAnchor(rect); setOutputMenuOpen(true); setInputMenuOpen(false); setInputModeMenuOpen(false); setVideoMenuOpen(false); setReactionMenuOpen(false); }}
-              onMouseEnterReact={cancelReactionCloseTimeout}
-              onMouseLeaveReact={startReactionCloseTimeout}
+              onOutputMenu={menus.openOutputMenu}
+              onMouseEnterReact={menus.cancelReactionCloseTimeout}
+              onMouseLeaveReact={menus.startReactionCloseTimeout}
               selfSpeaking={selfSpeaking}
             />
 
-            {inputMenuOpen && inputMenuAnchor && (
+            {menus.inputMenuOpen && menus.inputMenuAnchor && (
               <AudioDeviceMenu
                 mode="input"
                 devices={devices.inputs}
@@ -1341,12 +1050,12 @@ export function App(): React.JSX.Element {
                 onChangeKeybind={applyMuteKey}
                 keybindMode={muteMode}
                 onChangeKeybindMode={applyMuteMode}
-                onOpenVoiceSettings={() => { setInputMenuOpen(false); setSettingsInitialTab('audio'); setSettingsOpen(true); }}
-                onClose={() => setInputMenuOpen(false)}
-                anchorRect={inputMenuAnchor}
+                onOpenVoiceSettings={() => { menus.closeInputMenu(); setSettingsInitialTab('audio'); setSettingsOpen(true); }}
+                onClose={menus.closeInputMenu}
+                anchorRect={menus.inputMenuAnchor}
               />
             )}
-            {outputMenuOpen && outputMenuAnchor && (
+            {menus.outputMenuOpen && menus.outputMenuAnchor && (
               <AudioDeviceMenu
                 mode="output"
                 devices={devices.outputs}
@@ -1359,12 +1068,12 @@ export function App(): React.JSX.Element {
                 onChangeKeybind={applyDeafenKey}
                 keybindMode={deafenMode}
                 onChangeKeybindMode={applyDeafenMode}
-                onOpenVoiceSettings={() => { setOutputMenuOpen(false); setSettingsInitialTab('audio'); setSettingsOpen(true); }}
-                onClose={() => setOutputMenuOpen(false)}
-                anchorRect={outputMenuAnchor}
+                onOpenVoiceSettings={() => { menus.closeOutputMenu(); setSettingsInitialTab('audio'); setSettingsOpen(true); }}
+                onClose={menus.closeOutputMenu}
+                anchorRect={menus.outputMenuAnchor}
               />
             )}
-            {inputModeMenuOpen && inputModeMenuAnchor && (
+            {menus.inputModeMenuOpen && menus.inputModeMenuAnchor && (
               <InputModeMenu
                 inputMode={inputMode}
                 onSwitchMode={applyInputMode}
@@ -1378,18 +1087,18 @@ export function App(): React.JSX.Element {
                 onToggleOpenMicNoiseReduction={() => applyOpenMicNoiseReductionEnabled(!openMicNoiseReductionEnabled)}
                 openMicThreshold={openMicThreshold}
                 onChangeOpenMicThreshold={applyOpenMicThreshold}
-                onOpenVoiceSettings={() => { setInputModeMenuOpen(false); setSettingsInitialTab('audio'); setSettingsOpen(true); }}
-                onClose={() => setInputModeMenuOpen(false)}
-                anchorRect={inputModeMenuAnchor}
+                onOpenVoiceSettings={() => { menus.closeInputModeMenu(); setSettingsInitialTab('audio'); setSettingsOpen(true); }}
+                onClose={menus.closeInputModeMenu}
+                anchorRect={menus.inputModeMenuAnchor}
               />
             )}
-            {videoMenuOpen && videoMenuAnchor && (
+            {menus.videoMenuOpen && menus.videoMenuAnchor && (
               <VideoMenu
                 cameraEnabled={mesh.cameraEnabled}
                 onToggleCamera={mesh.toggleCamera}
                 sharingScreen={mesh.sharingScreen}
                 onToggleShare={() => {
-                  setVideoMenuOpen(false);
+                  menus.closeVideoMenu();
                   mesh.sharingScreen ? mesh.stopScreenShare() : setPickerOpen(true);
                 }}
                 cameraResolution={cameraResolution}
@@ -1400,22 +1109,19 @@ export function App(): React.JSX.Element {
                 onChangeScreenResolution={applyScreenResolution}
                 screenFramerate={screenFramerate}
                 onChangeScreenFramerate={applyScreenFramerate}
-                onOpenVideoSettings={() => { setVideoMenuOpen(false); setSettingsInitialTab('video'); setSettingsOpen(true); }}
-                onClose={() => setVideoMenuOpen(false)}
-                anchorRect={videoMenuAnchor}
+                onOpenVideoSettings={() => { menus.closeVideoMenu(); setSettingsInitialTab('video'); setSettingsOpen(true); }}
+                onClose={menus.closeVideoMenu}
+                anchorRect={menus.videoMenuAnchor}
                 hasCamera={hasCamera}
               />
             )}
-            {reactionMenuOpen && reactionMenuAnchor && (
+            {menus.reactionMenuOpen && menus.reactionMenuAnchor && (
               <ReactionPopover
                 onReact={chat.react}
-                onClose={() => setReactionMenuOpen(false)}
-                anchorRect={reactionMenuAnchor}
-                onMouseEnter={() => {
-                  cancelReactionCloseTimeout();
-                  reactionHasEnteredPopoverRef.current = true;
-                }}
-                onMouseLeave={startReactionCloseTimeout}
+                onClose={menus.closeReactionMenu}
+                anchorRect={menus.reactionMenuAnchor}
+                onMouseEnter={menus.handleReactionPopoverEnter}
+                onMouseLeave={menus.startReactionCloseTimeout}
               />
             )}
           </>
@@ -1461,20 +1167,16 @@ export function App(): React.JSX.Element {
 
       {onboardingNeeded && <WelcomeWizard onSubmit={handleOnboardingSubmit} />}
 
-      {createSpaceOpen && (
-        <Modal title="Create a Space" onClose={() => setCreateSpaceOpen(false)}>
+      {spaceJoin.createSpaceOpen && (
+        <Modal title="Create a Space" onClose={spaceJoin.closeCreateSpace}>
           <div className="field">
             <label className="field-label">Space Name</label>
             <input
               className="welcome__input"
-              value={newSpaceName}
-              onChange={(e) => setNewSpaceName(e.target.value)}
+              value={spaceJoin.newSpaceName}
+              onChange={(e) => spaceJoin.setNewSpaceName(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && newSpaceName.trim()) {
-                  void addSpace(newSpaceName, 'create', customSignalingUrl.trim() || undefined, joinSecret || undefined);
-                  setNewSpaceName('');
-                  setCreateSpaceOpen(false);
-                }
+                if (e.key === 'Enter') spaceJoin.submitCreateSpace();
               }}
               placeholder="e.g. Midnight Lounge"
               autoFocus
@@ -1482,66 +1184,56 @@ export function App(): React.JSX.Element {
             />
           </div>
           <AdvancedConnectionSettings
-            customSignalingUrl={customSignalingUrl}
-            setCustomSignalingUrl={setCustomSignalingUrl}
-            joinSecret={joinSecret}
-            setJoinSecret={setJoinSecret}
-            advancedOpen={advancedOpen}
-            setAdvancedOpen={setAdvancedOpen}
-            onEnterKeyDown={() => {
-              if (newSpaceName.trim()) {
-                void addSpace(newSpaceName, 'create', customSignalingUrl.trim() || undefined, joinSecret || undefined);
-                setNewSpaceName('');
-                setCreateSpaceOpen(false);
-              }
-            }}
+            customSignalingUrl={spaceJoin.customSignalingUrl}
+            setCustomSignalingUrl={spaceJoin.setCustomSignalingUrl}
+            joinSecret={spaceJoin.joinSecret}
+            setJoinSecret={spaceJoin.setJoinSecret}
+            advancedOpen={spaceJoin.advancedOpen}
+            setAdvancedOpen={spaceJoin.setAdvancedOpen}
+            onEnterKeyDown={spaceJoin.submitCreateSpace}
           />
           <button
             className="modal-action"
-            onClick={() => {
-              void addSpace(newSpaceName, 'create', customSignalingUrl.trim() || undefined, joinSecret || undefined);
-              setNewSpaceName('');
-              setCreateSpaceOpen(false);
-            }}
-            disabled={!newSpaceName.trim()}
+            onClick={spaceJoin.submitCreateSpace}
+            disabled={!spaceJoin.newSpaceName.trim()}
           >
             Create Space
           </button>
         </Modal>
       )}
 
-      {joinSpaceOpen && (
-        <Modal title="Join a Space" onClose={() => { setJoinSpaceOpen(false); setJoinError(null); }}>
+      {spaceJoin.joinSpaceOpen && (
+        <Modal title="Join a Space" onClose={spaceJoin.closeJoinSpace}>
           <div className="field">
             <label className="field-label">Invite Code / Space ID</label>
             <input
               className="welcome__input"
-              value={inviteCodeInput}
-              onChange={(e) => { setInviteCodeInput(e.target.value); setJoinError(null); }}
+              value={spaceJoin.inviteCodeInput}
+              onChange={(e) => { spaceJoin.setInviteCodeInput(e.target.value); spaceJoin.setJoinError(null); }}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') void submitJoinSpace();
+                if (e.key === 'Enter') void spaceJoin.submitJoinSpace();
               }}
               placeholder="e.g. midnight-lounge-7f8a3"
               autoFocus
-              disabled={joinChecking}
+              disabled={spaceJoin.joinChecking}
             />
           </div>
-          {joinError && <p className="field-error">{joinError}</p>}
+          {spaceJoin.joinError && <p className="field-error">{spaceJoin.joinError}</p>}
           <AdvancedConnectionSettings
-            customSignalingUrl={customSignalingUrl}
-            setCustomSignalingUrl={setCustomSignalingUrl}
-            joinSecret={joinSecret}
-            setJoinSecret={setJoinSecret}
-            advancedOpen={advancedOpen}
-            setAdvancedOpen={setAdvancedOpen}
-            onEnterKeyDown={() => void submitJoinSpace()}
+            customSignalingUrl={spaceJoin.customSignalingUrl}
+            setCustomSignalingUrl={spaceJoin.setCustomSignalingUrl}
+            joinSecret={spaceJoin.joinSecret}
+            setJoinSecret={spaceJoin.setJoinSecret}
+            advancedOpen={spaceJoin.advancedOpen}
+            setAdvancedOpen={spaceJoin.setAdvancedOpen}
+            onEnterKeyDown={() => void spaceJoin.submitJoinSpace()}
           />
           <button
             className="modal-action"
-            onClick={() => void submitJoinSpace()}
-            disabled={!inviteCodeInput.trim() || joinChecking}
+            onClick={() => void spaceJoin.submitJoinSpace()}
+            disabled={!spaceJoin.inviteCodeInput.trim() || spaceJoin.joinChecking}
           >
-            {joinChecking ? 'Checking…' : 'Join Space'}
+            {spaceJoin.joinChecking ? 'Checking…' : 'Join Space'}
           </button>
         </Modal>
       )}
@@ -1700,14 +1392,14 @@ export function App(): React.JSX.Element {
               const tempSlug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'space';
               const suffix = Math.random().toString(36).substring(2, 7);
               const newSpaceId = `${tempSlug}-${suffix}`;
-              
+
               signaling.send({
                 type: 'rename-space',
                 spaceId: oldSpaceId,
                 newSpaceId,
                 newSpaceName: name.trim()
               });
-              
+
               updateSpaceSettings(oldSpaceId, name, url, secret, newSpaceId);
             } else {
               updateSpaceSettings(oldSpaceId, name, url, secret);
