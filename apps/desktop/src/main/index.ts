@@ -221,7 +221,7 @@ function createWindow(): void {
     frame: false,
     autoHideMenuBar: true,
     alwaysOnTop: getSettings().alwaysOnTop,
-    backgroundColor: '#06060f',
+    backgroundColor: '#e9e9e9',
     title: 'Chickadee Chat',
     webPreferences: {
       // Main and preload are built as CommonJS (the package is not
@@ -247,7 +247,10 @@ function createWindow(): void {
 
   window.on('ready-to-show', () => {
     window.show();
-    window.webContents.focus();
+    // Portable/packaged Windows launches can inherit a STARTUPINFO show-flag that
+    // Windows honors on the FIRST ShowWindow, opening us minimized. Detect and undo.
+    if (window.isMinimized()) window.restore();
+    window.focus();
   });
 
   // Belt-and-suspenders: enforce the compact width cap on any user resize path
@@ -328,6 +331,11 @@ app.on('render-process-gone', (_e, _wc, details) => {
 
 app.whenReady().then(() => {
   loadSettings();
+
+  // Required on Windows for toast notifications + taskbar overlay badges to work in
+  // packaged builds (Electron does not set this automatically). Was previously set by
+  // the now-removed profiler module. Match the electron-builder appId.
+  if (process.platform === 'win32') app.setAppUserModelId('com.chickadee.chat');
 
   // Reconcile OS-level prefs with the persisted settings on launch.
   app.setLoginItemSettings({ openAtLogin: getSettings().launchOnStartup });
