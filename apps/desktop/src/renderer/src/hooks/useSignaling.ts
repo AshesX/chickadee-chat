@@ -59,8 +59,8 @@ const INITIAL: SignalingState = {
   spacePresence: [],
 };
 
-/** Pure reducer: maps an inbound server message to a new SignalingState. */
-function applyPresenceUpdate(state: SignalingState, msg: ServerMessage): SignalingState {
+/** Pure reducer: maps an inbound server message to a new SignalingState. Exported for unit tests. */
+export function applyPresenceUpdate(state: SignalingState, msg: ServerMessage): SignalingState {
   switch (msg.type) {
     case 'welcome':
       return {

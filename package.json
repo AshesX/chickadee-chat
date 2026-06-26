@@ -14,7 +14,8 @@
     "dev:desktop": "npm run dev --workspace @chickadee/desktop",
     "build": "npm run build --workspaces --if-present",
     "dist": "npm run dist:win --workspace @chickadee/desktop",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",

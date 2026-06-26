@@ -4,6 +4,7 @@ import { createPeerLink, type PeerLink } from '../webrtc/peerLink';
 import type { MessageListener, Signaling } from './useSignaling';
 import { getSharedAudioContext } from '../lib/audioContext';
 import { RESOLUTION_MAP, createMicProcessingGraph, type ScreenAudioConstraints } from '../webrtc/mediaConstraints';
+import { deriveWants, classifyPeerStreams } from '../webrtc/meshLogic';
 import { useAutoClearError } from './useAutoClearError';
 
 export interface RemoteMedia {
@@ -270,18 +271,17 @@ export function usePeerMesh(
     (peerId: PeerId) => {
       const streams = remoteStreamsRef.current.get(peerId);
       const screenId = screenIdsRef.current.get(peerId);
-      let cameraStream: MediaStream | null = null;
-      let screenStream: MediaStream | null = null;
-      if (streams) {
-        for (const [id, stream] of streams) {
-          // Keep the raw MediaStream reference stable: the per-peer audio graph
-          // (ParticipantTile) sources from cameraStream and must not rebuild when
-          // a gated video track is later added to the same object. The video tile
-          // re-binds off the cameraVideoId scalar below instead of a new ref.
-          if (screenId && id === screenId) screenStream = stream;
-          else cameraStream = stream;
-        }
-      }
+      // Classify by id (pure, unit-tested), then look the MediaStream objects back
+      // up. Keep the raw MediaStream reference stable: the per-peer audio graph
+      // (ParticipantTile) sources from cameraStream and must not rebuild when a
+      // gated video track is later added to the same object. The video tile re-binds
+      // off the cameraVideoId scalar below instead of a new ref.
+      const { cameraStreamId, screenStreamId } = classifyPeerStreams(
+        streams ? [...streams.keys()] : [],
+        screenId,
+      );
+      const cameraStream = (cameraStreamId && streams?.get(cameraStreamId)) || null;
+      const screenStream = (screenStreamId && streams?.get(screenStreamId)) || null;
       const cameraVideoId = cameraStream?.getVideoTracks()[0]?.id ?? null;
       patchRemote(peerId, { cameraStream, cameraVideoId, screenStream });
     },
@@ -305,10 +305,8 @@ export function usePeerMesh(
   // own userId: screen audio while they're subscribed to us; video while
   // subscribed AND rendering (not docked). Camera + screen video move together.
   const computeWants = useCallback(
-    (subscriptions: string[] | undefined, wantsVideo: boolean): { video: boolean; screenAudio: boolean } => {
-      const subscribed = !!subscriptions && subscriptions.includes(localUserIdRef.current);
-      return { screenAudio: subscribed, video: subscribed && wantsVideo };
-    },
+    (subscriptions: string[] | undefined, wantsVideo: boolean): { video: boolean; screenAudio: boolean } =>
+      deriveWants(subscriptions, wantsVideo, localUserIdRef.current),
     [],
   );
 
