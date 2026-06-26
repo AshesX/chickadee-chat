@@ -5,7 +5,9 @@ import { defineConfig } from 'vitest/config';
 // stub the few globals they read (e.g. window.speechSynthesis) per test.
 export default defineConfig({
   test: {
+    // Default env is node (fast) for pure-logic tests; hook/component tests opt
+    // into jsdom per-file with a top-of-file `// @vitest-environment jsdom`.
     environment: 'node',
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.{ts,tsx}'],
   },
 });
