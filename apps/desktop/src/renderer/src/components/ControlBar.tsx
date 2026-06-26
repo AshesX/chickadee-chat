@@ -23,6 +23,7 @@ function ControlButton({
   disabled,
   title,
   onClick,
+  speaking,
 }: {
   icon: LucideIcon;
   label: string;
@@ -30,6 +31,7 @@ function ControlButton({
   disabled?: boolean;
   title?: string;
   onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  speaking?: boolean;
 }): React.JSX.Element {
   return (
     <button
@@ -38,7 +40,7 @@ function ControlButton({
       disabled={disabled}
       title={title}
     >
-      <Icon size={16} />
+      <Icon size={16} className={speaking ? 'ctrl-btn__icon--speaking' : undefined} />
       <span className="ctrl-btn__label">{label}</span>
     </button>
   );
@@ -68,6 +70,7 @@ interface ControlBarProps {
   onOutputMenu: (rect: DOMRect) => void;
   onMouseEnterReact?: () => void;
   onMouseLeaveReact?: () => void;
+  selfSpeaking: boolean;
 }
 
 export function ControlBar({
@@ -92,6 +95,7 @@ export function ControlBar({
   onOutputMenu,
   onMouseEnterReact,
   onMouseLeaveReact,
+  selfSpeaking,
 }: ControlBarProps): React.JSX.Element {
   return (
     <footer className="control-bar">
@@ -138,6 +142,7 @@ export function ControlBar({
           state="default"
           title="Click to cycle: Open Mic → Voice Activation → Push-to-Talk"
           onClick={onCycleInputMode}
+          speaking={selfSpeaking}
         />
         <button
           className="ctrl-btn--chevron"

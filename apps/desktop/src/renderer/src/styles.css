@@ -351,6 +351,7 @@ input:focus-visible,
 
 .room-row--active .room-row__name {
   font-weight: 700;
+  font-size: 15px;
 }
 
 /* Compact occupancy badge (n/cap) — a smaller sibling of .room-header__count. */
@@ -423,8 +424,8 @@ input:focus-visible,
 /* Active (joined) room, both modes: a green speaking ring (pulled inward) on
    talking users' avatars. Only the current room ever gets the speaking class. */
 .room-row--active .room-row__avatar--speaking {
-  outline: 1px solid var(--green);
-  outline-offset: -1px;
+  outline: 2px solid var(--green);
+  outline-offset: -2px;
 }
 
 /* Active room (both modes): avatars are click-to-mute other users. */
@@ -1156,7 +1157,7 @@ input:focus-visible,
 
 .tile__volume--muted .tile__volume-icon-btn,
 .tile__volume--muted .tile__volume-pct {
-  color: #f87171;
+  color: var(--red);
 }
 
 .tile__volume-pct {
@@ -1385,6 +1386,10 @@ input:focus-visible,
   transition: all 0.15s ease;
 }
 
+.ctrl-btn__icon--speaking {
+  color: var(--green);
+}
+
 .ctrl-btn:hover:not(:disabled) {
   transform: translateY(-2px);
   filter: brightness(1.12);
@@ -1421,13 +1426,13 @@ input:focus-visible,
 }
 
 .ctrl-btn--danger {
-  background: color-mix(in srgb, var(--red) 18%, transparent);
-  border-color: color-mix(in srgb, var(--red) 38%, transparent);
-  color: var(--danger-text);
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
 }
 
 .ctrl-btn--danger .ctrl-btn__label {
-  color: var(--danger-text);
+  color: #fff;
 }
 
 .ctrl-btn--fade {

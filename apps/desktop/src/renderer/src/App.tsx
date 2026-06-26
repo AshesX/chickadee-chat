@@ -1325,6 +1325,7 @@ export function App(): React.JSX.Element {
               onOutputMenu={(rect) => { setOutputMenuAnchor(rect); setOutputMenuOpen(true); setInputMenuOpen(false); setInputModeMenuOpen(false); setVideoMenuOpen(false); setReactionMenuOpen(false); }}
               onMouseEnterReact={cancelReactionCloseTimeout}
               onMouseLeaveReact={startReactionCloseTimeout}
+              selfSpeaking={selfSpeaking}
             />
 
             {inputMenuOpen && inputMenuAnchor && (
