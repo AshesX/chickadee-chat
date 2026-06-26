@@ -328,7 +328,7 @@ export function Sidebar({
             setMenu({ room: r, x: e.clientX, y: e.clientY });
           }}
         >
-          <span className="room-row__icon"><RoomIcon name={r.icon} size={15} /></span>
+          <span className="room-row__icon"><RoomIcon name={r.icon} size={18} /></span>
           <span className="room-row__name">{r.label}</span>
           {!useStrip && roomUsers.length > 0 && (
             <div className="room-row__avatars">

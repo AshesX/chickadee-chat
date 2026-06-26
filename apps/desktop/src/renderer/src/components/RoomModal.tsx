@@ -47,9 +47,9 @@ export function RoomModal({
   return (
     <Modal title={title} onClose={onClose}>
       {showTypePicker && (
-        <>
-          <span className="field-label" style={{ display: 'block', marginBottom: '6px' }}>Room type</span>
-          <div className="seg-group seg-group--room-type" style={{ marginBottom: '14px' }}>
+        <div className="field" style={{ marginBottom: '14px' }}>
+          <span>Room type</span>
+          <div className="seg-group seg-group--room-type">
             <button
               className={`seg-btn${type === 'voice' ? ' seg-btn--active' : ''}`}
               onClick={() => setType('voice')}
@@ -63,7 +63,7 @@ export function RoomModal({
               <Video size={13} /> Video <span className="seg-btn__cap">{capacityForType('video')}</span>
             </button>
           </div>
-        </>
+        </div>
       )}
 
       <label className="field" style={{ marginBottom: '14px' }}>
@@ -78,14 +78,17 @@ export function RoomModal({
         />
       </label>
 
-      <span className="field-label" style={{ display: 'block', marginBottom: '6px' }}>Icon</span>
-      <input
-        type="text"
-        className="room-modal__search-input"
-        placeholder="Search icons..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
+      <div className="field">
+        <span>Icon</span>
+        <input
+          type="text"
+          className="room-modal__search-input"
+          placeholder="Search icons..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{ marginBottom: 0 }}
+        />
+      </div>
 
       <div className="room-modal__icon-container">
         <div className="icon-grid">
