@@ -17,21 +17,33 @@ function parseSpaceName(code: string): string {
   return parsed || 'Joined Space';
 }
 
+/** Result of a create/join attempt. `'not-found'`/`'unreachable'` only occur for new-id joins. */
+export type AddSpaceResult = { ok: true } | { ok: false; reason: 'not-found' | 'unreachable' };
+
 export interface UseSpacesResult {
   spaces: SpaceInfo[];
   currentSpaceId: string | null;
   rooms: Room[];
   switchSpace: (spaceId: string) => void;
   /** Consolidated create/join handler for the space modals. */
-  addSpace: (val: string, type: 'create' | 'join') => void;
+  addSpace: (val: string, type: 'create' | 'join', customSignalingUrl?: string, joinSecret?: string) => Promise<AddSpaceResult>;
   deleteSpace: (spaceId: string, spaceName: string) => void;
   /** Initializes the first space during onboarding. */
-  initFirstSpace: (val: string, action: 'create' | 'join') => void;
+  initFirstSpace: (val: string, action: 'create' | 'join', customSignalingUrl?: string, joinSecret?: string) => Promise<AddSpaceResult>;
+  /** Updates settings for an existing space (supports renaming). */
+  updateSpaceSettings: (spaceId: string, name: string, customSignalingUrl: string, joinSecret: string, precomputedId?: string) => string;
   /** Updates room list in state + persisted store. Used by createRoom/renameRoom/removeRoom/signaling sync. */
   updateRooms: (rooms: Room[]) => void;
 }
 
-export function useSpaces(clearRoom: () => void): UseSpacesResult {
+export function useSpaces(
+  clearRoom: () => void,
+  verifySpace: (spaceId: string, signalingUrl: string, secret?: string) => Promise<'exists' | 'not-found' | 'unreachable'>,
+): UseSpacesResult {
+  function resolveSignalingUrl(customSignalingUrl?: string): string {
+    return customSignalingUrl || (window.chickadee?.signalingUrl ?? 'ws://localhost:8080');
+  }
+
   const [spaces, setSpaces] = useState<SpaceInfo[]>(() => store.getSpaces());
   const [currentSpaceId, setCurrentSpaceId] = useState<string | null>(() => store.getActiveSpaceId());
   const [rooms, setRooms] = useState<Room[]>(() => store.getRooms());
@@ -44,31 +56,37 @@ export function useSpaces(clearRoom: () => void): UseSpacesResult {
     setRooms(active ? active.rooms : []);
   }
 
-  function addSpace(val: string, type: 'create' | 'join'): void {
+  async function addSpace(val: string, type: 'create' | 'join', customSignalingUrl?: string, joinSecret?: string): Promise<AddSpaceResult> {
     let spaceId: string;
     let spaceName: string;
 
     if (type === 'create') {
       const name = val.trim();
-      if (!name) return;
+      if (!name) return { ok: true };
       spaceId = generateSpaceId(name);
       spaceName = name;
     } else {
       spaceId = val.trim();
-      if (!spaceId) return;
-      // If the space already exists, just switch to it.
+      if (!spaceId) return { ok: true };
+      // Already a known (locally-persisted) space — just switch to it; the server
+      // resurrects it from our local room list. Never gated on existence.
       if (spaces.some((s) => s.id === spaceId)) {
         switchSpace(spaceId);
-        return;
+        return { ok: true };
       }
+      // Brand-new id: confirm someone is actually in this space before joining,
+      // so a typo'd code doesn't silently spin up a new empty space.
+      const result = await verifySpace(spaceId, resolveSignalingUrl(customSignalingUrl), joinSecret);
+      if (result !== 'exists') return { ok: false, reason: result };
       spaceName = parseSpaceName(spaceId);
     }
 
-    const newSpace: SpaceInfo = { id: spaceId, name: spaceName, rooms: DEFAULT_ROOMS };
+    const newSpace: SpaceInfo = { id: spaceId, name: spaceName, rooms: DEFAULT_ROOMS, customSignalingUrl, joinSecret };
     const nextSpaces = [...spaces, newSpace];
     store.setSpaces(nextSpaces);
     setSpaces(nextSpaces);
     switchSpace(spaceId);
+    return { ok: true };
   }
 
   function deleteSpace(spaceId: string, spaceName: string): void {
@@ -93,20 +111,24 @@ export function useSpaces(clearRoom: () => void): UseSpacesResult {
     }
   }
 
-  function initFirstSpace(val: string, action: 'create' | 'join'): void {
+  async function initFirstSpace(val: string, action: 'create' | 'join', customSignalingUrl?: string, joinSecret?: string): Promise<AddSpaceResult> {
     let spaceId = val;
     let spaceName = val;
     if (action === 'create') {
       spaceId = generateSpaceId(val);
     } else {
+      // First-run join by invite code: gate on the space actually being live.
+      const result = await verifySpace(spaceId, resolveSignalingUrl(customSignalingUrl), joinSecret);
+      if (result !== 'exists') return { ok: false, reason: result };
       spaceName = parseSpaceName(val);
     }
-    const newSpace: SpaceInfo = { id: spaceId, name: spaceName, rooms: DEFAULT_ROOMS };
+    const newSpace: SpaceInfo = { id: spaceId, name: spaceName, rooms: DEFAULT_ROOMS, customSignalingUrl, joinSecret };
     store.setSpaces([newSpace]);
     store.setActiveSpaceId(spaceId);
     setSpaces([newSpace]);
     setCurrentSpaceId(spaceId);
     setRooms(DEFAULT_ROOMS);
+    return { ok: true };
   }
 
   const updateRooms = useCallback((nextRooms: Room[]): void => {
@@ -114,5 +136,39 @@ export function useSpaces(clearRoom: () => void): UseSpacesResult {
     store.setRooms(nextRooms);
   }, []);
 
-  return { spaces, currentSpaceId, rooms, switchSpace, addSpace, deleteSpace, initFirstSpace, updateRooms };
+  const updateSpaceSettings = useCallback((spaceId: string, name: string, customSignalingUrl: string, joinSecret: string, precomputedId?: string): string => {
+    const spaceToRename = spaces.find(s => s.id === spaceId);
+    let newSpaceId = spaceId;
+    if (spaceToRename && spaceToRename.name.trim().toLowerCase() !== name.trim().toLowerCase()) {
+      newSpaceId = precomputedId || generateSpaceId(name);
+    }
+
+    const nextSpaces = spaces.map(s => {
+      if (s.id === spaceId) {
+        return {
+          ...s,
+          id: newSpaceId,
+          name: name.trim(),
+          customSignalingUrl,
+          joinSecret
+        };
+      }
+      return s;
+    });
+
+    store.setSpaces(nextSpaces);
+    setSpaces(nextSpaces);
+
+    if (spaceId === currentSpaceId) {
+      store.setActiveSpaceId(newSpaceId);
+      setCurrentSpaceId(newSpaceId);
+      if (spaceToRename) {
+        setRooms(spaceToRename.rooms);
+      }
+    }
+
+    return newSpaceId;
+  }, [spaces, currentSpaceId]);
+
+  return { spaces, currentSpaceId, rooms, switchSpace, addSpace, deleteSpace, initFirstSpace, updateRooms, updateSpaceSettings };
 }

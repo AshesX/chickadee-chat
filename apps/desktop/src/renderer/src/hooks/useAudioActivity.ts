@@ -13,6 +13,12 @@ function getAudioContext(): AudioContext {
 const SPEAK_ON = 0.045;
 const SPEAK_OFF = 0.025;
 const MIN_TOGGLE_MS = 120;
+// Run at ~50 Hz via setInterval — NOT requestAnimationFrame. This drives the
+// broadcast speaking indicator in open-mic mode (App.tsx selfSpeaking), and rAF
+// stalls when the window is minimized (it's compositor-driven), which would freeze
+// the indicator peers see while you're minimized. setInterval keeps firing in the
+// background (backgroundThrottling:false). ~20 ms also caps it below the refresh rate.
+const COMPUTE_INTERVAL_MS = 20;
 
 /**
  * Returns whether the given stream currently carries active speech, by
@@ -37,11 +43,11 @@ export function useAudioActivity(stream: MediaStream | null): boolean {
     source.connect(analyser);
 
     const samples = new Uint8Array(analyser.fftSize);
-    let raf = 0;
     let active = false;
     let lastToggle = 0;
 
-    const tick = (now: number) => {
+    const tick = () => {
+      const now = performance.now(); // setInterval gives no timestamp; the debounce is now-based
       analyser.getByteTimeDomainData(samples);
       let sumSquares = 0;
       for (let i = 0; i < samples.length; i++) {
@@ -55,12 +61,11 @@ export function useAudioActivity(stream: MediaStream | null): boolean {
         lastToggle = now;
         setSpeaking(next);
       }
-      raf = requestAnimationFrame(tick);
     };
-    raf = requestAnimationFrame(tick);
+    const id = setInterval(tick, COMPUTE_INTERVAL_MS);
 
     return () => {
-      cancelAnimationFrame(raf);
+      clearInterval(id);
       source.disconnect();
       analyser.disconnect();
       setSpeaking(false);

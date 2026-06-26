@@ -3,10 +3,21 @@ import type { PeerId } from '@chickadee/shared';
 import { createPeerLink, type PeerLink } from '../webrtc/peerLink';
 import type { MessageListener, Signaling } from './useSignaling';
 import { getSharedAudioContext } from '../lib/audioContext';
+import { RESOLUTION_MAP, createMicProcessingGraph, type ScreenAudioConstraints } from '../webrtc/mediaConstraints';
+import { deriveWants, classifyPeerStreams } from '../webrtc/meshLogic';
+import { useAutoClearError } from './useAutoClearError';
 
 export interface RemoteMedia {
   /** The peer's camera+mic stream (mic audio + optional camera video). */
   cameraStream: MediaStream | null;
+  /**
+   * The id of the camera video track on `cameraStream`, or null when there's no
+   * video yet. Camera video shares the mic stream's msid, so a gated video track
+   * arriving after "Watch" lands in the *same* MediaStream object — `cameraStream`
+   * keeps a stable reference (the audio graph must not rebuild) while this scalar
+   * flips null → trackId so the tile knows to re-bind its <video>.
+   */
+  cameraVideoId: string | null;
   /** The peer's screen-share stream (screen video + optional system audio). */
   screenStream: MediaStream | null;
   connectionState: RTCPeerConnectionState;
@@ -54,41 +65,6 @@ export interface PeerMesh {
 
 const TERMINAL_STATUSES = new Set(['idle', 'closed', 'error', 'room-full']);
 
-const RESOLUTION_MAP: Record<string, { width: number; height: number }> = {
-  '480p': { width: 854, height: 480 },
-  '720p': { width: 1280, height: 720 },
-  '1080p': { width: 1920, height: 1080 },
-  '1440p': { width: 2560, height: 1440 },
-  '4K': { width: 3840, height: 2160 },
-};
-
-const MIC_ANALYSER_FFT_SIZE = 256;
-
-function createMicProcessingGraph(
-  ctx: AudioContext,
-  rawStream: MediaStream,
-  volume: number,
-): { gainNode: GainNode; analyserNode: AnalyserNode; expanderGainNode: GainNode; processedStream: MediaStream } {
-  const source = ctx.createMediaStreamSource(rawStream);
-  const gainNode = ctx.createGain();
-  gainNode.gain.value = volume;
-  const analyserNode = ctx.createAnalyser();
-  analyserNode.fftSize = MIC_ANALYSER_FFT_SIZE;
-  // Downward-expander gain, driven by useNoiseExpander in open-mic mode.
-  // Starts transparent (0 dB); the analyser taps the signal *before* it so
-  // detection always sees the true pre-attenuation level.
-  const expanderGainNode = ctx.createGain();
-  expanderGainNode.gain.value = 1;
-  const destination = ctx.createMediaStreamDestination();
-
-  source.connect(gainNode);
-  gainNode.connect(analyserNode);
-  gainNode.connect(expanderGainNode);
-  expanderGainNode.connect(destination);
-
-  return { gainNode, analyserNode, expanderGainNode, processedStream: destination.stream };
-}
-
 /**
  * Owns the local mic stream and one RTCPeerConnection (peerLink) per remote
  * peer, driven entirely by signaling messages. The imperative WebRTC objects
@@ -108,8 +84,16 @@ export function usePeerMesh(
   inputDeviceId: string,
   localAvatarUrl: string | null,
   localVoicePreference: string,
+  localAccentColor: string,
+  localUserId: string,
 ): PeerMesh {
   const { subscribe, send, status } = signaling;
+
+  // Our stable userId, used to decide whether a viewer's subscription set
+  // includes us (so we should send them video/screen-audio). In a ref so the
+  // stable message handler/ensureLink always read the latest value.
+  const localUserIdRef = useRef(localUserId);
+  localUserIdRef.current = localUserId;
 
   // Kept in a ref so the stable ensureLink callback always sees the latest set.
   const iceServersRef = useRef(iceServers);
@@ -138,61 +122,17 @@ export function usePeerMesh(
   localAvatarUrlRef.current = localAvatarUrl;
   const localVoicePreferenceRef = useRef<string>(localVoicePreference);
   localVoicePreferenceRef.current = localVoicePreference;
+  const localAccentColorRef = useRef<string>(localAccentColor);
+  localAccentColorRef.current = localAccentColor;
 
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [localScreenStream, setLocalScreenStream] = useState<MediaStream | null>(null);
   const [micEnabled, setMicEnabled] = useState(true);
-  const [micError, setMicErrorState] = useState<string | null>(null);
+  const [micError, setMicError] = useAutoClearError();
   const [cameraEnabled, setCameraEnabled] = useState(false);
-  const [cameraError, setCameraErrorState] = useState<string | null>(null);
+  const [cameraError, setCameraError] = useAutoClearError();
   const [sharingScreen, setSharingScreen] = useState(false);
-  const [screenError, setScreenErrorState] = useState<string | null>(null);
-
-  const cameraErrorTimeoutRef = useRef<any>(null);
-  const screenErrorTimeoutRef = useRef<any>(null);
-  const micErrorTimeoutRef = useRef<any>(null);
-
-  const setCameraError = useCallback((msg: string | null) => {
-    if (cameraErrorTimeoutRef.current) {
-      clearTimeout(cameraErrorTimeoutRef.current);
-      cameraErrorTimeoutRef.current = null;
-    }
-    setCameraErrorState(msg);
-    if (msg) {
-      cameraErrorTimeoutRef.current = setTimeout(() => {
-        setCameraErrorState(null);
-        cameraErrorTimeoutRef.current = null;
-      }, 3000);
-    }
-  }, []);
-
-  const setScreenError = useCallback((msg: string | null) => {
-    if (screenErrorTimeoutRef.current) {
-      clearTimeout(screenErrorTimeoutRef.current);
-      screenErrorTimeoutRef.current = null;
-    }
-    setScreenErrorState(msg);
-    if (msg) {
-      screenErrorTimeoutRef.current = setTimeout(() => {
-        setScreenErrorState(null);
-        screenErrorTimeoutRef.current = null;
-      }, 3000);
-    }
-  }, []);
-
-  const setMicError = useCallback((msg: string | null) => {
-    if (micErrorTimeoutRef.current) {
-      clearTimeout(micErrorTimeoutRef.current);
-      micErrorTimeoutRef.current = null;
-    }
-    setMicErrorState(msg);
-    if (msg) {
-      micErrorTimeoutRef.current = setTimeout(() => {
-        setMicErrorState(null);
-        micErrorTimeoutRef.current = null;
-      }, 3000);
-    }
-  }, []);
+  const [screenError, setScreenError] = useAutoClearError();
   const [remote, setRemote] = useState<Record<PeerId, RemoteMedia>>({});
 
   const linksRef = useRef<Map<PeerId, PeerLink>>(new Map());
@@ -203,9 +143,21 @@ export function usePeerMesh(
   const videoTrackRef = useRef<MediaStreamTrack | null>(null);
   const cameraEnabledRef = useRef(false);
   const screenStreamRef = useRef<MediaStream | null>(null);
+  // Persistent wire stream for the screen share: capture tracks are swapped into
+  // this single MediaStream so its id (the SDP msid) stays stable across
+  // stop/restart. Receivers match the announced screen-state id against the
+  // received stream id; replaceTrack keeps the original msid, so without a stable
+  // wire id a restart would announce a new id that never matches what's on the wire.
+  const screenWireStreamRef = useRef<MediaStream | null>(null);
   const sharingScreenRef = useRef(false);
   /** peerId -> the MediaStream id that peer is using for its screen share. */
   const screenIdsRef = useRef<Map<PeerId, string>>(new Map());
+  /**
+   * peerId -> what media that peer wants from us, derived from their opt-in
+   * state (videoSubscriptions + wantsVideo) against our own userId. Defaults to
+   * nothing until they join us (opt-in). Consulted at link creation + on change.
+   */
+  const peerMediaWantsRef = useRef<Map<PeerId, { video: boolean; screenAudio: boolean }>>(new Map());
   /** peerId -> (streamId -> received MediaStream), to (re)classify on demand. */
   const remoteStreamsRef = useRef<Map<PeerId, Map<string, MediaStream>>>(new Map());
   const disposedRef = useRef(false);
@@ -253,15 +205,13 @@ export function usePeerMesh(
         expanderGainNodeRef.current = expanderGainNodeObj;
         localStreamRef.current = processedStream;
 
+        // The processed track is a synthetic Web Audio (MediaStreamDestination) output,
+        // so it carries none of Chromium's mic DSP (AEC/NS/AGC) — those are applied (or
+        // not) on the raw device track per the user's settings. Only the mute state
+        // applies here; calling applyConstraints to "disable" that DSP throws
+        // OverconstrainedError on a synthetic track and is a no-op regardless.
         for (const track of processedStream.getAudioTracks()) {
           track.enabled = micEnabledRef.current;
-          void track.applyConstraints({
-            echoCancellation: false,
-            noiseSuppression: false,
-            autoGainControl: false,
-          }).catch((err) => {
-            console.warn('Failed to disable post-processing constraints on initial track', err);
-          });
         }
         // Upgrade links created before the mic was ready (listen-only → sending).
         // Audio only — video is managed separately via setLocalVideoTrack.
@@ -305,6 +255,7 @@ export function usePeerMesh(
     setRemote((prev) => {
       const current = prev[peerId] ?? {
         cameraStream: null,
+        cameraVideoId: null,
         screenStream: null,
         connectionState: 'new' as const,
       };
@@ -320,15 +271,19 @@ export function usePeerMesh(
     (peerId: PeerId) => {
       const streams = remoteStreamsRef.current.get(peerId);
       const screenId = screenIdsRef.current.get(peerId);
-      let cameraStream: MediaStream | null = null;
-      let screenStream: MediaStream | null = null;
-      if (streams) {
-        for (const [id, stream] of streams) {
-          if (screenId && id === screenId) screenStream = stream;
-          else cameraStream = stream;
-        }
-      }
-      patchRemote(peerId, { cameraStream, screenStream });
+      // Classify by id (pure, unit-tested), then look the MediaStream objects back
+      // up. Keep the raw MediaStream reference stable: the per-peer audio graph
+      // (ParticipantTile) sources from cameraStream and must not rebuild when a
+      // gated video track is later added to the same object. The video tile re-binds
+      // off the cameraVideoId scalar below instead of a new ref.
+      const { cameraStreamId, screenStreamId } = classifyPeerStreams(
+        streams ? [...streams.keys()] : [],
+        screenId,
+      );
+      const cameraStream = (cameraStreamId && streams?.get(cameraStreamId)) || null;
+      const screenStream = (screenStreamId && streams?.get(screenStreamId)) || null;
+      const cameraVideoId = cameraStream?.getVideoTracks()[0]?.id ?? null;
+      patchRemote(peerId, { cameraStream, cameraVideoId, screenStream });
     },
     [patchRemote],
   );
@@ -344,6 +299,15 @@ export function usePeerMesh(
       recomputeRemote(peerId);
     },
     [recomputeRemote],
+  );
+
+  // What a viewer wants from us, derived from their opt-in state against our
+  // own userId: screen audio while they're subscribed to us; video while
+  // subscribed AND rendering (not docked). Camera + screen video move together.
+  const computeWants = useCallback(
+    (subscriptions: string[] | undefined, wantsVideo: boolean): { video: boolean; screenAudio: boolean } =>
+      deriveWants(subscriptions, wantsVideo, localUserIdRef.current),
+    [],
   );
 
   const ensureLink = useCallback(
@@ -368,15 +332,21 @@ export function usePeerMesh(
       linksRef.current.set(peerId, link);
       patchRemote(peerId, { connectionState: link.pc.connectionState });
 
+      // Apply this peer's current media wants (what they've opted into) before
+      // applying tracks, so a peer already subscribed to us gets the first frame
+      // while everyone else stays held by the opt-in (false) defaults.
+      const wants = peerMediaWantsRef.current.get(peerId);
+      if (wants) link.setMediaActive(wants);
+
       // A peer joining while our camera is already on should receive video.
       const videoTrack = videoTrackRef.current;
       const stream = localStreamRef.current;
       if (cameraEnabledRef.current && videoTrack && stream) {
         link.setLocalVideoTrack(videoTrack, stream);
       }
-      // ...and our ongoing screen share, if any.
-      if (sharingScreenRef.current && screenStreamRef.current) {
-        link.setLocalScreenStream(screenStreamRef.current);
+      // ...and our ongoing screen share, if any (the stable wire stream).
+      if (sharingScreenRef.current && screenWireStreamRef.current) {
+        link.setLocalScreenStream(screenWireStreamRef.current);
       }
       return link;
     },
@@ -427,8 +397,11 @@ export function usePeerMesh(
     videoTrackRef.current = null;
     cameraEnabledRef.current = false;
     screenStreamRef.current = null;
+    // A fresh session rebuilds links/senders, so a fresh wire id is fine.
+    screenWireStreamRef.current = null;
     sharingScreenRef.current = false;
     screenIdsRef.current.clear();
+    peerMediaWantsRef.current.clear();
     remoteStreamsRef.current.clear();
     setRemote({});
     setLocalStream(null);
@@ -449,9 +422,11 @@ export function usePeerMesh(
       micEnabledRef.current = on;
       for (const track of stream.getAudioTracks()) track.enabled = on;
       setMicEnabled(on);
-      send({ type: 'mic-state', muted: !on });
+      // NOTE: mic-state (mute intent) is broadcast from App.tsx, not here — the
+      // VAD/PTT transmit gate calls this on every edge, which would spam the room
+      // and flicker remote mute icons. The transmit gate only toggles track.enabled.
     },
-    [send],
+    [],
   );
 
   const toggleMic = useCallback(() => {
@@ -523,16 +498,8 @@ export function usePeerMesh(
           analyserNodeRef.current = newAnalyser;
           setAnalyserNode(newAnalyser);
           nextStream = processedStream;
-
-          for (const track of processedStream.getAudioTracks()) {
-            void track.applyConstraints({
-              echoCancellation: false,
-              noiseSuppression: false,
-              autoGainControl: false,
-            }).catch((err) => {
-              console.warn('Failed to disable post-processing constraints on switched track', err);
-            });
-          }
+          // (Synthetic MediaStreamDestination track — no Chromium mic DSP to disable;
+          // mute state is applied to nextStream below.)
         } else {
           setAnalyserNode(null);
           nextStream = newRaw;
@@ -626,6 +593,10 @@ export function usePeerMesh(
     for (const link of linksRef.current.values()) link.setLocalScreenStream(null);
     const screen = screenStreamRef.current;
     if (screen) for (const track of screen.getTracks()) track.stop();
+    // Empty the wire stream but keep the wrapper so the next share reuses its id
+    // (stable msid across stop/restart). Tracks are the same objects stopped above.
+    const wire = screenWireStreamRef.current;
+    if (wire) for (const track of wire.getTracks()) wire.removeTrack(track);
     screenStreamRef.current = null;
     sharingScreenRef.current = false;
     setSharingScreen(false);
@@ -650,6 +621,18 @@ export function usePeerMesh(
           // with it (and Windows loopback audio when requested).
           await window.chickadee.setShareSource(sourceId, withAudio);
 
+          // When capturing system audio, ask Chromium to exclude our own document's
+          // audio (the peer voices we play locally) so peers don't hear themselves.
+          // Feature-detect — on builds without restrictOwnAudio, fall back to plain
+          // loopback audio (the pre-existing, echo-prone behavior).
+          const restrictOwnAudioSupported =
+            'restrictOwnAudio' in navigator.mediaDevices.getSupportedConstraints();
+          const audioConstraints: boolean | ScreenAudioConstraints = withAudio
+            ? restrictOwnAudioSupported
+              ? { restrictOwnAudio: true }
+              : true
+            : false;
+
           let screen: MediaStream;
           try {
             const res = RESOLUTION_MAP[screenResolution] || RESOLUTION_MAP['1080p'];
@@ -661,7 +644,7 @@ export function usePeerMesh(
             };
             screen = await navigator.mediaDevices.getDisplayMedia({
               video: videoConstraints,
-              audio: withAudio,
+              audio: audioConstraints,
             });
           } catch (audioErr) {
             if (!withAudio) throw audioErr;
@@ -687,14 +670,19 @@ export function usePeerMesh(
 
           screenStreamRef.current = screen;
           sharingScreenRef.current = true;
-          for (const link of linksRef.current.values()) link.setLocalScreenStream(screen);
+          // Swap the fresh capture tracks into the persistent wire stream so its
+          // id stays stable across stop/restart, and send/announce that wire id.
+          const wire = (screenWireStreamRef.current ??= new MediaStream());
+          for (const track of wire.getTracks()) wire.removeTrack(track);
+          for (const track of screen.getTracks()) wire.addTrack(track);
+          for (const link of linksRef.current.values()) link.setLocalScreenStream(wire);
           // The OS "Stop sharing" affordance / closing the source ends the track.
           const videoTrack = screen.getVideoTracks()[0];
           if (videoTrack) videoTrack.onended = () => stopScreenShare();
 
           setSharingScreen(true);
           setLocalScreenStream(screen);
-          send({ type: 'screen-state', streamId: screen.id });
+          send({ type: 'screen-state', streamId: wire.id });
         } catch (err) {
           console.error('screen share failed', err);
           setScreenError('Could not start screen share.');
@@ -707,15 +695,18 @@ export function usePeerMesh(
   // After a reconnect the server reset our peer to defaults; re-broadcast any
   // non-default local state so others' tiles reflect reality.
   const reannounceLocalState = useCallback(() => {
-    if (!micEnabledRef.current) send({ type: 'mic-state', muted: true });
+    // mic-state (mute intent) is re-announced by App.tsx's broadcast effect (keyed
+    // on signaling.status), so it isn't sent here.
     if (cameraEnabledRef.current) send({ type: 'cam-state', on: true });
-    if (sharingScreenRef.current && screenStreamRef.current) {
-      send({ type: 'screen-state', streamId: screenStreamRef.current.id });
+    if (sharingScreenRef.current && screenWireStreamRef.current) {
+      send({ type: 'screen-state', streamId: screenWireStreamRef.current.id });
     }
     // Re-broadcast avatar so the server's fresh peer record reflects the current avatar.
     send({ type: 'avatar-state', avatarDataUrl: localAvatarUrlRef.current });
     // Re-broadcast voice preference so peers read our chat aloud in the right voice after reconnect.
     send({ type: 'voice-state', voicePreference: localVoicePreferenceRef.current });
+    // Re-broadcast accent color so the server's fresh peer record reflects the chosen color.
+    send({ type: 'accent-state', accentColor: localAccentColorRef.current });
   }, [send]);
 
   // React to signaling messages: set up / tear down links and route negotiation.
@@ -733,8 +724,12 @@ export function usePeerMesh(
           remoteStreamsRef.current.clear();
           screenIdsRef.current.clear();
           setRemote({});
+          peerMediaWantsRef.current.clear();
           for (const peer of msg.peers) {
             if (peer.screenStreamId) screenIdsRef.current.set(peer.id, peer.screenStreamId);
+            // Seed before ensureLink so a peer already subscribed to us (e.g. across
+            // our own reconnect) receives the first frame, and nobody else does.
+            peerMediaWantsRef.current.set(peer.id, computeWants(peer.videoSubscriptions, peer.wantsVideo));
           }
           void (async () => {
             await ensureLocalStream();
@@ -745,9 +740,15 @@ export function usePeerMesh(
           break;
         }
         case 'peer-joined':
+          // Seed before ensureLink with whatever this peer has already opted into.
+          peerMediaWantsRef.current.set(
+            msg.peer.id,
+            computeWants(msg.peer.videoSubscriptions, msg.peer.wantsVideo),
+          );
           ensureLink(msg.peer.id);
           break;
         case 'peer-left':
+          peerMediaWantsRef.current.delete(msg.peerId);
           closeLink(msg.peerId);
           break;
         case 'offer':
@@ -760,10 +761,19 @@ export function usePeerMesh(
           else screenIdsRef.current.delete(msg.from);
           recomputeRemote(msg.from);
           break;
+        case 'sink-state': {
+          // A peer changed who they've joined and/or their dock state: recompute
+          // what they want from us and apply it to just their link. Mic/voice is
+          // never affected (separate sender).
+          const wants = computeWants(msg.subscriptions, msg.wantsVideo);
+          peerMediaWantsRef.current.set(msg.from, wants);
+          linksRef.current.get(msg.from)?.setMediaActive(wants);
+          break;
+        }
       }
     };
     return subscribe(handle);
-  }, [subscribe, ensureLocalStream, ensureLink, closeLink, recomputeRemote, reannounceLocalState]);
+  }, [subscribe, ensureLocalStream, ensureLink, closeLink, recomputeRemote, reannounceLocalState, computeWants]);
 
   // Tear everything down when the call ends (leave / disconnect / error).
   useEffect(() => {

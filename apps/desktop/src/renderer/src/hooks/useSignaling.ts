@@ -35,11 +35,17 @@ export interface SignalingState {
 }
 
 export interface Signaling extends SignalingState {
-  join: (spaceId: string, room: string | null, displayName: string, userId: string, rooms: Room[], status: 'online' | 'idle' | 'dnd', avatarDataUrl?: string | null, voicePreference?: string) => void;
+  join: (spaceId: string, room: string | null, displayName: string, userId: string, rooms: Room[], status: 'online' | 'idle' | 'dnd', avatarDataUrl?: string | null, voicePreference?: string, accentColor?: string, joinSecret?: string, signalingUrl?: string) => void;
   leave: () => void;
   joinRoom: (room: string | null) => void;
   /** Send a message to the server (used by WebRTC negotiation + mic-state). */
   send: (message: ClientMessage) => void;
+  /**
+   * Non-mutating existence probe over a throwaway socket (independent of the
+   * persistent connection). Resolves 'exists'/'not-found' from the server, or
+   * 'unreachable' if the server can't be reached within the timeout.
+   */
+  verifySpace: (spaceId: string, signalingUrl: string, secret?: string) => Promise<'exists' | 'not-found' | 'unreachable'>;
   /** Subscribe to raw inbound server messages; returns an unsubscribe fn. */
   subscribe: (listener: MessageListener) => () => void;
 }
@@ -53,8 +59,8 @@ const INITIAL: SignalingState = {
   spacePresence: [],
 };
 
-/** Pure reducer: maps an inbound server message to a new SignalingState. */
-function applyPresenceUpdate(state: SignalingState, msg: ServerMessage): SignalingState {
+/** Pure reducer: maps an inbound server message to a new SignalingState. Exported for unit tests. */
+export function applyPresenceUpdate(state: SignalingState, msg: ServerMessage): SignalingState {
   switch (msg.type) {
     case 'welcome':
       return {
@@ -94,6 +100,11 @@ function applyPresenceUpdate(state: SignalingState, msg: ServerMessage): Signali
         ...state,
         peers: state.peers.map((p) => (p.id === msg.from ? { ...p, muted: msg.muted } : p)),
       };
+    case 'speaking-state':
+      return {
+        ...state,
+        peers: state.peers.map((p) => (p.id === msg.from ? { ...p, speaking: msg.speaking } : p)),
+      };
     case 'cam-state':
       return {
         ...state,
@@ -105,11 +116,6 @@ function applyPresenceUpdate(state: SignalingState, msg: ServerMessage): Signali
         peers: state.peers.map((p) =>
           p.id === msg.from ? { ...p, screenStreamId: msg.streamId } : p,
         ),
-      };
-    case 'game-state':
-      return {
-        ...state,
-        peers: state.peers.map((p) => (p.id === msg.from ? { ...p, game: msg.game } : p)),
       };
     case 'deafen-state':
       return {
@@ -137,11 +143,28 @@ function applyPresenceUpdate(state: SignalingState, msg: ServerMessage): Signali
           p.id === msg.from ? { ...p, voicePreference: msg.voicePreference } : p,
         ),
       };
-    case 'room-full':
+    case 'accent-state':
       return {
         ...state,
+        peers: state.peers.map((p) =>
+          p.id === msg.from ? { ...p, accentColor: msg.accentColor } : p,
+        ),
+      };
+    case 'sink-state':
+      return {
+        ...state,
+        peers: state.peers.map((p) =>
+          p.id === msg.from
+            ? { ...p, wantsVideo: msg.wantsVideo, videoSubscriptions: msg.subscriptions }
+            : p,
+        ),
+      };
+    case 'room-full':
+      return {
+        ...INITIAL,
         status: 'room-full',
         error: `Room "${msg.room}" is full (max 4).`,
+        rooms: state.rooms,
       };
     default:
       return state;
@@ -162,7 +185,7 @@ const MAX_RECONNECT_ATTEMPTS = 10;
  * half-open connections. On reconnect the server assigns a new selfId, so the
  * WebRTC mesh rebuilds from the fresh `welcome`.
  */
-export function useSignaling(url: string): Signaling {
+export function useSignaling(): Signaling {
   const [state, setState] = useState<SignalingState>(INITIAL);
   const socketRef = useRef<WebSocket | null>(null);
   const listenersRef = useRef<Set<MessageListener>>(new Set());
@@ -175,6 +198,9 @@ export function useSignaling(url: string): Signaling {
   const statusRef = useRef<'online' | 'idle' | 'dnd'>('online');
   const avatarDataUrlRef = useRef<string | null>(null);
   const voicePreferenceRef = useRef<string>('');
+  const accentColorRef = useRef<string>('');
+  const joinSecretRef = useRef<string>('');
+  const signalingUrlRef = useRef<string>('ws://localhost:8080');
   const shouldReconnectRef = useRef(false);
   const attemptsRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -217,9 +243,10 @@ export function useSignaling(url: string): Signaling {
     if (attemptsRef.current > MAX_RECONNECT_ATTEMPTS) {
       shouldReconnectRef.current = false;
       setState((prev) => ({
-        ...prev,
+        ...INITIAL,
         status: 'error',
         error: 'Lost connection to the signaling server.',
+        rooms: prev.rooms,
       }));
       return;
     }
@@ -229,7 +256,7 @@ export function useSignaling(url: string): Signaling {
   }, []);
 
   const connect = useCallback(() => {
-    const socket = new WebSocket(url);
+    const socket = new WebSocket(signalingUrlRef.current);
     socketRef.current = socket;
 
     socket.onopen = () => {
@@ -244,6 +271,9 @@ export function useSignaling(url: string): Signaling {
           status: statusRef.current,
           avatarDataUrl: avatarDataUrlRef.current,
           voicePreference: voicePreferenceRef.current,
+          accentColor: accentColorRef.current,
+          // Use space-specific secret if provided, else fallback to global.
+          secret: joinSecretRef.current || (window.chickadee?.joinSecret ?? ''),
         }),
       );
       // Heartbeat: ping periodically; if pongs stop, force-close → reconnect.
@@ -305,7 +335,7 @@ export function useSignaling(url: string): Signaling {
         );
       }
     };
-  }, [url, scheduleReconnect, clearTimers, closeSocket]);
+  }, [scheduleReconnect, clearTimers, closeSocket]);
 
   // Keep the ref pointing at the latest connect for scheduleReconnect to call.
   useEffect(() => {
@@ -313,7 +343,7 @@ export function useSignaling(url: string): Signaling {
   }, [connect]);
 
   const join = useCallback(
-    (spaceId: string, room: string | null, displayName: string, userId: string, roomsList: Room[], status: 'online' | 'idle' | 'dnd', avatarDataUrl?: string | null, voicePreference?: string) => {
+    (spaceId: string, room: string | null, displayName: string, userId: string, roomsList: Room[], status: 'online' | 'idle' | 'dnd', avatarDataUrl?: string | null, voicePreference?: string, accentColor?: string, joinSecret?: string, signalingUrl?: string) => {
       closeSocket();
       clearTimers();
       shouldReconnectRef.current = true;
@@ -326,10 +356,61 @@ export function useSignaling(url: string): Signaling {
       statusRef.current = status;
       avatarDataUrlRef.current = avatarDataUrl ?? null;
       voicePreferenceRef.current = voicePreference ?? '';
+      accentColorRef.current = accentColor ?? '';
+      joinSecretRef.current = joinSecret ?? '';
+      if (signalingUrl) signalingUrlRef.current = signalingUrl;
       setState({ ...INITIAL, status: 'connecting', rooms: roomsList });
       connect();
     },
     [closeSocket, clearTimers, connect],
+  );
+
+  const verifySpace = useCallback(
+    (spaceId: string, signalingUrl: string, secret?: string): Promise<'exists' | 'not-found' | 'unreachable'> => {
+      return new Promise((resolve) => {
+        let settled = false;
+        let probe: WebSocket;
+        const finish = (result: 'exists' | 'not-found' | 'unreachable'): void => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          // Detach handlers before closing so a late close/error can't re-resolve.
+          probe.onopen = null;
+          probe.onmessage = null;
+          probe.onerror = null;
+          probe.onclose = null;
+          try {
+            probe.close();
+          } catch {
+            /* already closing */
+          }
+          resolve(result);
+        };
+
+        const timer = setTimeout(() => finish('unreachable'), 8_000);
+
+        try {
+          probe = new WebSocket(signalingUrl);
+        } catch {
+          clearTimeout(timer);
+          resolve('unreachable');
+          return;
+        }
+
+        probe.onopen = () => {
+          probe.send(JSON.stringify({ type: 'check-space', spaceId, secret: secret || (window.chickadee?.joinSecret ?? '') }));
+        };
+        probe.onmessage = (event) => {
+          const msg = parseServerMessage(String(event.data));
+          if (msg && msg.type === 'space-status' && msg.spaceId === spaceId) {
+            finish(msg.exists ? 'exists' : 'not-found');
+          }
+        };
+        probe.onerror = () => finish('unreachable');
+        probe.onclose = () => finish('unreachable');
+      });
+    },
+    [],
   );
 
   const send = useCallback((message: ClientMessage) => {
@@ -363,5 +444,5 @@ export function useSignaling(url: string): Signaling {
     };
   }, [clearTimers, closeSocket]);
 
-  return { ...state, join, leave, joinRoom, send, subscribe };
+  return { ...state, join, leave, joinRoom, send, subscribe, verifySpace };
 }

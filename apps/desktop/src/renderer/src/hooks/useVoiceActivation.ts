@@ -2,6 +2,13 @@ import { useEffect, useRef } from 'react';
 
 const ATTACK_MS = 5; // open near-instantly once the level crosses the threshold
 const HYSTERESIS = 0.7; // close at threshold * HYSTERESIS
+// Run the gate at a steady ~50 Hz via setInterval — NOT requestAnimationFrame.
+// rAF is tied to compositor frames, which stop when the window is minimized, so a
+// rAF-driven VAD freezes in the background and voice drops out. setInterval keeps
+// firing at full rate while minimized (Electron's backgroundThrottling:false), so
+// the mic still opens when you talk with the app minimized. ~20 ms also matches the
+// Opus 20 ms frame and caps the work below the display refresh rate (144/240 Hz).
+const COMPUTE_INTERVAL_MS = 20;
 
 interface UseVoiceActivationOpts {
   /** Run the gate only when in voice mode, in a room, and not paused/muted. */
@@ -57,7 +64,6 @@ export function useVoiceActivation({
     if (!active || !analyserNode) return;
 
     const samples = new Uint8Array(analyserNode.fftSize);
-    let raf = 0;
     let open = false;
     let aboveSince = 0; // when the level first rose above the open threshold (0 = below)
     let belowSince = 0; // when the level first fell below the close threshold (0 = above)
@@ -65,7 +71,8 @@ export function useVoiceActivation({
     // Start closed; the gate opens on the first detected speech.
     setMicEnabled(false);
 
-    const tick = (now: number): void => {
+    const tick = (): void => {
+      const now = performance.now(); // setInterval gives no timestamp; the gate math is now-based
       analyserNode.getByteTimeDomainData(samples);
       let sumSquares = 0;
       for (let i = 0; i < samples.length; i++) {
@@ -101,12 +108,11 @@ export function useVoiceActivation({
           }
         }
       }
-      raf = requestAnimationFrame(tick);
     };
-    raf = requestAnimationFrame(tick);
+    const id = setInterval(tick, COMPUTE_INTERVAL_MS);
 
     return () => {
-      cancelAnimationFrame(raf);
+      clearInterval(id);
     };
   }, [active, analyserNode, setMicEnabled]);
 }

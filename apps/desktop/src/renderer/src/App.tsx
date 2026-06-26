@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { DEFAULT_ICE_SERVERS, MAX_PEERS_PER_ROOM, type Room } from '@chickadee/shared';
+import { DEFAULT_ICE_SERVERS, capacityForType, type Room, type RoomType, type ThemeName } from '@chickadee/shared';
 import { useSignaling } from './hooks/useSignaling';
 import { usePeerMesh } from './hooks/usePeerMesh';
-import { useSessionTimer } from './hooks/useSessionTimer';
 import { useRoomChat } from './hooks/useRoomChat';
 import { useSpacePresence } from './hooks/useSpacePresence';
-import { useSpaces } from './hooks/useSpaces';
+import { useSpaces, type AddSpaceResult } from './hooks/useSpaces';
+import { useSpaceJoin } from './hooks/useSpaceJoin';
+import { useControlBarMenus } from './hooks/useControlBarMenus';
+import { usePersistedState } from './hooks/usePersistedState';
 import { useKeybindSync } from './hooks/useKeybindSync';
 import { useVoiceActivation } from './hooks/useVoiceActivation';
+import { useAudioActivity } from './hooks/useAudioActivity';
 import { useNoiseExpander } from './hooks/useNoiseExpander';
 import { useMediaDevices } from './hooks/useMediaDevices';
 import { useSfxEvents } from './hooks/useSfxEvents';
@@ -22,7 +25,6 @@ import { ParticipantTile } from './components/ParticipantTile';
 import { ScreenView } from './components/ScreenView';
 import { ScreenSharePicker } from './components/ScreenSharePicker';
 import { ChatPanel, type ChatMessage } from './components/ChatPanel';
-import { VolumePopover } from './components/VolumePopover';
 import { ReactionPopover } from './components/ReactionPopover';
 import { AudioDeviceMenu } from './components/AudioDeviceMenu';
 import { InputModeMenu } from './components/InputModeMenu';
@@ -34,6 +36,8 @@ import { Logo } from './components/Logo';
 import { generateBadgeOverlay } from './lib/trayIcon';
 import { Modal } from './components/Modal';
 import { playSfx } from './lib/sfx';
+import { SpaceSettingsModal } from './components/SpaceSettingsModal';
+import { AdvancedConnectionSettings } from './components/AdvancedConnectionSettings';
 import { speakChatMessage, cancelSpeech } from './lib/tts';
 import { initVoices } from './lib/voices';
 
@@ -42,6 +46,8 @@ interface ActiveScreen {
   displayName: string;
   isSelf: boolean;
   stream: MediaStream;
+  /** Stable userId of the sharer (remote only), so the viewer can leave the stream. */
+  userId?: string;
 }
 
 function slugify(label: string): string {
@@ -49,55 +55,86 @@ function slugify(label: string): string {
 }
 
 export function App(): React.JSX.Element {
-  const signalingUrl = useMemo(() => window.chickadee?.signalingUrl ?? 'ws://localhost:8080', []);
   const iceServers = useMemo(() => window.chickadee?.iceServers ?? DEFAULT_ICE_SERVERS, []);
-  const signaling = useSignaling(signalingUrl);
+  const signaling = useSignaling();
+  // Media-constraint settings with side effects (mesh.*) keep explicit apply handlers below;
+  // plain persisted mirrors use usePersistedState (seed from store + persist on change).
   const [noiseSuppression, setNoiseSuppression] = useState(() => store.getNoiseSuppression());
   const [echoCancellation, setEchoCancellation] = useState(() => store.getEchoCancellation());
   const [autoGainControl, setAutoGainControl] = useState(() => store.getAutoGainControl());
-  const [normalizeVoices, setNormalizeVoices] = useState(() => store.getNormalizeVoices());
+  const [normalizeVoices, applyNormalizeVoices] = usePersistedState(store.getNormalizeVoices, store.setNormalizeVoices);
   const [inputDeviceId, setInputDeviceId] = useState(() => store.getInputDeviceId());
   const [outputDeviceId, setOutputDeviceId] = useState(() => store.getOutputDeviceId());
-  const [micVolume, setMicVolume] = useState(() => store.getMicVolume());
-  const [outputVolume, setOutputVolume] = useState(() => store.getOutputVolume());
-  const [cameraResolution, setCameraResolution] = useState(() => store.getCameraResolution());
-  const [cameraFramerate, setCameraFramerate] = useState(() => store.getCameraFramerate());
-  const [screenResolution, setScreenResolution] = useState(() => store.getScreenResolution());
-  const [screenFramerate, setScreenFramerate] = useState(() => store.getScreenFramerate());
+  const [micVolume, applyMicVolume] = usePersistedState(store.getMicVolume, store.setMicVolume);
+  const [outputVolume, applyOutputVolume] = usePersistedState(store.getOutputVolume, store.setOutputVolume);
+  const [cameraResolution, applyCameraResolution] = usePersistedState(store.getCameraResolution, store.setCameraResolution);
+  const [cameraFramerate, applyCameraFramerate] = usePersistedState(store.getCameraFramerate, store.setCameraFramerate);
+  const [screenResolution, applyScreenResolution] = usePersistedState(store.getScreenResolution, store.setScreenResolution);
+  const [screenFramerate, applyScreenFramerate] = usePersistedState(store.getScreenFramerate, store.setScreenFramerate);
   const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(() => store.getAvatarDataUrl());
   const [localVoicePreference, setLocalVoicePreference] = useState(() => store.getVoicePreference());
-  const mesh = usePeerMesh(signaling, iceServers, noiseSuppression, micVolume, cameraResolution, cameraFramerate, screenResolution, screenFramerate, echoCancellation, autoGainControl, inputDeviceId, localAvatarUrl, localVoicePreference);
-  const colors = useUserColors(signaling.peers.map((p) => p.id));
-  const timer = useSessionTimer(signaling.status === 'connected');
-
+  const [localAccentColor, setLocalAccentColor] = useState(() => store.getAccentColor());
   const userId = useMemo(() => store.getUserId(), []);
+  const mesh = usePeerMesh(signaling, iceServers, noiseSuppression, micVolume, cameraResolution, cameraFramerate, screenResolution, screenFramerate, echoCancellation, autoGainControl, inputDeviceId, localAvatarUrl, localVoicePreference, localAccentColor, userId);
+  const colors = useUserColors(signaling.peers.map((p) => p.id));
+
   const [displayName, setDisplayName] = useState(() => store.getName());
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(null);
   const leaveRoom = useCallback(() => {
     signaling.joinRoom(null);
     setCurrentRoomId(null);
   }, [signaling.joinRoom]);
-  const { spaces, currentSpaceId, rooms, switchSpace, addSpace, deleteSpace, initFirstSpace, updateRooms } =
-    useSpaces(leaveRoom);
+  const { spaces, currentSpaceId, rooms, switchSpace, addSpace, deleteSpace, initFirstSpace, updateRooms, updateSpaceSettings } =
+    useSpaces(leaveRoom, signaling.verifySpace);
+  const spaceJoin = useSpaceJoin(addSpace);
 
   const [chatOpen, setChatOpen] = useState(() => store.getChatVisible());
+  const [compactMode, setCompactMode] = useState(() => store.getCompactMode());
+  const [voiceSectionCollapsed, setVoiceSectionCollapsed] = useState(() => store.getVoiceSectionCollapsed());
+  const [videoSectionCollapsed, setVideoSectionCollapsed] = useState(() => store.getVideoSectionCollapsed());
+  // Opt-in video: stable userIds whose video/screen we've joined ("Watch").
+  // Session-only (cleared on room change); broadcast to the room via sink-state.
+  const [videoSubscriptions, setVideoSubscriptions] = useState<string[]>([]);
+  const joinVideo = useCallback(
+    (uid: string) => setVideoSubscriptions((prev) => (prev.includes(uid) ? prev : [...prev, uid])),
+    [],
+  );
+  const leaveVideo = useCallback(
+    (uid: string) => setVideoSubscriptions((prev) => prev.filter((u) => u !== uid)),
+    [],
+  );
+  const leaveAllVideo = useCallback(() => setVideoSubscriptions([]), []);
   const [createOpen, setCreateOpen] = useState(false);
   const [renameTarget, setRenameTarget] = useState<Room | null>(null);
+  const [spaceSettingsTarget, setSpaceSettingsTarget] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [inputMode, setInputMode] = useState<'open' | 'voice' | 'ptt'>(() => store.getInputMode());
-  const [vadThreshold, setVadThreshold] = useState(() => store.getVadThreshold());
-  const [vadReleaseMs, setVadReleaseMs] = useState(() => store.getVadReleaseMs());
-  const [openMicNoiseReductionEnabled, setOpenMicNoiseReductionEnabled] = useState(() => store.getOpenMicNoiseReductionEnabled());
-  const [openMicThreshold, setOpenMicThreshold] = useState(() => store.getOpenMicThreshold());
-  const [openMicReductionDb, setOpenMicReductionDb] = useState(() => store.getOpenMicReductionDb());
-  // In voice mode the mic button pauses VAD (master mute) rather than toggling directly.
-  const [voiceMuted, setVoiceMuted] = useState(false);
-  const [pushToTalkKey, setPushToTalkKey] = useState(() => store.getPushToTalkKey());
-  const [pttMode, setPttMode] = useState<'hold' | 'toggle'>(() => store.getPttMode());
-  const [muteKey, setMuteKey] = useState(() => store.getMuteKey());
-  const [muteMode, setMuteMode] = useState<'hold' | 'toggle'>(() => store.getMuteMode());
-  const [game, setGame] = useState<{ name: string; short: string } | null>(null);
+  const [inputMode, applyInputMode] = usePersistedState<'open' | 'voice' | 'ptt'>(store.getInputMode, store.setInputMode);
+  const [vadThreshold, applyVadThreshold] = usePersistedState(store.getVadThreshold, store.setVadThreshold);
+  const [vadReleaseMs, applyVadReleaseMs] = usePersistedState(store.getVadReleaseMs, store.setVadReleaseMs);
+  const [openMicNoiseReductionEnabled, applyOpenMicNoiseReductionEnabled] = usePersistedState(store.getOpenMicNoiseReductionEnabled, store.setOpenMicNoiseReductionEnabled);
+  const [openMicThreshold, applyOpenMicThreshold] = usePersistedState(store.getOpenMicThreshold, store.setOpenMicThreshold);
+  const [openMicReductionDb, applyOpenMicReductionDb] = usePersistedState(store.getOpenMicReductionDb, store.setOpenMicReductionDb);
+  const [openMicReleaseMs, applyOpenMicReleaseMs] = usePersistedState(store.getOpenMicReleaseMs, store.setOpenMicReleaseMs);
+  // Persistent mute intent — a single master switch that survives input-mode
+  // switches (open/voice/PTT). The mic gate (mesh.micEnabled) is forced off while
+  // muted, regardless of mode; modes only manage the gate when unmuted.
+  const [micMuted, setMicMuted] = useState(false);
+  const [pushToTalkKey, applyPushToTalkKey] = usePersistedState(store.getPushToTalkKey, store.setPushToTalkKey);
+  const [pttMode, applyPttMode] = usePersistedState<'hold' | 'toggle'>(store.getPttMode, store.setPttMode);
+  const [muteKey, applyMuteKey] = usePersistedState(store.getMuteKey, store.setMuteKey);
+  const [muteMode, applyMuteMode] = usePersistedState<'hold' | 'toggle'>(store.getMuteMode, store.setMuteMode);
+  const [deafenKey, applyDeafenKey] = usePersistedState(store.getDeafenKey, store.setDeafenKey);
+  const [deafenMode, applyDeafenMode] = usePersistedState<'hold' | 'toggle'>(store.getDeafenMode, store.setDeafenMode);
+  const [cameraKey, applyCameraKey] = usePersistedState(store.getCameraKey, store.setCameraKey);
+  const [screenShareKey, applyScreenShareKey] = usePersistedState(store.getScreenShareKey, store.setScreenShareKey);
+  const [chatPanelKey, applyChatPanelKey] = usePersistedState(store.getChatPanelKey, store.setChatPanelKey);
+  const [ttsToggleKey, applyTtsToggleKey] = usePersistedState(store.getTtsToggleKey, store.setTtsToggleKey);
+  const [ttsStopKey, applyTtsStopKey] = usePersistedState(store.getTtsStopKey, store.setTtsStopKey);
+  const [windowFocused, setWindowFocused] = useState(() => document.hasFocus());
+  // Distinct from focus: false only while minimized/hidden (signalled from main).
+  // Gates incoming video decode so frames nobody can see aren't decoded.
+  const [windowVisible, setWindowVisible] = useState(true);
   const [volumes, setVolumes] = useState<Record<string, number>>({});
 
   // Manual per-peer volume: update the live (peerId-keyed) map and persist by stable userId
@@ -109,6 +146,41 @@ export function App(): React.JSX.Element {
       if (uid) store.setPeerVolume(uid, volume);
     },
     [signaling.peers],
+  );
+
+  // Click-to-silence: mute = volume 0, remembering the pre-mute level (by peer.id,
+  // session-only) so a later un-silence restores it. Reuses the volume persistence path.
+  const lastNonZeroVolumeRef = useRef<Record<string, number>>({});
+  // Live SFX config read by togglePeerMute (defined above the sfx state), so the
+  // "mute other" cue plays for both compact avatars and full-view tiles.
+  const muteOtherSfxRef = useRef({ enabled: false, on: true, volume: 0.25 });
+  const togglePeerMute = useCallback(
+    (peerId: string) => {
+      const cur = volumes[peerId] ?? 1;
+      if (cur > 0) {
+        lastNonZeroVolumeRef.current[peerId] = cur;
+        handleVolumeChange(peerId, 0);
+      } else {
+        handleVolumeChange(peerId, lastNonZeroVolumeRef.current[peerId] ?? 1);
+      }
+      const sfx = muteOtherSfxRef.current;
+      if (sfx.enabled && sfx.on) playSfx('mute-other', sfx.volume);
+    },
+    [volumes, handleVolumeChange],
+  );
+
+  // Stable userIds of peers we've silenced (volume 0) — drives the compact avatar
+  // mute overlay; plus a userId→session-id bridge so the sidebar can mute by userId.
+  const mutedUserIds = useMemo(
+    () => new Set(signaling.peers.filter((p) => (volumes[p.id] ?? 1) <= 0).map((p) => p.userId)),
+    [signaling.peers, volumes],
+  );
+  const togglePeerMuteByUserId = useCallback(
+    (uid: string) => {
+      const pid = signaling.peers.find((p) => p.userId === uid)?.id;
+      if (pid) togglePeerMute(pid);
+    },
+    [signaling.peers, togglePeerMute],
   );
 
   // Hydrate per-peer volume from persisted (userId-keyed) values when peers appear.
@@ -135,107 +207,38 @@ export function App(): React.JSX.Element {
   useEffect(() => {
     setOutputSink(outputDeviceId ?? '');
   }, [outputDeviceId]);
-  const [volumeOpen, setVolumeOpen] = useState(false);
-  const [inputMenuOpen, setInputMenuOpen] = useState(false);
-  const [outputMenuOpen, setOutputMenuOpen] = useState(false);
-  const [inputModeMenuOpen, setInputModeMenuOpen] = useState(false);
-  const [videoMenuOpen, setVideoMenuOpen] = useState(false);
-  const [inputMenuAnchor, setInputMenuAnchor] = useState<DOMRect | null>(null);
-  const [outputMenuAnchor, setOutputMenuAnchor] = useState<DOMRect | null>(null);
-  const [inputModeMenuAnchor, setInputModeMenuAnchor] = useState<DOMRect | null>(null);
-  const [videoMenuAnchor, setVideoMenuAnchor] = useState<DOMRect | null>(null);
-  const [volumeMenuAnchor, setVolumeMenuAnchor] = useState<DOMRect | null>(null);
-  const [reactionMenuOpen, setReactionMenuOpen] = useState(false);
-  const [reactionMenuAnchor, setReactionMenuAnchor] = useState<DOMRect | null>(null);
+
+  // Control-bar chevron popovers + reaction popover (open flags, anchors, timeouts).
+  const menus = useControlBarMenus();
+
   const [settingsInitialTab, setSettingsInitialTab] = useState('profile');
-  const [sfxEnabled, setSfxEnabled] = useState(() => store.getSfxEnabled());
-  const [sfxVolume, setSfxVolume] = useState(() => store.getSfxVolume());
-  const [sfxJoinLeaveEnabled, setSfxJoinLeaveEnabled] = useState(() => store.getSfxJoinLeaveEnabled());
-  const [sfxMuteEnabled, setSfxMuteEnabled] = useState(() => store.getSfxMuteEnabled());
-  const [sfxTransmitEnabled, setSfxTransmitEnabled] = useState(() => store.getSfxTransmitEnabled());
-  const [sfxChatEnabled, setSfxChatEnabled] = useState(() => store.getSfxChatEnabled());
-  const [sfxDeafenEnabled, setSfxDeafenEnabled] = useState(() => store.getSfxDeafenEnabled());
+  const [sfxEnabled, applySfxEnabled] = usePersistedState(store.getSfxEnabled, store.setSfxEnabled);
+  const [sfxVolume, applySfxVolume] = usePersistedState(store.getSfxVolume, store.setSfxVolume);
+  const [sfxJoinLeaveEnabled, applySfxJoinLeaveEnabled] = usePersistedState(store.getSfxJoinLeaveEnabled, store.setSfxJoinLeaveEnabled);
+  const [sfxMuteEnabled, applySfxMuteEnabled] = usePersistedState(store.getSfxMuteEnabled, store.setSfxMuteEnabled);
+  const [sfxMuteOtherEnabled, applySfxMuteOtherEnabled] = usePersistedState(store.getSfxMuteOtherEnabled, store.setSfxMuteOtherEnabled);
+  const [sfxTransmitEnabled, applySfxTransmitEnabled] = usePersistedState(store.getSfxTransmitEnabled, store.setSfxTransmitEnabled);
+  const [sfxChatEnabled, applySfxChatEnabled] = usePersistedState(store.getSfxChatEnabled, store.setSfxChatEnabled);
+  const [sfxDeafenEnabled, applySfxDeafenEnabled] = usePersistedState(store.getSfxDeafenEnabled, store.setSfxDeafenEnabled);
+  muteOtherSfxRef.current = { enabled: sfxEnabled, on: sfxMuteOtherEnabled, volume: sfxVolume };
   const [deafened, setDeafened] = useState(false);
   const lastJoinTimeRef = useRef<number>(0);
-  const reactionCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const reactionHasEnteredPopoverRef = useRef(false);
 
-  const startReactionCloseTimeout = useCallback(() => {
-    if (reactionCloseTimeoutRef.current) clearTimeout(reactionCloseTimeoutRef.current);
-    const delay = reactionHasEnteredPopoverRef.current ? 1000 : 3000;
-    reactionCloseTimeoutRef.current = setTimeout(() => {
-      setReactionMenuOpen(false);
-    }, delay);
-  }, []);
-
-  const cancelReactionCloseTimeout = useCallback(() => {
-    if (reactionCloseTimeoutRef.current) {
-      clearTimeout(reactionCloseTimeoutRef.current);
-      reactionCloseTimeoutRef.current = null;
-    }
-  }, []);
-
-  useEffect(() => {
-    if (reactionMenuOpen) {
-      reactionHasEnteredPopoverRef.current = false;
-    } else {
-      if (reactionCloseTimeoutRef.current) {
-        clearTimeout(reactionCloseTimeoutRef.current);
-        reactionCloseTimeoutRef.current = null;
-      }
-    }
-  }, [reactionMenuOpen]);
-
-  const volumeCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const volumeHasEnteredPopoverRef = useRef(false);
-
-  const startVolumeCloseTimeout = useCallback(() => {
-    if (volumeCloseTimeoutRef.current) clearTimeout(volumeCloseTimeoutRef.current);
-    const delay = volumeHasEnteredPopoverRef.current ? 1000 : 3000;
-    volumeCloseTimeoutRef.current = setTimeout(() => {
-      setVolumeOpen(false);
-    }, delay);
-  }, []);
-
-  const cancelVolumeCloseTimeout = useCallback(() => {
-    if (volumeCloseTimeoutRef.current) {
-      clearTimeout(volumeCloseTimeoutRef.current);
-      volumeCloseTimeoutRef.current = null;
-    }
-  }, []);
-
-  useEffect(() => {
-    if (volumeOpen) {
-      volumeHasEnteredPopoverRef.current = false;
-    } else {
-      if (volumeCloseTimeoutRef.current) {
-        clearTimeout(volumeCloseTimeoutRef.current);
-        volumeCloseTimeoutRef.current = null;
-      }
-    }
-  }, [volumeOpen]);
-
-  useEffect(() => {
-    return () => {
-      if (reactionCloseTimeoutRef.current) clearTimeout(reactionCloseTimeoutRef.current);
-      if (volumeCloseTimeoutRef.current) clearTimeout(volumeCloseTimeoutRef.current);
-    };
-  }, []);
-
-  const [badgeNotificationsEnabled, setBadgeNotificationsEnabled] = useState(() => store.getBadgeNotificationsEnabled());
+  const [badgeNotificationsEnabled, applyBadgeNotificationsEnabled] = usePersistedState(store.getBadgeNotificationsEnabled, store.setBadgeNotificationsEnabled);
   const [unreadCount, setUnreadCount] = useState(0);
   const [selfStatus, setSelfStatus] = useState<'online' | 'idle' | 'dnd'>(() => store.getStatus());
-  const [uiScale, setUiScale] = useState(() => store.getUiScale());
-  const [chatFontScale, setChatFontScale] = useState(() => store.getChatFontScale());
-  const [chatPosition, setChatPosition] = useState(() => store.getChatPosition());
+  const [uiScale, applyUiScale] = usePersistedState(store.getUiScale, store.setUiScale);
+  const [chatFontScale, applyChatFontScale] = usePersistedState(store.getChatFontScale, store.setChatFontScale);
+  const [chatPosition, applyChatPosition] = usePersistedState<'left' | 'right'>(store.getChatPosition, store.setChatPosition);
   const [chatWidthScale, setChatWidthScale] = useState(() => store.getChatWidthScale());
+  const [sidebarWidthScale, setSidebarWidthScale] = useState(() => store.getSidebarWidthScale());
   const [chatTtsEnabled, setChatTtsEnabled] = useState(() => store.getChatTtsEnabled());
-  const [chatTtsSpeakName, setChatTtsSpeakName] = useState(() => store.getChatTtsSpeakName());
-  const [theme, setTheme] = useState<'midnight' | 'classic' | 'oled'>(() => store.getTheme());
+  const [chatTtsSpeakName, applyChatTtsSpeakName] = usePersistedState(store.getChatTtsSpeakName, store.setChatTtsSpeakName);
+  const [theme, applyTheme] = usePersistedState<ThemeName>(store.getTheme, store.setTheme);
   const [launchOnStartup, setLaunchOnStartup] = useState(() => store.getLaunchOnStartup());
-  const [closeBehavior, setCloseBehavior] = useState<'quit' | 'tray'>(() => store.getCloseBehavior());
+  const [closeBehavior, applyCloseBehavior] = usePersistedState<'quit' | 'tray'>(store.getCloseBehavior, store.setCloseBehavior);
   const [alwaysOnTop, setAlwaysOnTop] = useState(() => store.getAlwaysOnTop());
-  const [defaultVideoAction, setDefaultVideoAction] = useState<'camera' | 'screen'>(() => store.getDefaultVideoAction());
+  const [defaultVideoAction, applyDefaultVideoAction] = usePersistedState<'camera' | 'screen'>(store.getDefaultVideoAction, store.setDefaultVideoAction);
 
   // Apply initial UI scale and whenever it changes
   useEffect(() => {
@@ -261,11 +264,6 @@ export function App(): React.JSX.Element {
     }
   }, []);
 
-  const [createSpaceOpen, setCreateSpaceOpen] = useState(false);
-  const [joinSpaceOpen, setJoinSpaceOpen] = useState(false);
-  const [newSpaceName, setNewSpaceName] = useState('');
-  const [inviteCodeInput, setInviteCodeInput] = useState('');
-
   const chat = useRoomChat({
     signaling,
     displayName,
@@ -275,23 +273,39 @@ export function App(): React.JSX.Element {
   });
   // In gated modes (PTT / voice activation) a live mic means we're transmitting.
   const transmitting = inputMode !== 'open' && mesh.micEnabled;
-  // What the mic button reflects: in voice mode it's the master-pause state.
-  const micButtonOn = inputMode === 'voice' ? !voiceMuted : mesh.micEnabled;
+  // What the mic button reflects: the persistent mute intent, independent of mode
+  // and of the transient transmit gate (so it doesn't flicker with VAD/PTT).
+  const micButtonOn = !micMuted;
+  // Unified local "speaking" value driving the self ripple AND the broadcast, so
+  // every client renders an identical ripple. Open mic: RMS-detect the live mic.
+  // Gated modes: the transmit gate already is the speaking signal.
+  const selfAudioSpeaking = useAudioActivity(
+    inputMode === 'open' && mesh.micEnabled ? mesh.localStream : null,
+  );
+  const selfSpeaking = inputMode === 'open' ? selfAudioSpeaking : transmitting;
+  // Stable userIds of peers currently speaking — drives the compact sidebar's
+  // per-avatar speaking outline (self handled separately via selfSpeaking).
+  const speakingUserIds = useMemo(
+    () => new Set(signaling.peers.filter((p) => p.speaking).map((p) => p.userId)),
+    [signaling.peers],
+  );
 
   const onboardingNeeded = !displayName;
   const inRoom = currentRoomId !== null;
   const currentRoom = rooms.find((r) => r.id === currentRoomId) ?? null;
+  const currentRoomCap = capacityForType(currentRoom?.type);
+  // Voice rooms are audio-only: hide camera/screen-share controls and ignore their keybinds.
+  const allowVideo = (currentRoom?.type ?? 'video') === 'video';
   const totalInRoom = inRoom ? signaling.peers.length + 1 : 0;
   const rawUsers = useSpacePresence(signaling, signaling.rooms);
 
-  // Override self's avatar with the local value (immediate, no round-trip wait).
-  // Peer avatars come from signaling state (Peer.avatarDataUrl), populated space-wide.
+  // The USERS list shows only OTHER users — self has its own section at the
+  // bottom of the sidebar, so listing self here would be redundant.
   const users = useMemo(
-    () => rawUsers.map((u) => ({
-      ...u,
-      avatarUrl: (u.id === userId ? localAvatarUrl : u.avatarUrl) ?? undefined,
-    })),
-    [rawUsers, userId, localAvatarUrl],
+    () => rawUsers
+      .filter((u) => u.id !== userId)
+      .map((u) => ({ ...u, avatarUrl: u.avatarUrl ?? undefined })),
+    [rawUsers, userId],
   );
 
   const handleSaveAvatar = useCallback(
@@ -317,17 +331,58 @@ export function App(): React.JSX.Element {
     [signaling.status, signaling.send],
   );
 
+  const handleSaveAccent = useCallback(
+    (color: string) => {
+      setLocalAccentColor(color);
+      store.setAccentColor(color);
+      // Sync our accent color space-wide so everyone recolors our tile/sidebar entry.
+      if (signaling.status === 'connected') {
+        signaling.send({ type: 'accent-state', accentColor: color });
+      }
+    },
+    [signaling.status, signaling.send],
+  );
+
+  // Our effective accent color: the chosen one, else the default self gold.
+  const selfColor = localAccentColor || SELF_COLOR;
+
   // Maintain a continuous space-level WebSocket connection to the signaling server
   useEffect(() => {
     if (currentSpaceId && displayName && userId) {
-      signaling.join(currentSpaceId, currentRoomId, displayName, userId, rooms, selfStatus, localAvatarUrl, localVoicePreference);
+      const activeSpace = spaces.find((s) => s.id === currentSpaceId);
+      const url = activeSpace?.customSignalingUrl || (window.chickadee?.signalingUrl ?? 'ws://localhost:8080');
+      const secret = activeSpace?.joinSecret || '';
+      signaling.join(currentSpaceId, currentRoomId, displayName, userId, rooms, selfStatus, localAvatarUrl, localVoicePreference, localAccentColor, secret, url);
     } else {
       signaling.leave();
     }
     // We only want to re-establish the connection if the space, user, or name changes.
     // Room movement and status updates are sent dynamically over the active socket.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentSpaceId, userId, displayName]);
+  }, [currentSpaceId, userId, displayName, spaces]);
+
+  // Listen for space renames from other clients
+  useEffect(() => {
+    const unsubscribe = signaling.subscribe((msg) => {
+      if (msg.type === 'space-renamed') {
+        const { spaceId, newSpaceId, newSpaceName } = msg;
+        const exists = spaces.some((s) => s.id === spaceId);
+        if (exists) {
+          const existingSpace = spaces.find((s) => s.id === spaceId);
+          if (existingSpace) {
+            updateSpaceSettings(
+              spaceId,
+              newSpaceName,
+              existingSpace.customSignalingUrl || '',
+              existingSpace.joinSecret || '',
+              newSpaceId
+            );
+          }
+        }
+      }
+    });
+    return unsubscribe;
+  }, [signaling.subscribe, spaces, updateSpaceSettings]);
 
   const applyStatus = useCallback((status: 'online' | 'idle' | 'dnd') => {
     setSelfStatus(status);
@@ -341,6 +396,9 @@ export function App(): React.JSX.Element {
     if (!currentSpaceId) return;
 
     if (id === currentRoomId) {
+      // In compact mode the active row is easy to misclick; never leave on click
+      // there (the dedicated Leave mini-button handles it). Full view unchanged.
+      if (compactMode) return;
       if (Date.now() - lastJoinTimeRef.current < 600) {
         return;
       }
@@ -348,15 +406,20 @@ export function App(): React.JSX.Element {
       return;
     }
 
+    // Block joining a room that's already at capacity (server rejects too, as a backstop).
+    const target = rooms.find((r) => r.id === id);
+    const occupancy = users.filter((u) => u.roomId === id).length;
+    if (target && occupancy >= capacityForType(target.type)) return;
+
     lastJoinTimeRef.current = Date.now();
     setCurrentRoomId(id);
     mesh.prepareMedia();
     signaling.joinRoom(id);
   }
 
-  function createRoom(label: string, icon: string): void {
+  function createRoom(label: string, icon: string, type: RoomType): void {
     const id = slugify(label);
-    const next = rooms.some((r) => r.id === id) ? rooms : [...rooms, { id, label, icon }];
+    const next = rooms.some((r) => r.id === id) ? rooms : [...rooms, { id, label, icon, type }];
     updateRooms(next);
     setCreateOpen(false);
     if (signaling.status === 'connected' && currentSpaceId) {
@@ -365,7 +428,7 @@ export function App(): React.JSX.Element {
     joinRoom(id);
   }
 
-  // Rename is cosmetic — the room `id` (signaling room) stays stable.
+  // Rename is cosmetic — the room `id` (signaling room) and `type` stay stable.
   function renameRoom(id: string, label: string, icon: string): void {
     const next = rooms.map((r) => (r.id === id ? { ...r, label, icon } : r));
     updateRooms(next);
@@ -384,10 +447,15 @@ export function App(): React.JSX.Element {
     if (id === currentRoomId) leaveRoom();
   }
 
-  function handleOnboardingSubmit(name: string, val: string, action: 'create' | 'join'): void {
-    store.setName(name);
-    setDisplayName(name);
-    initFirstSpace(val, action);
+  async function handleOnboardingSubmit(name: string, val: string, action: 'create' | 'join', customSignalingUrl?: string, joinSecret?: string): Promise<AddSpaceResult> {
+    const result = await initFirstSpace(val, action, customSignalingUrl, joinSecret);
+    // Only commit the display name once the space is confirmed, so a failed join
+    // doesn't leave the wizard in a half-applied state.
+    if (result.ok) {
+      store.setName(name);
+      setDisplayName(name);
+    }
+    return result;
   }
 
   function toggleChat(): void {
@@ -420,11 +488,6 @@ export function App(): React.JSX.Element {
     mesh.setAutoGainControl(on);
   }
 
-  function applyNormalizeVoices(on: boolean): void {
-    setNormalizeVoices(on);
-    store.setNormalizeVoices(on);
-  }
-
   const applyInputDevice = useCallback((id: string) => {
     setInputDeviceId(id);
     store.setInputDeviceId(id);
@@ -436,151 +499,86 @@ export function App(): React.JSX.Element {
     store.setOutputDeviceId(id);
   }, []);
 
-  const applyMicVolume = useCallback((vol: number) => {
-    setMicVolume(vol);
-    store.setMicVolume(vol);
+  // Live chat-panel resize from the drag handle: update state every move, persist
+  // only on release (commit) so we don't write to disk on every pointermove.
+  const handleChatResize = useCallback((scale: number, commit: boolean) => {
+    const clamped = Math.max(1.0, Math.min(2.0, scale));
+    setChatWidthScale(clamped);
+    if (commit) store.setChatWidthScale(clamped);
   }, []);
 
-  const applyOutputVolume = useCallback((vol: number) => {
-    setOutputVolume(vol);
-    store.setOutputVolume(vol);
-  }, []);
-
-  const applyCameraResolution = useCallback((res: string) => {
-    setCameraResolution(res);
-    store.setCameraResolution(res);
-  }, []);
-
-  const applyCameraFramerate = useCallback((fps: string) => {
-    setCameraFramerate(fps);
-    store.setCameraFramerate(fps);
-  }, []);
-
-  const applyScreenResolution = useCallback((res: string) => {
-    setScreenResolution(res);
-    store.setScreenResolution(res);
-  }, []);
-
-  const applyScreenFramerate = useCallback((fps: string) => {
-    setScreenFramerate(fps);
-    store.setScreenFramerate(fps);
-  }, []);
-
-  const applyUiScale = useCallback((scale: number) => {
-    setUiScale(scale);
-    store.setUiScale(scale);
-  }, []);
-
-  const applyChatFontScale = useCallback((scale: number) => {
-    setChatFontScale(scale);
-    store.setChatFontScale(scale);
-  }, []);
-
-  const applyChatPosition = useCallback((pos: 'left' | 'right') => {
-    setChatPosition(pos);
-    store.setChatPosition(pos);
-  }, []);
-
+  // Settings slider commits chat width directly (persist immediately).
   const applyChatWidthScale = useCallback((scale: number) => {
     setChatWidthScale(scale);
     store.setChatWidthScale(scale);
   }, []);
 
-  const applyInputMode = useCallback((mode: 'open' | 'voice' | 'ptt') => {
-    setInputMode(mode);
-    store.setInputMode(mode);
-    setVoiceMuted(false); // reset the voice-mode pause when switching modes
-  }, []);
+  // Unified sidebar width: drives the CSS var in full view and the OS dock width
+  // (via IPC) in compact view. Persist on commit only.
+  const handleSidebarResize = useCallback(
+    (scale: number, commit: boolean) => {
+      const clamped = Math.max(1.0, Math.min(2.0, scale));
+      setSidebarWidthScale(clamped);
+      if (compactMode) {
+        window.chickadee?.windowControls?.setWindowWidth?.(Math.round(260 * clamped));
+      }
+      if (commit) store.setSidebarWidthScale(clamped);
+    },
+    [compactMode],
+  );
 
   const cycleInputMode = useCallback(() => {
     const order = ['open', 'voice', 'ptt'] as const;
     applyInputMode(order[(order.indexOf(inputMode) + 1) % order.length]);
   }, [inputMode, applyInputMode]);
 
-  const applyVadThreshold = useCallback((threshold: number) => {
-    setVadThreshold(threshold);
-    store.setVadThreshold(threshold);
+  const toggleCompactMode = useCallback(() => {
+    setCompactMode((c) => {
+      const next = !c;
+      store.setCompactMode(next);
+      return next;
+    });
   }, []);
 
-  const applyVadReleaseMs = useCallback((ms: number) => {
-    setVadReleaseMs(ms);
-    store.setVadReleaseMs(ms);
+  const toggleVoiceSection = useCallback(() => {
+    setVoiceSectionCollapsed((c) => {
+      const next = !c;
+      store.setVoiceSectionCollapsed(next);
+      return next;
+    });
   }, []);
 
-  const applyOpenMicNoiseReductionEnabled = useCallback((on: boolean) => {
-    setOpenMicNoiseReductionEnabled(on);
-    store.setOpenMicNoiseReductionEnabled(on);
+  const toggleVideoSection = useCallback(() => {
+    setVideoSectionCollapsed((c) => {
+      const next = !c;
+      store.setVideoSectionCollapsed(next);
+      return next;
+    });
   }, []);
 
-  const applyOpenMicThreshold = useCallback((threshold: number) => {
-    setOpenMicThreshold(threshold);
-    store.setOpenMicThreshold(threshold);
-  }, []);
+  // Sidebar actions that open a real modal (Settings, Create/Rename Room, Space
+  // Settings, Create/Join Space) need real screen space, so expand the window
+  // first if it's currently docked to the compact sidebar-only strip.
+  const openExpanded = useCallback(
+    (action: () => void) => {
+      if (compactMode) {
+        setCompactMode(false);
+        store.setCompactMode(false);
+      }
+      action();
+    },
+    [compactMode],
+  );
 
-  const applyOpenMicReductionDb = useCallback((db: number) => {
-    setOpenMicReductionDb(db);
-    store.setOpenMicReductionDb(db);
-  }, []);
-
-  function applyPushToTalkKey(key: string): void {
-    setPushToTalkKey(key);
-    store.setPushToTalkKey(key);
-  }
-
-  function applyPttMode(mode: 'hold' | 'toggle'): void {
-    setPttMode(mode);
-    store.setPttMode(mode);
-  }
-
-  function applyMuteKey(key: string): void {
-    setMuteKey(key);
-    store.setMuteKey(key);
-  }
-
-  function applyMuteMode(mode: 'hold' | 'toggle'): void {
-    setMuteMode(mode);
-    store.setMuteMode(mode);
-  }
-
-  function applySfxEnabled(on: boolean): void {
-    setSfxEnabled(on);
-    store.setSfxEnabled(on);
-  }
-
-  function applySfxVolume(vol: number): void {
-    setSfxVolume(vol);
-    store.setSfxVolume(vol);
-  }
-
-  function applySfxJoinLeaveEnabled(on: boolean): void {
-    setSfxJoinLeaveEnabled(on);
-    store.setSfxJoinLeaveEnabled(on);
-  }
-
-  function applySfxMuteEnabled(on: boolean): void {
-    setSfxMuteEnabled(on);
-    store.setSfxMuteEnabled(on);
-  }
-
-  function applySfxTransmitEnabled(on: boolean): void {
-    setSfxTransmitEnabled(on);
-    store.setSfxTransmitEnabled(on);
-  }
-
-  function applySfxChatEnabled(on: boolean): void {
-    setSfxChatEnabled(on);
-    store.setSfxChatEnabled(on);
-  }
-
-  function applySfxDeafenEnabled(on: boolean): void {
-    setSfxDeafenEnabled(on);
-    store.setSfxDeafenEnabled(on);
-  }
-
-  function applyBadgeNotificationsEnabled(on: boolean): void {
-    setBadgeNotificationsEnabled(on);
-    store.setBadgeNotificationsEnabled(on);
-  }
+  useEffect(() => {
+    window.chickadee?.windowControls?.setCompact?.(
+      compactMode,
+      Math.round(260 * sidebarWidthScale),
+    );
+    // sidebarWidthScale intentionally omitted: the dock width is set on toggle and
+    // updated live via setWindowWidth in handleSidebarResize while already compact.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [compactMode]);
 
   function applyChatTtsEnabled(on: boolean): void {
     setChatTtsEnabled(on);
@@ -588,30 +586,10 @@ export function App(): React.JSX.Element {
     if (!on) cancelSpeech(); // stop any in-progress speech when disabled
   }
 
-  function applyChatTtsSpeakName(on: boolean): void {
-    setChatTtsSpeakName(on);
-    store.setChatTtsSpeakName(on);
-  }
-
-  function applyTheme(next: 'midnight' | 'classic' | 'oled'): void {
-    setTheme(next);
-    store.setTheme(next);
-  }
-
-  const applyDefaultVideoAction = useCallback((action: 'camera' | 'screen') => {
-    setDefaultVideoAction(action);
-    store.setDefaultVideoAction(action);
-  }, []);
-
   function applyLaunchOnStartup(on: boolean): void {
     setLaunchOnStartup(on);
     store.setLaunchOnStartup(on);
     void window.chickadee?.setLoginItem?.(on);
-  }
-
-  function applyCloseBehavior(next: 'quit' | 'tray'): void {
-    setCloseBehavior(next);
-    store.setCloseBehavior(next);
   }
 
   function applyAlwaysOnTop(on: boolean): void {
@@ -621,13 +599,26 @@ export function App(): React.JSX.Element {
   }
 
   // Reset unread count when window gets focus; also stop any queued TTS backlog.
+  // Track focus state too: when the window is unfocused (e.g. on a 2nd monitor
+  // while a game has focus) we freeze the per-frame CSS animations via .app--unfocused.
   useEffect(() => {
     const handleFocus = (): void => {
+      setWindowFocused(true);
       setUnreadCount(0);
       cancelSpeech();
     };
+    const handleBlur = (): void => setWindowFocused(false);
     window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
+    window.addEventListener('blur', handleBlur);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
+    };
+  }, []);
+
+  // Track minimized/hidden state from main so we can pause incoming video decode.
+  useEffect(() => {
+    return window.chickadee?.onWindowVisibilityChange?.(setWindowVisible);
   }, []);
 
   // Warm the TTS voice list on startup so the first spoken message resolves the right voice.
@@ -661,17 +652,14 @@ export function App(): React.JSX.Element {
   }, [signaling.status, signaling.send]);
 
   const handleToggleMic = useCallback(() => {
-    if (inputMode === 'voice') {
-      // Master mute: pause/resume the VAD gate instead of toggling directly.
-      setVoiceMuted((m) => {
-        const next = !m;
-        if (next) mesh.setMicEnabled(false);
-        return next;
-      });
-      return;
-    }
-    mesh.toggleMic();
-  }, [mesh.toggleMic, mesh.setMicEnabled, inputMode]);
+    // Flip the persistent mute intent; the baseline gating effect re-derives the
+    // transmit gate per mode. Cut transmit immediately on mute so it feels instant.
+    setMicMuted((m) => {
+      const next = !m;
+      if (next) mesh.setMicEnabled(false);
+      return next;
+    });
+  }, [mesh.setMicEnabled]);
 
   // Acquire mic for test when settings is open, release if not in room when closed.
   useEffect(() => {
@@ -684,21 +672,60 @@ export function App(): React.JSX.Element {
     }
   }, [settingsOpen, inRoom, mesh.prepareMedia, mesh.teardown]);
 
-  // Detected game (from the main-process scanner).
-  useEffect(() => {
-    return window.chickadee?.onGameDetected?.((g) => setGame(g));
-  }, []);
-
-  // Broadcast our game short-tag, deafen state, and status to the room (re-announces on join/reconnect).
+  // Broadcast our deafen state and status to the room (re-announces on join/reconnect).
   useEffect(() => {
     if (signaling.status === 'connected') {
-      signaling.send({ type: 'game-state', game: game?.short ?? null });
       if (deafened) {
         signaling.send({ type: 'deafen-state', deafened: true });
       }
       signaling.send({ type: 'status-state', status: selfStatus });
     }
-  }, [game, currentRoomId, signaling.status, signaling.send, deafened, selfStatus]);
+  }, [currentRoomId, signaling.status, signaling.send, deafened, selfStatus]);
+
+  // Broadcast mute *intent* (not the per-frame VAD/PTT transmit gate) so remote
+  // mute icons reflect a deliberate mute and don't flicker as the user talks.
+  // Keyed on signaling.status so it re-announces on (re)connect.
+  useEffect(() => {
+    if (signaling.status === 'connected') {
+      signaling.send({ type: 'mic-state', muted: !micButtonOn });
+    }
+  }, [micButtonOn, signaling.status, signaling.send]);
+
+  // Broadcast our speaking state so peers render the same ripple we show locally.
+  useEffect(() => {
+    if (signaling.status === 'connected') {
+      signaling.send({ type: 'speaking-state', speaking: selfSpeaking });
+    }
+  }, [selfSpeaking, signaling.status, signaling.send]);
+
+  // Tell the room our video opt-in state: which peers we've joined (subscriptions)
+  // and whether we're rendering video (false while docked, so senders pause our
+  // subscribed video but keep its audio). Re-announces on (re)connect — keyed on
+  // signaling.status — since the server resets us to default.
+  useEffect(() => {
+    if (signaling.status === 'connected') {
+      signaling.send({ type: 'sink-state', subscriptions: videoSubscriptions, wantsVideo: !compactMode });
+    }
+  }, [videoSubscriptions, compactMode, signaling.status, signaling.send]);
+
+  // Subscriptions are room-scoped: starting in a new room means re-opting-in.
+  useEffect(() => {
+    setVideoSubscriptions([]);
+  }, [currentRoomId]);
+
+  // Drop subscriptions to peers with nothing left to watch (stopped sharing /
+  // camera off / left), so `subscribed` flips false and the Watch button
+  // reappears when they share again. Also re-broadcasts the trimmed sink-state
+  // (the effect above keys on videoSubscriptions), releasing the sender's track.
+  useEffect(() => {
+    setVideoSubscriptions((prev) => {
+      const watchable = new Set(
+        signaling.peers.filter((p) => p.screenStreamId || p.cameraOn).map((p) => p.userId),
+      );
+      const next = prev.filter((uid) => watchable.has(uid));
+      return next.length === prev.length ? prev : next;
+    });
+  }, [signaling.peers]);
 
   // Keep local rooms in sync with the signaling server's room list for this Space.
   useEffect(() => {
@@ -707,25 +734,80 @@ export function App(): React.JSX.Element {
     }
   }, [signaling.rooms, signaling.status, updateRooms]);
 
+  // Reset selected room if connection hits a terminal state (closed, room-full, or error)
+  useEffect(() => {
+    if (signaling.status === 'room-full' || signaling.status === 'error' || signaling.status === 'closed') {
+      setCurrentRoomId(null);
+    }
+  }, [signaling.status]);
+
   const peerIdsStr = useMemo(() => signaling.peers.map((p) => p.id).sort().join(','), [signaling.peers]);
 
   useSfxEvents({ sfxEnabled, sfxVolume, sfxJoinLeaveEnabled, sfxMuteEnabled, sfxTransmitEnabled, currentRoomId, peerIdsStr, micEnabled: mesh.micEnabled, micButtonOn, inputMode, inRoom });
 
+  const onPttStart = useCallback(() => {
+    mesh.setMicEnabled(true);
+  }, [mesh.setMicEnabled]);
+
+  const onPttStop = useCallback(() => {
+    mesh.setMicEnabled(false);
+  }, [mesh.setMicEnabled]);
+
+  const onPttToggle = useCallback(() => {
+    mesh.toggleMic();
+  }, [mesh.toggleMic]);
+
+  const onMuteStart = useCallback(() => {
+    setMicMuted(true);
+    mesh.setMicEnabled(false); // cut transmit immediately; the gating effect reasserts
+  }, [mesh.setMicEnabled]);
+
+  const onMuteStop = useCallback(() => {
+    setMicMuted(false); // the baseline gating effect re-opens per the current mode
+  }, []);
+
+  const onMuteToggle = useCallback(() => {
+    handleToggleMic();
+  }, [handleToggleMic]);
+
   useKeybindSync({
     inputMode,
+    muted: micMuted,
     pushToTalkKey,
     pttMode,
     muteKey,
     muteMode,
-    setMicEnabled: mesh.setMicEnabled,
-    toggleMic: mesh.toggleMic,
+    onPttStart,
+    onPttStop,
+    onPttToggle,
+    onMuteStart,
+    onMuteStop,
+    onMuteToggle,
+    deafenKey,
+    deafenMode,
+    onDeafenStart: () => { if (!deafened) toggleDeafen(); },
+    onDeafenStop: () => { if (deafened) toggleDeafen(); },
+    onDeafenToggle: toggleDeafen,
+    cameraKey,
+    onCameraToggle: () => { if (allowVideo) mesh.toggleCamera(); },
+    screenShareKey,
+    onScreenShareToggle: () => {
+      if (!allowVideo) return;
+      mesh.sharingScreen ? mesh.stopScreenShare() : setPickerOpen(true);
+    },
+    chatPanelKey,
+    onChatPanelToggle: toggleChat,
+    ttsToggleKey,
+    onTtsToggle: () => applyChatTtsEnabled(!chatTtsEnabled),
+    ttsStopKey,
+    onTtsStop: cancelSpeech,
     localStream: mesh.localStream,
   });
 
-  // Voice-activation gate (open-mic mode). Paused while manually muted (voiceMuted).
+  // Voice-activation gate (voice mode). Paused while manually muted (micMuted).
   // Reads the pre-gate analyser so it sees the live mic even while muted.
   useVoiceActivation({
-    active: inputMode === 'voice' && inRoom && !voiceMuted,
+    active: inputMode === 'voice' && inRoom && !micMuted,
     threshold: vadThreshold,
     releaseMs: vadReleaseMs,
     analyserNode: mesh.analyserNode,
@@ -738,16 +820,21 @@ export function App(): React.JSX.Element {
     active: inputMode === 'open' && openMicNoiseReductionEnabled && inRoom,
     threshold: openMicThreshold,
     reductionDb: openMicReductionDb,
+    releaseMs: openMicReleaseMs,
     analyserNode: mesh.analyserNode,
     expanderGain: mesh.expanderGainNode,
   });
 
   // Audio/video device lists for Settings and the chevron menus.
-  const devices = useMediaDevices(inRoom || settingsOpen || inputMenuOpen || outputMenuOpen || videoMenuOpen);
+  const devices = useMediaDevices(inRoom || settingsOpen || menus.inputMenuOpen || menus.outputMenuOpen || menus.videoMenuOpen);
   const hasCamera = devices.videoInputs.length > 0;
   const defaultAction = hasCamera ? defaultVideoAction : 'screen';
 
   useTraySync({ currentRoomLabel: currentRoom?.label ?? null, handleToggleMic, toggleDeafen });
+
+  // A tile/stream is only truly on-screen when the window is visible AND not docked
+  // to the sidebar. Drives the incoming-video detach so a docked user stops decoding.
+  const mediaVisible = windowVisible && !compactMode;
 
   // Camera tiles (self + peers), reused in grid and filmstrip layouts.
   const tiles = inRoom && (
@@ -759,29 +846,41 @@ export function App(): React.JSX.Element {
         intentionallyMuted={!micButtonOn}
         cameraOn={mesh.cameraEnabled}
         cameraStream={mesh.localStream}
-        color={SELF_COLOR}
-        transmitting={inputMode !== 'open' ? transmitting : undefined}
-        gameTag={game?.short}
+        cameraVideoId={mesh.localStream?.getVideoTracks()[0]?.id ?? null}
+        color={selfColor}
+        speaking={selfSpeaking}
         deafened={deafened}
         avatarUrl={localAvatarUrl}
+        screenSharing={mesh.sharingScreen}
+        windowVisible={mediaVisible}
       />
       {signaling.peers.map((peer) => {
         const media = mesh.remote[peer.id];
+        const subscribed = videoSubscriptions.includes(peer.userId);
         return (
           <ParticipantTile
             key={peer.id}
             displayName={peer.displayName}
             isSelf={false}
             muted={peer.muted}
+            speaking={peer.speaking}
             cameraOn={peer.cameraOn}
             cameraStream={media?.cameraStream ?? null}
-            color={colors[peer.id] ?? SELF_COLOR}
+            cameraVideoId={media?.cameraVideoId ?? null}
+            color={peer.accentColor || colors[peer.id] || SELF_COLOR}
             connectionState={media?.connectionState ?? 'new'}
             avatarUrl={peer.avatarDataUrl ?? null}
-            gameTag={peer.game ?? undefined}
             volume={deafened ? 0 : (volumes[peer.id] ?? 1) * outputVolume}
+            peerVolume={volumes[peer.id] ?? 1}
+            onVolumeChange={(v) => handleVolumeChange(peer.id, v)}
+            onToggleMute={() => togglePeerMute(peer.id)}
             deafened={peer.deafened}
             normalize={normalizeVoices}
+            screenSharing={!!peer.screenStreamId}
+            windowVisible={mediaVisible}
+            subscribed={subscribed}
+            onJoinVideo={() => joinVideo(peer.userId)}
+            onLeaveVideo={() => leaveVideo(peer.userId)}
           />
         );
       })}
@@ -794,17 +893,23 @@ export function App(): React.JSX.Element {
     activeScreens.push({ key: 'self-screen', displayName, isSelf: true, stream: mesh.localScreenStream });
   }
   for (const peer of signaling.peers) {
-    const screen = peer.screenStreamId ? mesh.remote[peer.id]?.screenStream : null;
+    const subscribed = videoSubscriptions.includes(peer.userId);
+    const screen = subscribed && peer.screenStreamId ? mesh.remote[peer.id]?.screenStream : null;
     if (screen) {
-      activeScreens.push({ key: `${peer.id}-screen`, displayName: peer.displayName, isSelf: false, stream: screen });
+      activeScreens.push({ key: `${peer.id}-screen`, displayName: peer.displayName, isSelf: false, stream: screen, userId: peer.userId });
     }
   }
   const presenting = activeScreens.length > 0;
+  // How many peers have joined our stream (their subscriptions include our userId).
+  const selfWatcherCount = signaling.peers.filter((p) => p.videoSubscriptions?.includes(userId)).length;
 
   const errors = [mesh.micError, mesh.cameraError, mesh.screenError, signaling.error].filter(Boolean);
 
   return (
-    <div className="app">
+    <div
+      className={`app${windowFocused ? '' : ' app--unfocused'}${compactMode ? ' app--compact' : ''}`}
+      style={{ '--sidebar-width-scale': sidebarWidthScale } as React.CSSProperties}
+    >
       {chat.floats.map((f) => (
         <div key={f.id} className="float-reaction" style={{ left: `${f.x}%` }}>
           {f.emoji}
@@ -814,35 +919,54 @@ export function App(): React.JSX.Element {
       <Sidebar
         rooms={rooms}
         currentRoomId={currentRoomId}
-        currentRoomCount={totalInRoom}
         onSelectRoom={joinRoom}
-        onCreateRoom={() => setCreateOpen(true)}
-        onRequestRename={(room) => setRenameTarget(room)}
+        onCreateRoom={() => openExpanded(() => setCreateOpen(true))}
+        onRequestRename={(room) => openExpanded(() => setRenameTarget(room))}
         onRemoveRoom={removeRoom}
         users={users}
         selfName={displayName}
-        selfColor={SELF_COLOR}
+        selfColor={selfColor}
         selfAvatarUrl={localAvatarUrl}
         online={signaling.status === 'connected'}
-        selfGame={game?.name}
-        onOpenSettings={() => setSettingsOpen(true)}
+        onOpenSettings={() => openExpanded(() => setSettingsOpen(true))}
         spaces={spaces}
         activeSpaceId={currentSpaceId}
         onSelectSpace={switchSpace}
-        onCreateSpace={() => setCreateSpaceOpen(true)}
-        onJoinSpace={() => setJoinSpaceOpen(true)}
+        onCreateSpace={() => openExpanded(spaceJoin.openCreateSpace)}
+        onJoinSpace={() => openExpanded(spaceJoin.openJoinSpace)}
         onDeleteSpace={deleteSpace}
+        onSpaceSettings={(id) => openExpanded(() => setSpaceSettingsTarget(id))}
         selfStatus={selfStatus}
         onChangeStatus={applyStatus}
+        voiceCollapsed={voiceSectionCollapsed}
+        videoCollapsed={videoSectionCollapsed}
+        onToggleVoiceSection={toggleVoiceSection}
+        onToggleVideoSection={toggleVideoSection}
+        compact={compactMode}
+        onToggleCompact={toggleCompactMode}
+        widthScale={sidebarWidthScale}
+        onResize={handleSidebarResize}
+        micEnabled={micButtonOn}
+        hasMic={!!mesh.localStream}
+        onToggleMic={handleToggleMic}
+        deafened={deafened}
+        onToggleDeafen={toggleDeafen}
+        inputMode={inputMode}
+        onCycleInputMode={cycleInputMode}
+        hasVideoSubs={videoSubscriptions.length > 0}
+        onLeaveAllVideo={leaveAllVideo}
+        selfSpeaking={selfSpeaking}
+        speakingUserIds={speakingUserIds}
+        mutedUserIds={mutedUserIds}
+        onTogglePeerMute={togglePeerMuteByUserId}
+        onLeaveRoom={leaveRoom}
       />
 
       <div className="main">
         <RoomHeader
           room={currentRoom}
           count={totalInRoom}
-          maxCount={MAX_PEERS_PER_ROOM}
-          timer={timer}
-          game={game?.name}
+          maxCount={currentRoomCap}
           chatOpen={chatOpen}
           onToggleChat={toggleChat}
           hasSpace={currentSpaceId !== null}
@@ -852,26 +976,35 @@ export function App(): React.JSX.Element {
           <>
             <div className="content-area">
               {chatOpen && chatPosition === 'left' && (
-                <ChatPanel messages={chat.messages} onSend={chat.sendChat} chatFontScale={chatFontScale} chatPosition={chatPosition} chatWidthScale={chatWidthScale} />
+                <ChatPanel messages={chat.messages} onSend={chat.sendChat} chatFontScale={chatFontScale} chatPosition={chatPosition} chatWidthScale={chatWidthScale} onResize={handleChatResize} />
               )}
 
               {presenting ? (
                 <div className="presentation">
                   <div className="stage" data-count={Math.min(activeScreens.length, 4)}>
                     {activeScreens.map((s) => (
-                      <ScreenView key={s.key} displayName={s.displayName} isSelf={s.isSelf} stream={s.stream} outputDeviceId={outputDeviceId} />
+                      <ScreenView
+                        key={s.key}
+                        displayName={s.displayName}
+                        isSelf={s.isSelf}
+                        stream={s.stream}
+                        outputDeviceId={outputDeviceId}
+                        windowVisible={mediaVisible}
+                        watcherCount={s.isSelf ? selfWatcherCount : undefined}
+                        onLeave={s.userId ? () => leaveVideo(s.userId!) : undefined}
+                      />
                     ))}
                   </div>
                   <ul className="filmstrip">{tiles}</ul>
                 </div>
               ) : (
-                <ul className="grid" data-count={Math.min(totalInRoom, MAX_PEERS_PER_ROOM)}>
+                <ul className="grid" data-count={Math.min(totalInRoom, currentRoomCap)}>
                   {tiles}
                 </ul>
               )}
 
               {chatOpen && chatPosition === 'right' && (
-                <ChatPanel messages={chat.messages} onSend={chat.sendChat} chatFontScale={chatFontScale} chatPosition={chatPosition} chatWidthScale={chatWidthScale} />
+                <ChatPanel messages={chat.messages} onSend={chat.sendChat} chatFontScale={chatFontScale} chatPosition={chatPosition} chatWidthScale={chatWidthScale} onResize={handleChatResize} />
               )}
             </div>
 
@@ -879,56 +1012,32 @@ export function App(): React.JSX.Element {
               micEnabled={micButtonOn}
               hasMic={!!mesh.localStream}
               onToggleMic={handleToggleMic}
-              onInputMenu={(rect) => { setInputMenuAnchor(rect); setInputMenuOpen(true); setOutputMenuOpen(false); setInputModeMenuOpen(false); setVideoMenuOpen(false); setReactionMenuOpen(false); setVolumeOpen(false); }}
+              onInputMenu={menus.openInputMenu}
+              allowVideo={allowVideo}
               cameraEnabled={mesh.cameraEnabled}
               onToggleCamera={mesh.toggleCamera}
               sharingScreen={mesh.sharingScreen}
               onToggleShare={() => {
-                setVideoMenuOpen(false);
-                setReactionMenuOpen(false);
+                menus.closeVideoMenu();
+                menus.closeReactionMenu();
                 mesh.sharingScreen ? mesh.stopScreenShare() : setPickerOpen(true);
               }}
-              onVideoMenu={(rect) => { setVideoMenuAnchor(rect); setVideoMenuOpen(true); setInputMenuOpen(false); setOutputMenuOpen(false); setInputModeMenuOpen(false); setReactionMenuOpen(false); setVolumeOpen(false); }}
+              onVideoMenu={menus.openVideoMenu}
               defaultAction={defaultAction}
               inputMode={inputMode}
               onCycleInputMode={cycleInputMode}
-              onInputModeMenu={(rect) => { setInputModeMenuAnchor(rect); setInputModeMenuOpen(true); setInputMenuOpen(false); setOutputMenuOpen(false); setVideoMenuOpen(false); setReactionMenuOpen(false); setVolumeOpen(false); }}
-              onVolume={(rect) => { setVolumeMenuAnchor(rect); setVolumeOpen((v) => !v); setReactionMenuOpen(false); setInputMenuOpen(false); setOutputMenuOpen(false); setInputModeMenuOpen(false); setVideoMenuOpen(false); }}
-              onReactMenu={(rect) => {
-                setReactionMenuAnchor(rect);
-                setReactionMenuOpen(true);
-                setInputMenuOpen(false);
-                setOutputMenuOpen(false);
-                setInputModeMenuOpen(false);
-                setVideoMenuOpen(false);
-                setVolumeOpen(false);
-              }}
+              onInputModeMenu={menus.openInputModeMenu}
+              onReactMenu={menus.openReactionMenu}
               onLeave={leaveRoom}
               deafened={deafened}
               onToggleDeafen={toggleDeafen}
-              onOutputMenu={(rect) => { setOutputMenuAnchor(rect); setOutputMenuOpen(true); setInputMenuOpen(false); setInputModeMenuOpen(false); setVideoMenuOpen(false); setReactionMenuOpen(false); setVolumeOpen(false); }}
-              onMouseEnterReact={cancelReactionCloseTimeout}
-              onMouseLeaveReact={startReactionCloseTimeout}
-              onMouseEnterVolume={cancelVolumeCloseTimeout}
-              onMouseLeaveVolume={startVolumeCloseTimeout}
+              onOutputMenu={menus.openOutputMenu}
+              onMouseEnterReact={menus.cancelReactionCloseTimeout}
+              onMouseLeaveReact={menus.startReactionCloseTimeout}
+              selfSpeaking={selfSpeaking}
             />
 
-            {volumeOpen && volumeMenuAnchor && (
-              <VolumePopover
-                peers={signaling.peers}
-                colors={colors}
-                volumes={volumes}
-                onChange={handleVolumeChange}
-                onClose={() => setVolumeOpen(false)}
-                anchorRect={volumeMenuAnchor}
-                onMouseEnter={() => {
-                  cancelVolumeCloseTimeout();
-                  volumeHasEnteredPopoverRef.current = true;
-                }}
-                onMouseLeave={startVolumeCloseTimeout}
-              />
-            )}
-            {inputMenuOpen && inputMenuAnchor && (
+            {menus.inputMenuOpen && menus.inputMenuAnchor && (
               <AudioDeviceMenu
                 mode="input"
                 devices={devices.inputs}
@@ -936,12 +1045,17 @@ export function App(): React.JSX.Element {
                 onSelectDevice={(id) => { setInputDeviceId(id); store.setInputDeviceId(id); }}
                 volume={micVolume}
                 onChangeVolume={applyMicVolume}
-                onOpenVoiceSettings={() => { setInputMenuOpen(false); setSettingsInitialTab('audio'); setSettingsOpen(true); }}
-                onClose={() => setInputMenuOpen(false)}
-                anchorRect={inputMenuAnchor}
+                keybindLabel="Mute/Unmute key"
+                keybindValue={muteKey}
+                onChangeKeybind={applyMuteKey}
+                keybindMode={muteMode}
+                onChangeKeybindMode={applyMuteMode}
+                onOpenVoiceSettings={() => { menus.closeInputMenu(); setSettingsInitialTab('audio'); setSettingsOpen(true); }}
+                onClose={menus.closeInputMenu}
+                anchorRect={menus.inputMenuAnchor}
               />
             )}
-            {outputMenuOpen && outputMenuAnchor && (
+            {menus.outputMenuOpen && menus.outputMenuAnchor && (
               <AudioDeviceMenu
                 mode="output"
                 devices={devices.outputs}
@@ -949,34 +1063,42 @@ export function App(): React.JSX.Element {
                 onSelectDevice={(id) => { setOutputDeviceId(id); store.setOutputDeviceId(id); }}
                 volume={outputVolume}
                 onChangeVolume={applyOutputVolume}
-                onOpenVoiceSettings={() => { setOutputMenuOpen(false); setSettingsInitialTab('audio'); setSettingsOpen(true); }}
-                onClose={() => setOutputMenuOpen(false)}
-                anchorRect={outputMenuAnchor}
+                keybindLabel="Deafen/Undeafen key"
+                keybindValue={deafenKey}
+                onChangeKeybind={applyDeafenKey}
+                keybindMode={deafenMode}
+                onChangeKeybindMode={applyDeafenMode}
+                onOpenVoiceSettings={() => { menus.closeOutputMenu(); setSettingsInitialTab('audio'); setSettingsOpen(true); }}
+                onClose={menus.closeOutputMenu}
+                anchorRect={menus.outputMenuAnchor}
               />
             )}
-            {inputModeMenuOpen && inputModeMenuAnchor && (
+            {menus.inputModeMenuOpen && menus.inputModeMenuAnchor && (
               <InputModeMenu
                 inputMode={inputMode}
                 onSwitchMode={applyInputMode}
                 pttMode={pttMode}
                 onChangePttMode={applyPttMode}
                 pushToTalkKey={pushToTalkKey}
+                onChangePushToTalkKey={applyPushToTalkKey}
                 vadThreshold={vadThreshold}
                 onChangeVadThreshold={applyVadThreshold}
                 openMicNoiseReductionEnabled={openMicNoiseReductionEnabled}
                 onToggleOpenMicNoiseReduction={() => applyOpenMicNoiseReductionEnabled(!openMicNoiseReductionEnabled)}
-                onOpenVoiceSettings={() => { setInputModeMenuOpen(false); setSettingsInitialTab('audio'); setSettingsOpen(true); }}
-                onClose={() => setInputModeMenuOpen(false)}
-                anchorRect={inputModeMenuAnchor}
+                openMicThreshold={openMicThreshold}
+                onChangeOpenMicThreshold={applyOpenMicThreshold}
+                onOpenVoiceSettings={() => { menus.closeInputModeMenu(); setSettingsInitialTab('audio'); setSettingsOpen(true); }}
+                onClose={menus.closeInputModeMenu}
+                anchorRect={menus.inputModeMenuAnchor}
               />
             )}
-            {videoMenuOpen && videoMenuAnchor && (
+            {menus.videoMenuOpen && menus.videoMenuAnchor && (
               <VideoMenu
                 cameraEnabled={mesh.cameraEnabled}
                 onToggleCamera={mesh.toggleCamera}
                 sharingScreen={mesh.sharingScreen}
                 onToggleShare={() => {
-                  setVideoMenuOpen(false);
+                  menus.closeVideoMenu();
                   mesh.sharingScreen ? mesh.stopScreenShare() : setPickerOpen(true);
                 }}
                 cameraResolution={cameraResolution}
@@ -987,22 +1109,19 @@ export function App(): React.JSX.Element {
                 onChangeScreenResolution={applyScreenResolution}
                 screenFramerate={screenFramerate}
                 onChangeScreenFramerate={applyScreenFramerate}
-                onOpenVideoSettings={() => { setVideoMenuOpen(false); setSettingsInitialTab('video'); setSettingsOpen(true); }}
-                onClose={() => setVideoMenuOpen(false)}
-                anchorRect={videoMenuAnchor}
+                onOpenVideoSettings={() => { menus.closeVideoMenu(); setSettingsInitialTab('video'); setSettingsOpen(true); }}
+                onClose={menus.closeVideoMenu}
+                anchorRect={menus.videoMenuAnchor}
                 hasCamera={hasCamera}
               />
             )}
-            {reactionMenuOpen && reactionMenuAnchor && (
+            {menus.reactionMenuOpen && menus.reactionMenuAnchor && (
               <ReactionPopover
                 onReact={chat.react}
-                onClose={() => setReactionMenuOpen(false)}
-                anchorRect={reactionMenuAnchor}
-                onMouseEnter={() => {
-                  cancelReactionCloseTimeout();
-                  reactionHasEnteredPopoverRef.current = true;
-                }}
-                onMouseLeave={startReactionCloseTimeout}
+                onClose={menus.closeReactionMenu}
+                anchorRect={menus.reactionMenuAnchor}
+                onMouseEnter={menus.handleReactionPopoverEnter}
+                onMouseLeave={menus.startReactionCloseTimeout}
               />
             )}
           </>
@@ -1048,69 +1167,73 @@ export function App(): React.JSX.Element {
 
       {onboardingNeeded && <WelcomeWizard onSubmit={handleOnboardingSubmit} />}
 
-      {createSpaceOpen && (
-        <Modal title="Create a Space" onClose={() => setCreateSpaceOpen(false)}>
+      {spaceJoin.createSpaceOpen && (
+        <Modal title="Create a Space" onClose={spaceJoin.closeCreateSpace}>
           <div className="field">
             <label className="field-label">Space Name</label>
             <input
               className="welcome__input"
-              value={newSpaceName}
-              onChange={(e) => setNewSpaceName(e.target.value)}
+              value={spaceJoin.newSpaceName}
+              onChange={(e) => spaceJoin.setNewSpaceName(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && newSpaceName.trim()) {
-                  addSpace(newSpaceName, 'create');
-                  setNewSpaceName('');
-                  setCreateSpaceOpen(false);
-                }
+                if (e.key === 'Enter') spaceJoin.submitCreateSpace();
               }}
               placeholder="e.g. Midnight Lounge"
               autoFocus
               maxLength={32}
             />
           </div>
+          <AdvancedConnectionSettings
+            customSignalingUrl={spaceJoin.customSignalingUrl}
+            setCustomSignalingUrl={spaceJoin.setCustomSignalingUrl}
+            joinSecret={spaceJoin.joinSecret}
+            setJoinSecret={spaceJoin.setJoinSecret}
+            advancedOpen={spaceJoin.advancedOpen}
+            setAdvancedOpen={spaceJoin.setAdvancedOpen}
+            onEnterKeyDown={spaceJoin.submitCreateSpace}
+          />
           <button
             className="modal-action"
-            onClick={() => {
-              addSpace(newSpaceName, 'create');
-              setNewSpaceName('');
-              setCreateSpaceOpen(false);
-            }}
-            disabled={!newSpaceName.trim()}
+            onClick={spaceJoin.submitCreateSpace}
+            disabled={!spaceJoin.newSpaceName.trim()}
           >
             Create Space
           </button>
         </Modal>
       )}
 
-      {joinSpaceOpen && (
-        <Modal title="Join a Space" onClose={() => setJoinSpaceOpen(false)}>
+      {spaceJoin.joinSpaceOpen && (
+        <Modal title="Join a Space" onClose={spaceJoin.closeJoinSpace}>
           <div className="field">
             <label className="field-label">Invite Code / Space ID</label>
             <input
               className="welcome__input"
-              value={inviteCodeInput}
-              onChange={(e) => setInviteCodeInput(e.target.value)}
+              value={spaceJoin.inviteCodeInput}
+              onChange={(e) => { spaceJoin.setInviteCodeInput(e.target.value); spaceJoin.setJoinError(null); }}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && inviteCodeInput.trim()) {
-                  addSpace(inviteCodeInput, 'join');
-                  setInviteCodeInput('');
-                  setJoinSpaceOpen(false);
-                }
+                if (e.key === 'Enter') void spaceJoin.submitJoinSpace();
               }}
               placeholder="e.g. midnight-lounge-7f8a3"
               autoFocus
+              disabled={spaceJoin.joinChecking}
             />
           </div>
+          {spaceJoin.joinError && <p className="field-error">{spaceJoin.joinError}</p>}
+          <AdvancedConnectionSettings
+            customSignalingUrl={spaceJoin.customSignalingUrl}
+            setCustomSignalingUrl={spaceJoin.setCustomSignalingUrl}
+            joinSecret={spaceJoin.joinSecret}
+            setJoinSecret={spaceJoin.setJoinSecret}
+            advancedOpen={spaceJoin.advancedOpen}
+            setAdvancedOpen={spaceJoin.setAdvancedOpen}
+            onEnterKeyDown={() => void spaceJoin.submitJoinSpace()}
+          />
           <button
             className="modal-action"
-            onClick={() => {
-              addSpace(inviteCodeInput, 'join');
-              setInviteCodeInput('');
-              setJoinSpaceOpen(false);
-            }}
-            disabled={!inviteCodeInput.trim()}
+            onClick={() => void spaceJoin.submitJoinSpace()}
+            disabled={!spaceJoin.inviteCodeInput.trim() || spaceJoin.joinChecking}
           >
-            Join Space
+            {spaceJoin.joinChecking ? 'Checking…' : 'Join Space'}
           </button>
         </Modal>
       )}
@@ -1119,6 +1242,7 @@ export function App(): React.JSX.Element {
         <RoomModal
           title="Create a room"
           submitLabel="Create room"
+          showTypePicker
           onSubmit={createRoom}
           onClose={() => setCreateOpen(false)}
         />
@@ -1129,6 +1253,7 @@ export function App(): React.JSX.Element {
           submitLabel="Save"
           initialLabel={renameTarget.label}
           initialIcon={renameTarget.icon}
+          initialType={renameTarget.type}
           onSubmit={(label, icon) => renameRoom(renameTarget.id, label, icon)}
           onClose={() => setRenameTarget(null)}
         />
@@ -1167,6 +1292,8 @@ export function App(): React.JSX.Element {
           onChangeOpenMicThreshold={applyOpenMicThreshold}
           openMicReductionDb={openMicReductionDb}
           onChangeOpenMicReductionDb={applyOpenMicReductionDb}
+          openMicReleaseMs={openMicReleaseMs}
+          onChangeOpenMicReleaseMs={applyOpenMicReleaseMs}
           theme={theme}
           onChangeTheme={applyTheme}
           launchOnStartup={launchOnStartup}
@@ -1183,6 +1310,20 @@ export function App(): React.JSX.Element {
           onChangeMuteKey={applyMuteKey}
           muteMode={muteMode}
           onChangeMuteMode={applyMuteMode}
+          deafenKey={deafenKey}
+          onChangeDeafenKey={applyDeafenKey}
+          deafenMode={deafenMode}
+          onChangeDeafenMode={applyDeafenMode}
+          cameraKey={cameraKey}
+          onChangeCameraKey={applyCameraKey}
+          screenShareKey={screenShareKey}
+          onChangeScreenShareKey={applyScreenShareKey}
+          chatPanelKey={chatPanelKey}
+          onChangeChatPanelKey={applyChatPanelKey}
+          ttsToggleKey={ttsToggleKey}
+          onChangeTtsToggleKey={applyTtsToggleKey}
+          ttsStopKey={ttsStopKey}
+          onChangeTtsStopKey={applyTtsStopKey}
           sfxEnabled={sfxEnabled}
           onChangeSfxEnabled={applySfxEnabled}
           sfxVolume={sfxVolume}
@@ -1191,6 +1332,8 @@ export function App(): React.JSX.Element {
           onChangeSfxJoinLeaveEnabled={applySfxJoinLeaveEnabled}
           sfxMuteEnabled={sfxMuteEnabled}
           onChangeSfxMuteEnabled={applySfxMuteEnabled}
+          sfxMuteOtherEnabled={sfxMuteOtherEnabled}
+          onChangeSfxMuteOtherEnabled={applySfxMuteOtherEnabled}
           sfxTransmitEnabled={sfxTransmitEnabled}
           onChangeSfxTransmitEnabled={applySfxTransmitEnabled}
           sfxChatEnabled={sfxChatEnabled}
@@ -1219,6 +1362,8 @@ export function App(): React.JSX.Element {
           onChangeChatPosition={applyChatPosition}
           chatWidthScale={chatWidthScale}
           onChangeChatWidthScale={applyChatWidthScale}
+          sidebarWidthScale={sidebarWidthScale}
+          onChangeSidebarWidthScale={(s) => handleSidebarResize(s, true)}
           chatTtsEnabled={chatTtsEnabled}
           onChangeChatTtsEnabled={applyChatTtsEnabled}
           chatTtsSpeakName={chatTtsSpeakName}
@@ -1228,8 +1373,40 @@ export function App(): React.JSX.Element {
           analyserNode={mesh.analyserNode}
           onClose={() => { setSettingsOpen(false); setSettingsInitialTab('profile'); }}
           avatarDataUrl={localAvatarUrl}
-          selfColor={SELF_COLOR}
+          selfColor={selfColor}
           onChangeAvatar={handleSaveAvatar}
+          accentColor={localAccentColor}
+          onChangeAccent={handleSaveAccent}
+        />
+      )}
+
+      {spaceSettingsTarget && (
+        <SpaceSettingsModal
+          space={spaces.find(s => s.id === spaceSettingsTarget)!}
+          onSave={(name, url, secret) => {
+            const oldSpaceId = spaceSettingsTarget;
+            const space = spaces.find(s => s.id === oldSpaceId);
+            const isRename = space && space.name.trim().toLowerCase() !== name.trim().toLowerCase();
+
+            if (isRename && signaling.status === 'connected' && oldSpaceId === currentSpaceId) {
+              const tempSlug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'space';
+              const suffix = Math.random().toString(36).substring(2, 7);
+              const newSpaceId = `${tempSlug}-${suffix}`;
+
+              signaling.send({
+                type: 'rename-space',
+                spaceId: oldSpaceId,
+                newSpaceId,
+                newSpaceName: name.trim()
+              });
+
+              updateSpaceSettings(oldSpaceId, name, url, secret, newSpaceId);
+            } else {
+              updateSpaceSettings(oldSpaceId, name, url, secret);
+            }
+            setSpaceSettingsTarget(null);
+          }}
+          onClose={() => setSpaceSettingsTarget(null)}
         />
       )}
     </div>

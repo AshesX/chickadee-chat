@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { Logo } from './Logo';
+import { AdvancedConnectionSettings } from './AdvancedConnectionSettings';
+import type { AddSpaceResult } from '../hooks/useSpaces';
 
 interface WelcomeWizardProps {
-  onSubmit: (displayName: string, spaceNameOrCode: string, action: 'create' | 'join') => void;
+  onSubmit: (displayName: string, spaceNameOrCode: string, action: 'create' | 'join', customSignalingUrl?: string, joinSecret?: string) => Promise<AddSpaceResult>;
 }
 
 export function WelcomeWizard({ onSubmit }: WelcomeWizardProps): React.JSX.Element {
@@ -10,6 +12,11 @@ export function WelcomeWizard({ onSubmit }: WelcomeWizardProps): React.JSX.Eleme
   const [displayName, setDisplayName] = useState('');
   const [action, setAction] = useState<'create' | 'join'>('create');
   const [spaceValue, setSpaceValue] = useState('');
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [customSignalingUrl, setCustomSignalingUrl] = useState('');
+  const [joinSecret, setJoinSecret] = useState('');
+  const [checking, setChecking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -31,11 +38,21 @@ export function WelcomeWizard({ onSubmit }: WelcomeWizardProps): React.JSX.Eleme
     }
   }
 
-  function finish(): void {
+  async function finish(): Promise<void> {
     const name = displayName.trim();
     const val = spaceValue.trim();
-    if (name && val) {
-      onSubmit(name, val, action);
+    if (!name || !val || checking) return;
+    setError(null);
+    setChecking(true);
+    const result = await onSubmit(name, val, action, customSignalingUrl.trim() || undefined, joinSecret || undefined);
+    // On success the wizard unmounts (onboarding completes); only surface failures.
+    if (!result.ok) {
+      setChecking(false);
+      setError(
+        result.reason === 'unreachable'
+          ? "Couldn't reach the signaling server — check your connection."
+          : 'That Space does not exist (or no one is currently in it).',
+      );
     }
   }
 
@@ -78,6 +95,7 @@ export function WelcomeWizard({ onSubmit }: WelcomeWizardProps): React.JSX.Eleme
                 onClick={() => {
                   setAction('create');
                   setSpaceValue('');
+                  setError(null);
                 }}
               >
                 Create Space
@@ -88,6 +106,7 @@ export function WelcomeWizard({ onSubmit }: WelcomeWizardProps): React.JSX.Eleme
                 onClick={() => {
                   setAction('join');
                   setSpaceValue('');
+                  setError(null);
                 }}
               >
                 Join Space
@@ -103,9 +122,10 @@ export function WelcomeWizard({ onSubmit }: WelcomeWizardProps): React.JSX.Eleme
                     className="welcome__input"
                     value={spaceValue}
                     onChange={(e) => setSpaceValue(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && finish()}
+                    onKeyDown={(e) => { if (e.key === 'Enter') void finish(); }}
                     placeholder="e.g. Midnight Lounge"
                     maxLength={32}
+                    disabled={checking}
                   />
                 </>
               ) : (
@@ -115,29 +135,43 @@ export function WelcomeWizard({ onSubmit }: WelcomeWizardProps): React.JSX.Eleme
                     ref={inputRef}
                     className="welcome__input"
                     value={spaceValue}
-                    onChange={(e) => setSpaceValue(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && finish()}
+                    onChange={(e) => { setSpaceValue(e.target.value); setError(null); }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') void finish(); }}
                     placeholder="e.g. midnight-lounge-7f8a3"
+                    disabled={checking}
                   />
                 </>
               )}
+
+              {error && <p className="field-error">{error}</p>}
+
+              <AdvancedConnectionSettings
+                customSignalingUrl={customSignalingUrl}
+                setCustomSignalingUrl={setCustomSignalingUrl}
+                joinSecret={joinSecret}
+                setJoinSecret={setJoinSecret}
+                advancedOpen={advancedOpen}
+                setAdvancedOpen={setAdvancedOpen}
+                onEnterKeyDown={() => void finish()}
+              />
             </div>
 
             <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
               <button
                 className="welcome__btn"
                 style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--dim)', flex: 1 }}
-                onClick={() => setStep(1)}
+                onClick={() => { setStep(1); setError(null); }}
+                disabled={checking}
               >
                 Back
               </button>
               <button
                 className="welcome__btn"
                 style={{ flex: 2 }}
-                onClick={finish}
-                disabled={!spaceValue.trim()}
+                onClick={() => void finish()}
+                disabled={!spaceValue.trim() || checking}
               >
-                Finish
+                {checking ? 'Checking…' : 'Finish'}
               </button>
             </div>
           </>

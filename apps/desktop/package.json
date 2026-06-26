@@ -1,6 +1,6 @@
 {
   "name": "@chickadee/desktop",
-  "version": "0.1.0",
+  "version": "0.3.1",
   "description": "Lightweight P2P desktop voice/video/screen-share app for small groups.",
   "author": "AshesX",
   "private": true,
@@ -11,26 +11,32 @@
     "preview": "electron-vite preview",
     "dist:win": "electron-vite build && electron-builder --win",
     "icons": "node ../../scripts/generate-icons.mjs",
-    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json"
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "test": "vitest run"
   },
   "dependencies": {
+    "@fontsource/space-grotesk": "^5.2.10",
     "uiohook-napi": "^1.5.5"
   },
   "devDependencies": {
     "@chickadee/shared": "*",
     "@fontsource/outfit": "^5.2.8",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.1",
     "@types/react-dom": "^19.0.2",
-    "@vitejs/plugin-react": "^4.3.4",
-    "electron": "^33.2.1",
+    "@vitejs/plugin-react": "^5.2.0",
+    "electron": "^42.4.1",
     "electron-builder": "^26.15.2",
-    "electron-vite": "^2.3.0",
+    "electron-vite": "^5.0.0",
+    "jsdom": "^29.1.1",
     "lucide-react": "^1.17.0",
     "png-to-ico": "^3.0.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "sharp": "^0.35.0",
-    "vite": "^5.4.11"
+    "vite": "^7.3.5",
+    "vitest": "^4.1.9"
   }
 }

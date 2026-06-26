@@ -1,5 +1,6 @@
 import { Settings } from 'lucide-react';
 import { CustomSelect } from './CustomSelect';
+import { ChevronMenu } from './ChevronMenu';
 
 interface VideoMenuProps {
   cameraEnabled: boolean;
@@ -38,12 +39,6 @@ export function VideoMenu({
   anchorRect,
   hasCamera,
 }: VideoMenuProps): React.JSX.Element {
-  const menuWidth = 240;
-  const gap = 8;
-  const bottom = window.innerHeight - anchorRect.top + gap;
-  const rawLeft = anchorRect.left + anchorRect.width / 2 - menuWidth / 2;
-  const left = Math.max(8, Math.min(rawLeft, window.innerWidth - menuWidth - 8));
-
   const cameraResolutionOptions = [
     { value: '480p', label: '480p' },
     { value: '720p', label: '720p' },
@@ -72,13 +67,7 @@ export function VideoMenu({
   ];
 
   return (
-    <>
-      <div className="popover-backdrop" onClick={onClose} />
-      <div
-        className="audio-menu"
-        style={{ bottom, left, width: menuWidth }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <ChevronMenu anchorRect={anchorRect} onClose={onClose} width={240} className="audio-menu">
         {/* Camera Section */}
         {hasCamera && (
           <>
@@ -145,7 +134,6 @@ export function VideoMenu({
           <Settings size={11} />
           Video Settings
         </button>
-      </div>
-    </>
+    </ChevronMenu>
   );
 }

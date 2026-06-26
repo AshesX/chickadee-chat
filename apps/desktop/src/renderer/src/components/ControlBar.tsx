@@ -6,14 +6,13 @@ import {
   VideoOff,
   ScreenShare,
   ScreenShareOff,
-  Radio,
-  Volume2,
   PhoneOff,
   Headphones,
   HeadphoneOff,
   ChevronUp,
   Smile,
 } from 'lucide-react';
+import { INPUT_MODE_ICONS } from '../lib/inputModeIcons';
 
 type ButtonState = 'default' | 'active' | 'danger' | 'fade';
 
@@ -24,6 +23,7 @@ function ControlButton({
   disabled,
   title,
   onClick,
+  speaking,
 }: {
   icon: LucideIcon;
   label: string;
@@ -31,6 +31,7 @@ function ControlButton({
   disabled?: boolean;
   title?: string;
   onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  speaking?: boolean;
 }): React.JSX.Element {
   return (
     <button
@@ -39,7 +40,7 @@ function ControlButton({
       disabled={disabled}
       title={title}
     >
-      <Icon size={17} />
+      <Icon size={16} className={speaking ? 'ctrl-btn__icon--speaking' : undefined} />
       <span className="ctrl-btn__label">{label}</span>
     </button>
   );
@@ -55,12 +56,13 @@ interface ControlBarProps {
   sharingScreen: boolean;
   onToggleShare: () => void;
   onVideoMenu: (rect: DOMRect) => void;
+  /** Whether to show the camera/screen-share control (false in voice rooms). */
+  allowVideo: boolean;
   defaultAction: 'camera' | 'screen';
   inputMode: 'open' | 'voice' | 'ptt';
   /** Cycle Open Mic → Voice Activation → Push-to-Talk. */
   onCycleInputMode: () => void;
   onInputModeMenu: (rect: DOMRect) => void;
-  onVolume: (rect: DOMRect) => void;
   onReactMenu: (rect: DOMRect) => void;
   onLeave: () => void;
   deafened: boolean;
@@ -68,8 +70,7 @@ interface ControlBarProps {
   onOutputMenu: (rect: DOMRect) => void;
   onMouseEnterReact?: () => void;
   onMouseLeaveReact?: () => void;
-  onMouseEnterVolume?: () => void;
-  onMouseLeaveVolume?: () => void;
+  selfSpeaking: boolean;
 }
 
 export function ControlBar({
@@ -82,11 +83,11 @@ export function ControlBar({
   sharingScreen,
   onToggleShare,
   onVideoMenu,
+  allowVideo,
   defaultAction,
   inputMode,
   onCycleInputMode,
   onInputModeMenu,
-  onVolume,
   onReactMenu,
   onLeave,
   deafened,
@@ -94,8 +95,7 @@ export function ControlBar({
   onOutputMenu,
   onMouseEnterReact,
   onMouseLeaveReact,
-  onMouseEnterVolume,
-  onMouseLeaveVolume,
+  selfSpeaking,
 }: ControlBarProps): React.JSX.Element {
   return (
     <footer className="control-bar">
@@ -137,11 +137,12 @@ export function ControlBar({
 
       <div className="ctrl-group">
         <ControlButton
-          icon={Radio}
+          icon={INPUT_MODE_ICONS[inputMode]}
           label={inputMode === 'ptt' ? 'Push-Talk' : inputMode === 'voice' ? 'Voice' : 'Open Mic'}
-          state={inputMode === 'open' ? 'default' : 'active'}
+          state="default"
           title="Click to cycle: Open Mic → Voice Activation → Push-to-Talk"
           onClick={onCycleInputMode}
+          speaking={selfSpeaking}
         />
         <button
           className="ctrl-btn--chevron"
@@ -152,45 +153,39 @@ export function ControlBar({
         </button>
       </div>
 
-      <div className="ctrl-group">
-        <ControlButton
-          icon={cameraEnabled ? VideoOff : (sharingScreen ? ScreenShareOff : (defaultAction === 'screen' ? ScreenShare : Video))}
-          label={cameraEnabled ? 'Stop Cam' : (sharingScreen ? 'Stop Share' : (defaultAction === 'screen' ? 'Share' : 'Camera'))}
-          state={(cameraEnabled || sharingScreen) ? 'active' : 'default'}
-          onClick={() => {
-            if (cameraEnabled) {
-              onToggleCamera();
-            } else if (sharingScreen) {
-              onToggleShare();
-            } else {
-              if (defaultAction === 'screen') {
-                onToggleShare();
-              } else {
-                onToggleCamera();
-              }
-            }
-          }}
-        />
-        <button
-          className="ctrl-btn--chevron"
-          title="Video settings"
-          onClick={(e) => onVideoMenu(e.currentTarget.getBoundingClientRect())}
-        >
-          <ChevronUp size={11} />
-        </button>
-      </div>
+      {allowVideo && (
+        <>
+          <div className="ctrl-group">
+            <ControlButton
+              icon={cameraEnabled ? VideoOff : (sharingScreen ? ScreenShareOff : (defaultAction === 'screen' ? ScreenShare : Video))}
+              label={cameraEnabled ? 'Stop Cam' : (sharingScreen ? 'Stop Share' : (defaultAction === 'screen' ? 'Share' : 'Camera'))}
+              state={(cameraEnabled || sharingScreen) ? 'active' : 'default'}
+              onClick={() => {
+                if (cameraEnabled) {
+                  onToggleCamera();
+                } else if (sharingScreen) {
+                  onToggleShare();
+                } else {
+                  if (defaultAction === 'screen') {
+                    onToggleShare();
+                  } else {
+                    onToggleCamera();
+                  }
+                }
+              }}
+            />
+            <button
+              className="ctrl-btn--chevron"
+              title="Video settings"
+              onClick={(e) => onVideoMenu(e.currentTarget.getBoundingClientRect())}
+            >
+              <ChevronUp size={11} />
+            </button>
+          </div>
 
-      <div className="control-bar__divider" />
-
-      <div
-        onMouseEnter={onMouseEnterVolume}
-        onMouseLeave={onMouseLeaveVolume}
-        style={{ display: 'flex' }}
-      >
-        <ControlButton icon={Volume2} label="Volume" onClick={(e) => onVolume(e.currentTarget.getBoundingClientRect())} />
-      </div>
-
-      <div className="control-bar__divider" />
+          <div className="control-bar__divider" />
+        </>
+      )}
 
       <div
         onMouseEnter={onMouseEnterReact}
@@ -207,7 +202,7 @@ export function ControlBar({
       <div className="control-bar__divider" />
 
       <button className="leave-btn" onClick={onLeave}>
-        <PhoneOff size={15} />
+        <PhoneOff size={16} />
         Leave
       </button>
     </footer>

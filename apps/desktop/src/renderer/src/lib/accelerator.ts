@@ -11,5 +11,9 @@ export function toAccelerator(e: KeyboardEvent): string | null {
   if (k === 'ArrowLeft') return 'Left';
   if (k === 'ArrowRight') return 'Right';
   if (k === 'Tab' || k === 'Insert' || k === 'Delete' || k === 'Home' || k === 'End') return k;
+  // CapsLock works as a bind (UiohookKey.CapsLock for the global hook; 'CapsLock' matches
+  // input.code for the focused path). Caveat: pressing it still toggles the OS Caps-Lock
+  // state — we can't suppress that — so it's best used in toggle mode.
+  if (k === 'CapsLock') return 'CapsLock';
   return null;
 }

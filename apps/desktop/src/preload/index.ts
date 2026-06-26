@@ -2,7 +2,6 @@ import { contextBridge, ipcRenderer, webFrame } from 'electron';
 import {
   DEFAULT_ICE_SERVERS,
   defaultSettings,
-  type GameDef,
   type PersistedSettings,
   type ScreenSource,
 } from '@chickadee/shared';
@@ -11,6 +10,7 @@ interface AppConfig {
   signalingUrl: string;
   iceServers: RTCIceServer[];
   appVersion: string;
+  joinSecret: string;
 }
 
 /** Main passes small fixed runtime config synchronously via --chickadee-config=<json>. */
@@ -19,6 +19,7 @@ function readConfig(): AppConfig {
     signalingUrl: 'ws://localhost:8080',
     iceServers: DEFAULT_ICE_SERVERS,
     appVersion: '0.1.0',
+    joinSecret: '',
   };
   const arg = process.argv.find((a) => a.startsWith('--chickadee-config='));
   if (!arg) return fallback;
@@ -40,6 +41,8 @@ const api = {
   signalingUrl: config.signalingUrl,
   /** ICE servers (STUN + TURN) for RTCPeerConnection. */
   iceServers: config.iceServers,
+  /** Optional shared join secret for private signaling deployments ('' = none). */
+  joinSecret: config.joinSecret,
   /**
    * Persisted settings (name, rooms, friends, userId, prefs). Fetched over a
    * synchronous IPC rather than argv so the base64 avatar can't overflow the
@@ -68,6 +71,20 @@ const api = {
     minimize: (): void => ipcRenderer.send('chickadee:window-minimize'),
     toggleMaximize: (): void => ipcRenderer.send('chickadee:window-maximize-toggle'),
     close: (): void => ipcRenderer.send('chickadee:window-close'),
+    setCompact: (compact: boolean, compactWidth?: number): void =>
+      ipcRenderer.send('chickadee:window-set-compact', compact, compactWidth),
+    /** Live width-only resize of the docked compact window (no-op when not compact). */
+    setWindowWidth: (px: number): void => ipcRenderer.send('chickadee:window-set-width', px),
+  },
+  /**
+   * Subscribe to window-visibility changes (false when minimized/hidden, true
+   * when restored/shown). Used to pause incoming video decode while invisible.
+   * Returns an unsubscribe fn.
+   */
+  onWindowVisibilityChange: (cb: (visible: boolean) => void): (() => void) => {
+    const listener = (_e: unknown, visible: boolean): void => cb(visible);
+    ipcRenderer.on('chickadee:window-visibility', listener);
+    return () => ipcRenderer.removeListener('chickadee:window-visibility', listener);
   },
   /** Register/unregister the global push-to-talk hotkey in main. */
   setPushToTalk: (opts: { enabled: boolean; key: string; mode: 'hold' | 'toggle' }): Promise<void> =>
@@ -111,11 +128,63 @@ const api = {
     ipcRenderer.on('chickadee:mute-stop', listener);
     return () => ipcRenderer.removeListener('chickadee:mute-stop', listener);
   },
-  /** Subscribe to detected-game changes from the main-process scanner. */
-  onGameDetected: (cb: (game: { name: string; short: string } | null) => void): (() => void) => {
-    const listener = (_e: unknown, game: { name: string; short: string } | null): void => cb(game);
-    ipcRenderer.on('chickadee:game-detected', listener);
-    return () => ipcRenderer.removeListener('chickadee:game-detected', listener);
+  /** Register/unregister the global deafen hotkey in main. */
+  setDeafenKeybind: (opts: { enabled: boolean; key: string; mode: 'hold' | 'toggle' }): Promise<void> =>
+    ipcRenderer.invoke('chickadee:set-deafen-keybind', opts),
+  onDeafenToggle: (cb: () => void): (() => void) => {
+    const listener = (): void => cb();
+    ipcRenderer.on('chickadee:deafen-toggle', listener);
+    return () => ipcRenderer.removeListener('chickadee:deafen-toggle', listener);
+  },
+  onDeafenStart: (cb: () => void): (() => void) => {
+    const listener = (): void => cb();
+    ipcRenderer.on('chickadee:deafen-start', listener);
+    return () => ipcRenderer.removeListener('chickadee:deafen-start', listener);
+  },
+  onDeafenStop: (cb: () => void): (() => void) => {
+    const listener = (): void => cb();
+    ipcRenderer.on('chickadee:deafen-stop', listener);
+    return () => ipcRenderer.removeListener('chickadee:deafen-stop', listener);
+  },
+  /** Register/unregister the camera toggle hotkey in main. */
+  setCameraKeybind: (opts: { enabled: boolean; key: string; mode: 'toggle' }): Promise<void> =>
+    ipcRenderer.invoke('chickadee:set-camera-keybind', opts),
+  onCameraToggle: (cb: () => void): (() => void) => {
+    const listener = (): void => cb();
+    ipcRenderer.on('chickadee:camera-toggle', listener);
+    return () => ipcRenderer.removeListener('chickadee:camera-toggle', listener);
+  },
+  /** Register/unregister the screen share toggle hotkey in main. */
+  setScreenShareKeybind: (opts: { enabled: boolean; key: string; mode: 'toggle' }): Promise<void> =>
+    ipcRenderer.invoke('chickadee:set-screen-share-keybind', opts),
+  onScreenShareToggle: (cb: () => void): (() => void) => {
+    const listener = (): void => cb();
+    ipcRenderer.on('chickadee:screen-share-toggle', listener);
+    return () => ipcRenderer.removeListener('chickadee:screen-share-toggle', listener);
+  },
+  /** Register/unregister the chat panel toggle hotkey in main. */
+  setChatPanelKeybind: (opts: { enabled: boolean; key: string; mode: 'toggle' }): Promise<void> =>
+    ipcRenderer.invoke('chickadee:set-chat-panel-keybind', opts),
+  onChatPanelToggle: (cb: () => void): (() => void) => {
+    const listener = (): void => cb();
+    ipcRenderer.on('chickadee:chat-panel-toggle', listener);
+    return () => ipcRenderer.removeListener('chickadee:chat-panel-toggle', listener);
+  },
+  /** Register/unregister the TTS toggle hotkey in main. */
+  setTtsToggleKeybind: (opts: { enabled: boolean; key: string; mode: 'toggle' }): Promise<void> =>
+    ipcRenderer.invoke('chickadee:set-tts-toggle-keybind', opts),
+  onTtsToggle: (cb: () => void): (() => void) => {
+    const listener = (): void => cb();
+    ipcRenderer.on('chickadee:tts-toggle', listener);
+    return () => ipcRenderer.removeListener('chickadee:tts-toggle', listener);
+  },
+  /** Register/unregister the TTS stop hotkey in main. */
+  setTtsStopKeybind: (opts: { enabled: boolean; key: string; mode: 'toggle' }): Promise<void> =>
+    ipcRenderer.invoke('chickadee:set-tts-stop-keybind', opts),
+  onTtsStop: (cb: () => void): (() => void) => {
+    const listener = (): void => cb();
+    ipcRenderer.on('chickadee:tts-stop', listener);
+    return () => ipcRenderer.removeListener('chickadee:tts-stop', listener);
   },
   /** Tray: set its icon (data URL), current room label, and mute-from-tray. */
   setTrayIcon: (dataUrl: string): Promise<void> => ipcRenderer.invoke('chickadee:set-tray-icon', dataUrl),
@@ -141,11 +210,6 @@ const api = {
   /** Pin/unpin the window above all other apps. */
   setAlwaysOnTop: (on: boolean): Promise<void> =>
     ipcRenderer.invoke('chickadee:set-always-on-top', on),
-  /** Read the current game-detection list. */
-  getGames: (): Promise<GameDef[]> => ipcRenderer.invoke('chickadee:get-games'),
-  /** Persist the game-detection list (applies to the next scan live). */
-  saveGames: (games: GameDef[]): Promise<void> =>
-    ipcRenderer.invoke('chickadee:save-games', games),
 };
 
 contextBridge.exposeInMainWorld('chickadee', api);

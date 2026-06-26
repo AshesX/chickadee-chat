@@ -2,15 +2,26 @@ import { ipcMain } from 'electron';
 import type { BrowserWindow, Input } from 'electron';
 import { uIOhook, UiohookKey } from 'uiohook-napi';
 
-let pttKeyCode: number | null = null;
-let pttInputCode: string | null = null;
-let pttCurrentMode: 'hold' | 'toggle' = 'hold';
-let pttIsHeld = false;
+interface HotkeyState {
+  keyCode: number | null;
+  inputCode: string | null;
+  mode: 'hold' | 'toggle';
+  isHeld: boolean;
+  onStart?: string;
+  onToggle: string;
+  onStop?: string;
+}
 
-let muteKeyCode: number | null = null;
-let muteInputCode: string | null = null;
-let muteCurrentMode: 'hold' | 'toggle' = 'toggle';
-let muteIsHeld = false;
+const hotkeys: Record<string, HotkeyState> = {
+  ptt: { keyCode: null, inputCode: null, mode: 'hold', isHeld: false, onStart: 'chickadee:ptt-start', onToggle: 'chickadee:ptt-toggle', onStop: 'chickadee:ptt-stop' },
+  mute: { keyCode: null, inputCode: null, mode: 'toggle', isHeld: false, onStart: 'chickadee:mute-start', onToggle: 'chickadee:mute-toggle', onStop: 'chickadee:mute-stop' },
+  deafen: { keyCode: null, inputCode: null, mode: 'toggle', isHeld: false, onStart: 'chickadee:deafen-start', onToggle: 'chickadee:deafen-toggle', onStop: 'chickadee:deafen-stop' },
+  camera: { keyCode: null, inputCode: null, mode: 'toggle', isHeld: false, onToggle: 'chickadee:camera-toggle' },
+  screenShare: { keyCode: null, inputCode: null, mode: 'toggle', isHeld: false, onToggle: 'chickadee:screen-share-toggle' },
+  chatPanel: { keyCode: null, inputCode: null, mode: 'toggle', isHeld: false, onToggle: 'chickadee:chat-panel-toggle' },
+  ttsToggle: { keyCode: null, inputCode: null, mode: 'toggle', isHeld: false, onToggle: 'chickadee:tts-toggle' },
+  ttsStop: { keyCode: null, inputCode: null, mode: 'toggle', isHeld: false, onToggle: 'chickadee:tts-stop' },
+};
 
 let uiohookRunning = false;
 let mainWindow: BrowserWindow | null = null;
@@ -42,7 +53,7 @@ function acceleratorToInputCode(accel: string): string {
 }
 
 function updateUiohookState(): void {
-  const needsUiohook = pttKeyCode !== null || muteKeyCode !== null;
+  const needsUiohook = Object.values(hotkeys).some((hk) => hk.keyCode !== null);
   if (needsUiohook && !uiohookRunning) {
     try {
       uIOhook.start();
@@ -61,90 +72,71 @@ function updateUiohookState(): void {
 }
 
 export function registerPushToTalk(): void {
-  // Listeners are registered once; pttKeyCode / muteKeyCode guards filter the target key.
+  // Listeners are registered once.
   uIOhook.on('keydown', (e) => {
-    if (pttKeyCode !== null && e.keycode === pttKeyCode && !pttIsHeld) {
-      pttIsHeld = true; // suppress OS key-repeat: only fire on the first keydown
-      mainWindow?.webContents.send(
-        pttCurrentMode === 'hold' ? 'chickadee:ptt-start' : 'chickadee:ptt-toggle',
-      );
-    }
-    if (muteKeyCode !== null && e.keycode === muteKeyCode && !muteIsHeld) {
-      muteIsHeld = true; // suppress OS key-repeat
-      mainWindow?.webContents.send(
-        muteCurrentMode === 'hold' ? 'chickadee:mute-start' : 'chickadee:mute-toggle',
-      );
+    for (const hk of Object.values(hotkeys)) {
+      if (hk.keyCode !== null && e.keycode === hk.keyCode && !hk.isHeld) {
+        hk.isHeld = true; // suppress OS key-repeat
+        const eventName = hk.mode === 'hold' && hk.onStart ? hk.onStart : hk.onToggle;
+        mainWindow?.webContents.send(eventName);
+      }
     }
   });
 
   uIOhook.on('keyup', (e) => {
-    if (pttKeyCode !== null && e.keycode === pttKeyCode && pttIsHeld) {
-      pttIsHeld = false;
-      if (pttCurrentMode === 'hold') mainWindow?.webContents.send('chickadee:ptt-stop');
-    }
-    if (muteKeyCode !== null && e.keycode === muteKeyCode && muteIsHeld) {
-      muteIsHeld = false;
-      if (muteCurrentMode === 'hold') mainWindow?.webContents.send('chickadee:mute-stop');
+    for (const hk of Object.values(hotkeys)) {
+      if (hk.keyCode !== null && e.keycode === hk.keyCode && hk.isHeld) {
+        hk.isHeld = false;
+        if (hk.mode === 'hold' && hk.onStop) {
+          mainWindow?.webContents.send(hk.onStop);
+        }
+      }
     }
   });
 
-  ipcMain.handle(
-    'chickadee:set-ptt',
-    (_e, opts: { enabled: boolean; key: string; mode: 'hold' | 'toggle' }) => {
-      pttKeyCode = opts.enabled ? acceleratorToUiohookCode(opts.key) : null;
-      pttInputCode = opts.enabled ? acceleratorToInputCode(opts.key) : null;
-      pttCurrentMode = opts.mode ?? 'hold';
-      pttIsHeld = false;
-      updateUiohookState();
-      if (opts.enabled && pttKeyCode === null) {
-        console.warn('push-to-talk: key not mapped to uiohook code:', opts.key);
-      }
-    },
-  );
+  const registerHotkeyIpc = (channel: string, key: string, defaultMode: 'hold' | 'toggle') => {
+    ipcMain.handle(
+      channel,
+      (_e, opts: { enabled: boolean; key: string; mode?: 'hold' | 'toggle' }) => {
+        const hk = hotkeys[key];
+        hk.keyCode = opts.enabled ? acceleratorToUiohookCode(opts.key) : null;
+        hk.inputCode = opts.enabled ? acceleratorToInputCode(opts.key) : null;
+        hk.mode = opts.mode ?? defaultMode;
+        hk.isHeld = false;
+        updateUiohookState();
+        if (opts.enabled && hk.keyCode === null) {
+          console.warn(`${key}: key not mapped to uiohook code:`, opts.key);
+        }
+      },
+    );
+  };
 
-  ipcMain.handle(
-    'chickadee:set-mute-keybind',
-    (_e, opts: { enabled: boolean; key: string; mode: 'hold' | 'toggle' }) => {
-      muteKeyCode = opts.enabled ? acceleratorToUiohookCode(opts.key) : null;
-      muteInputCode = opts.enabled ? acceleratorToInputCode(opts.key) : null;
-      muteCurrentMode = opts.mode ?? 'toggle';
-      muteIsHeld = false;
-      updateUiohookState();
-      if (opts.enabled && muteKeyCode === null) {
-        console.warn('mute-mic: key not mapped to uiohook code:', opts.key);
-      }
-    },
-  );
+  registerHotkeyIpc('chickadee:set-ptt', 'ptt', 'hold');
+  registerHotkeyIpc('chickadee:set-mute-keybind', 'mute', 'toggle');
+  registerHotkeyIpc('chickadee:set-deafen-keybind', 'deafen', 'toggle');
+  registerHotkeyIpc('chickadee:set-camera-keybind', 'camera', 'toggle');
+  registerHotkeyIpc('chickadee:set-screen-share-keybind', 'screenShare', 'toggle');
+  registerHotkeyIpc('chickadee:set-chat-panel-keybind', 'chatPanel', 'toggle');
+  registerHotkeyIpc('chickadee:set-tts-toggle-keybind', 'ttsToggle', 'toggle');
+  registerHotkeyIpc('chickadee:set-tts-stop-keybind', 'ttsStop', 'toggle');
 }
 
 export function handleBeforeInput(window: BrowserWindow, input: Input): void {
-  if (pttInputCode && input.code === pttInputCode) {
-    if (input.type === 'keyDown') {
-      if (pttIsHeld) return; // uiohook fired first, or key is already held (OS repeat)
-      if (input.isAutoRepeat) return;
-      pttIsHeld = true;
-      window.webContents.send(
-        pttCurrentMode === 'hold' ? 'chickadee:ptt-start' : 'chickadee:ptt-toggle',
-      );
-    } else if (input.type === 'keyUp') {
-      if (!pttIsHeld) return; // uiohook already handled this keyup
-      pttIsHeld = false;
-      if (pttCurrentMode === 'hold') window.webContents.send('chickadee:ptt-stop');
-    }
-  }
-
-  if (muteInputCode && input.code === muteInputCode) {
-    if (input.type === 'keyDown') {
-      if (muteIsHeld) return;
-      if (input.isAutoRepeat) return;
-      muteIsHeld = true;
-      window.webContents.send(
-        muteCurrentMode === 'hold' ? 'chickadee:mute-start' : 'chickadee:mute-toggle',
-      );
-    } else if (input.type === 'keyUp') {
-      if (!muteIsHeld) return;
-      muteIsHeld = false;
-      if (muteCurrentMode === 'hold') window.webContents.send('chickadee:mute-stop');
+  for (const hk of Object.values(hotkeys)) {
+    if (hk.inputCode && input.code === hk.inputCode) {
+      if (input.type === 'keyDown') {
+        if (hk.isHeld) continue;
+        if (input.isAutoRepeat) continue;
+        hk.isHeld = true;
+        const eventName = hk.mode === 'hold' && hk.onStart ? hk.onStart : hk.onToggle;
+        window.webContents.send(eventName);
+      } else if (input.type === 'keyUp') {
+        if (!hk.isHeld) continue;
+        hk.isHeld = false;
+        if (hk.mode === 'hold' && hk.onStop) {
+          window.webContents.send(hk.onStop);
+        }
+      }
     }
   }
 }

@@ -1,6 +1,6 @@
 import { getSharedAudioContext, getMasterBus } from './audioContext';
 
-export function playSfx(type: 'join' | 'leave' | 'mute' | 'unmute' | 'chat' | 'deafen' | 'undeafen' | 'transmit-open' | 'transmit-close', volume: number): void {
+export function playSfx(type: 'join' | 'leave' | 'mute' | 'unmute' | 'mute-other' | 'chat' | 'deafen' | 'undeafen' | 'transmit-open' | 'transmit-close', volume: number): void {
   const ctx = getSharedAudioContext();
   if (!ctx) return;
 
@@ -108,6 +108,26 @@ export function playSfx(type: 'join' | 'leave' | 'mute' | 'unmute' | 'chat' | 'd
       
       osc.start(now);
       osc.stop(now + 0.08);
+      break;
+    }
+    case 'mute-other': {
+      // Two quick muted "thunks" (triangle, low) — distinct from the self
+      // mute/unmute sine chirps so muting someone else sounds different.
+      const freqs = [330, 220];
+      freqs.forEach((freq, i) => {
+        const t = now + i * 0.07;
+        const osc = ctx.createOscillator();
+        const oscGain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, t);
+        oscGain.gain.setValueAtTime(0, t);
+        oscGain.gain.setValueAtTime(0.45, t);
+        oscGain.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+        osc.connect(oscGain);
+        oscGain.connect(gainNode);
+        osc.start(t);
+        osc.stop(t + 0.06);
+      });
       break;
     }
     case 'chat': {

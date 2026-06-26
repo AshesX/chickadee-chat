@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ChevronMenu } from './ChevronMenu';
 
 interface ReactionPopoverProps {
   onReact: (emoji: string) => void;
@@ -13,13 +14,6 @@ const REACTION_EMOJIS = ['🔥', '😂', '👍', '❤️', '🎉', '💀'];
 export function ReactionPopover({ onReact, onClose, anchorRect, onMouseEnter, onMouseLeave }: ReactionPopoverProps): React.JSX.Element {
   const [cooldown, setCooldown] = useState(false);
 
-  const menuWidth = 340;
-  const gap = 8;
-
-  const bottom = window.innerHeight - anchorRect.top + gap;
-  const rawLeft = anchorRect.left + anchorRect.width / 2 - menuWidth / 2;
-  const left = Math.max(8, Math.min(rawLeft, window.innerWidth - menuWidth - 8));
-
   function handleReact(emoji: string): void {
     if (cooldown) return;
     onReact(emoji);
@@ -30,15 +24,7 @@ export function ReactionPopover({ onReact, onClose, anchorRect, onMouseEnter, on
   }
 
   return (
-    <>
-      <div className="popover-backdrop" onClick={onClose} />
-      <div
-        className="reaction-pop"
-        style={{ bottom, left, width: menuWidth }}
-        onClick={(e) => e.stopPropagation()}
-        onMouseEnter={onMouseEnter}
-        onMouseLeave={onMouseLeave}
-      >
+    <ChevronMenu anchorRect={anchorRect} onClose={onClose} width={340} className="reaction-pop" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
         <div className="reaction-pop__grid">
           {REACTION_EMOJIS.map((emoji) => (
             <button
@@ -52,7 +38,6 @@ export function ReactionPopover({ onReact, onClose, anchorRect, onMouseEnter, on
             </button>
           ))}
         </div>
-      </div>
-    </>
+    </ChevronMenu>
   );
 }

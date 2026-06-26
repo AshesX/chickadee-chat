@@ -3,7 +3,7 @@ productName: Chickadee Chat
 # In this npm-workspaces monorepo, electron is hoisted to the repo-root
 # node_modules, so electron-builder can't auto-detect the installed version from
 # apps/desktop. Pin it explicitly — keep in sync with devDependencies.electron.
-electronVersion: 33.4.11
+electronVersion: 42.4.1
 directories:
   output: release
 files:

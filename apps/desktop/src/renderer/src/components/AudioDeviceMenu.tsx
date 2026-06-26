@@ -1,6 +1,9 @@
 import { Settings } from 'lucide-react';
 import type { MediaDeviceOption } from '../hooks/useMediaDevices';
 import { CustomSelect } from './CustomSelect';
+import { KeybindControl } from './KeybindControl';
+import { SettingsSlider } from './SettingsSlider';
+import { ChevronMenu } from './ChevronMenu';
 
 interface AudioDeviceMenuProps {
   mode: 'input' | 'output';
@@ -9,6 +12,12 @@ interface AudioDeviceMenuProps {
   onSelectDevice: (id: string) => void;
   volume: number;
   onChangeVolume: (v: number) => void;
+  /** Optional inline keybind capture (Mute key for input, Deafen key for output). */
+  keybindLabel?: string;
+  keybindValue?: string;
+  onChangeKeybind?: (k: string) => void;
+  keybindMode?: 'hold' | 'toggle';
+  onChangeKeybindMode?: (m: 'hold' | 'toggle') => void;
   onOpenVoiceSettings: () => void;
   onClose: () => void;
   anchorRect: DOMRect;
@@ -21,19 +30,17 @@ export function AudioDeviceMenu({
   onSelectDevice,
   volume,
   onChangeVolume,
+  keybindLabel,
+  keybindValue,
+  onChangeKeybind,
+  keybindMode,
+  onChangeKeybindMode,
   onOpenVoiceSettings,
   onClose,
   anchorRect,
 }: AudioDeviceMenuProps): React.JSX.Element {
-  const menuWidth = 220;
-  const gap = 8;
-
-  const bottom = window.innerHeight - anchorRect.top + gap;
-  const rawLeft = anchorRect.left + anchorRect.width / 2 - menuWidth / 2;
-  const left = Math.max(8, Math.min(rawLeft, window.innerWidth - menuWidth - 8));
-
   const isInput = mode === 'input';
-  const volumeMax = isInput ? 4 : 1;
+  const volumeMax = 2;
   const volumePct = Math.round(volume * 100);
 
   const deviceOptions = [
@@ -42,13 +49,7 @@ export function AudioDeviceMenu({
   ];
 
   return (
-    <>
-      <div className="popover-backdrop" onClick={onClose} />
-      <div
-        className="audio-menu"
-        style={{ bottom, left, width: menuWidth }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <ChevronMenu anchorRect={anchorRect} onClose={onClose} width={280} className="audio-menu">
         <div className="audio-menu__section-label">
           {isInput ? 'Input Device' : 'Output Device'}
         </div>
@@ -61,27 +62,30 @@ export function AudioDeviceMenu({
         <div className="audio-menu__section-label" style={{ marginTop: 10 }}>
           {isInput ? `Mic Volume — ${volumePct}%` : `Output Volume — ${volumePct}%`}
         </div>
-        <input
-          type="range"
-          className="audio-menu__slider"
+        <SettingsSlider
           min={0}
           max={volumeMax}
-          step={isInput ? 0.05 : 0.01}
+          step={0.05}
           value={volume}
-          onChange={(e) => onChangeVolume(Number(e.target.value))}
+          onChange={onChangeVolume}
+          boostFrom={1}
+          markers={[0, 0.5, 1, 1.5, 2]}
+          labels={[
+            { value: 0, text: '0%' },
+            { value: 1, text: '100%' },
+            { value: 2, text: '200%' },
+          ]}
         />
-        <div className="audio-menu__vol-labels">
-          <span>0%</span>
-          {isInput ? (
-            <>
-              <span>100%</span>
-              <span>200%</span>
-              <span>400%</span>
-            </>
-          ) : (
-            <span>100%</span>
-          )}
-        </div>
+
+        {onChangeKeybind && onChangeKeybindMode && (
+          <KeybindControl
+            mode={keybindMode ?? 'toggle'}
+            onChangeMode={onChangeKeybindMode}
+            value={keybindValue ?? ''}
+            onChange={onChangeKeybind}
+            clearLabel={`${keybindLabel} keybind`}
+          />
+        )}
 
         <hr className="audio-menu__divider" />
 
@@ -89,7 +93,6 @@ export function AudioDeviceMenu({
           <Settings size={11} />
           Voice Settings
         </button>
-      </div>
-    </>
+    </ChevronMenu>
   );
 }

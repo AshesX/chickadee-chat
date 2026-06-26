@@ -1,13 +1,12 @@
 import { MessageSquare } from 'lucide-react';
 import type { Room } from '@chickadee/shared';
 import { WindowControls } from './WindowControls';
+import { RoomIcon } from './RoomIcon';
 
 interface RoomHeaderProps {
   room: Room | null;
   count: number;
   maxCount: number;
-  timer: string;
-  game?: string;
   chatOpen: boolean;
   onToggleChat: () => void;
   hasSpace: boolean;
@@ -17,8 +16,6 @@ export function RoomHeader({
   room,
   count,
   maxCount,
-  timer,
-  game,
   chatOpen,
   onToggleChat,
   hasSpace,
@@ -30,14 +27,11 @@ export function RoomHeader({
         {room ? (
           <>
             <div className="room-header__title">
-              <span>{room.icon}</span>
+              <span><RoomIcon name={room.icon} size={16} /></span>
               {room.label}
               <span className="room-header__count">
                 {count} / {maxCount}
               </span>
-            </div>
-            <div className="room-header__sub">
-              {game ? `${game} · ` : ''}{timer}
             </div>
           </>
         ) : hasSpace ? (
@@ -55,7 +49,7 @@ export function RoomHeader({
             className={`pill pill--chat${chatOpen ? ' pill--chat-on' : ''}`}
             onClick={onToggleChat}
           >
-            <MessageSquare size={13} />
+            <MessageSquare size={14} />
             Chat
           </button>
         </>

@@ -6,8 +6,79 @@
  * `ice-candidate`) verbatim and never inspects their payloads.
  */
 
-/** Maximum number of peers allowed in a single room (full-mesh limit). */
+/** Maximum number of peers allowed in a single video room (full-mesh limit). */
 export const MAX_PEERS_PER_ROOM = 4;
+
+/** Maximum number of peers allowed in a single voice room (audio-only, lighter mesh). */
+export const MAX_PEERS_VOICE = 8;
+
+/** The kind of a room: 'voice' (audio only, larger cap) or 'video' (camera/screen, smaller cap). */
+export type RoomType = 'voice' | 'video';
+
+/** Peer capacity per room type. */
+export const ROOM_CAPACITY: Record<RoomType, number> = {
+  video: MAX_PEERS_PER_ROOM,
+  voice: MAX_PEERS_VOICE,
+};
+
+/** Resolve a room's peer capacity from its type; rooms without a type default to 'video'. */
+export function capacityForType(type: RoomType | undefined): number {
+  return ROOM_CAPACITY[type ?? 'video'];
+}
+
+// --- Input bounds (enforced server-side; reused client-side for defense in depth) ---
+/** Max length of a chat message / reaction. */
+export const CHAT_MAX_LEN = 500;
+/** Max length of a display name. */
+export const MAX_DISPLAY_NAME_LEN = 32;
+/** Max length of a TTS voice-category id. */
+export const MAX_VOICE_PREF_LEN = 32;
+/** Max length of an id-like field (userId / spaceId / roomId). */
+export const MAX_ID_LEN = 128;
+/**
+ * Max length of an avatar data URL. A 128×128 WebP/JPEG is typically 10–30 KB
+ * of base64; 256 KB is a generous ceiling that still stops amplification abuse.
+ */
+export const MAX_AVATAR_DATA_URL_LEN = 256 * 1024;
+
+const AVATAR_DATA_URL_RE = /^data:image\/(?:png|jpe?g|webp);base64,[A-Za-z0-9+/=]+$/;
+
+/**
+ * Validate an untrusted avatar value: must be a base64 PNG/JPEG/WebP data URL
+ * within the size cap. Returns the value if valid, else null. Used by the
+ * signaling server on intake and by the renderer before binding to an <img>.
+ */
+export function sanitizeAvatarDataUrl(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  if (value.length > MAX_AVATAR_DATA_URL_LEN) return null;
+  return AVATAR_DATA_URL_RE.test(value) ? value : null;
+}
+
+/** Coerce an untrusted value to a trimmed string capped at `max` chars (default '' on non-strings). */
+export function clampString(value: unknown, max: number): string {
+  return typeof value === 'string' ? value.trim().slice(0, max) : '';
+}
+
+const ACCENT_COLOR_RE = /^#[0-9a-fA-F]{6}$/;
+
+/**
+ * Validate an untrusted accent color: must be '' (unset → auto-assigned color) or
+ * a `#rrggbb` hex string, else ''. Used by the signaling server on intake and by
+ * the renderer before binding it into a CSS custom property.
+ */
+export function sanitizeAccentColor(value: unknown): string {
+  if (typeof value !== 'string' || value === '') return '';
+  return ACCENT_COLOR_RE.test(value) ? value.toLowerCase() : '';
+}
+
+/** The valid presence statuses. */
+export const PRESENCE_STATUSES = ['online', 'idle', 'dnd'] as const;
+export type PresenceStatus = (typeof PRESENCE_STATUSES)[number];
+
+/** Narrow an untrusted value to a PresenceStatus, defaulting to 'online'. */
+export function sanitizeStatus(value: unknown): PresenceStatus {
+  return PRESENCE_STATUSES.includes(value as PresenceStatus) ? (value as PresenceStatus) : 'online';
+}
 
 export type RoomId = string;
 export type PeerId = string;
@@ -19,6 +90,8 @@ export interface Peer {
   displayName: string;
   /** Whether this peer's microphone is currently muted (tracked server-side). */
   muted: boolean;
+  /** Whether this peer is actively speaking/transmitting (drives the speaking ripple). */
+  speaking: boolean;
   /** Whether this peer's camera is currently on (tracked server-side). */
   cameraOn: boolean;
   /**
@@ -27,8 +100,6 @@ export interface Peer {
    * stream, and lets mid-share joiners classify it correctly.
    */
   screenStreamId: string | null;
-  /** Short tag for the game this peer is playing (e.g. "DRG"), or null. */
-  game: string | null;
   /** Whether this peer is currently deafened. */
   deafened: boolean;
   /** The presence status of this peer: 'online' | 'idle' | 'dnd'. */
@@ -37,6 +108,20 @@ export interface Peer {
   avatarDataUrl: string | null;
   /** Generic TTS voice-category id others use to read this peer's chat aloud (e.g. 'uk-female'); '' = system default. */
   voicePreference: string;
+  /** User-chosen accent color (`#rrggbb`), or '' to fall back to an auto-assigned color. */
+  accentColor: string;
+  /**
+   * Whether this peer is currently rendering video (true) or docked/compact
+   * (false). While false, senders pause the *video* of this peer's
+   * subscriptions but keep their *audio* flowing (audio-only dock).
+   */
+  wantsVideo: boolean;
+  /**
+   * Stable userIds whose video this peer has opted into ("joined"). Video and
+   * screen-audio are sent to this peer only for senders in this set; empty =
+   * watching nobody (the opt-in default).
+   */
+  videoSubscriptions: string[];
 }
 
 /** A sidebar room entry (local; the server uses arbitrary room ids). */
@@ -44,6 +129,8 @@ export interface Room {
   id: string;
   label: string;
   icon: string;
+  /** 'voice' (audio only, 8-cap) or 'video' (camera/screen, 4-cap). Omitted = legacy 'video'. */
+  type?: RoomType;
 }
 
 
@@ -52,16 +139,12 @@ export interface SpaceInfo {
   id: string;
   name: string;
   rooms: Room[];
+  customSignalingUrl?: string;
+  joinSecret?: string;
 }
 
-/** A game the detector scans for (process name → display + short tag). */
-export interface GameDef {
-  name: string;
-  short: string;
-  processName: string;
-  /** True for user-added games; built-in defaults omit this (locked in the UI). */
-  isCustom?: boolean;
-}
+/** Active color theme identifier. */
+export type ThemeName = 'dark' | 'light';
 
 /** Settings persisted to Electron userData (the renderer reads/writes via IPC). */
 export interface PersistedSettings {
@@ -96,6 +179,8 @@ export interface PersistedSettings {
   openMicThreshold: number;
   /** Attenuation floor in dB (negative, e.g. -20) applied below the threshold. */
   openMicReductionDb: number;
+  /** Hangover (ms) the open-mic noise gate stays open after the level drops. */
+  openMicReleaseMs: number;
   /** Preferred mic deviceId, or '' for the system default. */
   inputDeviceId: string;
   /** Preferred speaker deviceId (setSinkId), or '' for the system default. */
@@ -108,6 +193,7 @@ export interface PersistedSettings {
   sfxVolume: number;
   sfxJoinLeaveEnabled: boolean;
   sfxMuteEnabled: boolean;
+  sfxMuteOtherEnabled: boolean;
   sfxTransmitEnabled: boolean;
   sfxChatEnabled: boolean;
   sfxDeafenEnabled: boolean;
@@ -130,13 +216,15 @@ export interface PersistedSettings {
   /** Pin the window above all other apps. */
   alwaysOnTop: boolean;
   /** Active color theme. */
-  theme: 'midnight' | 'classic' | 'oled';
+  theme: ThemeName;
   /** Chat Font Scale (relative to normal, e.g. 0.5 to 2.0). */
   chatFontScale: number;
   /** Chat Panel Position (left or right). */
   chatPosition: 'left' | 'right';
   /** Chat Width Scale (relative to normal, e.g. 1.0 to 2.0). */
   chatWidthScale: number;
+  /** Sidebar Width Scale (relative to normal, e.g. 1.0 to 2.0). */
+  sidebarWidthScale: number;
   /** Read incoming chat messages aloud (Web Speech API) when the app is unfocused. */
   chatTtsEnabled: boolean;
   /** Speak the "[name] says:" prefix before each read-aloud message; false = message text only. */
@@ -145,29 +233,28 @@ export interface PersistedSettings {
   voicePreference: string;
   /** User's custom avatar as a base64 data URL (128×128 WebP/JPEG), or null. */
   avatarDataUrl: string | null;
+  /** User-chosen accent color (`#rrggbb`), or '' to fall back to an auto-assigned color. */
+  accentColor: string;
   defaultVideoAction: 'camera' | 'screen';
+  deafenKey: string;
+  deafenMode: 'hold' | 'toggle';
+  cameraKey: string;
+  screenShareKey: string;
+  chatPanelKey: string;
+  ttsToggleKey: string;
+  ttsStopKey: string;
+  /** Sidebar-only dock mode: window shrinks, room header/grid/control-bar hidden. */
+  compactMode: boolean;
+  /** Whether the sidebar VOICE room section is collapsed. */
+  voiceSectionCollapsed: boolean;
+  /** Whether the sidebar VIDEO room section is collapsed. */
+  videoSectionCollapsed: boolean;
 }
 
-/** Built-in games the detector ships with (process names are lower-cased, .exe-less). */
-export const DEFAULT_GAMES: GameDef[] = [
-  { name: 'Deep Rock Galactic', short: 'DRG', processName: 'fsd-win64' },
-  { name: 'Helldivers 2', short: 'HD2', processName: 'helldivers2' },
-  { name: 'Valheim', short: 'VLH', processName: 'valheim' },
-  { name: 'Counter-Strike 2', short: 'CS2', processName: 'cs2' },
-  { name: 'Elden Ring', short: 'ELD', processName: 'eldenring' },
-  { name: 'Apex Legends', short: 'APX', processName: 'r5apex' },
-  { name: 'Rocket League', short: 'RL', processName: 'rocketleague' },
-  { name: 'Minecraft', short: 'MC', processName: 'javaw' },
-  { name: 'Fortnite', short: 'FN', processName: 'fortniteclient-win64-shipping' },
-  { name: 'Overwatch 2', short: 'OW', processName: 'overwatch' },
-  { name: 'Stardew Valley', short: 'SDV', processName: 'stardew valley' },
-  { name: 'Terraria', short: 'TER', processName: 'terraria' },
-];
-
 export const DEFAULT_ROOMS: Room[] = [
-  { id: 'general', label: 'General', icon: '💬' },
-  { id: 'gaming', label: 'Gaming', icon: '🎮' },
-  { id: 'lounge', label: 'Lounge', icon: '🛋️' },
+  { id: 'general', label: 'General', icon: 'chat-bubble', type: 'voice' },
+  { id: 'gaming', label: 'Gaming', icon: 'dice-twenty-faces-twenty', type: 'video' },
+  { id: 'lounge', label: 'Lounge', icon: 'sofa', type: 'voice' },
 ];
 
 export function defaultSettings(): PersistedSettings {
@@ -179,24 +266,26 @@ export function defaultSettings(): PersistedSettings {
     chatVisible: false,
     noiseSuppression: true,
     echoCancellation: true,
-    autoGainControl: false,
-    normalizeVoices: false,
+    autoGainControl: true,
+    normalizeVoices: true,
     peerVolumes: {},
     inputMode: 'voice',
-    vadThreshold: 0.04,
+    vadThreshold: 0.1,
     vadReleaseMs: 500,
     openMicNoiseReductionEnabled: true,
-    openMicThreshold: 0.04,
+    openMicThreshold: 0.1,
     openMicReductionDb: -20,
+    openMicReleaseMs: 500,
     inputDeviceId: '',
     outputDeviceId: '',
-    // Default to F8 — captured system-wide, so Space would swallow the spacebar in-game.
-    pushToTalkKey: 'F8',
+    // Default to unbound
+    pushToTalkKey: '',
     pttMode: 'hold',
     sfxEnabled: true,
     sfxVolume: 0.25,
     sfxJoinLeaveEnabled: true,
     sfxMuteEnabled: true,
+    sfxMuteOtherEnabled: true,
     sfxTransmitEnabled: false,
     sfxChatEnabled: true,
     sfxDeafenEnabled: true,
@@ -214,15 +303,27 @@ export function defaultSettings(): PersistedSettings {
     launchOnStartup: false,
     closeBehavior: 'quit',
     alwaysOnTop: false,
-    theme: 'midnight',
+    theme: 'light',
     chatFontScale: 1.0,
     chatPosition: 'right',
     chatWidthScale: 1.0,
+    sidebarWidthScale: 1.0,
     chatTtsEnabled: false,
     chatTtsSpeakName: true,
     voicePreference: '',
     avatarDataUrl: null,
+    accentColor: '',
     defaultVideoAction: 'camera',
+    deafenKey: '',
+    deafenMode: 'toggle',
+    cameraKey: '',
+    screenShareKey: '',
+    chatPanelKey: '',
+    ttsToggleKey: '',
+    ttsStopKey: '',
+    compactMode: false,
+    voiceSectionCollapsed: false,
+    videoSectionCollapsed: false,
   };
 }
 
@@ -238,22 +339,31 @@ export interface ScreenSource {
 
 /** Messages sent from a client up to the signaling server. */
 export type ClientMessage =
-  | { type: 'join'; spaceId: string; room: RoomId | null; displayName: string; userId: string; rooms: Room[]; status?: 'online' | 'idle' | 'dnd'; avatarDataUrl?: string | null; voicePreference?: string }
+  | { type: 'join'; spaceId: string; room: RoomId | null; displayName: string; userId: string; rooms: Room[]; status?: 'online' | 'idle' | 'dnd'; avatarDataUrl?: string | null; voicePreference?: string; accentColor?: string; secret?: string }
   | { type: 'join-room'; room: RoomId | null }
   | { type: 'offer'; to: PeerId; sdp: RTCSessionDescriptionInit }
   | { type: 'answer'; to: PeerId; sdp: RTCSessionDescriptionInit }
   | { type: 'ice-candidate'; to: PeerId; candidate: RTCIceCandidateInit }
   // Broadcast to the whole room (no `to`); server relays with `from` stamped.
   | { type: 'mic-state'; muted: boolean }
+  | { type: 'speaking-state'; speaking: boolean }
   | { type: 'cam-state'; on: boolean }
   | { type: 'screen-state'; streamId: string | null }
-  | { type: 'game-state'; game: string | null }
   | { type: 'deafen-state'; deafened: boolean }
   | { type: 'status-state'; status: 'online' | 'idle' | 'dnd' }
   | { type: 'avatar-state'; avatarDataUrl: string | null }
   | { type: 'voice-state'; voicePreference: string }
+  | { type: 'accent-state'; accentColor: string }
+  // This peer's video opt-in state: which userIds it has joined (subscriptions)
+  // and whether it's rendering video now (wantsVideo false while docked/compact).
+  | { type: 'sink-state'; subscriptions: string[]; wantsVideo: boolean }
   // Broadcast room list changes to the active space.
   | { type: 'update-rooms'; spaceId: string; rooms: Room[] }
+  // Broadcast space rename to active peers.
+  | { type: 'rename-space'; spaceId: string; newSpaceId: string; newSpaceName: string }
+  // Non-mutating existence probe — answered before/without joining. A Space "exists"
+  // only while ≥1 member is currently connected (the server is in-memory).
+  | { type: 'check-space'; spaceId: string; secret?: string }
   // Ephemeral room chat (a reaction is a chat with `reaction: true`).
   | { type: 'chat'; text: string; reaction?: boolean }
   // Liveness check so the client can detect a dead/half-open connection.
@@ -278,18 +388,20 @@ export type ServerMessage =
   | { type: 'peer-left'; peerId: PeerId }
   // Sent to the newcomer if the room is already full.
   | { type: 'room-full'; room: RoomId }
+  // Reply to `check-space`: whether the Space currently has ≥1 connected member.
+  | { type: 'space-status'; spaceId: string; exists: boolean }
   // Relayed WebRTC signaling, with `from` stamped by the server.
   | { type: 'offer'; from: PeerId; sdp: RTCSessionDescriptionInit }
   | { type: 'answer'; from: PeerId; sdp: RTCSessionDescriptionInit }
   | { type: 'ice-candidate'; from: PeerId; candidate: RTCIceCandidateInit }
   // A peer toggled their mic; broadcast to everyone else in the room.
   | { type: 'mic-state'; from: PeerId; muted: boolean }
+  // A peer started/stopped speaking; broadcast to everyone else in the room.
+  | { type: 'speaking-state'; from: PeerId; speaking: boolean }
   // A peer toggled their camera; broadcast to everyone else in the room.
   | { type: 'cam-state'; from: PeerId; on: boolean }
   // A peer started/stopped sharing their screen (streamId null = stopped).
   | { type: 'screen-state'; from: PeerId; streamId: string | null }
-  // A peer's detected game changed (null = none).
-  | { type: 'game-state'; from: PeerId; game: string | null }
   // A peer toggled their deafen state; broadcast to everyone else in the room.
   | { type: 'deafen-state'; from: PeerId; deafened: boolean }
   // A peer updated their presence status; broadcast to everyone else in the room.
@@ -298,8 +410,15 @@ export type ServerMessage =
   | { type: 'avatar-state'; from: PeerId; avatarDataUrl: string | null }
   // A peer changed the voice others use to read their chat aloud; broadcast to the room.
   | { type: 'voice-state'; from: PeerId; voicePreference: string }
+  // A peer changed their accent color; broadcast to all space members.
+  | { type: 'accent-state'; from: PeerId; accentColor: string }
+  // A peer updated its video opt-in state (joined subscriptions and/or dock
+  // state); broadcast to the room (the mesh is room-scoped).
+  | { type: 'sink-state'; from: PeerId; subscriptions: string[]; wantsVideo: boolean }
   // Broadcast room list changes to the active space.
   | { type: 'rooms-updated'; spaceId: string; rooms: Room[] }
+  // Broadcast space rename to all clients in the space.
+  | { type: 'space-renamed'; spaceId: string; newSpaceId: string; newSpaceName: string }
   // Relayed room chat / reaction.
   | { type: 'chat'; from: PeerId; text: string; reaction?: boolean }
   // Reply to a client ping.

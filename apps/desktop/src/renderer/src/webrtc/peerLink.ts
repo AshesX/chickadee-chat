@@ -8,6 +8,42 @@ import {
 /** Don't fire ICE restarts more often than this (ms) per connection. */
 const ICE_RESTART_COOLDOWN_MS = 4000;
 
+/**
+ * Enable Opus DTX (discontinuous transmission) on every Opus m-line of a local
+ * SDP by adding `usedtx=1` to its fmtp params. With DTX the encoder stops
+ * sending full frames during silence (its built-in comfort noise covers the
+ * gap), which cuts upstream bandwidth in a voice-first app where peers are often
+ * quiet. There's no `setParameters()` equivalent for DTX, so this munges the SDP.
+ * Existing fmtp params (minptime, useinbandfec, …) are preserved; bitrate is
+ * untouched. Returns the SDP unchanged if no Opus payload is found.
+ */
+export function enableOpusDtx(sdp: string): string {
+  const lines = sdp.split(/\r\n|\n/);
+  // Map every Opus payload type from its rtpmap line.
+  const opusPts = new Set<string>();
+  for (const line of lines) {
+    const m = /^a=rtpmap:(\d+) opus\/48000/i.exec(line);
+    if (m) opusPts.add(m[1]);
+  }
+  if (opusPts.size === 0) return sdp;
+
+  const out: string[] = [];
+  for (const line of lines) {
+    const fmtp = /^a=fmtp:(\d+) (.*)$/.exec(line);
+    if (fmtp && opusPts.has(fmtp[1])) {
+      out.push(/\busedtx=/.test(fmtp[2]) ? line : `${line};usedtx=1`);
+      continue;
+    }
+    out.push(line);
+    // If an Opus payload has an rtpmap but no fmtp line, add one right after it.
+    const rtpmap = /^a=rtpmap:(\d+) opus\/48000/i.exec(line);
+    if (rtpmap && !sdp.includes(`a=fmtp:${rtpmap[1]} `)) {
+      out.push(`a=fmtp:${rtpmap[1]} usedtx=1`);
+    }
+  }
+  return out.join('\r\n');
+}
+
 /** The subset of relayed signaling messages a peer link consumes. */
 export type PeerSignal = Extract<
   ServerMessage,
@@ -56,6 +92,16 @@ export interface PeerLink {
    * later calls use replaceTrack. Pass null to stop sharing (keeps the m-lines).
    */
   setLocalScreenStream: (stream: MediaStream | null) => void;
+  /**
+   * Gate what media this peer receives, without renegotiation (glare-free
+   * replaceTrack). `video` controls camera + screen-share *video*; `screenAudio`
+   * controls screen-share *system audio*. Mic/voice audio is never gated. Both
+   * default to **false** (opt-in): a peer receives our video/screen-audio only
+   * once they've joined us (`video`) and aren't docked (also `video`), with
+   * screen audio while subscribed (`screenAudio`). Enabling re-applies whatever
+   * the current local tracks are; disabling stops that sender (keeps the m-line).
+   */
+  setMediaActive: (active: { video: boolean; screenAudio: boolean }) => void;
   /** Tear down the connection and detach all handlers. */
   close: () => void;
 }
@@ -83,10 +129,23 @@ export function createPeerLink(opts: PeerLinkOptions): PeerLink {
   let screenVideoSender: RTCRtpSender | null = null;
   let screenAudioSender: RTCRtpSender | null = null;
 
+  // Per-viewer media gating (see setMediaActive). Default false = opt-in: we send
+  // this peer no video/screen-audio until they join us. When inactive, tracks are
+  // held (replaceTrack(null)) but remembered here so re-enabling re-applies the
+  // current ones. Mic/voice audio is independent and never gated.
+  let videoActive = false;
+  let screenAudioActive = false;
+  let lastVideoTrack: MediaStreamTrack | null = null;
+  let lastVideoStream: MediaStream | null = null;
+  let lastScreenVideoTrack: MediaStreamTrack | null = null;
+  let lastScreenStream: MediaStream | null = null;
+
   pc.onnegotiationneeded = async () => {
     try {
       makingOffer = true;
-      await pc.setLocalDescription();
+      const offer = await pc.createOffer();
+      offer.sdp = enableOpusDtx(offer.sdp ?? '');
+      await pc.setLocalDescription(offer);
       if (pc.localDescription) {
         send({ type: 'offer', to: peerId, sdp: pc.localDescription });
       }
@@ -126,7 +185,7 @@ export function createPeerLink(opts: PeerLinkOptions): PeerLink {
   }
 
   pc.onconnectionstatechange = () => {
-    if (pc.connectionState === 'failed') maybeRestartIce();
+    if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') maybeRestartIce();
     onConnectionState(pc.connectionState);
   };
 
@@ -144,6 +203,9 @@ export function createPeerLink(opts: PeerLinkOptions): PeerLink {
   }
 
   function setLocalVideoTrack(track: MediaStreamTrack | null, stream: MediaStream): void {
+    lastVideoTrack = track;
+    lastVideoStream = stream;
+    if (!videoActive) return; // hold; re-applied when the viewer joins
     if (track) {
       if (videoSender) {
         void videoSender.replaceTrack(track); // swap, no renegotiation
@@ -173,8 +235,40 @@ export function createPeerLink(opts: PeerLinkOptions): PeerLink {
   function setLocalScreenStream(stream: MediaStream | null): void {
     const videoTrack = stream?.getVideoTracks()[0] ?? null;
     const audioTrack = stream?.getAudioTracks()[0] ?? null;
-    screenVideoSender = applyTrack(screenVideoSender, videoTrack, stream);
-    screenAudioSender = applyTrack(screenAudioSender, audioTrack, stream);
+    lastScreenVideoTrack = videoTrack;
+    lastScreenStream = stream;
+    // Both gated per-viewer: screen audio flows only while subscribed; screen
+    // video only while subscribed AND not docked. Held (not applied) otherwise.
+    if (screenAudioActive) {
+      screenAudioSender = applyTrack(screenAudioSender, audioTrack, stream);
+    }
+    if (videoActive) {
+      screenVideoSender = applyTrack(screenVideoSender, videoTrack, stream);
+    }
+  }
+
+  function setMediaActive(active: { video: boolean; screenAudio: boolean }): void {
+    if (active.screenAudio !== screenAudioActive) {
+      screenAudioActive = active.screenAudio;
+      if (screenAudioActive) {
+        // Re-apply the current screen audio track (if sharing).
+        screenAudioSender = applyTrack(screenAudioSender, lastScreenStream?.getAudioTracks()[0] ?? null, lastScreenStream);
+      } else if (screenAudioSender) {
+        void screenAudioSender.replaceTrack(null);
+      }
+    }
+    if (active.video !== videoActive) {
+      videoActive = active.video;
+      if (videoActive) {
+        // Re-apply whatever the current camera + screen video tracks are.
+        setLocalVideoTrack(lastVideoTrack, lastVideoStream ?? new MediaStream());
+        screenVideoSender = applyTrack(screenVideoSender, lastScreenVideoTrack, lastScreenStream);
+      } else {
+        // Stop sending video without renegotiation; the m-lines stay.
+        if (videoSender) void videoSender.replaceTrack(null);
+        if (screenVideoSender) void screenVideoSender.replaceTrack(null);
+      }
+    }
   }
 
   async function handleSignal(signal: PeerSignal): Promise<void> {
@@ -202,7 +296,9 @@ export function createPeerLink(opts: PeerLinkOptions): PeerLink {
       isSettingRemoteAnswerPending = false;
 
       if (description.type === 'offer') {
-        await pc.setLocalDescription();
+        const answer = await pc.createAnswer();
+        answer.sdp = enableOpusDtx(answer.sdp ?? '');
+        await pc.setLocalDescription(answer);
         if (pc.localDescription) {
           send({ type: 'answer', to: peerId, sdp: pc.localDescription });
         }
@@ -220,5 +316,5 @@ export function createPeerLink(opts: PeerLinkOptions): PeerLink {
     pc.close();
   }
 
-  return { pc, handleSignal, setLocalAudioTrack, setLocalVideoTrack, setLocalScreenStream, close };
+  return { pc, handleSignal, setLocalAudioTrack, setLocalVideoTrack, setLocalScreenStream, setMediaActive, close };
 }
