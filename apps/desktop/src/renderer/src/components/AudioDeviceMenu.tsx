@@ -3,6 +3,7 @@ import type { MediaDeviceOption } from '../hooks/useMediaDevices';
 import { CustomSelect } from './CustomSelect';
 import { KeybindControl } from './KeybindControl';
 import { SettingsSlider } from './SettingsSlider';
+import { ChevronMenu } from './ChevronMenu';
 
 interface AudioDeviceMenuProps {
   mode: 'input' | 'output';
@@ -38,13 +39,6 @@ export function AudioDeviceMenu({
   onClose,
   anchorRect,
 }: AudioDeviceMenuProps): React.JSX.Element {
-  const menuWidth = 280;
-  const gap = 8;
-
-  const bottom = window.innerHeight - anchorRect.top + gap;
-  const rawLeft = anchorRect.left + anchorRect.width / 2 - menuWidth / 2;
-  const left = Math.max(8, Math.min(rawLeft, window.innerWidth - menuWidth - 8));
-
   const isInput = mode === 'input';
   const volumeMax = 2;
   const volumePct = Math.round(volume * 100);
@@ -55,13 +49,7 @@ export function AudioDeviceMenu({
   ];
 
   return (
-    <>
-      <div className="popover-backdrop" onClick={onClose} />
-      <div
-        className="audio-menu"
-        style={{ bottom, left, width: menuWidth }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <ChevronMenu anchorRect={anchorRect} onClose={onClose} width={280} className="audio-menu">
         <div className="audio-menu__section-label">
           {isInput ? 'Input Device' : 'Output Device'}
         </div>
@@ -105,7 +93,6 @@ export function AudioDeviceMenu({
           <Settings size={11} />
           Voice Settings
         </button>
-      </div>
-    </>
+    </ChevronMenu>
   );
 }

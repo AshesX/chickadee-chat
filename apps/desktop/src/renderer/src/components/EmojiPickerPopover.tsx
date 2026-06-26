@@ -1,3 +1,5 @@
+import { ChevronMenu } from './ChevronMenu';
+
 interface EmojiPickerPopoverProps {
   onSelectEmoji: (emoji: string) => void;
   onClose: () => void;
@@ -27,23 +29,8 @@ const CATEGORIES: EmojiCategory[] = [
 ];
 
 export function EmojiPickerPopover({ onSelectEmoji, onClose, anchorRect, onMouseEnter, onMouseLeave }: EmojiPickerPopoverProps): React.JSX.Element {
-  const menuWidth = 260;
-  const gap = 8;
-
-  const bottom = window.innerHeight - anchorRect.top + gap;
-  const rawLeft = anchorRect.left + anchorRect.width / 2 - menuWidth / 2;
-  const left = Math.max(8, Math.min(rawLeft, window.innerWidth - menuWidth - 8));
-
   return (
-    <>
-      <div className="popover-backdrop" onClick={onClose} />
-      <div
-        className="emoji-picker-pop"
-        style={{ bottom, left, width: menuWidth }}
-        onClick={(e) => e.stopPropagation()}
-        onMouseEnter={onMouseEnter}
-        onMouseLeave={onMouseLeave}
-      >
+    <ChevronMenu anchorRect={anchorRect} onClose={onClose} width={260} className="emoji-picker-pop" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
         {CATEGORIES.map((cat) => (
           <div key={cat.name} className="emoji-picker-pop__section">
             <div className="emoji-picker-pop__section-title">{cat.name}</div>
@@ -60,7 +47,6 @@ export function EmojiPickerPopover({ onSelectEmoji, onClose, anchorRect, onMouse
             </div>
           </div>
         ))}
-      </div>
-    </>
+    </ChevronMenu>
   );
 }

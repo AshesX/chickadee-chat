@@ -1,6 +1,7 @@
 import { Settings } from 'lucide-react';
 import { GATE_THRESHOLD_MIN, GATE_THRESHOLD_MAX, thresholdToPct } from '../lib/audioGate';
 import { KeybindControl } from './KeybindControl';
+import { ChevronMenu } from './ChevronMenu';
 
 interface InputModeMenuProps {
   inputMode: 'open' | 'voice' | 'ptt';
@@ -43,23 +44,11 @@ export function InputModeMenu({
   onClose,
   anchorRect,
 }: InputModeMenuProps): React.JSX.Element {
-  const menuWidth = 280;
-  const gap = 8;
-  const bottom = window.innerHeight - anchorRect.top + gap;
-  const rawLeft = anchorRect.left + anchorRect.width / 2 - menuWidth / 2;
-  const left = Math.max(8, Math.min(rawLeft, window.innerWidth - menuWidth - 8));
-
   const vadPct = thresholdToPct(vadThreshold);
   const openMicPct = thresholdToPct(openMicThreshold);
 
   return (
-    <>
-      <div className="popover-backdrop" onClick={onClose} />
-      <div
-        className="audio-menu"
-        style={{ bottom, left, width: menuWidth }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <ChevronMenu anchorRect={anchorRect} onClose={onClose} width={280} className="audio-menu">
         <div className="input-mode-switcher">
           {(['open', 'voice', 'ptt'] as const).map((m) => (
             <button
@@ -138,7 +127,6 @@ export function InputModeMenu({
           <Settings size={11} />
           Voice Settings
         </button>
-      </div>
-    </>
+    </ChevronMenu>
   );
 }
