@@ -346,20 +346,26 @@ export function App(): React.JSX.Element {
   // Our effective accent color: the chosen one, else the default self gold.
   const selfColor = localAccentColor || SELF_COLOR;
 
+  // Connection params for the active space — depend on these (not the whole
+  // `spaces` array) so editing/deleting OTHER spaces doesn't tear down + reconnect
+  // the active call (signaling.join always closes the socket and rebuilds the mesh).
+  const activeSpace = spaces.find((s) => s.id === currentSpaceId);
+  const activeSpaceSignalingUrl = activeSpace?.customSignalingUrl || '';
+  const activeSpaceJoinSecret = activeSpace?.joinSecret || '';
+
   // Maintain a continuous space-level WebSocket connection to the signaling server
   useEffect(() => {
     if (currentSpaceId && displayName && userId) {
-      const activeSpace = spaces.find((s) => s.id === currentSpaceId);
-      const url = activeSpace?.customSignalingUrl || (window.chickadee?.signalingUrl ?? 'ws://localhost:8080');
-      const secret = activeSpace?.joinSecret || '';
-      signaling.join(currentSpaceId, currentRoomId, displayName, userId, rooms, selfStatus, localAvatarUrl, localVoicePreference, localAccentColor, secret, url);
+      const url = activeSpaceSignalingUrl || (window.chickadee?.signalingUrl ?? 'ws://localhost:8080');
+      signaling.join(currentSpaceId, currentRoomId, displayName, userId, rooms, selfStatus, localAvatarUrl, localVoicePreference, localAccentColor, activeSpaceJoinSecret, url);
     } else {
       signaling.leave();
     }
-    // We only want to re-establish the connection if the space, user, or name changes.
-    // Room movement and status updates are sent dynamically over the active socket.
+    // We only want to re-establish the connection if the space, user, or name changes,
+    // or the current space's connection params change. Room movement and status updates
+    // are sent dynamically over the active socket.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentSpaceId, userId, displayName, spaces]);
+  }, [currentSpaceId, userId, displayName, activeSpaceSignalingUrl, activeSpaceJoinSecret]);
 
   // Listen for space renames from other clients
   useEffect(() => {
@@ -1380,35 +1386,38 @@ export function App(): React.JSX.Element {
         />
       )}
 
-      {spaceSettingsTarget && (
-        <SpaceSettingsModal
-          space={spaces.find(s => s.id === spaceSettingsTarget)!}
-          onSave={(name, url, secret) => {
-            const oldSpaceId = spaceSettingsTarget;
-            const space = spaces.find(s => s.id === oldSpaceId);
-            const isRename = space && space.name.trim().toLowerCase() !== name.trim().toLowerCase();
+      {spaceSettingsTarget && (() => {
+        const space = spaces.find((s) => s.id === spaceSettingsTarget);
+        if (!space) return null;
+        return (
+          <SpaceSettingsModal
+            space={space}
+            onSave={(name, url, secret) => {
+              const oldSpaceId = spaceSettingsTarget;
+              const isRename = space.name.trim().toLowerCase() !== name.trim().toLowerCase();
 
-            if (isRename && signaling.status === 'connected' && oldSpaceId === currentSpaceId) {
-              const tempSlug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'space';
-              const suffix = Math.random().toString(36).substring(2, 7);
-              const newSpaceId = `${tempSlug}-${suffix}`;
+              if (isRename && signaling.status === 'connected' && oldSpaceId === currentSpaceId) {
+                const tempSlug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'space';
+                const suffix = Math.random().toString(36).substring(2, 7);
+                const newSpaceId = `${tempSlug}-${suffix}`;
 
-              signaling.send({
-                type: 'rename-space',
-                spaceId: oldSpaceId,
-                newSpaceId,
-                newSpaceName: name.trim()
-              });
+                signaling.send({
+                  type: 'rename-space',
+                  spaceId: oldSpaceId,
+                  newSpaceId,
+                  newSpaceName: name.trim()
+                });
 
-              updateSpaceSettings(oldSpaceId, name, url, secret, newSpaceId);
-            } else {
-              updateSpaceSettings(oldSpaceId, name, url, secret);
-            }
-            setSpaceSettingsTarget(null);
-          }}
-          onClose={() => setSpaceSettingsTarget(null)}
-        />
-      )}
+                updateSpaceSettings(oldSpaceId, name, url, secret, newSpaceId);
+              } else {
+                updateSpaceSettings(oldSpaceId, name, url, secret);
+              }
+              setSpaceSettingsTarget(null);
+            }}
+            onClose={() => setSpaceSettingsTarget(null)}
+          />
+        );
+      })()}
     </div>
   );
 }
