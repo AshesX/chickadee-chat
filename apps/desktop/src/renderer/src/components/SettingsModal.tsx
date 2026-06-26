@@ -381,38 +381,38 @@ export function SettingsModal({
   const SETTINGS_SEARCH_INDEX: SearchEntry[] = [
     { label: 'Avatar', description: 'Set or change your profile picture', tab: 'profile', sectionId: 'section-avatar', keywords: ['photo', 'picture', 'image', 'crop', 'pfp'] },
     { label: 'Display Name', description: 'Change your name shown to others', tab: 'profile', sectionId: 'section-display-name', keywords: ['name', 'username', 'handle'] },
-    { label: 'Input Device', description: 'Choose your microphone', tab: 'audio', sectionId: 'section-devices', keywords: ['microphone', 'mic', 'input', 'device'] },
-    { label: 'Output Device', description: 'Choose your speakers or headphones', tab: 'audio', sectionId: 'section-devices', keywords: ['speaker', 'headphones', 'output', 'device', 'playback'] },
-    { label: 'Mic Volume', description: 'Adjust microphone gain and boost', tab: 'audio', sectionId: 'section-devices', keywords: ['gain', 'volume', 'boost', 'mic level'] },
-    { label: 'Input Mode', description: 'Open Mic, Voice Activation, or Push-to-Talk', tab: 'audio', sectionId: 'section-input-mode', keywords: ['ptt', 'push to talk', 'voice activation', 'vad', 'open mic', 'transmit', 'sensitivity', 'threshold'] },
-    { label: 'Push-to-Talk Key', description: 'Set the keybind for push-to-talk', tab: 'keybindings', sectionId: 'section-kb-voice', keywords: ['ptt', 'push to talk', 'keybind', 'hotkey', 'key', 'bind'] },
-    { label: 'Mute Key', description: 'Set the keybind to mute/unmute mic', tab: 'keybindings', sectionId: 'section-kb-voice', keywords: ['mute', 'unmute', 'keybind', 'hotkey', 'key', 'bind'] },
-    { label: 'Noise Suppression', description: 'Remove background noise from your mic', tab: 'audio', sectionId: 'section-processing', keywords: ['noise', 'background', 'suppress', 'filter', 'processing'] },
-    { label: 'Noise Gate', description: 'Quiet your mic during pauses in Open Mic mode', tab: 'audio', sectionId: 'section-input-mode', keywords: ['noise gate', 'gate', 'open mic', 'background', 'expander', 'quiet', 'pauses', 'hold', 'release', 'hangover', 'sensitivity', 'threshold'] },
-    { label: 'Echo Cancellation', description: 'Prevent speaker audio feeding back into mic', tab: 'audio', sectionId: 'section-processing', keywords: ['echo', 'feedback', 'cancellation', 'processing'] },
-    { label: 'Auto Gain Control', description: 'Automatically adjust mic input level', tab: 'audio', sectionId: 'section-processing', keywords: ['agc', 'auto gain', 'automatic', 'level', 'processing'] },
+    { label: 'Input Device', description: 'Select your active microphone', tab: 'audio', sectionId: 'section-devices', keywords: ['microphone', 'mic', 'input', 'device'] },
+    { label: 'Output Device', description: 'Select your speakers or headphones', tab: 'audio', sectionId: 'section-devices', keywords: ['speaker', 'headphones', 'output', 'device', 'playback'] },
+    { label: 'Mic Volume', description: 'Adjust mic level and boost', tab: 'audio', sectionId: 'section-devices', keywords: ['gain', 'volume', 'boost', 'mic level'] },
+    { label: 'Input Mode', description: 'Open Mic, Voice, or Push-to-Talk', tab: 'audio', sectionId: 'section-input-mode', keywords: ['ptt', 'push to talk', 'voice activation', 'vad', 'open mic', 'transmit', 'sensitivity', 'threshold'] },
+    { label: 'Push-to-Talk Key', description: 'System-wide hotkey for push-to-talk', tab: 'keybindings', sectionId: 'section-kb-voice', keywords: ['ptt', 'push to talk', 'keybind', 'hotkey', 'key', 'bind'] },
+    { label: 'Mute Key', description: 'System-wide hotkey to mute/unmute mic', tab: 'keybindings', sectionId: 'section-kb-voice', keywords: ['mute', 'unmute', 'keybind', 'hotkey', 'key', 'bind'] },
+    { label: 'Noise Suppression', description: 'Removes steady background noise while speaking', tab: 'audio', sectionId: 'section-processing', keywords: ['noise', 'background', 'suppress', 'filter', 'processing'] },
+    { label: 'Noise Gate', description: 'Mutes mic when not speaking to hide background noise', tab: 'audio', sectionId: 'section-input-mode', keywords: ['noise gate', 'gate', 'open mic', 'background', 'expander', 'quiet', 'pauses', 'hold', 'release', 'hangover', 'sensitivity', 'threshold'] },
+    { label: 'Echo Cancellation', description: 'Prevents mic from picking up speaker audio', tab: 'audio', sectionId: 'section-processing', keywords: ['echo', 'feedback', 'cancellation', 'processing'] },
+    { label: 'Auto Gain Control', description: 'Automatically adjusts mic volume to a consistent level', tab: 'audio', sectionId: 'section-processing', keywords: ['agc', 'auto gain', 'automatic', 'level', 'processing'] },
     { label: 'Camera Resolution', description: 'Set streaming resolution for your camera', tab: 'video', sectionId: 'section-camera', keywords: ['camera', 'resolution', '720p', '1080p', '4k', 'quality', 'fps', 'framerate'] },
-    { label: 'Screen Share Quality', description: 'Cap resolution and framerate for screen sharing', tab: 'video', sectionId: 'section-screen-share', keywords: ['screen share', 'screen capture', 'resolution', 'framerate', 'fps', 'quality'] },
-    { label: 'Default Video Button', description: 'Whether the video button starts camera or screen share', tab: 'video', sectionId: 'section-video-default', keywords: ['default', 'video', 'camera', 'screen share', 'button'] },
-    { label: 'Sound Effects', description: 'Enable or disable audio cues for join, leave, mute, etc.', tab: 'sfx', keywords: ['sfx', 'sounds', 'audio cues', 'join', 'leave', 'beep', 'chime', 'notification'] },
-    { label: 'SFX Volume', description: 'Adjust the volume of sound effects', tab: 'sfx', keywords: ['sfx volume', 'sound effects volume', 'sounds'] },
-    { label: 'Text-to-Speech', description: 'Read incoming chat messages aloud when unfocused', tab: 'chat', sectionId: 'section-chat-settings', keywords: ['tts', 'text to speech', 'read aloud', 'voice', 'speak', 'speech'] },
-    { label: 'Chat Voice', description: 'Voice others hear when reading your messages', tab: 'chat', sectionId: 'section-chat-settings', keywords: ['tts', 'voice', 'text to speech', 'preference', 'uk', 'female', 'male'] },
-    { label: 'Chat Font Size', description: 'Scale the size of chat text', tab: 'chat', sectionId: 'section-chat-settings', keywords: ['font', 'size', 'scale', 'text', 'chat', 'zoom'] },
-    { label: 'Chat Width', description: 'Adjust how wide the chat panel is', tab: 'chat', sectionId: 'section-chat-settings', keywords: ['width', 'panel', 'chat', 'size', 'scale'] },
-    { label: 'Chat Position', description: 'Place the chat panel on left or right', tab: 'chat', sectionId: 'section-chat-settings', keywords: ['chat', 'position', 'left', 'right', 'layout', 'side'] },
-    { label: 'Theme', description: 'Light or Dark', tab: 'ui', keywords: ['theme', 'color', 'dark', 'light', 'swiss', 'alabaster', 'coffee', 'appearance', 'colours'] },
-    { label: 'UI Scale', description: 'Zoom the entire app interface', tab: 'ui', keywords: ['scale', 'zoom', 'size', 'ui', 'interface', 'accessibility', 'dpi'] },
-    { label: 'Launch on Startup', description: 'Open automatically when Windows starts', tab: 'app', keywords: ['startup', 'autostart', 'boot', 'launch', 'windows', 'login'] },
-    { label: 'Minimize to Tray', description: 'Keep running in background when window is closed', tab: 'app', keywords: ['tray', 'close', 'minimize', 'background', 'quit', 'system tray'] },
-    { label: 'Always on Top', description: 'Pin the window above all other apps', tab: 'app', keywords: ['always on top', 'pin', 'window', 'focus', 'float'] },
-    { label: 'Taskbar Badge', description: 'Show unread count on taskbar when unfocused', tab: 'app', keywords: ['badge', 'taskbar', 'unread', 'notification', 'count'] },
-    { label: 'Deafen Key', description: 'Set the keybind to deafen/undeafen', tab: 'keybindings', sectionId: 'section-kb-voice', keywords: ['deafen', 'keybind', 'hotkey', 'bind'] },
-    { label: 'Camera Key', description: 'Set the keybind to toggle camera', tab: 'keybindings', sectionId: 'section-kb-video', keywords: ['camera', 'keybind', 'hotkey', 'video', 'bind'] },
-    { label: 'Screen Share Key', description: 'Set the keybind to toggle screen share', tab: 'keybindings', sectionId: 'section-kb-video', keywords: ['screen share', 'keybind', 'hotkey', 'bind'] },
-    { label: 'Chat Panel Key', description: 'Set the keybind to toggle chat', tab: 'keybindings', sectionId: 'section-kb-chat', keywords: ['chat', 'keybind', 'hotkey', 'bind'] },
-    { label: 'TTS Toggle Key', description: 'Set the keybind to toggle TTS', tab: 'keybindings', sectionId: 'section-kb-chat', keywords: ['tts', 'keybind', 'hotkey', 'bind'] },
-    { label: 'TTS Stop Key', description: 'Set the keybind to stop current TTS', tab: 'keybindings', sectionId: 'section-kb-chat', keywords: ['tts', 'stop', 'keybind', 'hotkey', 'bind'] },
+    { label: 'Screen Share Quality', description: 'Maximum resolution and framerate for screen sharing', tab: 'video', sectionId: 'section-screen-share', keywords: ['screen share', 'screen capture', 'resolution', 'framerate', 'fps', 'quality'] },
+    { label: 'Default Video Button', description: 'Action when clicking Video button while inactive', tab: 'video', sectionId: 'section-video-default', keywords: ['default', 'video', 'camera', 'screen share', 'button'] },
+    { label: 'Sound Effects', description: 'Enable or disable all audio cues', tab: 'sfx', keywords: ['sfx', 'sounds', 'audio cues', 'join', 'leave', 'beep', 'chime', 'notification'] },
+    { label: 'SFX Volume', description: 'Sound effects volume', tab: 'sfx', keywords: ['sfx volume', 'sound effects volume', 'sounds'] },
+    { label: 'Text-to-Speech', description: 'Speaks new messages when app is unfocused', tab: 'chat', sectionId: 'section-chat-settings', keywords: ['tts', 'text to speech', 'read aloud', 'voice', 'speak', 'speech'] },
+    { label: 'Chat Voice', description: 'Your voice for others using TTS', tab: 'chat', sectionId: 'section-chat-settings', keywords: ['tts', 'voice', 'text to speech', 'preference', 'uk', 'female', 'male'] },
+    { label: 'Chat Font Size', description: 'Chat message text size', tab: 'chat', sectionId: 'section-chat-settings', keywords: ['font', 'size', 'scale', 'text', 'chat', 'zoom'] },
+    { label: 'Chat Width', description: 'Room chat panel width', tab: 'chat', sectionId: 'section-chat-settings', keywords: ['width', 'panel', 'chat', 'size', 'scale'] },
+    { label: 'Chat Position', description: 'Dock chat to the left or right', tab: 'chat', sectionId: 'section-chat-settings', keywords: ['chat', 'position', 'left', 'right', 'layout', 'side'] },
+    { label: 'Theme', description: 'Application color theme', tab: 'ui', keywords: ['theme', 'color', 'dark', 'light', 'swiss', 'alabaster', 'coffee', 'appearance', 'colours'] },
+    { label: 'UI Scale', description: 'Adjust overall application size', tab: 'ui', keywords: ['scale', 'zoom', 'size', 'ui', 'interface', 'accessibility', 'dpi'] },
+    { label: 'Launch on Startup', description: 'Start app when Windows boots', tab: 'app', keywords: ['startup', 'autostart', 'boot', 'launch', 'windows', 'login'] },
+    { label: 'Minimize to Tray', description: 'Minimize to tray keeps voice connected', tab: 'app', keywords: ['tray', 'close', 'minimize', 'background', 'quit', 'system tray'] },
+    { label: 'Always on Top', description: 'Pin window above other apps', tab: 'app', keywords: ['always on top', 'pin', 'window', 'focus', 'float'] },
+    { label: 'Taskbar Badge', description: 'Show unread count on taskbar icon', tab: 'app', keywords: ['badge', 'taskbar', 'unread', 'notification', 'count'] },
+    { label: 'Deafen Key', description: 'System-wide hotkey to deafen/undeafen', tab: 'keybindings', sectionId: 'section-kb-voice', keywords: ['deafen', 'keybind', 'hotkey', 'bind'] },
+    { label: 'Camera Key', description: 'System-wide hotkey to toggle camera', tab: 'keybindings', sectionId: 'section-kb-video', keywords: ['camera', 'keybind', 'hotkey', 'video', 'bind'] },
+    { label: 'Screen Share Key', description: 'System-wide hotkey to toggle screen share', tab: 'keybindings', sectionId: 'section-kb-video', keywords: ['screen share', 'keybind', 'hotkey', 'bind'] },
+    { label: 'Chat Panel Key', description: 'System-wide hotkey to toggle chat', tab: 'keybindings', sectionId: 'section-kb-chat', keywords: ['chat', 'keybind', 'hotkey', 'bind'] },
+    { label: 'TTS Toggle Key', description: 'System-wide hotkey to toggle TTS', tab: 'keybindings', sectionId: 'section-kb-chat', keywords: ['tts', 'keybind', 'hotkey', 'bind'] },
+    { label: 'TTS Stop Key', description: 'System-wide hotkey to stop current TTS', tab: 'keybindings', sectionId: 'section-kb-chat', keywords: ['tts', 'stop', 'keybind', 'hotkey', 'bind'] },
   ];
 
   const SUBSECTIONS: Partial<Record<string, { label: string; id: string }[]>> = {
@@ -802,7 +802,7 @@ export function SettingsModal({
                 </label>
 
                 <div id="section-accent" className="settings-subdivision" style={{ marginTop: '16px' }}>Accent Color</div>
-                <span className="settings-row__hint">Colors your avatar ring and the glow shown when you speak. Synced to everyone; leave on auto for an assigned color.</span>
+                <span className="settings-row__hint">Avatar ring and speaking glow color. Auto-assigns if cleared.</span>
                 <div className="accent-swatches">
                   {USER_COLORS.map((c) => (
                     <button
@@ -860,7 +860,7 @@ export function SettingsModal({
                 <div className="settings-row">
                   <div className="settings-row__label">
                     <span>Input device (microphone)</span>
-                    <span className="settings-row__hint">Switches your mic live without dropping the call.</span>
+                    <span className="settings-row__hint">Select your active microphone.</span>
                   </div>
                   <CustomSelect
                     value={inputDeviceId}
@@ -876,7 +876,7 @@ export function SettingsModal({
                 <div className="settings-row">
                   <div className="settings-row__label">
                     <span>Mic volume</span>
-                    <span className="settings-row__hint">Adjust mic volume. Levels above 100% act as a gain boost (which also helps the voice threshold trigger).</span>
+                    <span className="settings-row__hint">Adjust mic level. &gt;100% boosts gain and threshold sensitivity.</span>
                   </div>
                   <div className="mic-control-wrap">
                     <SettingsSlider
@@ -901,7 +901,7 @@ export function SettingsModal({
                 <div className="settings-row">
                   <div className="settings-row__label">
                     <span>Output device (speakers)</span>
-                    <span className="settings-row__hint">Where other people's audio plays.</span>
+                    <span className="settings-row__hint">Select your speakers or headphones.</span>
                   </div>
                   <CustomSelect
                     value={outputDeviceId}
@@ -917,7 +917,7 @@ export function SettingsModal({
                 <div className="settings-row">
                   <div className="settings-row__label">
                     <span>Output volume</span>
-                    <span className="settings-row__hint">Master volume for all incoming peer audio. Levels above 100% act as a boost and may distort.</span>
+                    <span className="settings-row__hint">Master volume for incoming audio. &gt;100% may distort.</span>
                   </div>
                   <SettingsSlider
                     min={0}
@@ -942,7 +942,7 @@ export function SettingsModal({
                 <div className="settings-row">
                   <div className="settings-row__label">
                     <span>How your mic transmits</span>
-                    <span className="settings-row__hint">Open Mic: always live. Voice Activation: opens when you speak. Push-to-Talk: only while the key is held/toggled.</span>
+                    <span className="settings-row__hint">Open Mic: always live. Voice: opens when speaking. PTT: key press required.</span>
                   </div>
                   <div className="seg-group">
                     <button
@@ -965,7 +965,7 @@ export function SettingsModal({
                     <div className="settings-row">
                       <div className="settings-row__label">
                         <span>Voice threshold</span>
-                        <span className="settings-row__hint">How loud you must be before your voice transmits. Higher = you must speak louder. The line on the meter is the cutoff — you transmit when the bar passes it.</span>
+                        <span className="settings-row__hint">Minimum volume required to transmit. Higher requires louder speech.</span>
                       </div>
                       <div className="mic-control-wrap">
                         <SettingsSlider
@@ -989,7 +989,7 @@ export function SettingsModal({
                     <div className="settings-row">
                       <div className="settings-row__label">
                         <span>Voice hold time</span>
-                        <span className="settings-row__hint">How long the mic stays open after you stop talking, so word endings and short pauses aren't clipped. <strong>Currently {vadReleaseMs} ms.</strong></span>
+                        <span className="settings-row__hint">Duration mic stays open after speaking ends. <strong>Currently {vadReleaseMs} ms.</strong></span>
                       </div>
                       <SettingsSlider
                         value={vadReleaseMs}
@@ -1010,7 +1010,7 @@ export function SettingsModal({
                     <div className="settings-row">
                       <div className="settings-row__label">
                         <span>Noise gate</span>
-                        <span className="settings-row__hint">Quiets your mic while you're not talking, so others don't hear background noise during pauses. Different from Noise suppression, which cleans noise out of your voice while you talk. Turn off for a raw, unprocessed mic.</span>
+                        <span className="settings-row__hint">Mutes mic when not speaking to hide background noise. Turn off for raw mic.</span>
                       </div>
                       <Toggle on={openMicNoiseReductionEnabled} onClick={() => onChangeOpenMicNoiseReductionEnabled(!openMicNoiseReductionEnabled)} />
                     </div>
@@ -1020,7 +1020,7 @@ export function SettingsModal({
                         <div className="settings-row">
                           <div className="settings-row__label">
                             <span>Speech threshold</span>
-                            <span className="settings-row__hint">How loud a sound must be to count as speech and open the gate. Higher = you must speak louder. The line on the meter is the cutoff — the gate opens when the bar passes it.</span>
+                            <span className="settings-row__hint">Volume required to open gate. Bar must pass line.</span>
                           </div>
                           <div className="mic-control-wrap">
                             <SettingsSlider
@@ -1044,7 +1044,7 @@ export function SettingsModal({
                         <div className="settings-row">
                           <div className="settings-row__label">
                             <span>Reduction amount</span>
-                            <span className="settings-row__hint">How much to attenuate background noise. {openMicReductionDb} dB{openMicReductionDb <= -40 ? ' (near silent)' : ''}.</span>
+                            <span className="settings-row__hint">Amount to reduce background noise. {openMicReductionDb} dB{openMicReductionDb <= -40 ? ' (near silent)' : ''}.</span>
                           </div>
                           <SettingsSlider
                             min={-40}
@@ -1064,7 +1064,7 @@ export function SettingsModal({
                         <div className="settings-row">
                           <div className="settings-row__label">
                             <span>Gate hold time</span>
-                            <span className="settings-row__hint">How long the gate stays open after you stop talking, so word endings and short pauses aren't cut down to background level. Currently {openMicReleaseMs} ms.</span>
+                            <span className="settings-row__hint">Duration gate remains open after speaking ends. Currently {openMicReleaseMs} ms.</span>
                           </div>
                           <SettingsSlider
                             value={openMicReleaseMs}
@@ -1087,7 +1087,7 @@ export function SettingsModal({
                     <div className="settings-row">
                       <div className="settings-row__label">
                         <span>Push-to-talk mode</span>
-                        <span className="settings-row__hint">Hold: mic live while key held. Toggle: press to unmute, press again to mute.</span>
+                        <span className="settings-row__hint">Hold: live while pressed. Toggle: press to mute/unmute.</span>
                       </div>
                       <div className="seg-group">
                         <button
@@ -1104,7 +1104,7 @@ export function SettingsModal({
                     <div className="settings-row">
                       <div className="settings-row__label">
                         <span>Push-to-talk key</span>
-                        <span className="settings-row__hint">Captured system-wide — pick a key you don't use in-game.</span>
+                        <span className="settings-row__hint">System-wide hotkey. Pick an unused key.</span>
                       </div>
                       <div className="keybind-row">
                         <button
@@ -1135,7 +1135,7 @@ export function SettingsModal({
                 <div className="settings-row">
                   <div className="settings-row__label">
                     <span>Noise suppression</span>
-                    <span className="settings-row__hint">Filter that removes steady background noise from your voice as you talk. Different from the open-mic Noise gate, which only quiets your mic during pauses.</span>
+                    <span className="settings-row__hint">Removes steady background noise while speaking.</span>
                   </div>
                   <Toggle on={noiseSuppression} onClick={() => onChangeNoiseSuppression(!noiseSuppression)} />
                 </div>
@@ -1143,7 +1143,7 @@ export function SettingsModal({
                 <div className="settings-row">
                   <div className="settings-row__label">
                     <span>Echo cancellation</span>
-                    <span className="settings-row__hint">Removes speaker echo picked up by the mic. Turn off if using headphones with a dedicated mic.</span>
+                    <span className="settings-row__hint">Prevents mic from picking up speaker audio. Disable if using headphones.</span>
                   </div>
                   <Toggle on={echoCancellation} onClick={() => onChangeEchoCancellation(!echoCancellation)} />
                 </div>
@@ -1151,7 +1151,7 @@ export function SettingsModal({
                 <div className="settings-row">
                   <div className="settings-row__label">
                     <span>Automatic gain control</span>
-                    <span className="settings-row__hint">Auto-levels your mic volume. Turn off if you prefer manual control.</span>
+                    <span className="settings-row__hint">Automatically adjusts mic volume to a consistent level.</span>
                   </div>
                   <Toggle on={autoGainControl} onClick={() => onChangeAutoGainControl(!autoGainControl)} />
                 </div>
@@ -1159,7 +1159,7 @@ export function SettingsModal({
                 <div className="settings-row">
                   <div className="settings-row__label">
                     <span>Normalize voices</span>
-                    <span className="settings-row__hint">Auto-levels how loud <em>others</em> sound — boosts quiet people, tames loud ones. Applies to incoming audio only.</span>
+                    <span className="settings-row__hint">Auto-levels incoming audio. Boosts quiet users, tames loud ones.</span>
                   </div>
                   <Toggle on={normalizeVoices} onClick={() => onChangeNormalizeVoices(!normalizeVoices)} />
                 </div>
@@ -1173,7 +1173,7 @@ export function SettingsModal({
                 <div className="settings-row">
                   <div className="settings-row__label">
                     <span>Default action</span>
-                    <span className="settings-row__hint">Choose the default action for the Video button when both camera and screen share are off.</span>
+                    <span className="settings-row__hint">Action when clicking Video button while inactive.</span>
                   </div>
                   <div className="seg-group">
                     <button
@@ -1201,7 +1201,7 @@ export function SettingsModal({
                 <div className="settings-row" style={{ opacity: hasCamera ? 1 : 0.5, pointerEvents: hasCamera ? undefined : 'none' }}>
                   <div className="settings-row__label">
                     <span>Streaming resolution</span>
-                    <span className="settings-row__hint">Higher resolutions require significantly more bandwidth.</span>
+                    <span className="settings-row__hint">Higher resolutions require more bandwidth.</span>
                   </div>
                   <select 
                     className="welcome__input" 
@@ -1220,7 +1220,7 @@ export function SettingsModal({
                 <div className="settings-row" style={{ opacity: hasCamera ? 1 : 0.5, pointerEvents: hasCamera ? undefined : 'none' }}>
                   <div className="settings-row__label">
                     <span>Framerate</span>
-                    <span className="settings-row__hint">Frames per second for your camera stream.</span>
+                    <span className="settings-row__hint">Camera stream framerate.</span>
                   </div>
                   <select 
                     className="welcome__input" 
@@ -1240,7 +1240,7 @@ export function SettingsModal({
                 <div className="settings-row">
                   <div className="settings-row__label">
                     <span>Screen resolution limit</span>
-                    <span className="settings-row__hint">Cap the maximum resolution when sharing your screen.</span>
+                    <span className="settings-row__hint">Maximum resolution for screen sharing.</span>
                   </div>
                   <select 
                     className="welcome__input" 
@@ -1258,7 +1258,7 @@ export function SettingsModal({
                 <div className="settings-row">
                   <div className="settings-row__label">
                     <span>Screen framerate limit</span>
-                    <span className="settings-row__hint">Max frames per second for screen sharing.</span>
+                    <span className="settings-row__hint">Maximum framerate for screen sharing.</span>
                   </div>
                   <select 
                     className="welcome__input" 
@@ -1279,7 +1279,7 @@ export function SettingsModal({
                 <div className="settings-row">
                   <div className="settings-row__label">
                     <span>Sound effects</span>
-                    <span className="settings-row__hint">Master switch for all audio cues.</span>
+                    <span className="settings-row__hint">Enable or disable all audio cues.</span>
                   </div>
                   <Toggle on={sfxEnabled} onClick={() => onChangeSfxEnabled(!sfxEnabled)} />
                 </div>
@@ -1287,7 +1287,7 @@ export function SettingsModal({
                 <div className="settings-row" style={{ paddingLeft: 16, opacity: sfxEnabled ? 1 : 0.45, pointerEvents: sfxEnabled ? undefined : 'none' }}>
                   <div className="settings-row__label">
                     <span>Room join / leave</span>
-                    <span className="settings-row__hint">When you or a peer join or leave a room.</span>
+                    <span className="settings-row__hint">Plays when someone joins or leaves.</span>
                   </div>
                   <Toggle on={sfxJoinLeaveEnabled} onClick={() => onChangeSfxJoinLeaveEnabled(!sfxJoinLeaveEnabled)} />
                 </div>
@@ -1295,7 +1295,7 @@ export function SettingsModal({
                 <div className="settings-row" style={{ paddingLeft: 16, opacity: sfxEnabled ? 1 : 0.45, pointerEvents: sfxEnabled ? undefined : 'none' }}>
                   <div className="settings-row__label">
                     <span>Mic mute / unmute</span>
-                    <span className="settings-row__hint">When you mute or unmute your microphone.</span>
+                    <span className="settings-row__hint">Plays when toggling mic mute.</span>
                   </div>
                   <Toggle on={sfxMuteEnabled} onClick={() => onChangeSfxMuteEnabled(!sfxMuteEnabled)} />
                 </div>
@@ -1303,7 +1303,7 @@ export function SettingsModal({
                 <div className="settings-row" style={{ paddingLeft: 16, opacity: sfxEnabled ? 1 : 0.45, pointerEvents: sfxEnabled ? undefined : 'none' }}>
                   <div className="settings-row__label">
                     <span>Mute / unmute others</span>
-                    <span className="settings-row__hint">When you silence or unsilence another user.</span>
+                    <span className="settings-row__hint">Plays when silencing/unsilencing others.</span>
                   </div>
                   <Toggle on={sfxMuteOtherEnabled} onClick={() => onChangeSfxMuteOtherEnabled(!sfxMuteOtherEnabled)} />
                 </div>
@@ -1311,7 +1311,7 @@ export function SettingsModal({
                 <div className="settings-row" style={{ paddingLeft: 16, opacity: sfxEnabled ? 1 : 0.45, pointerEvents: sfxEnabled ? undefined : 'none' }}>
                   <div className="settings-row__label">
                     <span>Transmission start / stop</span>
-                    <span className="settings-row__hint">When voice activation or push-to-talk opens or closes.</span>
+                    <span className="settings-row__hint">Plays when mic opens or closes.</span>
                   </div>
                   <Toggle on={sfxTransmitEnabled} onClick={() => onChangeSfxTransmitEnabled(!sfxTransmitEnabled)} />
                 </div>
@@ -1319,7 +1319,7 @@ export function SettingsModal({
                 <div className="settings-row" style={{ paddingLeft: 16, opacity: sfxEnabled ? 1 : 0.45, pointerEvents: sfxEnabled ? undefined : 'none' }}>
                   <div className="settings-row__label">
                     <span>Chat messages</span>
-                    <span className="settings-row__hint">When an incoming chat message arrives.</span>
+                    <span className="settings-row__hint">Plays on incoming chat messages.</span>
                   </div>
                   <Toggle on={sfxChatEnabled} onClick={() => onChangeSfxChatEnabled(!sfxChatEnabled)} />
                 </div>
@@ -1327,7 +1327,7 @@ export function SettingsModal({
                 <div className="settings-row" style={{ paddingLeft: 16, opacity: sfxEnabled ? 1 : 0.45, pointerEvents: sfxEnabled ? undefined : 'none' }}>
                   <div className="settings-row__label">
                     <span>Deafen / undeafen</span>
-                    <span className="settings-row__hint">When you toggle deafen mode.</span>
+                    <span className="settings-row__hint">Plays when toggling deafen.</span>
                   </div>
                   <Toggle on={sfxDeafenEnabled} onClick={() => onChangeSfxDeafenEnabled(!sfxDeafenEnabled)} />
                 </div>
@@ -1335,7 +1335,7 @@ export function SettingsModal({
                 <div className="settings-row">
                   <div className="settings-row__label">
                     <span>SFX volume</span>
-                    <span className="settings-row__hint">Adjust volume level of sound effects.</span>
+                    <span className="settings-row__hint">Sound effects volume.</span>
                   </div>
                   <input
                     type="range"
@@ -1356,7 +1356,7 @@ export function SettingsModal({
               <div className="settings-row">
                 <div className="settings-row__label">
                   <span>Theme</span>
-                  <span className="settings-row__hint">Pick a color theme for the whole app.</span>
+                  <span className="settings-row__hint">Application color theme.</span>
                 </div>
                 <div className="seg-group">
                   <button
@@ -1373,7 +1373,7 @@ export function SettingsModal({
               <div className="settings-row">
                 <div className="settings-row__label">
                   <span>UI Scale Slider</span>
-                  <span className="settings-row__hint">Scale the size of all application elements.</span>
+                  <span className="settings-row__hint">Adjust overall application size.</span>
                 </div>
                 <div className="mic-control-wrap" style={{ marginTop: '12px' }}>
                   <SettingsSlider
@@ -1398,7 +1398,7 @@ export function SettingsModal({
               <div className="settings-row">
                 <div className="settings-row__label">
                   <span>Chat Width Scale</span>
-                  <span className="settings-row__hint">Adjust the width of the room chat panel (from 100% to 200%).</span>
+                  <span className="settings-row__hint">Room chat panel width (100% - 200%).</span>
                 </div>
                 <div className="mic-control-wrap">
                   <SettingsSlider
@@ -1424,7 +1424,7 @@ export function SettingsModal({
               <div className="settings-row">
                 <div className="settings-row__label">
                   <span>Sidebar Width Scale</span>
-                  <span className="settings-row__hint">Adjust the width of the sidebar in both compact and full view (from 100% to 200%).</span>
+                  <span className="settings-row__hint">Sidebar width (100% - 200%).</span>
                 </div>
                 <div className="mic-control-wrap">
                   <SettingsSlider
@@ -1456,7 +1456,7 @@ export function SettingsModal({
               <div className="settings-row">
                 <div className="settings-row__label">
                   <span>Chat Font Scale</span>
-                  <span className="settings-row__hint">Adjust the size of the text messages in the chat panel.</span>
+                  <span className="settings-row__hint">Chat message text size.</span>
                 </div>
                 <div className="mic-control-wrap">
                   <SettingsSlider
@@ -1481,7 +1481,7 @@ export function SettingsModal({
               <div className="settings-row">
                 <div className="settings-row__label">
                   <span>Chat position</span>
-                  <span className="settings-row__hint">Align the chat panel on either the left or right side of the screen.</span>
+                  <span className="settings-row__hint">Dock chat to the left or right.</span>
                 </div>
                 <div className="seg-group">
                   <button
@@ -1498,7 +1498,7 @@ export function SettingsModal({
               <div className="settings-row">
                 <div className="settings-row__label">
                   <span>Read messages aloud (Text-to-Speech)</span>
-                  <span className="settings-row__hint">When the app is minimized or unfocused, new chat messages are spoken using your system voice.</span>
+                  <span className="settings-row__hint">Speaks new messages when app is unfocused.</span>
                 </div>
                 <Toggle on={chatTtsEnabled} onClick={() => onChangeChatTtsEnabled(!chatTtsEnabled)} />
               </div>
@@ -1506,7 +1506,7 @@ export function SettingsModal({
               <div className="settings-row">
                 <div className="settings-row__label">
                   <span>Speak sender's name</span>
-                  <span className="settings-row__hint">Read "[name] says:" before each message. Turn off to hear just the message text.</span>
+                  <span className="settings-row__hint">Reads &quot;[name] says&quot; before messages.</span>
                 </div>
                 <Toggle on={chatTtsSpeakName} onClick={() => onChangeChatTtsSpeakName(!chatTtsSpeakName)} />
               </div>
@@ -1514,7 +1514,7 @@ export function SettingsModal({
               <div className="settings-row">
                 <div className="settings-row__label">
                   <span>My chat voice</span>
-                  <span className="settings-row__hint">How your messages sound to others who have read-aloud on. Each listener's app matches it to the closest voice their system has.</span>
+                  <span className="settings-row__hint">Your voice for others using TTS. Listeners match this to their closest system voice.</span>
                 </div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   <CustomSelect
@@ -1612,51 +1612,8 @@ export function SettingsModal({
                 
                 <div className="settings-row">
                   <div className="settings-row__label">
-                    <span>Push-to-talk mode</span>
-                    <span className="settings-row__hint">Hold: mic live while key held. Toggle: press to unmute, press again to mute.</span>
-                  </div>
-                  <div className="seg-group">
-                    <button
-                      className={`seg-btn${pttMode === 'hold' ? ' seg-btn--active' : ''}`}
-                      onClick={() => onChangePttMode('hold')}
-                    >Hold</button>
-                    <button
-                      className={`seg-btn${pttMode === 'toggle' ? ' seg-btn--active' : ''}`}
-                      onClick={() => onChangePttMode('toggle')}
-                    >Toggle</button>
-                  </div>
-                </div>
-
-                <div className="settings-row">
-                  <div className="settings-row__label">
-                    <span>Push-to-talk key</span>
-                    <span className="settings-row__hint">Captured system-wide — pick a key you don't use in-game.</span>
-                  </div>
-                  <div className="keybind-row">
-                    <button
-                      className={`rebind${capturing === 'ptt' ? ' rebind--active' : ''}`}
-                      onClick={() => startCapture('ptt')}
-                      onKeyDown={capturing === 'ptt' ? (e) => onRebindKey(e, onChangePushToTalkKey) : undefined}
-                    >
-                      {capturing === 'ptt' ? 'Press a key…' : (pushToTalkKey || 'Unbound')}
-                    </button>
-                    {pushToTalkKey && (
-                      <button
-                        className="unbind-btn"
-                        onClick={() => onChangePushToTalkKey('')}
-                        title="Clear keybind"
-                        aria-label="Clear Push-to-talk keybind"
-                      >
-                        <X size={14} />
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="settings-row">
-                  <div className="settings-row__label">
                     <span>Mute mode</span>
-                    <span className="settings-row__hint">Hold: mic muted while key held. Toggle: press to toggle mute on/off.</span>
+                    <span className="settings-row__hint">Hold: muted while pressed. Toggle: press to mute/unmute.</span>
                   </div>
                   <div className="seg-group">
                     <button
@@ -1672,8 +1629,41 @@ export function SettingsModal({
 
                 <div className="settings-row">
                   <div className="settings-row__label">
+                    <span>Deafen mode</span>
+                    <span className="settings-row__hint">Hold: deafened while pressed. Toggle: press to deafen/undeafen.</span>
+                  </div>
+                  <div className="seg-group">
+                    <button
+                      className={`seg-btn${deafenMode === 'hold' ? ' seg-btn--active' : ''}`}
+                      onClick={() => onChangeDeafenMode('hold')}
+                    >Hold</button>
+                    <button
+                      className={`seg-btn${deafenMode === 'toggle' ? ' seg-btn--active' : ''}`}
+                      onClick={() => onChangeDeafenMode('toggle')}
+                    >Toggle</button>
+                  </div>
+                </div>
+
+                <div className="settings-row">
+                  <div className="settings-row__label">
+                    <span>Push-to-talk mode</span>
+                    <span className="settings-row__hint">Hold: live while pressed. Toggle: press to mute/unmute.</span>
+                  </div>
+                  <div className="seg-group">
+                    <button
+                      className={`seg-btn${pttMode === 'hold' ? ' seg-btn--active' : ''}`}
+                      onClick={() => onChangePttMode('hold')}
+                    >Hold</button>
+                    <button
+                      className={`seg-btn${pttMode === 'toggle' ? ' seg-btn--active' : ''}`}
+                      onClick={() => onChangePttMode('toggle')}
+                    >Toggle</button>
+                  </div>
+                </div>
+
+                <div className="settings-row">
+                  <div className="settings-row__label">
                     <span>Mute key</span>
-                    <span className="settings-row__hint">Captured system-wide — press to mute/unmute your microphone.</span>
                   </div>
                   <div className="keybind-row">
                     <button
@@ -1698,25 +1688,7 @@ export function SettingsModal({
 
                 <div className="settings-row">
                   <div className="settings-row__label">
-                    <span>Deafen mode</span>
-                    <span className="settings-row__hint">Hold: deafened while key held. Toggle: press to toggle deafen on/off.</span>
-                  </div>
-                  <div className="seg-group">
-                    <button
-                      className={`seg-btn${deafenMode === 'hold' ? ' seg-btn--active' : ''}`}
-                      onClick={() => onChangeDeafenMode('hold')}
-                    >Hold</button>
-                    <button
-                      className={`seg-btn${deafenMode === 'toggle' ? ' seg-btn--active' : ''}`}
-                      onClick={() => onChangeDeafenMode('toggle')}
-                    >Toggle</button>
-                  </div>
-                </div>
-
-                <div className="settings-row">
-                  <div className="settings-row__label">
                     <span>Deafen key</span>
-                    <span className="settings-row__hint">Captured system-wide — press to deafen/undeafen.</span>
                   </div>
                   <div className="keybind-row">
                     <button
@@ -1732,6 +1704,31 @@ export function SettingsModal({
                         onClick={() => onChangeDeafenKey('')}
                         title="Clear keybind"
                         aria-label="Clear Deafen keybind"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="settings-row">
+                  <div className="settings-row__label">
+                    <span>Push-to-talk key</span>
+                  </div>
+                  <div className="keybind-row">
+                    <button
+                      className={`rebind${capturing === 'ptt' ? ' rebind--active' : ''}`}
+                      onClick={() => startCapture('ptt')}
+                      onKeyDown={capturing === 'ptt' ? (e) => onRebindKey(e, onChangePushToTalkKey) : undefined}
+                    >
+                      {capturing === 'ptt' ? 'Press a key…' : (pushToTalkKey || 'Unbound')}
+                    </button>
+                    {pushToTalkKey && (
+                      <button
+                        className="unbind-btn"
+                        onClick={() => onChangePushToTalkKey('')}
+                        title="Clear keybind"
+                        aria-label="Clear Push-to-talk keybind"
                       >
                         <X size={14} />
                       </button>
@@ -1842,7 +1839,7 @@ export function SettingsModal({
                 <div className="settings-row">
                   <div className="settings-row__label">
                     <span>Launch on startup</span>
-                    <span className="settings-row__hint">Open Chickadee automatically when Windows boots.</span>
+                    <span className="settings-row__hint">Start app when Windows boots.</span>
                   </div>
                   <Toggle on={launchOnStartup} onClick={() => onChangeLaunchOnStartup(!launchOnStartup)} />
                 </div>
@@ -1850,7 +1847,7 @@ export function SettingsModal({
                 <div className="settings-row">
                   <div className="settings-row__label">
                     <span>When closing the window</span>
-                    <span className="settings-row__hint">Minimize to tray keeps you connected to voice in the background.</span>
+                    <span className="settings-row__hint">Minimize to tray keeps voice connected.</span>
                   </div>
                   <div className="seg-group">
                     <button
@@ -1867,7 +1864,7 @@ export function SettingsModal({
                 <div className="settings-row">
                   <div className="settings-row__label">
                     <span>Always on top</span>
-                    <span className="settings-row__hint">Pin the window above other apps — handy on a single monitor.</span>
+                    <span className="settings-row__hint">Pin window above other apps.</span>
                   </div>
                   <Toggle on={alwaysOnTop} onClick={() => onChangeAlwaysOnTop(!alwaysOnTop)} />
                 </div>
@@ -1875,7 +1872,7 @@ export function SettingsModal({
                 <div className="settings-row">
                   <div className="settings-row__label">
                     <span>Taskbar unread badge</span>
-                    <span className="settings-row__hint">Show count of unread messages on the app icon when unfocused.</span>
+                    <span className="settings-row__hint">Show unread count on taskbar icon.</span>
                   </div>
                   <Toggle on={badgeNotificationsEnabled} onClick={() => onChangeBadgeNotificationsEnabled(!badgeNotificationsEnabled)} />
                 </div>
@@ -1885,7 +1882,7 @@ export function SettingsModal({
                 <div className="settings-row" style={{ marginTop: '10px' }}>
                   <div className="settings-row__label">
                     <span style={{ color: 'var(--danger-text)', fontWeight: 600 }}>Reset Application Settings</span>
-                    <span className="settings-row__hint">Restore all settings (audio, video, hotkeys, UI) to default. Profile and Spaces are kept.</span>
+                    <span className="settings-row__hint">Restore settings to defaults. Profiles and Spaces are preserved.</span>
                   </div>
                   <button
                     className="danger-action-btn"
