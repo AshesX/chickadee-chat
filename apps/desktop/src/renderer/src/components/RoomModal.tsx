@@ -54,13 +54,13 @@ export function RoomModal({
               className={`seg-btn${type === 'voice' ? ' seg-btn--active' : ''}`}
               onClick={() => setType('voice')}
             >
-              <Mic size={13} /> Voice <span className="seg-btn__cap">{capacityForType('voice')}</span>
+              <Mic size={13} /> Voice <span className="seg-btn__cap"> (max {capacityForType('voice')} users)</span>
             </button>
             <button
               className={`seg-btn${type === 'video' ? ' seg-btn--active' : ''}`}
               onClick={() => setType('video')}
             >
-              <Video size={13} /> Video <span className="seg-btn__cap">{capacityForType('video')}</span>
+              <Video size={13} /> Video <span className="seg-btn__cap"> (max {capacityForType('video')} users)</span>
             </button>
           </div>
         </div>

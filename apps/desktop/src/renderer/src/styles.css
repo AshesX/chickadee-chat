@@ -2236,7 +2236,7 @@ input:focus-visible,
 }
 
 .switch--on {
-  background: var(--active-bg);
+  background: #e9e9e9;
   border-color: var(--active-border);
 }
 
@@ -2253,7 +2253,7 @@ input:focus-visible,
 
 .switch--on .switch__knob {
   left: 18px;
-  background: var(--active-text);
+  background: var(--orange);
 }
 
 /* Push-to-talk rebind button */
@@ -2306,6 +2306,10 @@ input:focus-visible,
   border-color: var(--block-bg);
   color: var(--block-fg);
   background: var(--block-bg);
+}
+
+.seg-btn__cap {
+  font-weight: 400;
 }
 
 /* Side-by-side Mode (left) + Key (right) in the room chevron menus. */

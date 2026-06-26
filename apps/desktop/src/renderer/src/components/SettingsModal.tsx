@@ -989,7 +989,7 @@ export function SettingsModal({
                     <div className="settings-row">
                       <div className="settings-row__label">
                         <span>Voice hold time</span>
-                        <span className="settings-row__hint">How long the mic stays open after you stop talking, so word endings and short pauses aren't clipped. Currently {vadReleaseMs} ms.</span>
+                        <span className="settings-row__hint">How long the mic stays open after you stop talking, so word endings and short pauses aren't clipped. <strong>Currently {vadReleaseMs} ms.</strong></span>
                       </div>
                       <SettingsSlider
                         value={vadReleaseMs}
@@ -1135,7 +1135,7 @@ export function SettingsModal({
                 <div className="settings-row">
                   <div className="settings-row__label">
                     <span>Noise suppression</span>
-                    <span className="settings-row__hint">Chromium's built-in filter that removes steady background noise from your voice as you talk. Different from the open-mic Noise gate, which only quiets your mic during pauses.</span>
+                    <span className="settings-row__hint">Filter that removes steady background noise from your voice as you talk. Different from the open-mic Noise gate, which only quiets your mic during pauses.</span>
                   </div>
                   <Toggle on={noiseSuppression} onClick={() => onChangeNoiseSuppression(!noiseSuppression)} />
                 </div>
@@ -1394,37 +1394,6 @@ export function SettingsModal({
                   />
                 </div>
               </div>
-              </>
-            )}
-
-            {activeTab === 'chat' && (
-              <>
-              <div id="section-chat-settings" className="settings-subdivision">Chat Settings</div>
-
-              <div className="settings-row">
-                <div className="settings-row__label">
-                  <span>Chat Font Scale</span>
-                  <span className="settings-row__hint">Adjust the size of the text messages in the chat panel.</span>
-                </div>
-                <div className="mic-control-wrap">
-                  <SettingsSlider
-                    min={0.5}
-                    max={2.0}
-                    step={0.1}
-                    value={chatFontScale}
-                    onChange={onChangeChatFontScale}
-                    markers={[0.5, 1.0, 1.5, 2.0]}
-                    labels={[
-                      { value: 0.5, text: '50%' },
-                      { value: 1.0, text: '100% (Default)' },
-                      { value: 1.5, text: '150%' },
-                      { value: 2.0, text: '200%' }
-                    ]}
-                    snapThreshold={0.08}
-                    commitOnRelease={false}
-                  />
-                </div>
-              </div>
 
               <div className="settings-row">
                 <div className="settings-row__label">
@@ -1473,6 +1442,37 @@ export function SettingsModal({
                       { value: 2.0, text: '200%' }
                     ]}
                     snapThreshold={0.04}
+                    commitOnRelease={false}
+                  />
+                </div>
+              </div>
+              </>
+            )}
+
+            {activeTab === 'chat' && (
+              <>
+              <div id="section-chat-settings" className="settings-subdivision">Chat Settings</div>
+
+              <div className="settings-row">
+                <div className="settings-row__label">
+                  <span>Chat Font Scale</span>
+                  <span className="settings-row__hint">Adjust the size of the text messages in the chat panel.</span>
+                </div>
+                <div className="mic-control-wrap">
+                  <SettingsSlider
+                    min={0.5}
+                    max={2.0}
+                    step={0.1}
+                    value={chatFontScale}
+                    onChange={onChangeChatFontScale}
+                    markers={[0.5, 1.0, 1.5, 2.0]}
+                    labels={[
+                      { value: 0.5, text: '50%' },
+                      { value: 1.0, text: '100% (Default)' },
+                      { value: 1.5, text: '150%' },
+                      { value: 2.0, text: '200%' }
+                    ]}
+                    snapThreshold={0.08}
                     commitOnRelease={false}
                   />
                 </div>
