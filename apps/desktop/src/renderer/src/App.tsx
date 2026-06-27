@@ -976,8 +976,6 @@ export function App(): React.JSX.Element {
       <div className="main">
         <RoomHeader
           room={currentRoom}
-          count={totalInRoom}
-          maxCount={currentRoomCap}
           chatOpen={chatOpen}
           onToggleChat={toggleChat}
           hasSpace={currentSpaceId !== null}
