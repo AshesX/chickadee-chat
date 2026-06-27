@@ -1508,19 +1508,7 @@ input:focus-visible,
   font-size: 11px;
 }
 
-.audio-menu__slider {
-  width: 100%;
-  accent-color: var(--orange);
-  cursor: pointer;
-}
 
-.audio-menu__vol-labels {
-  display: flex;
-  justify-content: space-between;
-  font-size: 9px;
-  color: var(--dim);
-  margin-top: 2px;
-}
 
 .audio-menu__divider {
   border: none;
@@ -1542,36 +1530,7 @@ input:focus-visible,
   color: var(--text-sub);
 }
 
-/* ── Input mode menu ──────────────────────────────────────── */
-.input-mode-switcher {
-  display: flex;
-  gap: 2px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-btn);
-  padding: 2px;
-  margin-bottom: 10px;
-}
 
-.input-mode-switcher__btn {
-  flex: 1;
-  padding: 4px 6px;
-  font-size: 11px;
-  border-radius: calc(var(--radius-btn) - 2px);
-  color: var(--dim);
-  text-align: center;
-  transition: all 0.12s ease;
-}
-
-.input-mode-switcher__btn.active {
-  background: var(--active-bg);
-  color: var(--text);
-}
-
-.input-mode-switcher__btn:hover:not(.active) {
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text-sub);
-}
 
 .audio-menu__toggle-row {
   display: flex;
@@ -2862,8 +2821,11 @@ input:focus-visible,
   width: 96px;
   flex-shrink: 0;
   accent-color: var(--orange);
-  background: transparent;
   cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 16px;
+  background: transparent;
 }
 
 .settings-slider:disabled {
@@ -2871,16 +2833,7 @@ input:focus-visible,
   cursor: not-allowed;
 }
 
-/* Two-tone "boost" variant: filled track is the accent up to --boost, then --red
-   beyond it (clamped to --fill), so the over-100% portion reads as non-standard. */
-.settings-slider--boost {
-  -webkit-appearance: none;
-  appearance: none;
-  height: 16px;
-  background: transparent;
-}
-
-.settings-slider--boost::-webkit-slider-runnable-track {
+.settings-slider::-webkit-slider-runnable-track {
   height: 6px;
   border-radius: var(--radius-pill);
   background: linear-gradient(to right,
@@ -2892,7 +2845,7 @@ input:focus-visible,
       var(--border) 100%);
 }
 
-.settings-slider--boost::-webkit-slider-thumb {
+.settings-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   width: 14px;

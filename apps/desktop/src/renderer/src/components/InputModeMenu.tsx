@@ -2,6 +2,7 @@ import { Settings } from 'lucide-react';
 import { GATE_THRESHOLD_MIN, GATE_THRESHOLD_MAX, thresholdToPct } from '../lib/audioGate';
 import { KeybindControl } from './KeybindControl';
 import { ChevronMenu } from './ChevronMenu';
+import { SettingsSlider } from './SettingsSlider';
 
 interface InputModeMenuProps {
   inputMode: 'voice' | 'ptt';
@@ -39,12 +40,12 @@ export function InputModeMenu({
 
   return (
     <ChevronMenu anchorRect={anchorRect} onClose={onClose} width={280} className="audio-menu">
-        <div className="input-mode-switcher">
+        <div className="seg-group" style={{ marginBottom: 10 }}>
           {(['voice', 'ptt'] as const).map((m) => (
             <button
               key={m}
               type="button"
-              className={`input-mode-switcher__btn${inputMode === m ? ' active' : ''}`}
+              className={`seg-btn${inputMode === m ? ' seg-btn--active' : ''}`}
               onClick={() => onSwitchMode(m)}
             >
               {MODE_LABELS[m]}
@@ -63,22 +64,23 @@ export function InputModeMenu({
         )}
 
         {inputMode === 'voice' && (
-          <>
-            <div className="audio-menu__section-label">Threshold — {vadPct}%</div>
-            <input
-              type="range"
-              className="audio-menu__slider"
+          <div style={{ padding: '0 12px 12px' }}>
+            <div className="audio-menu__section-label" style={{ marginBottom: 8 }}>Threshold — {vadPct}%</div>
+            <SettingsSlider
               min={GATE_THRESHOLD_MIN}
               max={GATE_THRESHOLD_MAX}
               step={0.001}
               value={vadThreshold}
-              onChange={(e) => onChangeVadThreshold(Number(e.target.value))}
+              onChange={onChangeVadThreshold}
+              markers={[GATE_THRESHOLD_MIN, 0.1, GATE_THRESHOLD_MAX]}
+              labels={[
+                { value: GATE_THRESHOLD_MIN, text: 'Low' },
+                { value: 0.1, text: 'Medium' },
+                { value: GATE_THRESHOLD_MAX, text: 'High' },
+              ]}
+              snapThreshold={0.0005}
             />
-            <div className="audio-menu__vol-labels">
-              <span>Low</span>
-              <span>High</span>
-            </div>
-          </>
+          </div>
         )}
 
         <hr className="audio-menu__divider" />
