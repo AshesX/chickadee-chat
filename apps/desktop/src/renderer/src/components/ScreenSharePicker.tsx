@@ -40,34 +40,36 @@ export function ScreenSharePicker({ onPick, onClose }: ScreenSharePickerProps): 
   const windows = sources?.filter((s) => !s.id.startsWith('screen:')) ?? [];
 
   return (
-    <div className="modal" role="dialog" aria-modal="true" onClick={onClose}>
-      <div className="modal__panel" onClick={(e) => e.stopPropagation()}>
-        <div className="modal__head">
-          <h2 className="modal__title">Share a screen or window</h2>
-          <button className="modal__close" onClick={onClose} aria-label="Close">
+    <div className="modal-overlay" role="dialog" aria-modal="true" onClick={onClose}>
+      <div className="modal-panel modal-panel--wide" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-panel__head">
+          <h2 className="modal-panel__title">Share a screen or window</h2>
+          <button className="icon-btn" onClick={onClose} aria-label="Close">
             ✕
           </button>
         </div>
 
-        <label className="modal__audio">
-          <input
-            type="checkbox"
-            checked={withAudio}
-            onChange={(e) => setWithAudio(e.target.checked)}
-          />
-          Share system / game audio
-        </label>
+        <div className="modal-panel__body">
+          <label className="srcpicker__audio">
+            <input
+              type="checkbox"
+              checked={withAudio}
+              onChange={(e) => setWithAudio(e.target.checked)}
+            />
+            Share system / game audio
+          </label>
 
-        {error && <p className="error">{error}</p>}
-        {!sources && !error && <p className="hint">Loading sources…</p>}
+          {error && <p className="error">{error}</p>}
+          {!sources && !error && <p className="hint">Loading sources…</p>}
 
-        {sources && (
-          <div className="modal__scroll">
-            {renderGroup('Screens', screens, withAudio, onPick)}
-            {renderGroup('Windows', windows, withAudio, onPick)}
-            {sources.length === 0 && <p className="hint">No shareable sources found.</p>}
-          </div>
-        )}
+          {sources && (
+            <>
+              {renderGroup('Screens', screens, withAudio, onPick)}
+              {renderGroup('Windows', windows, withAudio, onPick)}
+              {sources.length === 0 && <p className="hint">No shareable sources found.</p>}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

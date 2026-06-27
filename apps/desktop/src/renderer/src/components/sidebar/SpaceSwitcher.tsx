@@ -193,7 +193,7 @@ export function SpaceSwitcher({
                       onMouseLeave={() => setHoveredSpaceId(null)}
                       title="Copy Space Code"
                     >
-                      {copiedSpaceId === s.id ? <Check size={12} style={{ color: '#4ade80' }} /> : <Copy size={12} />}
+                      {copiedSpaceId === s.id ? <Check size={12} style={{ color: 'var(--green)' }} /> : <Copy size={12} />}
                     </button>
                     <button
                       className="space-dropdown__item-settings"

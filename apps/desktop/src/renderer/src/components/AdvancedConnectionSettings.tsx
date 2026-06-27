@@ -46,7 +46,7 @@ export function AdvancedConnectionSettings({
             marginTop: '8px',
             padding: '8px 12px',
             background: 'var(--bg-mid)',
-            borderRadius: 'var(--radius-panel)',
+            borderRadius: 'var(--r-2)',
             display: 'flex',
             flexDirection: 'column',
             gap: '8px',

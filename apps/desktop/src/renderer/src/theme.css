@@ -33,18 +33,11 @@
      (e.g. a warm amber) — do NOT replace var(--idle) usages with var(--orange). */
   --idle: var(--orange);
   --offline: #b5b0a8;
-  --dnd: var(--red);
 
-  /* Actions / active — warm orange; brick red for destructive */
-  --danger: var(--red);
-  --danger-text: #c20114; /* brick reads as danger text on the alabaster canvas */
+  /* Actions / active — warm orange (destructive uses --red directly). */
   --gradient: linear-gradient(135deg, var(--orange), #f59000);
   --active-bg: color-mix(in srgb, var(--orange) 16%, transparent);
-  --active-border: var(--orange);
   --active-text: #ab4e00;
-  --room-active-count-bg: var(--active-border);
-
-
 
   /* Supporting */
   --scrollbar: #c7c7c2;
@@ -61,24 +54,49 @@
   --on-accent: #1f1300;       /* text on an orange block (active control buttons) */
   --badge-fg: #e9e9e9;        /* text on media (tile badges) */
   --scrim: rgba(31, 19, 0, 0.45);
-  --shadow-color: rgba(31, 19, 0, 0.18);
+  --shadow-color: rgba(31, 19, 0, 0.24); /* bumped from .18 so tint shadows keep depth */
 
-  /* Geometry — near-square Swiss grid (avatars/dots stay round via hardcoded 50%) */
-  --radius-tile: 3px;
-  --radius-panel: 3px;
-  --radius-badge: 2px;
-  --radius-pill: 2px;
-  --radius-btn: 2px;
-  --gap-grid: 10px;
-  --gap-layout: 14px;
+  /* ── Ultra-Lean primitives ──────────────────────────────────
+     Terse visual scales (see plan act-as-a-strict-deep-puzzle.md).
+     Avatars/dots stay round via literal 50%. */
 
-  /* 4px-based spacing scale */
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;
-  --icon-gap: 8px; /* canonical icon-to-text gap */
+  /* Radius — 2 tiers */
+  --r-1: 4px;   /* controls + small surfaces */
+  --r-2: 12px;  /* modals, dropdowns, popovers */
+
+  /* Spacing — pure 4px scale */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+
+  /* Type — 4 sizes */
+  --fs-1: 12px;
+  --fs-2: 14px;
+  --fs-3: 16px;
+  --fs-4: 20px;
+
+  /* Weight — 2 */
+  --fw-1: 500;
+  --fw-2: 700;
+
+  /* Veils — translucent ink overlays (hover / active) */
+  --veil-1: color-mix(in srgb, var(--tint) 6%, transparent);
+  --veil-2: color-mix(in srgb, var(--tint) 12%, transparent);
+
+  /* Elevation — 2 shadows on one tint (--shadow-color above) */
+  --sh-1: 0 8px 28px var(--shadow-color);
+  --sh-2: 0 24px 60px var(--shadow-color);
+
+  /* Danger surface */
+  --danger-bg: color-mix(in srgb, var(--red) 16%, transparent);
+
+  /* Motion */
+  --dur-1: 0.12s;
+  --dur-2: 0.24s;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 * {
@@ -95,7 +113,7 @@ body,
 
 body {
   font-family: 'Space Grotesk', 'Outfit', -apple-system, system-ui, sans-serif;
-  font-size: 14px;
+  font-size: var(--fs-2);
   color: var(--text);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
@@ -126,7 +144,7 @@ body::before {
 }
 ::-webkit-scrollbar-thumb {
   background: var(--scrollbar);
-  border-radius: var(--radius-pill);
+  border-radius: var(--r-1);
 }
 
 input::placeholder {

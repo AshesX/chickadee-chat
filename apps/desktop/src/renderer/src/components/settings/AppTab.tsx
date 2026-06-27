@@ -69,7 +69,7 @@ export function AppTab({
 
       <div className="settings-row" style={{ marginTop: '10px' }}>
         <div className="settings-row__label">
-          <span style={{ color: 'var(--danger-text)', fontWeight: 600 }}>Reset Application Settings</span>
+          <span style={{ color: 'var(--red)', fontWeight: 600 }}>Reset Application Settings</span>
           <span className="settings-row__hint">Restore settings to defaults. Profiles and Spaces are preserved.</span>
         </div>
         <button

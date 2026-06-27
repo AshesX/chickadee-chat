@@ -319,7 +319,7 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
               {activeTab === 'ui' && 'User Interface'}
               {activeTab === 'app' && 'App Settings'}
             </h2>
-            <button className="settings-content__close" onClick={onClose} aria-label="Close settings">
+            <button className="icon-btn" onClick={onClose} aria-label="Close settings">
               <X size={18} />
             </button>
           </div>

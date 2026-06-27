@@ -41,7 +41,7 @@ export function SfxTab({
         <Toggle on={sfxEnabled} onClick={() => onChangeSfxEnabled(!sfxEnabled)} />
       </div>
 
-      <div className="settings-row" style={{ paddingLeft: 16, opacity: sfxEnabled ? 1 : 0.45, pointerEvents: sfxEnabled ? undefined : 'none' }}>
+      <div className={`settings-row settings-row--nested${sfxEnabled ? '' : ' is-disabled'}`}>
         <div className="settings-row__label">
           <span>Room join / leave</span>
           <span className="settings-row__hint">Plays when someone joins or leaves.</span>
@@ -49,7 +49,7 @@ export function SfxTab({
         <Toggle on={sfxJoinLeaveEnabled} onClick={() => onChangeSfxJoinLeaveEnabled(!sfxJoinLeaveEnabled)} />
       </div>
 
-      <div className="settings-row" style={{ paddingLeft: 16, opacity: sfxEnabled ? 1 : 0.45, pointerEvents: sfxEnabled ? undefined : 'none' }}>
+      <div className={`settings-row settings-row--nested${sfxEnabled ? '' : ' is-disabled'}`}>
         <div className="settings-row__label">
           <span>Mic mute / unmute</span>
           <span className="settings-row__hint">Plays when toggling mic mute.</span>
@@ -57,7 +57,7 @@ export function SfxTab({
         <Toggle on={sfxMuteEnabled} onClick={() => onChangeSfxMuteEnabled(!sfxMuteEnabled)} />
       </div>
 
-      <div className="settings-row" style={{ paddingLeft: 16, opacity: sfxEnabled ? 1 : 0.45, pointerEvents: sfxEnabled ? undefined : 'none' }}>
+      <div className={`settings-row settings-row--nested${sfxEnabled ? '' : ' is-disabled'}`}>
         <div className="settings-row__label">
           <span>Mute / unmute others</span>
           <span className="settings-row__hint">Plays when silencing/unsilencing others.</span>
@@ -65,7 +65,7 @@ export function SfxTab({
         <Toggle on={sfxMuteOtherEnabled} onClick={() => onChangeSfxMuteOtherEnabled(!sfxMuteOtherEnabled)} />
       </div>
 
-      <div className="settings-row" style={{ paddingLeft: 16, opacity: sfxEnabled ? 1 : 0.45, pointerEvents: sfxEnabled ? undefined : 'none' }}>
+      <div className={`settings-row settings-row--nested${sfxEnabled ? '' : ' is-disabled'}`}>
         <div className="settings-row__label">
           <span>Transmission start / stop</span>
           <span className="settings-row__hint">Plays when mic opens or closes.</span>
@@ -73,7 +73,7 @@ export function SfxTab({
         <Toggle on={sfxTransmitEnabled} onClick={() => onChangeSfxTransmitEnabled(!sfxTransmitEnabled)} />
       </div>
 
-      <div className="settings-row" style={{ paddingLeft: 16, opacity: sfxEnabled ? 1 : 0.45, pointerEvents: sfxEnabled ? undefined : 'none' }}>
+      <div className={`settings-row settings-row--nested${sfxEnabled ? '' : ' is-disabled'}`}>
         <div className="settings-row__label">
           <span>Chat messages</span>
           <span className="settings-row__hint">Plays on incoming chat messages.</span>
@@ -81,7 +81,7 @@ export function SfxTab({
         <Toggle on={sfxChatEnabled} onClick={() => onChangeSfxChatEnabled(!sfxChatEnabled)} />
       </div>
 
-      <div className="settings-row" style={{ paddingLeft: 16, opacity: sfxEnabled ? 1 : 0.45, pointerEvents: sfxEnabled ? undefined : 'none' }}>
+      <div className={`settings-row settings-row--nested${sfxEnabled ? '' : ' is-disabled'}`}>
         <div className="settings-row__label">
           <span>Deafen / undeafen</span>
           <span className="settings-row__hint">Plays when toggling deafen.</span>

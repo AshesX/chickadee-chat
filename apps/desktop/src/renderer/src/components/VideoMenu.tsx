@@ -75,7 +75,7 @@ export function VideoMenu({
             <button
               type="button"
               className={`seg-btn${cameraEnabled ? ' seg-btn--active' : ''}`}
-              style={{ width: '100%', borderRadius: 'var(--radius-badge)', textAlign: 'center', marginBottom: 10 }}
+              style={{ width: '100%', borderRadius: 'var(--r-1)', textAlign: 'center', marginBottom: 10 }}
               onClick={onToggleCamera}
             >
               {cameraEnabled ? 'Stop Camera' : 'Start Camera'}
@@ -106,7 +106,7 @@ export function VideoMenu({
         <button
           type="button"
           className={`seg-btn${sharingScreen ? ' seg-btn--active' : ''}`}
-          style={{ width: '100%', borderRadius: 'var(--radius-badge)', textAlign: 'center', marginBottom: 10 }}
+          style={{ width: '100%', borderRadius: 'var(--r-1)', textAlign: 'center', marginBottom: 10 }}
           onClick={onToggleShare}
         >
           {sharingScreen ? 'Stop Sharing' : 'Share Screen'}

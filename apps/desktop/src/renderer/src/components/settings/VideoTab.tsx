@@ -57,7 +57,7 @@ export function VideoTab({
           className="welcome__input"
           value={videoQuality}
           onChange={(e) => onChangeVideoQuality(e.target.value as VideoQuality)}
-          style={{ width: 'auto', padding: '6px 12px' }}
+          style={{ width: 'auto' }}
         >
           <option value="max">Maximum (uncapped)</option>
           <option value="high">High</option>
@@ -108,7 +108,7 @@ export function VideoTab({
       <div id="section-camera" className="settings-subdivision" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
         <span>Camera</span>
         {!hasCamera && (
-          <span style={{ color: 'var(--danger-text)', fontSize: '11px', fontWeight: 600, textTransform: 'initial' }}>
+          <span style={{ color: 'var(--red)', fontSize: '11px', fontWeight: 600, textTransform: 'initial' }}>
             (No camera detected)
           </span>
         )}
@@ -131,7 +131,7 @@ export function VideoTab({
           className="welcome__input"
           value={cameraResolution}
           onChange={(e) => onChangeCameraResolution(e.target.value)}
-          style={{ width: 'auto', padding: '6px 12px' }}
+          style={{ width: 'auto' }}
         >
           <option value="480p">480p</option>
           <option value="720p">720p</option>
@@ -150,7 +150,7 @@ export function VideoTab({
           className="welcome__input"
           value={cameraFramerate}
           onChange={(e) => onChangeCameraFramerate(e.target.value)}
-          style={{ width: 'auto', padding: '6px 12px' }}
+          style={{ width: 'auto' }}
         >
           <option value="15">15 fps</option>
           <option value="30">30 fps</option>
@@ -170,7 +170,7 @@ export function VideoTab({
           className="welcome__input"
           value={screenResolution}
           onChange={(e) => onChangeScreenResolution(e.target.value)}
-          style={{ width: 'auto', padding: '6px 12px' }}
+          style={{ width: 'auto' }}
         >
           <option value="720p">720p</option>
           <option value="1080p">1080p</option>
@@ -188,7 +188,7 @@ export function VideoTab({
           className="welcome__input"
           value={screenFramerate}
           onChange={(e) => onChangeScreenFramerate(e.target.value)}
-          style={{ width: 'auto', padding: '6px 12px' }}
+          style={{ width: 'auto' }}
         >
           <option value="15">15 fps</option>
           <option value="30">30 fps</option>
