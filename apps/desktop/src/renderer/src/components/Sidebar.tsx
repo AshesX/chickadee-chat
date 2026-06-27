@@ -270,13 +270,15 @@ export function Sidebar({
         />
       )}
 
-      <div
-        className="sidebar__resize-handle"
-        onPointerDown={handleResizeStart}
-        title="Drag to resize sidebar"
-        role="separator"
-        aria-orientation="vertical"
-      />
+      {!compact && (
+        <div
+          className="sidebar__resize-handle"
+          onPointerDown={handleResizeStart}
+          title="Drag to resize sidebar"
+          role="separator"
+          aria-orientation="vertical"
+        />
+      )}
     </nav>
   );
 }

@@ -92,7 +92,7 @@ input:focus-visible,
   position: absolute;
   top: 0;
   bottom: 0;
-  right: 0;
+  right: -1px;
   width: 2px;
   background: transparent;
   transition: background 0.12s ease;
@@ -101,13 +101,6 @@ input:focus-visible,
 .sidebar__resize-handle:hover::after,
 .sidebar__resize-handle:active::after {
   background: var(--active-border);
-}
-
-/* In compact mode the handle sits at the window's right edge, where the window
-   controls live in the 50px header — start it below them so it can't steal clicks
-   from the close button. */
-.app--compact .sidebar__resize-handle {
-  top: 50px;
 }
 
 
@@ -1680,7 +1673,6 @@ input:focus-visible,
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius-panel);
-  overflow: hidden;
   animation: slideInRight 0.2s ease;
 }
 
@@ -1712,7 +1704,7 @@ input:focus-visible,
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 0;
+  left: -1px;
   width: 2px;
   background: transparent;
   transition: background 0.12s ease;
@@ -1720,7 +1712,7 @@ input:focus-visible,
 
 .chat-panel--left .chat-panel__resize-handle::after {
   left: auto;
-  right: 0;
+  right: -1px;
 }
 
 .chat-panel__resize-handle:hover::after,
