@@ -28,6 +28,9 @@ export interface RoomChat {
   react: (emoji: string) => void;
 }
 
+/** Cap on retained chat history — bounds the JS array and the DOM (ChatPanel renders 1:1). */
+const MAX_MESSAGES = 300;
+
 function nowTime(): string {
   return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
@@ -91,7 +94,7 @@ export function useRoomChat({ signaling, displayName, colors, roomId, onNewMessa
           // Look up the sender's synced voice preference so TTS reads them in their chosen voice.
           voicePreference: peer?.voicePreference ?? '',
         };
-        setMessages((m) => [...m, message]);
+        setMessages((m) => [...m, message].slice(-MAX_MESSAGES));
         onNewMessageRef.current?.(message);
       }
     };
@@ -102,10 +105,12 @@ export function useRoomChat({ signaling, displayName, colors, roomId, onNewMessa
     (text: string) => {
       const trimmed = text.trim();
       if (!trimmed) return;
-      setMessages((m) => [
-        ...m,
-        { id: nextId(), senderName: nameRef.current, color: SELF_COLOR, text: trimmed, time: nowTime() },
-      ]);
+      setMessages((m) =>
+        [
+          ...m,
+          { id: nextId(), senderName: nameRef.current, color: SELF_COLOR, text: trimmed, time: nowTime() },
+        ].slice(-MAX_MESSAGES),
+      );
       send({ type: 'chat', text: trimmed });
     },
     [send],

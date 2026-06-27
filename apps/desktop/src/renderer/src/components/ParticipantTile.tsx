@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { MicOff, VolumeX, Play, EyeOff } from 'lucide-react';
 import { sanitizeAvatarDataUrl } from '@chickadee/shared';
 import { usePeerAudioGraph } from '../hooks/usePeerAudioGraph';
@@ -86,7 +87,9 @@ export function ParticipantTile({
 }: ParticipantTileProps): React.JSX.Element {
   // Validate peer-supplied avatar data URLs before rendering (defense in depth;
   // the server already sanitizes, but never trust an <img src> from the wire).
-  const safeAvatarUrl = sanitizeAvatarDataUrl(avatarUrl);
+  // Memoized so the base64 validation doesn't re-run on unrelated re-renders
+  // (speaking edges, chat messages, volume drags all re-render the tile).
+  const safeAvatarUrl = useMemo(() => sanitizeAvatarDataUrl(avatarUrl), [avatarUrl]);
 
   // Incoming-audio plumbing (remote only): <video> binding, per-peer Web Audio
   // graph, live gain, and the no-AudioContext fallback. See usePeerAudioGraph.
