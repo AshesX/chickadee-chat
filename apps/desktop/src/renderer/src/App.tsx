@@ -642,10 +642,12 @@ export function App(): React.JSX.Element {
     return window.chickadee?.onWindowVisibilityChange?.(setWindowVisible);
   }, []);
 
-  // Warm the TTS voice list on startup so the first spoken message resolves the right voice.
+  // Warm the TTS voice list only when read-aloud is on, so the first spoken message resolves
+  // the right voice. When off, skip the getVoices() call + voiceschanged listener; re-runs
+  // (and warms) if read-aloud is toggled on later. initVoices is idempotent.
   useEffect(() => {
-    initVoices();
-  }, []);
+    if (chatTtsEnabled) initVoices();
+  }, [chatTtsEnabled]);
 
   // Update Electron badge count when unreadCount or badge setting changes.
   useEffect(() => {

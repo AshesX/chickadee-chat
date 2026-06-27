@@ -1,8 +1,9 @@
+import { memo } from 'react';
 import { sanitizeAvatarDataUrl } from '@chickadee/shared';
 import type { SpaceUser } from '../../hooks/useSpacePresence';
 
 /** A single entry in the sidebar USERS list: avatar + presence dot, name, and "in <room>". */
-export function FriendRow({ user: u }: { user: SpaceUser }): React.JSX.Element {
+function FriendRowImpl({ user: u }: { user: SpaceUser }): React.JSX.Element {
   // Validate peer-supplied avatar before rendering (defense in depth).
   const uAvatar = sanitizeAvatarDataUrl(u.avatarUrl);
   return (
@@ -29,3 +30,21 @@ export function FriendRow({ user: u }: { user: SpaceUser }): React.JSX.Element {
     </div>
   );
 }
+
+/**
+ * Memoized so the high-frequency App re-renders (speaking edges, volume drags, chat) don't
+ * re-render every USERS-list row. `useSpacePresence` rebuilds fresh `SpaceUser` objects each
+ * render, so a default shallow `memo` would never skip — compare the rendered fields by value.
+ */
+export const FriendRow = memo(FriendRowImpl, (prev, next) => {
+  const a = prev.user;
+  const b = next.user;
+  return (
+    a.name === b.name &&
+    a.initial === b.initial &&
+    a.color === b.color &&
+    a.status === b.status &&
+    a.where === b.where &&
+    a.avatarUrl === b.avatarUrl
+  );
+});
