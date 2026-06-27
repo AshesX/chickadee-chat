@@ -17,7 +17,7 @@ import { SELF_COLOR, useUserColors } from './lib/userColors';
 import { setOutputSink } from './lib/audioContext';
 import { store } from './lib/settings';
 import { Sidebar } from './components/Sidebar';
-import { RoomHeader } from './components/RoomHeader';
+import { TitleBar } from './components/TitleBar';
 import { ControlBar } from './components/ControlBar';
 import { ParticipantTile } from './components/ParticipantTile';
 import { ScreenView } from './components/ScreenView';
@@ -926,65 +926,62 @@ export function App(): React.JSX.Element {
       className={`app${windowFocused ? '' : ' app--unfocused'}${compactMode ? ' app--compact' : ''}`}
       style={{ '--sidebar-width-scale': sidebarWidthScale } as React.CSSProperties}
     >
-      {chat.floats.map((f) => (
-        <div key={f.id} className="float-reaction" style={{ left: `${f.x}%` }}>
-          {f.emoji}
-        </div>
-      ))}
+      <TitleBar chatOpen={chatOpen} onToggleChat={toggleChat} inRoom={inRoom} compact={compactMode} />
 
-      <Sidebar
-        rooms={rooms}
-        currentRoomId={currentRoomId}
-        onSelectRoom={joinRoom}
-        onCreateRoom={() => openExpanded(() => setCreateOpen(true))}
-        onRequestRename={(room) => openExpanded(() => setRenameTarget(room))}
-        onRemoveRoom={removeRoom}
-        users={users}
-        selfName={displayName}
-        selfColor={selfColor}
-        selfAvatarUrl={localAvatarUrl}
-        online={signaling.status === 'connected'}
-        onOpenSettings={() => openExpanded(() => setSettingsOpen(true))}
-        spaces={spaces}
-        activeSpaceId={currentSpaceId}
-        onSelectSpace={switchSpace}
-        onCreateSpace={() => openExpanded(spaceJoin.openCreateSpace)}
-        onJoinSpace={() => openExpanded(spaceJoin.openJoinSpace)}
-        onDeleteSpace={deleteSpace}
-        onSpaceSettings={(id) => openExpanded(() => setSpaceSettingsTarget(id))}
-        selfStatus={selfStatus}
-        onChangeStatus={applyStatus}
-        voiceCollapsed={voiceSectionCollapsed}
-        videoCollapsed={videoSectionCollapsed}
-        onToggleVoiceSection={toggleVoiceSection}
-        onToggleVideoSection={toggleVideoSection}
-        compact={compactMode}
-        onToggleCompact={toggleCompactMode}
-        widthScale={sidebarWidthScale}
-        onResize={handleSidebarResize}
-        micEnabled={micButtonOn}
-        hasMic={!!mesh.localStream}
-        onToggleMic={handleToggleMic}
-        deafened={deafened}
-        onToggleDeafen={toggleDeafen}
-        inputMode={inputMode}
-        onCycleInputMode={cycleInputMode}
-        hasVideoSubs={videoSubscriptions.length > 0}
-        onLeaveAllVideo={leaveAllVideo}
-        selfSpeaking={selfSpeaking}
-        speakingUserIds={speakingUserIds}
-        mutedUserIds={mutedUserIds}
-        onTogglePeerMute={togglePeerMuteByUserId}
-        onLeaveRoom={leaveRoom}
-      />
+      <div className="app-body">
+        {chat.floats.map((f) => (
+          <div key={f.id} className="float-reaction" style={{ left: `${f.x}%` }}>
+            {f.emoji}
+          </div>
+        ))}
 
-      <div className="main">
-        <RoomHeader
-          room={currentRoom}
-          chatOpen={chatOpen}
-          onToggleChat={toggleChat}
-          hasSpace={currentSpaceId !== null}
+        <Sidebar
+          rooms={rooms}
+          currentRoomId={currentRoomId}
+          onSelectRoom={joinRoom}
+          onCreateRoom={() => openExpanded(() => setCreateOpen(true))}
+          onRequestRename={(room) => openExpanded(() => setRenameTarget(room))}
+          onRemoveRoom={removeRoom}
+          users={users}
+          selfName={displayName}
+          selfColor={selfColor}
+          selfAvatarUrl={localAvatarUrl}
+          online={signaling.status === 'connected'}
+          onOpenSettings={() => openExpanded(() => setSettingsOpen(true))}
+          spaces={spaces}
+          activeSpaceId={currentSpaceId}
+          onSelectSpace={switchSpace}
+          onCreateSpace={() => openExpanded(spaceJoin.openCreateSpace)}
+          onJoinSpace={() => openExpanded(spaceJoin.openJoinSpace)}
+          onDeleteSpace={deleteSpace}
+          onSpaceSettings={(id) => openExpanded(() => setSpaceSettingsTarget(id))}
+          selfStatus={selfStatus}
+          onChangeStatus={applyStatus}
+          voiceCollapsed={voiceSectionCollapsed}
+          videoCollapsed={videoSectionCollapsed}
+          onToggleVoiceSection={toggleVoiceSection}
+          onToggleVideoSection={toggleVideoSection}
+          compact={compactMode}
+          onToggleCompact={toggleCompactMode}
+          widthScale={sidebarWidthScale}
+          onResize={handleSidebarResize}
+          micEnabled={micButtonOn}
+          hasMic={!!mesh.localStream}
+          onToggleMic={handleToggleMic}
+          deafened={deafened}
+          onToggleDeafen={toggleDeafen}
+          inputMode={inputMode}
+          onCycleInputMode={cycleInputMode}
+          hasVideoSubs={videoSubscriptions.length > 0}
+          onLeaveAllVideo={leaveAllVideo}
+          selfSpeaking={selfSpeaking}
+          speakingUserIds={speakingUserIds}
+          mutedUserIds={mutedUserIds}
+          onTogglePeerMute={togglePeerMuteByUserId}
+          onLeaveRoom={leaveRoom}
         />
+
+        <div className="main">
 
         {inRoom ? (
           <>
@@ -1163,6 +1160,7 @@ export function App(): React.JSX.Element {
             ))}
           </div>
         )}
+      </div>
       </div>
 
       {pickerOpen && (

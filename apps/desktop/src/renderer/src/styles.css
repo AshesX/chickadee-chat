@@ -5,9 +5,17 @@
   position: relative;
   z-index: 1;
   display: flex;
+  flex-direction: column;
   height: 100vh;
   overflow: hidden;
   background: var(--bg);
+}
+
+.app-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
 }
 
 .main {
@@ -133,9 +141,6 @@ input:focus-visible,
   border-radius: var(--radius-badge);
   color: var(--dim);
   opacity: 1.0;
-  /* Lives in the .sidebar__space-header drag region (frameless window); without
-     no-drag the OS swallows clicks as a window drag. */
-  -webkit-app-region: no-drag;
   transition: color 0.15s ease, background 0.15s ease, opacity 0.15s ease;
 }
 
@@ -769,42 +774,49 @@ input:focus-visible,
   font-weight: 600;
 }
 
-/* ── Room header ──────────────────────────────────────────── */
-.room-header {
+/* ── Title Bar ────────────────────────────────────────────── */
+.title-bar {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  justify-content: space-between;
   padding: 0 var(--gap-layout);
-  height: 50px;
+  height: 32px;
+  background: var(--bg);
   border-bottom: 1px solid var(--border);
-  background: color-mix(in srgb, var(--tint) 3%, transparent);
   -webkit-app-region: drag;
 }
 
-.room-header__spacer {
+.title-bar__left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.title-bar__logo {
+  width: 16px;
+  height: 16px;
+}
+
+.title-bar__wordmark {
+  font-weight: 800;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: var(--text);
+}
+
+.title-bar__spacer {
   flex: 1;
 }
 
-.room-header__title {
-  display: flex;
-  align-items: center;
-  gap: var(--icon-gap);
-  font-size: 15px;
-  font-weight: 700;
-}
-
-.room-header__title--idle {
-  color: var(--text);
-  font-weight: 600;
-}
-
-
-.room-header__title-wrap {
+.title-bar__right {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  -webkit-app-region: no-drag;
 }
+
+
 
 .pill {
   -webkit-app-region: no-drag;
@@ -2560,7 +2572,6 @@ input:focus-visible,
   height: 50px;
   border-bottom: 1px solid var(--border);
   position: relative;
-  -webkit-app-region: drag;
 }
 
 .space-info-wrap {
@@ -2579,7 +2590,6 @@ input:focus-visible,
   cursor: pointer;
   text-align: left;
   width: 100%;
-  -webkit-app-region: no-drag;
 }
 
 .space-switcher-btn__meta {

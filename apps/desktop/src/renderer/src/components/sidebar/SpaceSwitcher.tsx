@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Plus, Settings, Trash2, ChevronDown, ChevronsLeft, Copy, Check } from 'lucide-react';
 import type { SpaceInfo } from '@chickadee/shared';
-import { WindowControls } from '../WindowControls';
+
 
 interface SpaceSwitcherProps {
   spaces: SpaceInfo[];
@@ -145,7 +145,6 @@ export function SpaceSwitcher({
             className={`sidebar__collapse-icon${compact ? ' sidebar__collapse-icon--flipped' : ''}`}
           />
         </button>
-        {compact && <WindowControls showMaximize={false} />}
       </div>
 
       {switcherOpen && (

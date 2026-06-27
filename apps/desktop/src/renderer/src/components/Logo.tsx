@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 interface LogoProps {
   size?: number;
   className?: string;
+  staticLogo?: boolean;
 }
 
 // Center of Left and Right Eyes in the SVG coordinates
@@ -16,7 +17,7 @@ const ROTATION_RADIUS = 25.107053; // Math.sqrt(18.29^2 + 17.2^2)
 const BASE_ANGLE = Math.atan2(-17.2, -18.29);
 
 /** The Chickadee Chat brand logo. */
-export function Logo({ size = 24, className }: LogoProps): React.JSX.Element {
+export function Logo({ size = 24, className, staticLogo = false }: LogoProps): React.JSX.Element {
   // Refs to determine screen positioning and manipulate pupils directly
   const svgRef = useRef<SVGSVGElement>(null);
   const pupilLeftRef = useRef<SVGCircleElement>(null);
@@ -58,6 +59,11 @@ export function Logo({ size = 24, className }: LogoProps): React.JSX.Element {
         pupilRightRef.current.setAttribute('cy', String(cy));
       }
     };
+
+    if (staticLogo) {
+      updatePupilAttributes(state.leftAngle, state.rightAngle);
+      return;
+    }
 
     const animate = (time: number) => {
       const dt = (time - lastTime) / 1000; // delta time in seconds
