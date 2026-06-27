@@ -31,10 +31,6 @@ export function UiTab({
             className={`seg-btn${theme === 'light' ? ' seg-btn--active' : ''}`}
             onClick={() => onChangeTheme('light')}
           >Light</button>
-          <button
-            className={`seg-btn${theme === 'dark' ? ' seg-btn--active' : ''}`}
-            onClick={() => onChangeTheme('dark')}
-          >Dark</button>
         </div>
       </div>
 

@@ -1,66 +1,67 @@
-/* Chickadee Chat — design tokens & globals. Two themes, both Swiss "Editorial":
-   Dark = "Coffee Bean" (default; this :root) and Light = "Alabaster"
-   ([data-theme='light']). The shared Swiss structure (squared geometry, grid rules,
-   solid selection blocks, relit surfaces) lives in the [data-theme] override section
-   of styles.css and is driven entirely by the tokens below. */
+/* Chickadee Chat — design tokens & globals. One theme today: "Alabaster
+   Editorial", a light Swiss theme on the logo's Alabaster Grey. The shared Swiss
+   structure (squared geometry, grid rules, solid selection blocks, relit surfaces)
+   lives in styles.css and is driven entirely by the tokens below. A dark theme will
+   be rebuilt from the ground up on top of this baseline via a [data-theme] override.
+   Palette: Alabaster #E9E9E9, Orange #FFA400, Deep Twilight #1B065E,
+   Brick Ember #C20114, Coffee Bean #1F1300. */
 
 :root {
-  /* Surfaces — warm near-black; panel/card lifted only by tone + hairline (flat) */
-  --bg: #17110a;
-  --panel: #211810;
-  --card: #2a1f14;
-  --border: #3a2c1c;
+  /* Surfaces — alabaster canvas, near-white panels, hairline borders */
+  --bg: #e9e9e9;
+  --panel: #fdfdfc;
+  --card: #ffffff;
+  --border: #d4d4d0;
 
-  /* Text — warm alabaster + warm greys (AA on the coffee-bean canvas) */
-  --dim: #9c9081;
-  --text: #efeae2;
-  --text-sub: #c4bbac;
-  --fade: #7c6f5b;
+  /* Text — coffee-bean ink + warm greys (all AA on the alabaster canvas) */
+  --dim: #5e574d;
+  --text: #1f1300;
+  --text-sub: #4a4036;
+  --fade: #807868;
 
-  /* Semantic accent colors — each theme defines its own green/orange/red; the
+  /* Semantic accent colors — vivid grass green, brand orange, brick red; the
      status + danger tokens below derive from them so one set drives every dot,
-     warning and destructive cue. (Brick/green brightened to read on dark.) */
-  --green: #6cc72a;
+     warning and destructive cue. */
+  --green: #5fb81f;
   --orange: #ffa400;
-  --red: #e0432e;
+  --red: #c20114;
 
   /* Status (derived) */
   --online: var(--green);
   /* --idle intentionally aliases the brand --orange. Keep this token as the seam:
-     to make "Away" read distinctly later, give --idle its own value per theme
+     to make "Away" read distinctly later, give --idle its own value
      (e.g. a warm amber) — do NOT replace var(--idle) usages with var(--orange). */
   --idle: var(--orange);
-  --offline: #5a4c3a;
+  --offline: #b5b0a8;
   --dnd: var(--red);
 
-  /* Actions / active — warm orange; twilight lightened to a periwinkle for dark */
+  /* Actions / active — warm orange; brick red for destructive */
   --danger: var(--red);
-  --danger-text: #f87171; /* danger as text/icon on a subtle/transparent bg (light-red for dark) */
+  --danger-text: #c20114; /* brick reads as danger text on the alabaster canvas */
   --gradient: linear-gradient(135deg, var(--orange), #f59000);
   --active-bg: color-mix(in srgb, var(--orange) 16%, transparent);
   --active-border: var(--orange);
-  --active-text: var(--orange);
-  --room-active-count-bg: var(--bg);
+  --active-text: #ab4e00;
+  --room-active-count-bg: var(--active-border);
 
 
 
   /* Supporting */
-  --scrollbar: #43331f;
-  --placeholder: #8a7c68;
+  --scrollbar: #c7c7c2;
+  --placeholder: #6e665b;
   --glow: transparent;
 
-  /* Logo bird → warm alabaster, visible on the dark canvas (pupils use --bg) */
-  --logo-fill: #efeae2;
+  /* Logo bird → ink, readable on the alabaster canvas */
+  --logo-fill: #1f1300;
 
-  /* Structural tokens for the shared Swiss section ([data-theme] in styles.css).
-     Dark values here; the light theme redefines them. */
-  --tint: #efeae2;            /* base for surface veils / hovers / gate marker */
-  --block-bg: var(--orange);  /* selected nav block = orange */
-  --block-fg: #1f1300;        /* text/icon on the block */
+  /* Structural tokens that drive the shared Swiss section in styles.css. */
+  --tint: #1f1300;            /* base for surface veils / hovers / gate marker */
+  --block-bg: #1f1300;        /* selected nav block = ink */
+  --block-fg: #e9e9e9;        /* text/icon on the block */
   --on-accent: #1f1300;       /* text on an orange block (active control buttons) */
-  --badge-fg: #efeae2;        /* light text on dark media (tile badges) */
-  --scrim: rgba(0, 0, 0, 0.62);
-  --shadow-color: rgba(0, 0, 0, 0.55);
+  --badge-fg: #e9e9e9;        /* text on media (tile badges) */
+  --scrim: rgba(31, 19, 0, 0.45);
+  --shadow-color: rgba(31, 19, 0, 0.18);
 
   /* Geometry — near-square Swiss grid (avatars/dots stay round via hardcoded 50%) */
   --radius-tile: 3px;
@@ -78,50 +79,6 @@
   --space-4: 16px;
   --space-5: 20px;
   --icon-gap: 8px; /* canonical icon-to-text gap */
-}
-
-/* Light — "Alabaster Editorial": light Swiss theme on the logo's Alabaster Grey.
-   Overrides only what differs from the dark :root; it inherits --orange, --gradient,
-   --active-bg/-border, --on-accent, --user-1, --user-3 (via --red), --glow, the
-   geometry, the status/danger mapping and the spacing scale. Palette: Alabaster
-   #E9E9E9, Orange #FFA400, Deep Twilight #1B065E, Brick Ember #C20114, Coffee Bean #1F1300. */
-:root[data-theme='light'] {
-  /* Surfaces — alabaster canvas, near-white panels, hairline borders */
-  --bg: #e9e9e9;
-  --panel: #fdfdfc;
-  --card: #ffffff;
-  --border: #d4d4d0;
-
-  /* Text — coffee-bean ink + warm greys (all AA on the alabaster canvas) */
-  --dim: #5e574d;
-  --text: #1f1300;
-  --text-sub: #4a4036;
-  --fade: #807868;
-
-  /* Accents — vivid grass green + brick red (orange shared with dark) */
-  --green: #5fb81f;
-  --red: #c20114;
-  --offline: #b5b0a8;
-  --danger-text: #c20114; /* brick reads as danger text on the alabaster canvas */
-
-  /* Twilight active text */
-  --active-text: #ab4e00;
-  --room-active-count-bg: var(--active-border);
-
-  /* Supporting */
-  --scrollbar: #c7c7c2;
-  --placeholder: #6e665b;
-
-  /* Logo bird → ink, readable on the alabaster canvas */
-  --logo-fill: #1f1300;
-
-  /* Structural tokens — light values (ink selection block, ink-based tints) */
-  --tint: #1f1300;
-  --block-bg: #1f1300;
-  --block-fg: #e9e9e9;
-  --badge-fg: #e9e9e9;
-  --scrim: rgba(31, 19, 0, 0.45);
-  --shadow-color: rgba(31, 19, 0, 0.18);
 }
 
 * {

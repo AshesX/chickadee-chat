@@ -499,28 +499,16 @@ input:focus-visible,
   height: 27px;
   flex-shrink: 0;
   border-radius: var(--radius-btn);
-  border: 1px solid #211810;
-  background: #17110a;
+  /* The room row sits on a dark media background, so a light translucent fill
+     + outline read clearly. --active/--danger override with solid orange/red
+     below (they come later, so the base loses without needing a :not()). */
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.1);
   color: rgba(255, 255, 255, 0.95);
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
 }
 
 .room-row__mini-btn:hover:not(:disabled) {
-  background: #2a1f12;
-  border-color: #211810;
-}
-
-/* Light theme: the room row is a dark background, so a light translucent fill
-   + outline read clearly — flip back from the dark-on-orange treatment used
-   in the dark theme. Excludes --active/--danger, which stay solid orange/red
-   in both themes (those rules are higher specificity, but only because they
-   come later — :not() here keeps this override from out-ranking them). */
-:root[data-theme='light'] .room-row__mini-btn:not(.room-row__mini-btn--danger) {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.16);
-}
-
-:root[data-theme='light'] .room-row__mini-btn:hover:not(:disabled):not(.room-row__mini-btn--danger) {
   background: rgba(255, 255, 255, 0.2);
   border-color: rgba(255, 255, 255, 0.3);
 }
@@ -548,7 +536,7 @@ input:focus-visible,
 
 /* Self voice active: the compact input-mode icon greens (online-status style).
    Only sets color (the lucide icon is currentColor) — defined after the base so
-   it wins in both themes without touching the light-theme bg/border override. */
+   it wins without touching the button's bg/border fill. */
 .room-row__mini-btn--speaking {
   color: var(--green);
 }
@@ -2741,14 +2729,8 @@ input:focus-visible,
 
 .space-dropdown__row--active .space-dropdown__item-select,
 .space-dropdown__row--active .space-dropdown__item-select:hover {
-  color: #e9e9e9;
-  font-weight: 700;
-  background: #000;
-}
-
-:root[data-theme='light'] .space-dropdown__row--active .space-dropdown__item-select,
-:root[data-theme='light'] .space-dropdown__row--active .space-dropdown__item-select:hover {
   color: var(--block-fg);
+  font-weight: 700;
   background: var(--block-bg);
 }
 
@@ -3766,4 +3748,4 @@ input:focus-visible,
 }
 
 /* Component theming is handled inline above via design tokens (theme.css defines
-   the Dark default in :root and the Light overrides in [data-theme='light']). */
+   the single "Alabaster Editorial" theme in :root). */
