@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { MicOff, VolumeX, Play, EyeOff } from 'lucide-react';
 import { sanitizeAvatarDataUrl } from '@chickadee/shared';
 import { usePeerAudioGraph } from '../hooks/usePeerAudioGraph';
@@ -31,10 +31,18 @@ export interface ParticipantTileProps {
   volume?: number;
   /** Remote only: this peer's raw per-listener volume factor 0–2 (drives the hover slider). */
   peerVolume?: number;
-  /** Remote only: set this peer's per-listener volume (presence enables the hover control). */
-  onVolumeChange?: (v: number) => void;
+  /** Remote only: the peer's session id, passed back to the id-keyed callbacks. */
+  peerId?: string;
+  /** Remote only: the peer's stable userId, passed back to the video join/leave callbacks. */
+  userId?: string;
+  /**
+   * Remote only: set this peer's per-listener volume. Takes `peerId` so the
+   * handler can stay identity-stable in the parent (no per-tile closure) — that's
+   * what lets this tile's React.memo skip re-renders on other peers' updates.
+   */
+  onVolumeChange?: (peerId: string, v: number) => void;
   /** Remote only: toggle silence for this peer (click the volume icon). */
-  onToggleMute?: () => void;
+  onToggleMute?: (peerId: string) => void;
   /** Whether this participant is currently deafened. */
   deafened?: boolean;
   /** Remote only: auto-level incoming audio (compressor + makeup gain) to even out quiet/loud talkers. */
@@ -47,10 +55,10 @@ export interface ParticipantTileProps {
   windowVisible?: boolean;
   /** Remote only: whether we've opted into ("joined") this peer's video/screen. */
   subscribed?: boolean;
-  /** Remote only: join this peer's video (Watch). */
-  onJoinVideo?: () => void;
-  /** Remote only: leave this peer's video (stop watching). */
-  onLeaveVideo?: () => void;
+  /** Remote only: join this peer's video (Watch). Takes `userId` so the handler stays stable. */
+  onJoinVideo?: (userId: string) => void;
+  /** Remote only: leave this peer's video (stop watching). Takes `userId` so the handler stays stable. */
+  onLeaveVideo?: (userId: string) => void;
 }
 
 const CONN_LABEL: Partial<Record<RTCPeerConnectionState, string>> = {
@@ -61,7 +69,7 @@ const CONN_LABEL: Partial<Record<RTCPeerConnectionState, string>> = {
   closed: 'disconnected',
 };
 
-export function ParticipantTile({
+function ParticipantTileImpl({
   displayName,
   isSelf,
   muted,
@@ -74,6 +82,8 @@ export function ParticipantTile({
   speaking = false,
   volume,
   peerVolume,
+  peerId,
+  userId,
   onVolumeChange,
   onToggleMute,
   deafened,
@@ -123,7 +133,7 @@ export function ParticipantTile({
 
   // Per-listener volume control (remote peers only): a corner icon that reveals a
   // slider on hover. Edits this peer's raw volume factor; master/deafen apply separately.
-  const showVolumeControl = !isSelf && onVolumeChange != null;
+  const showVolumeControl = !isSelf && onVolumeChange != null && peerId != null;
 
   return (
     <li
@@ -178,27 +188,27 @@ export function ParticipantTile({
 
       {connNote && <div className="tile__conn">{connNote}</div>}
 
-      {showVolumeControl && (
+      {showVolumeControl && peerId != null && (
         <TileVolumeControl
           displayName={displayName}
           peerVolume={peerVolume ?? 1}
-          onVolumeChange={onVolumeChange}
-          onToggleMute={onToggleMute}
+          onVolumeChange={(v) => onVolumeChange?.(peerId, v)}
+          onToggleMute={onToggleMute ? () => onToggleMute(peerId) : undefined}
         />
       )}
 
-      {showWatch && (
-        <button type="button" className="tile__watch" onClick={onJoinVideo}>
+      {showWatch && userId != null && (
+        <button type="button" className="tile__watch" onClick={() => onJoinVideo?.(userId)}>
           <Play size={15} strokeWidth={2.5} fill="currentColor" />
           Watch
         </button>
       )}
 
-      {!isSelf && subscribed && showVideo && (
+      {!isSelf && subscribed && showVideo && userId != null && (
         <button
           type="button"
           className="tile__leave"
-          onClick={onLeaveVideo}
+          onClick={() => onLeaveVideo?.(userId)}
           title={`Stop watching ${displayName}`}
           aria-label={`Stop watching ${displayName}`}
         >
@@ -208,3 +218,11 @@ export function ParticipantTile({
     </li>
   );
 }
+
+/**
+ * Memoized so a high-frequency update to one peer (speaking edge, volume drag,
+ * mute) re-renders only that peer's tile rather than every tile in the grid.
+ * Effective only because the parent passes identity-stable, id-keyed callbacks
+ * (see App.tsx) and otherwise-primitive props.
+ */
+export const ParticipantTile = memo(ParticipantTileImpl);

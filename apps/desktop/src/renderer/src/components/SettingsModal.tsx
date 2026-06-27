@@ -99,10 +99,6 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
     props.onChangeInputMode(defaults.inputMode);
     props.onChangeVadThreshold(defaults.vadThreshold);
     props.onChangeVadReleaseMs(defaults.vadReleaseMs);
-    props.onChangeOpenMicNoiseReductionEnabled(defaults.openMicNoiseReductionEnabled);
-    props.onChangeOpenMicThreshold(defaults.openMicThreshold);
-    props.onChangeOpenMicReductionDb(defaults.openMicReductionDb);
-    props.onChangeOpenMicReleaseMs(defaults.openMicReleaseMs);
     props.onChangeTheme(defaults.theme);
     props.onChangeLaunchOnStartup(defaults.launchOnStartup);
     props.onChangeCloseBehavior(defaults.closeBehavior);
@@ -127,6 +123,7 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
     props.onChangeCameraFramerate(defaults.cameraFramerate);
     props.onChangeScreenResolution(defaults.screenResolution);
     props.onChangeScreenFramerate(defaults.screenFramerate);
+    props.onChangeVideoQuality(defaults.videoQuality);
     props.onChangeUiScale(defaults.uiScale);
     props.onChangeChatFontScale(defaults.chatFontScale);
     props.onChangeChatPosition(defaults.chatPosition);

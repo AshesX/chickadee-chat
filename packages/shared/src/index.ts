@@ -147,6 +147,14 @@ export interface SpaceInfo {
 export type ThemeName = 'dark' | 'light';
 
 /** Settings persisted to Electron userData (the renderer reads/writes via IPC). */
+/**
+ * Outbound streaming quality tier. Governs the per-sender bitrate caps for
+ * camera/screen video and the Opus audio target (see `computeMeshEncoding`).
+ * `'max'` leaves video uncapped and audio stereo (Chromium defaults); the other
+ * tiers progressively trade quality for bandwidth/CPU in the full mesh.
+ */
+export type VideoQuality = 'max' | 'high' | 'balanced' | 'saver';
+
 export interface PersistedSettings {
   /** Stable per-user id; generated once in main if missing. */
   userId: string;
@@ -164,23 +172,15 @@ export interface PersistedSettings {
   /** Per-peer output volume (0–2) keyed by stable userId, so manual boosts persist across sessions/reconnects. */
   peerVolumes: Record<string, number>;
   /**
-   * How the mic transmits: 'open' = always live, 'voice' = gated by VAD
-   * threshold, 'ptt' = push-to-talk via the hotkey. Replaces the old
-   * `pttEnabled` boolean (migrated in main: pttEnabled true → 'ptt').
+   * How the mic transmits: 'voice' = gated by VAD threshold, 'ptt' =
+   * push-to-talk via the hotkey. (The legacy always-live 'open' mode was
+   * removed; persisted 'open' is migrated to 'voice' in the renderer store.)
    */
-  inputMode: 'open' | 'voice' | 'ptt';
+  inputMode: 'voice' | 'ptt';
   /** RMS gate level (0..1) for voice-activation mode. */
   vadThreshold: number;
   /** Hangover (ms) the voice-activation gate stays open after the level drops. */
   vadReleaseMs: number;
-  /** Open-mic downward expander: attenuate background noise when not speaking. */
-  openMicNoiseReductionEnabled: boolean;
-  /** RMS speech threshold (0..1) for the open-mic expander (separate from vadThreshold). */
-  openMicThreshold: number;
-  /** Attenuation floor in dB (negative, e.g. -20) applied below the threshold. */
-  openMicReductionDb: number;
-  /** Hangover (ms) the open-mic noise gate stays open after the level drops. */
-  openMicReleaseMs: number;
   /** Preferred mic deviceId, or '' for the system default. */
   inputDeviceId: string;
   /** Preferred speaker deviceId (setSinkId), or '' for the system default. */
@@ -210,6 +210,8 @@ export interface PersistedSettings {
   cameraFramerate: string;
   screenResolution: string;
   screenFramerate: string;
+  /** Outbound streaming quality tier (bitrate caps for video + Opus audio). */
+  videoQuality: VideoQuality;
   uiScale: number;
   /** Open the app automatically when the OS starts (packaged builds). */
   launchOnStartup: boolean;
@@ -274,10 +276,6 @@ export function defaultSettings(): PersistedSettings {
     inputMode: 'voice',
     vadThreshold: 0.1,
     vadReleaseMs: 500,
-    openMicNoiseReductionEnabled: true,
-    openMicThreshold: 0.1,
-    openMicReductionDb: -20,
-    openMicReleaseMs: 500,
     inputDeviceId: '',
     outputDeviceId: '',
     // Default to unbound
@@ -302,6 +300,7 @@ export function defaultSettings(): PersistedSettings {
     cameraFramerate: '30',
     screenResolution: '1080p',
     screenFramerate: '30',
+    videoQuality: 'high',
     uiScale: 1.0,
     launchOnStartup: false,
     closeBehavior: 'quit',

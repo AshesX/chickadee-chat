@@ -1,4 +1,4 @@
-import type { ThemeName } from '@chickadee/shared';
+import type { ThemeName, VideoQuality } from '@chickadee/shared';
 import type { MediaDeviceOption } from '../../hooks/useMediaDevices';
 import type { useKeyCapture } from '../../hooks/useKeyCapture';
 
@@ -32,20 +32,12 @@ export interface SettingsModalProps {
   onChangeInputDevice: (id: string) => void;
   outputDeviceId: string;
   onChangeOutputDevice: (id: string) => void;
-  inputMode: 'open' | 'voice' | 'ptt';
-  onChangeInputMode: (mode: 'open' | 'voice' | 'ptt') => void;
+  inputMode: 'voice' | 'ptt';
+  onChangeInputMode: (mode: 'voice' | 'ptt') => void;
   vadThreshold: number;
   onChangeVadThreshold: (v: number) => void;
   vadReleaseMs: number;
   onChangeVadReleaseMs: (v: number) => void;
-  openMicNoiseReductionEnabled: boolean;
-  onChangeOpenMicNoiseReductionEnabled: (on: boolean) => void;
-  openMicThreshold: number;
-  onChangeOpenMicThreshold: (v: number) => void;
-  openMicReductionDb: number;
-  onChangeOpenMicReductionDb: (v: number) => void;
-  openMicReleaseMs: number;
-  onChangeOpenMicReleaseMs: (v: number) => void;
   theme: ThemeName;
   onChangeTheme: (t: ThemeName) => void;
   launchOnStartup: boolean;
@@ -97,6 +89,8 @@ export interface SettingsModalProps {
   onChangeScreenResolution: (res: string) => void;
   screenFramerate: string;
   onChangeScreenFramerate: (fps: string) => void;
+  videoQuality: VideoQuality;
+  onChangeVideoQuality: (q: VideoQuality) => void;
   uiScale: number;
   onChangeUiScale: (scale: number) => void;
   chatFontScale: number;

@@ -5,6 +5,7 @@ import {
   type Room,
   type SpaceInfo,
   type ThemeName,
+  type VideoQuality,
 } from '@chickadee/shared';
 
 export type { Room, SpaceInfo };
@@ -88,20 +89,14 @@ export const store = {
   getPeerVolumes: (): Record<string, number> => cache.peerVolumes ?? {},
   setPeerVolume: (userId: string, volume: number): void =>
     persist({ peerVolumes: { ...(cache.peerVolumes ?? {}), [userId]: volume } }),
-  getInputMode: (): 'open' | 'voice' | 'ptt' => cache.inputMode ?? 'voice',
-  setInputMode: (inputMode: 'open' | 'voice' | 'ptt'): void => persist({ inputMode }),
+  // Coerce here so a profile persisted with the removed 'open' mode (or a missing
+  // value) migrates to 'voice' transparently; it re-persists as 'voice' on next save.
+  getInputMode: (): 'voice' | 'ptt' => (cache.inputMode === 'ptt' ? 'ptt' : 'voice'),
+  setInputMode: (inputMode: 'voice' | 'ptt'): void => persist({ inputMode }),
   getVadThreshold: (): number => cache.vadThreshold ?? 0.1,
   setVadThreshold: (vadThreshold: number): void => persist({ vadThreshold }),
   getVadReleaseMs: (): number => cache.vadReleaseMs ?? 500,
   setVadReleaseMs: (vadReleaseMs: number): void => persist({ vadReleaseMs }),
-  getOpenMicNoiseReductionEnabled: (): boolean => cache.openMicNoiseReductionEnabled ?? true,
-  setOpenMicNoiseReductionEnabled: (openMicNoiseReductionEnabled: boolean): void => persist({ openMicNoiseReductionEnabled }),
-  getOpenMicThreshold: (): number => cache.openMicThreshold ?? 0.1,
-  setOpenMicThreshold: (openMicThreshold: number): void => persist({ openMicThreshold }),
-  getOpenMicReductionDb: (): number => cache.openMicReductionDb ?? -20,
-  setOpenMicReductionDb: (openMicReductionDb: number): void => persist({ openMicReductionDb }),
-  getOpenMicReleaseMs: (): number => cache.openMicReleaseMs ?? 500,
-  setOpenMicReleaseMs: (openMicReleaseMs: number): void => persist({ openMicReleaseMs }),
   getInputDeviceId: (): string => cache.inputDeviceId ?? '',
   setInputDeviceId: (inputDeviceId: string): void => persist({ inputDeviceId }),
   getOutputDeviceId: (): string => cache.outputDeviceId ?? '',
@@ -162,6 +157,8 @@ export const store = {
   setScreenResolution: (screenResolution: string): void => persist({ screenResolution }),
   getScreenFramerate: (): string => cache.screenFramerate ?? '30',
   setScreenFramerate: (screenFramerate: string): void => persist({ screenFramerate }),
+  getVideoQuality: (): VideoQuality => cache.videoQuality ?? 'high',
+  setVideoQuality: (videoQuality: VideoQuality): void => persist({ videoQuality }),
   getUiScale: (): number => cache.uiScale ?? 1.0,
   setUiScale: (uiScale: number): void => persist({ uiScale }),
   getLaunchOnStartup: (): boolean => cache.launchOnStartup ?? false,

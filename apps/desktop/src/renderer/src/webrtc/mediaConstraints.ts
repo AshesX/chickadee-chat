@@ -25,31 +25,25 @@ const MIC_ANALYSER_FFT_SIZE = 256;
 
 /**
  * Build the local mic processing chain on the shared AudioContext:
- *   source → gain → analyser (tap) + expander → MediaStreamDestination
- * The analyser taps *before* the expander so VAD/level detection always sees the
- * true pre-attenuation signal. Returns the nodes plus the processed wire stream.
+ *   source → gain → analyser (tap) → MediaStreamDestination
+ * The analyser taps the post-gain signal, feeding voice-activation (VAD) and the
+ * settings mic meter. Returns the nodes plus the processed wire stream.
  */
 export function createMicProcessingGraph(
   ctx: AudioContext,
   rawStream: MediaStream,
   volume: number,
-): { gainNode: GainNode; analyserNode: AnalyserNode; expanderGainNode: GainNode; processedStream: MediaStream } {
+): { gainNode: GainNode; analyserNode: AnalyserNode; processedStream: MediaStream } {
   const source = ctx.createMediaStreamSource(rawStream);
   const gainNode = ctx.createGain();
   gainNode.gain.value = volume;
   const analyserNode = ctx.createAnalyser();
   analyserNode.fftSize = MIC_ANALYSER_FFT_SIZE;
-  // Downward-expander gain, driven by useNoiseExpander in open-mic mode.
-  // Starts transparent (0 dB); the analyser taps the signal *before* it so
-  // detection always sees the true pre-attenuation level.
-  const expanderGainNode = ctx.createGain();
-  expanderGainNode.gain.value = 1;
   const destination = ctx.createMediaStreamDestination();
 
   source.connect(gainNode);
   gainNode.connect(analyserNode);
-  gainNode.connect(expanderGainNode);
-  expanderGainNode.connect(destination);
+  gainNode.connect(destination);
 
-  return { gainNode, analyserNode, expanderGainNode, processedStream: destination.stream };
+  return { gainNode, analyserNode, processedStream: destination.stream };
 }

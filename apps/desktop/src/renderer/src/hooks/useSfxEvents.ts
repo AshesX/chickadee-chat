@@ -26,7 +26,7 @@ interface UseSfxEventsOpts {
    * Changes only on deliberate mute actions, not on VAD gate transitions.
    */
   micButtonOn: boolean;
-  inputMode: 'open' | 'voice' | 'ptt';
+  inputMode: 'voice' | 'ptt';
   inRoom: boolean;
 }
 
@@ -130,7 +130,7 @@ export function useSfxEvents({
     }
     prevMicEnabledRef.current = micEnabled;
 
-    if (!sfxEnabled || !sfxTransmitEnabled || !inRoom || inputMode === 'open') return;
+    if (!sfxEnabled || !sfxTransmitEnabled || !inRoom) return;
     // Voice mode: don't play transmission sound when the gate closes due to manual mute.
     if (inputMode === 'voice' && !micButtonOn) return;
     const timeSinceRoomChange = Date.now() - lastRoomChangeRef.current;

@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 
 interface UseKeybindSyncOpts {
-  inputMode: 'open' | 'voice' | 'ptt';
+  inputMode: 'voice' | 'ptt';
   /** Persistent mute intent — when true the mic stays gated off in every mode. */
   muted: boolean;
   pushToTalkKey: string;
@@ -78,14 +78,13 @@ export function useKeybindSync({
 
   // Baseline mic gating per input mode + the persistent mute intent. While muted
   // the mic stays off in every mode (so mute survives mode switches). When not
-  // muted: PTT starts off (the key opens it), Open Mic is live, Voice Activation
-  // is left to useVoiceActivation. Re-runs on mute/mode change to re-derive the gate.
+  // muted: PTT starts off (the key opens it); Voice Activation is left to
+  // useVoiceActivation. Re-runs on mute/mode change to re-derive the gate.
   useEffect(() => {
     if (!localStream) return;
     if (muted) onPttStop();
     else if (inputMode === 'ptt') onPttStop();
-    else if (inputMode === 'open') onPttStart();
-  }, [inputMode, muted, localStream, onPttStart, onPttStop]);
+  }, [inputMode, muted, localStream, onPttStop]);
 
   // PTT toggle mode: each key press flips mic on/off.
   useEffect(() => {

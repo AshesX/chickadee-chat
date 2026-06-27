@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { PeerId } from '@chickadee/shared';
+import type { PeerId, VideoQuality } from '@chickadee/shared';
 import { createPeerLink, type PeerLink } from '../webrtc/peerLink';
 import type { MessageListener, Signaling } from './useSignaling';
 import { getSharedAudioContext } from '../lib/audioContext';
 import { RESOLUTION_MAP, createMicProcessingGraph, type ScreenAudioConstraints } from '../webrtc/mediaConstraints';
 import { deriveWants, classifyPeerStreams } from '../webrtc/meshLogic';
+import { computeMeshEncoding, type MeshEncoding } from '../webrtc/encodingParams';
 import { useAutoClearError } from './useAutoClearError';
 
 export interface RemoteMedia {
@@ -59,7 +60,6 @@ export interface PeerMesh {
   startScreenShare: (sourceId: string, withAudio: boolean) => void;
   stopScreenShare: () => void;
   analyserNode: AnalyserNode | null;
-  expanderGainNode: GainNode | null;
   teardown: () => void;
 }
 
@@ -79,6 +79,7 @@ export function usePeerMesh(
   cameraFramerate: string,
   screenResolution: string,
   screenFramerate: string,
+  videoQuality: VideoQuality,
   echoCancellation: boolean,
   autoGainControl: boolean,
   inputDeviceId: string,
@@ -109,14 +110,27 @@ export function usePeerMesh(
   const micVolumeRef = useRef(micVolume);
   micVolumeRef.current = micVolume;
 
+  // Current outbound encoding config (bitrate/framerate caps + Opus target),
+  // derived from the video settings + quality tier. Kept in a ref so each
+  // peerLink reads the latest via getEncoding without being recreated, and so a
+  // live quality change is picked up on the next apply/negotiation.
+  const encodingRef = useRef<MeshEncoding>(
+    computeMeshEncoding(cameraResolution, cameraFramerate, screenResolution, screenFramerate, videoQuality),
+  );
+  encodingRef.current = computeMeshEncoding(
+    cameraResolution,
+    cameraFramerate,
+    screenResolution,
+    screenFramerate,
+    videoQuality,
+  );
+
   const audioContextRef = useRef<AudioContext | null>(null);
   const gainNodeRef = useRef<GainNode | null>(null);
   const analyserNodeRef = useRef<AnalyserNode | null>(null);
-  const expanderGainNodeRef = useRef<GainNode | null>(null);
   const rawStreamRef = useRef<MediaStream | null>(null);
 
   const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
-  const [expanderGainNode, setExpanderGainNode] = useState<GainNode | null>(null);
 
   const localAvatarUrlRef = useRef<string | null>(localAvatarUrl);
   localAvatarUrlRef.current = localAvatarUrl;
@@ -191,18 +205,16 @@ export function usePeerMesh(
           // AudioContext unavailable; fall back to raw stream (no volume control or analysis).
           localStreamRef.current = stream;
           setAnalyserNode(null);
-          setExpanderGainNode(null);
           setLocalStream(stream);
           return stream;
         }
 
-        const { gainNode, analyserNode: analyserNodeObj, expanderGainNode: expanderGainNodeObj, processedStream } =
+        const { gainNode, analyserNode: analyserNodeObj, processedStream } =
           createMicProcessingGraph(ctx, stream, micVolumeRef.current);
 
         audioContextRef.current = ctx;
         gainNodeRef.current = gainNode;
         analyserNodeRef.current = analyserNodeObj;
-        expanderGainNodeRef.current = expanderGainNodeObj;
         localStreamRef.current = processedStream;
 
         // The processed track is a synthetic Web Audio (MediaStreamDestination) output,
@@ -222,7 +234,6 @@ export function usePeerMesh(
         }
         
         setAnalyserNode(analyserNodeObj);
-        setExpanderGainNode(expanderGainNodeObj);
         setLocalStream(processedStream);
         return processedStream;
       })
@@ -233,7 +244,6 @@ export function usePeerMesh(
         micEnabledRef.current = false;
         localStreamRef.current = null;
         setAnalyserNode(null);
-        setExpanderGainNode(null);
         return null;
       });
 
@@ -246,6 +256,14 @@ export function usePeerMesh(
       gainNodeRef.current.gain.value = micVolume;
     }
   }, [micVolume]);
+
+  // Re-apply video bitrate/framerate caps to every live sender when the quality
+  // tier or capture resolution/framerate changes. (encodingRef already holds the
+  // fresh config; this pushes it to existing senders without renegotiation. The
+  // Opus target applies on the next negotiation via tuneOpusSdp.)
+  useEffect(() => {
+    for (const link of linksRef.current.values()) link.applyEncoding();
+  }, [videoQuality, cameraResolution, cameraFramerate, screenResolution, screenFramerate]);
 
   const prepareMedia = useCallback(() => {
     void ensureLocalStream();
@@ -327,6 +345,7 @@ export function usePeerMesh(
         send,
         onRemoteStream: (stream) => recordRemoteStream(peerId, stream),
         onConnectionState: (connectionState) => patchRemote(peerId, { connectionState }),
+        getEncoding: () => encodingRef.current,
       });
 
       linksRef.current.set(peerId, link);
@@ -384,11 +403,9 @@ export function usePeerMesh(
     // it is owned by lib/audioContext.ts and shared with sfx.ts across join/leave cycles.
     if (gainNodeRef.current) { gainNodeRef.current.disconnect(); gainNodeRef.current = null; }
     if (analyserNodeRef.current) { analyserNodeRef.current.disconnect(); analyserNodeRef.current = null; }
-    if (expanderGainNodeRef.current) { expanderGainNodeRef.current.disconnect(); expanderGainNodeRef.current = null; }
     audioContextRef.current = null;
     rawStreamRef.current = null;
     setAnalyserNode(null);
-    setExpanderGainNode(null);
 
     localStreamRef.current = null;
     localStreamPromiseRef.current = null;
@@ -565,6 +582,9 @@ export function usePeerMesh(
         });
         const videoTrack = camStream.getVideoTracks()[0];
         if (!videoTrack) return;
+        // Hint the encoder this is camera motion (favor smooth frame rate /
+        // motion compensation over per-frame detail).
+        videoTrack.contentHint = 'motion';
 
         // Need the audio stream to group the track onto; ensure it exists.
         const base = (await ensureLocalStream()) ?? localStreamRef.current;
@@ -667,6 +687,12 @@ export function usePeerMesh(
             for (const track of screen.getTracks()) track.stop();
             return;
           }
+
+          // Hint the encoder this is detailed/static content (text, UI, game) so
+          // it preserves sharpness over frame rate — pairs with the screen
+          // sender's 'maintain-resolution' degradation preference.
+          const screenVideoTrack = screen.getVideoTracks()[0];
+          if (screenVideoTrack) screenVideoTrack.contentHint = 'detail';
 
           screenStreamRef.current = screen;
           sharingScreenRef.current = true;
@@ -804,7 +830,6 @@ export function usePeerMesh(
     startScreenShare,
     stopScreenShare,
     analyserNode,
-    expanderGainNode,
     teardown,
   };
 }
