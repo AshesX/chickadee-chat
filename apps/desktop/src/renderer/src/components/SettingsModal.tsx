@@ -121,8 +121,9 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
     props.onChangeSfxDeafenEnabled(defaults.sfxDeafenEnabled);
     props.onChangeBadgeNotificationsEnabled(defaults.badgeNotificationsEnabled);
     props.onChangeMicVolume(defaults.micVolume);
+    props.onChangeCameraFeatureEnabled(defaults.cameraFeatureEnabled);
     props.onChangeCameraResolution(defaults.cameraResolution);
-    props.onChangeDefaultVideoAction(defaults.defaultVideoAction ?? 'camera');
+    props.onChangeDefaultVideoAction(defaults.defaultVideoAction ?? 'screen');
     props.onChangeCameraFramerate(defaults.cameraFramerate);
     props.onChangeScreenResolution(defaults.screenResolution);
     props.onChangeScreenFramerate(defaults.screenFramerate);

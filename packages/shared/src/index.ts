@@ -204,6 +204,8 @@ export interface PersistedSettings {
   outputVolume: number;
   muteKey: string;
   muteMode: 'hold' | 'toggle';
+  /** Whether the camera feature is available at all (off = camera hidden from room controls). */
+  cameraFeatureEnabled: boolean;
   cameraResolution: string;
   cameraFramerate: string;
   screenResolution: string;
@@ -295,6 +297,7 @@ export function defaultSettings(): PersistedSettings {
     outputVolume: 1.0,
     muteKey: '',
     muteMode: 'toggle',
+    cameraFeatureEnabled: false,
     cameraResolution: '720p',
     cameraFramerate: '30',
     screenResolution: '1080p',
@@ -313,7 +316,7 @@ export function defaultSettings(): PersistedSettings {
     voicePreference: '',
     avatarDataUrl: null,
     accentColor: '',
-    defaultVideoAction: 'camera',
+    defaultVideoAction: 'screen',
     deafenKey: '',
     deafenMode: 'toggle',
     cameraKey: '',

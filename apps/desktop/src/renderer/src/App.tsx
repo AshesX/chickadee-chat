@@ -67,6 +67,7 @@ export function App(): React.JSX.Element {
   const [outputDeviceId, setOutputDeviceId] = useState(() => store.getOutputDeviceId());
   const [micVolume, applyMicVolume] = usePersistedState(store.getMicVolume, store.setMicVolume);
   const [outputVolume, applyOutputVolume] = usePersistedState(store.getOutputVolume, store.setOutputVolume);
+  const [cameraFeatureEnabled, applyCameraFeatureEnabled] = usePersistedState(store.getCameraFeatureEnabled, store.setCameraFeatureEnabled);
   const [cameraResolution, applyCameraResolution] = usePersistedState(store.getCameraResolution, store.setCameraResolution);
   const [cameraFramerate, applyCameraFramerate] = usePersistedState(store.getCameraFramerate, store.setCameraFramerate);
   const [screenResolution, applyScreenResolution] = usePersistedState(store.getScreenResolution, store.setScreenResolution);
@@ -795,7 +796,7 @@ export function App(): React.JSX.Element {
     onDeafenStop: () => { if (deafened) toggleDeafen(); },
     onDeafenToggle: toggleDeafen,
     cameraKey,
-    onCameraToggle: () => { if (allowVideo) mesh.toggleCamera(); },
+    onCameraToggle: () => { if (allowVideo && cameraFeatureEnabled) mesh.toggleCamera(); },
     screenShareKey,
     onScreenShareToggle: () => {
       if (!allowVideo) return;
@@ -833,8 +834,12 @@ export function App(): React.JSX.Element {
 
   // Audio/video device lists for Settings and the chevron menus.
   const devices = useMediaDevices(inRoom || settingsOpen || menus.inputMenuOpen || menus.outputMenuOpen || menus.videoMenuOpen);
-  const hasCamera = devices.videoInputs.length > 0;
-  const defaultAction = hasCamera ? defaultVideoAction : 'screen';
+  // Optimistic until the first device scan resolves, so the UI doesn't flash
+  // "(No camera detected)" / disabled controls before enumerateDevices() returns.
+  const hasCamera = !devices.scanned || devices.videoInputs.length > 0;
+  // The camera is usable only when a device exists AND the feature is enabled in settings.
+  const cameraAvailable = hasCamera && cameraFeatureEnabled;
+  const defaultAction = cameraAvailable ? defaultVideoAction : 'screen';
 
   useTraySync({ currentRoomLabel: currentRoom?.label ?? null, handleToggleMic, toggleDeafen });
 
@@ -1118,7 +1123,7 @@ export function App(): React.JSX.Element {
                 onOpenVideoSettings={() => { menus.closeVideoMenu(); setSettingsInitialTab('video'); setSettingsOpen(true); }}
                 onClose={menus.closeVideoMenu}
                 anchorRect={menus.videoMenuAnchor}
-                hasCamera={hasCamera}
+                hasCamera={cameraAvailable}
               />
             )}
             {menus.reactionMenuOpen && menus.reactionMenuAnchor && (
@@ -1352,6 +1357,8 @@ export function App(): React.JSX.Element {
           onChangeMicVolume={applyMicVolume}
           outputVolume={outputVolume}
           onChangeOutputVolume={applyOutputVolume}
+          cameraFeatureEnabled={cameraFeatureEnabled}
+          onChangeCameraFeatureEnabled={applyCameraFeatureEnabled}
           cameraResolution={cameraResolution}
           onChangeCameraResolution={applyCameraResolution}
           cameraFramerate={cameraFramerate}

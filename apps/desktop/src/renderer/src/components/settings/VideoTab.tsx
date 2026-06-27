@@ -1,9 +1,11 @@
 import type { SettingsModalProps } from './types';
+import { Toggle } from './Toggle';
 
 type VideoTabProps = Pick<
   SettingsModalProps,
   | 'defaultVideoAction' | 'onChangeDefaultVideoAction'
   | 'hasCamera'
+  | 'cameraFeatureEnabled' | 'onChangeCameraFeatureEnabled'
   | 'cameraResolution' | 'onChangeCameraResolution'
   | 'cameraFramerate' | 'onChangeCameraFramerate'
   | 'screenResolution' | 'onChangeScreenResolution'
@@ -14,6 +16,8 @@ export function VideoTab({
   defaultVideoAction,
   onChangeDefaultVideoAction,
   hasCamera = true,
+  cameraFeatureEnabled,
+  onChangeCameraFeatureEnabled,
   cameraResolution,
   onChangeCameraResolution,
   cameraFramerate,
@@ -23,6 +27,8 @@ export function VideoTab({
   screenFramerate,
   onChangeScreenFramerate,
 }: VideoTabProps): React.JSX.Element {
+  // Resolution/framerate controls only matter when the camera feature is on and a device exists.
+  const cameraControlsEnabled = hasCamera && cameraFeatureEnabled;
   return (
     <>
       <div id="section-video-default" className="settings-subdivision">Room Video Button</div>
@@ -34,20 +40,20 @@ export function VideoTab({
         </div>
         <div className="seg-group">
           <button
-            className={`seg-btn${defaultVideoAction === 'camera' ? ' seg-btn--active' : ''}`}
-            onClick={() => onChangeDefaultVideoAction('camera')}
-          >Camera</button>
-          <button
             className={`seg-btn${defaultVideoAction === 'screen' ? ' seg-btn--active' : ''}`}
             onClick={() => onChangeDefaultVideoAction('screen')}
           >Screen Share</button>
+          <button
+            className={`seg-btn${defaultVideoAction === 'camera' ? ' seg-btn--active' : ''}`}
+            onClick={() => onChangeDefaultVideoAction('camera')}
+          >Camera</button>
         </div>
       </div>
 
       <hr className="settings-divider" />
 
       <div id="section-camera" className="settings-subdivision" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <span>Camera Constraints</span>
+        <span>Camera</span>
         {!hasCamera && (
           <span style={{ color: 'var(--danger-text)', fontSize: '11px', fontWeight: 600, textTransform: 'initial' }}>
             (No camera detected)
@@ -55,7 +61,15 @@ export function VideoTab({
         )}
       </div>
 
-      <div className="settings-row" style={{ opacity: hasCamera ? 1 : 0.5, pointerEvents: hasCamera ? undefined : 'none' }}>
+      <div className="settings-row">
+        <div className="settings-row__label">
+          <span>Enable camera</span>
+          <span className="settings-row__hint">Show the camera option in room video controls.</span>
+        </div>
+        <Toggle on={cameraFeatureEnabled} onClick={() => onChangeCameraFeatureEnabled(!cameraFeatureEnabled)} />
+      </div>
+
+      <div className="settings-row" style={{ opacity: cameraControlsEnabled ? 1 : 0.5, pointerEvents: cameraControlsEnabled ? undefined : 'none' }}>
         <div className="settings-row__label">
           <span>Streaming resolution</span>
           <span className="settings-row__hint">Higher resolutions require more bandwidth.</span>
@@ -74,7 +88,7 @@ export function VideoTab({
         </select>
       </div>
 
-      <div className="settings-row" style={{ opacity: hasCamera ? 1 : 0.5, pointerEvents: hasCamera ? undefined : 'none' }}>
+      <div className="settings-row" style={{ opacity: cameraControlsEnabled ? 1 : 0.5, pointerEvents: cameraControlsEnabled ? undefined : 'none' }}>
         <div className="settings-row__label">
           <span>Framerate</span>
           <span className="settings-row__hint">Camera stream framerate.</span>
@@ -92,7 +106,7 @@ export function VideoTab({
       </div>
 
       <hr className="settings-divider" />
-      <div id="section-screen-share" className="settings-subdivision">Screen Share Constraints</div>
+      <div id="section-screen-share" className="settings-subdivision">Screen Share</div>
 
       <div className="settings-row">
         <div className="settings-row__label">
