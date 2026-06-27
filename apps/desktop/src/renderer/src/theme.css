@@ -35,7 +35,6 @@
 
   /* Actions / active — warm orange; twilight lightened to a periwinkle for dark */
   --danger: var(--red);
-  --danger-glow: color-mix(in srgb, var(--red) 26%, transparent);
   --danger-text: #f87171; /* danger as text/icon on a subtle/transparent bg (light-red for dark) */
   --gradient: linear-gradient(135deg, var(--orange), #f59000);
   --active-bg: color-mix(in srgb, var(--orange) 16%, transparent);
@@ -43,11 +42,7 @@
   --active-text: var(--orange);
   --room-active-count-bg: var(--bg);
 
-  /* Per-user avatars — vivid on dark (orange / periwinkle / brick / teal) */
-  --user-1: var(--orange);
-  --user-2: #8b7bd6;
-  --user-3: var(--red);
-  --user-4: #1fa9a0;
+
 
   /* Supporting */
   --scrollbar: #43331f;
@@ -82,7 +77,6 @@
   --space-3: 12px;
   --space-4: 16px;
   --space-5: 20px;
-  --space-6: 24px;
   --icon-gap: 8px; /* canonical icon-to-text gap */
 }
 
@@ -110,11 +104,9 @@
   --offline: #b5b0a8;
   --danger-text: #c20114; /* brick reads as danger text on the alabaster canvas */
 
-  /* Twilight active text + palette avatars (user-1 orange / user-3 red inherited) */
+  /* Twilight active text */
   --active-text: #ab4e00;
   --room-active-count-bg: var(--active-border);
-  --user-2: #1b065e;
-  --user-4: #0e7c86;
 
   /* Supporting */
   --scrollbar: #c7c7c2;
@@ -225,20 +217,7 @@ input:focus {
   }
 }
 
-/* Online presence dot pulse */
-/* Compositor-only: pulses opacity + transform on .presence-dot--online::after
-   (the box-shadow on that halo is static), instead of repainting box-shadow every frame. */
-@keyframes dotPulse {
-  0%,
-  100% {
-    opacity: 0.25;
-    transform: scale(0.82);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
+
 
 /* Modal fade/scale in */
 @keyframes modalIn {
