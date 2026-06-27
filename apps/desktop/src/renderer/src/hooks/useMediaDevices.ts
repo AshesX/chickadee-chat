@@ -9,6 +9,9 @@ interface MediaDevicesState {
   inputs: MediaDeviceOption[];
   outputs: MediaDeviceOption[];
   videoInputs: MediaDeviceOption[];
+  /** False until the first successful enumerateDevices() resolves. Lets callers
+   * tell "not yet scanned" from "scanned and genuinely empty". */
+  scanned: boolean;
 }
 
 /**
@@ -18,7 +21,7 @@ interface MediaDevicesState {
  * before relying on readable labels.
  */
 export function useMediaDevices(enabled: boolean): MediaDevicesState {
-  const [state, setState] = useState<MediaDevicesState>({ inputs: [], outputs: [], videoInputs: [] });
+  const [state, setState] = useState<MediaDevicesState>({ inputs: [], outputs: [], videoInputs: [], scanned: false });
 
   useEffect(() => {
     if (!enabled || !navigator.mediaDevices?.enumerateDevices) return;
@@ -40,7 +43,7 @@ export function useMediaDevices(enabled: boolean): MediaDevicesState {
             videoInputs.push({ deviceId: d.deviceId, label: d.label || `Camera ${videoInputs.length + 1}` });
           }
         }
-        setState({ inputs, outputs, videoInputs });
+        setState({ inputs, outputs, videoInputs, scanned: true });
       } catch {
         /* ignore — keep last known list */
       }

@@ -4,20 +4,33 @@ import {
   type PeerId,
   type ServerMessage,
 } from '@chickadee/shared';
+import type { MeshEncoding, VideoEncoding } from './encodingParams';
 
 /** Don't fire ICE restarts more often than this (ms) per connection. */
 const ICE_RESTART_COOLDOWN_MS = 4000;
 
+/** Options for {@link tuneOpusSdp}: bitrate cap + mono on top of always-on DTX. */
+export interface OpusTuning {
+  /** Opus `maxaveragebitrate` in bits/sec to cap the encoder; omit to leave uncapped. */
+  maxAverageBitrate?: number;
+  /** Force mono (`stereo=0;sprop-stereo=0`) — right for voice, halves audio bandwidth. */
+  mono?: boolean;
+}
+
 /**
- * Enable Opus DTX (discontinuous transmission) on every Opus m-line of a local
- * SDP by adding `usedtx=1` to its fmtp params. With DTX the encoder stops
- * sending full frames during silence (its built-in comfort noise covers the
- * gap), which cuts upstream bandwidth in a voice-first app where peers are often
- * quiet. There's no `setParameters()` equivalent for DTX, so this munges the SDP.
- * Existing fmtp params (minptime, useinbandfec, …) are preserved; bitrate is
- * untouched. Returns the SDP unchanged if no Opus payload is found.
+ * Tune Opus on every Opus m-line of a local SDP by merging fmtp params:
+ *  - `usedtx=1` (always) — DTX stops full frames during silence (comfort noise
+ *    covers the gap), cutting upstream bandwidth in a voice-first app.
+ *  - `maxaveragebitrate=<n>` (when given) — caps the encoder so a busy voice
+ *    room (up to 7 outbound audio streams each) stays within budget.
+ *  - `stereo=0;sprop-stereo=0` (when `mono`) — mono voice halves audio bandwidth.
+ *
+ * There's no `setParameters()` equivalent for these, so we munge the SDP.
+ * Original fmtp params (minptime, useinbandfec, …) keep their order; managed
+ * keys are set in place if present, else appended, so the result is idempotent.
+ * Returns the SDP unchanged if no Opus payload is found.
  */
-export function enableOpusDtx(sdp: string): string {
+export function tuneOpusSdp(sdp: string, opts: OpusTuning = {}): string {
   const lines = sdp.split(/\r\n|\n/);
   // Map every Opus payload type from its rtpmap line.
   const opusPts = new Set<string>();
@@ -27,21 +40,51 @@ export function enableOpusDtx(sdp: string): string {
   }
   if (opusPts.size === 0) return sdp;
 
+  // Build the managed key/value pairs to merge, in a stable append order.
+  const managed: [string, string][] = [['usedtx', '1']];
+  if (opts.maxAverageBitrate != null) {
+    managed.push(['maxaveragebitrate', String(Math.round(opts.maxAverageBitrate))]);
+  }
+  if (opts.mono) {
+    managed.push(['stereo', '0'], ['sprop-stereo', '0']);
+  }
+
+  const mergeParams = (params: string): string => {
+    // Preserve original key order; set managed keys in place, else append.
+    const parts = params.split(';').filter((p) => p.length > 0);
+    const keyOf = (p: string): string => p.split('=')[0];
+    for (const [k, v] of managed) {
+      const idx = parts.findIndex((p) => keyOf(p) === k);
+      if (idx >= 0) parts[idx] = `${k}=${v}`;
+      else parts.push(`${k}=${v}`);
+    }
+    return parts.join(';');
+  };
+
   const out: string[] = [];
   for (const line of lines) {
     const fmtp = /^a=fmtp:(\d+) (.*)$/.exec(line);
     if (fmtp && opusPts.has(fmtp[1])) {
-      out.push(/\busedtx=/.test(fmtp[2]) ? line : `${line};usedtx=1`);
+      out.push(`a=fmtp:${fmtp[1]} ${mergeParams(fmtp[2])}`);
       continue;
     }
     out.push(line);
     // If an Opus payload has an rtpmap but no fmtp line, add one right after it.
     const rtpmap = /^a=rtpmap:(\d+) opus\/48000/i.exec(line);
     if (rtpmap && !sdp.includes(`a=fmtp:${rtpmap[1]} `)) {
-      out.push(`a=fmtp:${rtpmap[1]} usedtx=1`);
+      out.push(`a=fmtp:${rtpmap[1]} ${mergeParams('')}`);
     }
   }
   return out.join('\r\n');
+}
+
+/**
+ * Backward-compatible shorthand: enable Opus DTX only (no bitrate/mono changes).
+ * Kept as a named export for the existing unit tests and any callers that just
+ * want DTX. New callers should prefer {@link tuneOpusSdp} with explicit options.
+ */
+export function enableOpusDtx(sdp: string): string {
+  return tuneOpusSdp(sdp, {});
 }
 
 /** The subset of relayed signaling messages a peer link consumes. */
@@ -68,6 +111,12 @@ export interface PeerLinkOptions {
   onRemoteStream: (stream: MediaStream) => void;
   /** Called on every RTCPeerConnection connection-state transition. */
   onConnectionState: (state: RTCPeerConnectionState) => void;
+  /**
+   * Returns the current outbound encoding config (bitrate/framerate caps + Opus
+   * target). Read lazily so a live quality-setting change is picked up on the
+   * next apply without recreating the link. Omit to leave senders untuned.
+   */
+  getEncoding?: () => MeshEncoding;
 }
 
 export interface PeerLink {
@@ -102,6 +151,13 @@ export interface PeerLink {
    * the current local tracks are; disabling stops that sender (keeps the m-line).
    */
   setMediaActive: (active: { video: boolean; screenAudio: boolean }) => void;
+  /**
+   * Re-apply the current encoding config (from `getEncoding`) to the live video
+   * + screen senders. Call after the quality setting changes; audio is applied
+   * via SDP on the next negotiation, so it isn't touched here. No-op without
+   * `getEncoding` or before any video sender exists.
+   */
+  applyEncoding: () => void;
   /** Tear down the connection and detach all handlers. */
   close: () => void;
 }
@@ -140,11 +196,43 @@ export function createPeerLink(opts: PeerLinkOptions): PeerLink {
   let lastScreenVideoTrack: MediaStreamTrack | null = null;
   let lastScreenStream: MediaStream | null = null;
 
+  /**
+   * Apply bitrate/framerate/degradation caps to one video sender. Mutates the
+   * existing `getParameters()` object in place (WebRTC forbids changing the
+   * encoding count), so it's a no-op until the sender has an encoding — which it
+   * does once negotiation is under way; we also re-apply on `connected`. Async
+   * `setParameters` is fire-and-forget; failures (e.g. params not ready yet) are
+   * swallowed and corrected by the next apply.
+   */
+  function applyVideoEncoding(sender: RTCRtpSender | null, enc: VideoEncoding): void {
+    if (!sender) return;
+    try {
+      const params = sender.getParameters();
+      if (!params.encodings || params.encodings.length === 0) return; // not tunable yet
+      const e = params.encodings[0];
+      e.maxBitrate = enc.maxBitrate; // undefined clears any prior cap
+      e.maxFramerate = enc.maxFramerate;
+      if (enc.scaleResolutionDownBy != null) e.scaleResolutionDownBy = enc.scaleResolutionDownBy;
+      params.degradationPreference = enc.degradationPreference;
+      void sender.setParameters(params);
+    } catch (err) {
+      console.error(`[peerLink ${peerId}] setParameters failed`, err);
+    }
+  }
+
+  /** Re-apply the current encoding to both video senders (camera + screen). */
+  function reapplyAllEncodings(): void {
+    const enc = opts.getEncoding?.();
+    if (!enc) return;
+    applyVideoEncoding(videoSender, enc.camera);
+    applyVideoEncoding(screenVideoSender, enc.screen);
+  }
+
   pc.onnegotiationneeded = async () => {
     try {
       makingOffer = true;
       const offer = await pc.createOffer();
-      offer.sdp = enableOpusDtx(offer.sdp ?? '');
+      offer.sdp = tuneOpusSdp(offer.sdp ?? '', opts.getEncoding?.().audio ?? {});
       await pc.setLocalDescription(offer);
       if (pc.localDescription) {
         send({ type: 'offer', to: peerId, sdp: pc.localDescription });
@@ -186,6 +274,9 @@ export function createPeerLink(opts: PeerLinkOptions): PeerLink {
 
   pc.onconnectionstatechange = () => {
     if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') maybeRestartIce();
+    // Once connected, the senders have real RTP params — (re)apply the bitrate
+    // caps now in case the post-addTrack attempt ran before they were tunable.
+    if (pc.connectionState === 'connected') reapplyAllEncodings();
     onConnectionState(pc.connectionState);
   };
 
@@ -211,6 +302,8 @@ export function createPeerLink(opts: PeerLinkOptions): PeerLink {
         void videoSender.replaceTrack(track); // swap, no renegotiation
       } else {
         videoSender = pc.addTrack(track, stream); // first time → renegotiates
+        const enc = opts.getEncoding?.();
+        if (enc) applyVideoEncoding(videoSender, enc.camera);
       }
     } else if (videoSender) {
       void videoSender.replaceTrack(null); // stop sending, keep the m-line
@@ -244,6 +337,8 @@ export function createPeerLink(opts: PeerLinkOptions): PeerLink {
     }
     if (videoActive) {
       screenVideoSender = applyTrack(screenVideoSender, videoTrack, stream);
+      const enc = opts.getEncoding?.();
+      if (enc) applyVideoEncoding(screenVideoSender, enc.screen);
     }
   }
 
@@ -263,6 +358,8 @@ export function createPeerLink(opts: PeerLinkOptions): PeerLink {
         // Re-apply whatever the current camera + screen video tracks are.
         setLocalVideoTrack(lastVideoTrack, lastVideoStream ?? new MediaStream());
         screenVideoSender = applyTrack(screenVideoSender, lastScreenVideoTrack, lastScreenStream);
+        const enc = opts.getEncoding?.();
+        if (enc) applyVideoEncoding(screenVideoSender, enc.screen);
       } else {
         // Stop sending video without renegotiation; the m-lines stay.
         if (videoSender) void videoSender.replaceTrack(null);
@@ -297,7 +394,7 @@ export function createPeerLink(opts: PeerLinkOptions): PeerLink {
 
       if (description.type === 'offer') {
         const answer = await pc.createAnswer();
-        answer.sdp = enableOpusDtx(answer.sdp ?? '');
+        answer.sdp = tuneOpusSdp(answer.sdp ?? '', opts.getEncoding?.().audio ?? {});
         await pc.setLocalDescription(answer);
         if (pc.localDescription) {
           send({ type: 'answer', to: peerId, sdp: pc.localDescription });
@@ -316,5 +413,5 @@ export function createPeerLink(opts: PeerLinkOptions): PeerLink {
     pc.close();
   }
 
-  return { pc, handleSignal, setLocalAudioTrack, setLocalVideoTrack, setLocalScreenStream, setMediaActive, close };
+  return { pc, handleSignal, setLocalAudioTrack, setLocalVideoTrack, setLocalScreenStream, setMediaActive, applyEncoding: reapplyAllEncodings, close };
 }

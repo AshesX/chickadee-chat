@@ -53,7 +53,7 @@ interface SidebarProps {
   onToggleMic: () => void;
   deafened: boolean;
   onToggleDeafen: () => void;
-  inputMode: 'open' | 'voice' | 'ptt';
+  inputMode: 'voice' | 'ptt';
   onCycleInputMode: () => void;
   /** Whether we've joined any peer's video (drives the compact leave-video button). */
   hasVideoSubs: boolean;

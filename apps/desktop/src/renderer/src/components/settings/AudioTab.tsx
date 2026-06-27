@@ -16,10 +16,6 @@ type AudioTabProps = Pick<
   | 'inputMode' | 'onChangeInputMode'
   | 'vadThreshold' | 'onChangeVadThreshold'
   | 'vadReleaseMs' | 'onChangeVadReleaseMs'
-  | 'openMicNoiseReductionEnabled' | 'onChangeOpenMicNoiseReductionEnabled'
-  | 'openMicThreshold' | 'onChangeOpenMicThreshold'
-  | 'openMicReductionDb' | 'onChangeOpenMicReductionDb'
-  | 'openMicReleaseMs' | 'onChangeOpenMicReleaseMs'
   | 'pttMode' | 'onChangePttMode'
   | 'pushToTalkKey' | 'onChangePushToTalkKey'
   | 'noiseSuppression' | 'onChangeNoiseSuppression'
@@ -49,14 +45,6 @@ export function AudioTab({
   onChangeVadThreshold,
   vadReleaseMs,
   onChangeVadReleaseMs,
-  openMicNoiseReductionEnabled,
-  onChangeOpenMicNoiseReductionEnabled,
-  openMicThreshold,
-  onChangeOpenMicThreshold,
-  openMicReductionDb,
-  onChangeOpenMicReductionDb,
-  openMicReleaseMs,
-  onChangeOpenMicReleaseMs,
   pttMode,
   onChangePttMode,
   pushToTalkKey,
@@ -164,13 +152,9 @@ export function AudioTab({
       <div className="settings-row">
         <div className="settings-row__label">
           <span>How your mic transmits</span>
-          <span className="settings-row__hint">Open Mic: always live. Voice: opens when speaking. PTT: key press required.</span>
+          <span className="settings-row__hint">Voice: opens when speaking. Push-to-Talk: key press required.</span>
         </div>
         <div className="seg-group">
-          <button
-            className={`seg-btn${inputMode === 'open' ? ' seg-btn--active' : ''}`}
-            onClick={() => onChangeInputMode('open')}
-          >Open Mic</button>
           <button
             className={`seg-btn${inputMode === 'voice' ? ' seg-btn--active' : ''}`}
             onClick={() => onChangeInputMode('voice')}
@@ -224,83 +208,6 @@ export function AudioTab({
               ]}
             />
           </div>
-        </>
-      )}
-
-      {inputMode === 'open' && (
-        <>
-          <div className="settings-row">
-            <div className="settings-row__label">
-              <span>Noise gate</span>
-              <span className="settings-row__hint">Mutes mic when not speaking to hide background noise. Turn off for raw mic.</span>
-            </div>
-            <Toggle on={openMicNoiseReductionEnabled} onClick={() => onChangeOpenMicNoiseReductionEnabled(!openMicNoiseReductionEnabled)} />
-          </div>
-
-          {openMicNoiseReductionEnabled && (
-            <>
-              <div className="settings-row">
-                <div className="settings-row__label">
-                  <span>Speech threshold</span>
-                  <span className="settings-row__hint">Volume required to open gate. Bar must pass line.</span>
-                </div>
-                <div className="mic-control-wrap">
-                  <SettingsSlider
-                    min={GATE_THRESHOLD_MIN}
-                    max={GATE_THRESHOLD_MAX}
-                    step={0.001}
-                    value={openMicThreshold}
-                    onChange={onChangeOpenMicThreshold}
-                    markers={[GATE_THRESHOLD_MIN, 0.1, GATE_THRESHOLD_MAX]}
-                    labels={[
-                      { value: GATE_THRESHOLD_MIN, text: 'Low' },
-                      { value: 0.1, text: 'Medium' },
-                      { value: GATE_THRESHOLD_MAX, text: 'High' },
-                    ]}
-                    snapThreshold={0.0005}
-                  />
-                  <MicLevelMeter bars={micBars} online={!!analyserNode} threshold={openMicThreshold} />
-                </div>
-              </div>
-
-              <div className="settings-row">
-                <div className="settings-row__label">
-                  <span>Reduction amount</span>
-                  <span className="settings-row__hint">Amount to reduce background noise. {openMicReductionDb} dB{openMicReductionDb <= -40 ? ' (near silent)' : ''}.</span>
-                </div>
-                <SettingsSlider
-                  min={-40}
-                  max={-10}
-                  step={5}
-                  value={openMicReductionDb}
-                  onChange={onChangeOpenMicReductionDb}
-                  markers={[-40, -30, -20, -10]}
-                  labels={[
-                    { value: -10, text: 'Gentle' },
-                    { value: -40, text: 'Strong' },
-                  ]}
-                  snapThreshold={4}
-                />
-              </div>
-
-              <div className="settings-row">
-                <div className="settings-row__label">
-                  <span>Gate hold time</span>
-                  <span className="settings-row__hint">Duration gate remains open after speaking ends. Currently {openMicReleaseMs} ms.</span>
-                </div>
-                <SettingsSlider
-                  value={openMicReleaseMs}
-                  onChange={onChangeOpenMicReleaseMs}
-                  snapValues={[100, 250, 500, 750, 1000, 1500, 2000, 2500, 3000]}
-                  labels={[
-                    { value: 100, text: 'Short' },
-                    { value: 1000, text: 'Medium' },
-                    { value: 3000, text: 'Long' },
-                  ]}
-                />
-              </div>
-            </>
-          )}
         </>
       )}
 

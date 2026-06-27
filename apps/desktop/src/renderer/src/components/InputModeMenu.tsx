@@ -4,25 +4,20 @@ import { KeybindControl } from './KeybindControl';
 import { ChevronMenu } from './ChevronMenu';
 
 interface InputModeMenuProps {
-  inputMode: 'open' | 'voice' | 'ptt';
-  onSwitchMode: (mode: 'open' | 'voice' | 'ptt') => void;
+  inputMode: 'voice' | 'ptt';
+  onSwitchMode: (mode: 'voice' | 'ptt') => void;
   pttMode: 'hold' | 'toggle';
   onChangePttMode: (mode: 'hold' | 'toggle') => void;
   pushToTalkKey: string;
   onChangePushToTalkKey: (k: string) => void;
   vadThreshold: number;
   onChangeVadThreshold: (v: number) => void;
-  openMicNoiseReductionEnabled: boolean;
-  onToggleOpenMicNoiseReduction: () => void;
-  openMicThreshold: number;
-  onChangeOpenMicThreshold: (v: number) => void;
   onOpenVoiceSettings: () => void;
   onClose: () => void;
   anchorRect: DOMRect;
 }
 
-const MODE_LABELS: Record<'open' | 'voice' | 'ptt', string> = {
-  open: 'Open Mic',
+const MODE_LABELS: Record<'voice' | 'ptt', string> = {
   voice: 'Voice',
   ptt: 'Push-Talk',
 };
@@ -36,21 +31,16 @@ export function InputModeMenu({
   onChangePushToTalkKey,
   vadThreshold,
   onChangeVadThreshold,
-  openMicNoiseReductionEnabled,
-  onToggleOpenMicNoiseReduction,
-  openMicThreshold,
-  onChangeOpenMicThreshold,
   onOpenVoiceSettings,
   onClose,
   anchorRect,
 }: InputModeMenuProps): React.JSX.Element {
   const vadPct = thresholdToPct(vadThreshold);
-  const openMicPct = thresholdToPct(openMicThreshold);
 
   return (
     <ChevronMenu anchorRect={anchorRect} onClose={onClose} width={280} className="audio-menu">
         <div className="input-mode-switcher">
-          {(['open', 'voice', 'ptt'] as const).map((m) => (
+          {(['voice', 'ptt'] as const).map((m) => (
             <button
               key={m}
               type="button"
@@ -88,37 +78,6 @@ export function InputModeMenu({
               <span>Low</span>
               <span>High</span>
             </div>
-          </>
-        )}
-
-        {inputMode === 'open' && (
-          <>
-            <label className="audio-menu__toggle-row">
-              <input
-                type="checkbox"
-                checked={openMicNoiseReductionEnabled}
-                onChange={() => onToggleOpenMicNoiseReduction()}
-              />
-              Noise gate
-            </label>
-            {openMicNoiseReductionEnabled && (
-              <>
-                <div className="audio-menu__section-label">Threshold — {openMicPct}%</div>
-                <input
-                  type="range"
-                  className="audio-menu__slider"
-                  min={GATE_THRESHOLD_MIN}
-                  max={GATE_THRESHOLD_MAX}
-                  step={0.001}
-                  value={openMicThreshold}
-                  onChange={(e) => onChangeOpenMicThreshold(Number(e.target.value))}
-                />
-                <div className="audio-menu__vol-labels">
-                  <span>Low</span>
-                  <span>High</span>
-                </div>
-              </>
-            )}
           </>
         )}
 

@@ -59,8 +59,8 @@ interface ControlBarProps {
   /** Whether to show the camera/screen-share control (false in voice rooms). */
   allowVideo: boolean;
   defaultAction: 'camera' | 'screen';
-  inputMode: 'open' | 'voice' | 'ptt';
-  /** Cycle Open Mic → Voice Activation → Push-to-Talk. */
+  inputMode: 'voice' | 'ptt';
+  /** Cycle Voice Activation → Push-to-Talk. */
   onCycleInputMode: () => void;
   onInputModeMenu: (rect: DOMRect) => void;
   onReactMenu: (rect: DOMRect) => void;
@@ -138,9 +138,9 @@ export function ControlBar({
       <div className="ctrl-group">
         <ControlButton
           icon={INPUT_MODE_ICONS[inputMode]}
-          label={inputMode === 'ptt' ? 'Push-Talk' : inputMode === 'voice' ? 'Voice' : 'Open Mic'}
+          label={inputMode === 'ptt' ? 'Push-Talk' : 'Voice'}
           state="default"
-          title="Click to cycle: Open Mic → Voice Activation → Push-to-Talk"
+          title="Click to cycle: Voice Activation → Push-to-Talk"
           onClick={onCycleInputMode}
           speaking={selfSpeaking}
         />

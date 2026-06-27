@@ -32,7 +32,8 @@ export function SpaceSwitcher({
   onToggleCompact,
 }: SpaceSwitcherProps): React.JSX.Element {
   const [switcherOpen, setSwitcherOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
+  // Per-space so the "copied" indicator can't appear on a different hovered space.
+  const [copiedSpaceId, setCopiedSpaceId] = useState<string | null>(null);
   const [hoveredSpaceId, setHoveredSpaceId] = useState<string | null>(null);
   const [typedCode, setTypedCode] = useState('');
   const activeSpace = spaces.find((s) => s.id === activeSpaceId);
@@ -108,8 +109,8 @@ export function SpaceSwitcher({
     } else {
       navigator.clipboard.writeText(spaceId);
     }
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    setCopiedSpaceId(spaceId);
+    setTimeout(() => setCopiedSpaceId(null), 1500);
   }
 
   return (
@@ -163,7 +164,7 @@ export function SpaceSwitcher({
                       }}
                     >
                       <span className="space-dropdown__item-name">
-                        {copied && hoveredSpaceId === s.id ? (
+                        {copiedSpaceId === s.id ? (
                           <span
                             className="space-switcher-btn__name--code"
                             style={{
@@ -193,7 +194,7 @@ export function SpaceSwitcher({
                       onMouseLeave={() => setHoveredSpaceId(null)}
                       title="Copy Space Code"
                     >
-                      {copied && hoveredSpaceId === s.id ? <Check size={12} style={{ color: '#4ade80' }} /> : <Copy size={12} />}
+                      {copiedSpaceId === s.id ? <Check size={12} style={{ color: '#4ade80' }} /> : <Copy size={12} />}
                     </button>
                     <button
                       className="space-dropdown__item-settings"

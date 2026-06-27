@@ -33,7 +33,7 @@ interface RoomRowProps {
   onToggleMic: () => void;
   deafened: boolean;
   onToggleDeafen: () => void;
-  inputMode: 'open' | 'voice' | 'ptt';
+  inputMode: 'voice' | 'ptt';
   onCycleInputMode: () => void;
   hasVideoSubs: boolean;
   onLeaveAllVideo: () => void;

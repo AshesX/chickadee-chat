@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DEFAULT_ICE_SERVERS, capacityForType, type Room, type RoomType, type ThemeName } from '@chickadee/shared';
 import { useSignaling } from './hooks/useSignaling';
 import { usePeerMesh } from './hooks/usePeerMesh';
@@ -10,8 +10,6 @@ import { useControlBarMenus } from './hooks/useControlBarMenus';
 import { usePersistedState } from './hooks/usePersistedState';
 import { useKeybindSync } from './hooks/useKeybindSync';
 import { useVoiceActivation } from './hooks/useVoiceActivation';
-import { useAudioActivity } from './hooks/useAudioActivity';
-import { useNoiseExpander } from './hooks/useNoiseExpander';
 import { useMediaDevices } from './hooks/useMediaDevices';
 import { useSfxEvents } from './hooks/useSfxEvents';
 import { useTraySync } from './hooks/useTraySync';
@@ -23,21 +21,34 @@ import { RoomHeader } from './components/RoomHeader';
 import { ControlBar } from './components/ControlBar';
 import { ParticipantTile } from './components/ParticipantTile';
 import { ScreenView } from './components/ScreenView';
-import { ScreenSharePicker } from './components/ScreenSharePicker';
 import { ChatPanel, type ChatMessage } from './components/ChatPanel';
 import { ReactionPopover } from './components/ReactionPopover';
 import { AudioDeviceMenu } from './components/AudioDeviceMenu';
 import { InputModeMenu } from './components/InputModeMenu';
 import { VideoMenu } from './components/VideoMenu';
-import { WelcomeWizard } from './components/WelcomeWizard';
-import { RoomModal } from './components/RoomModal';
-import { SettingsModal } from './components/SettingsModal';
 import { Logo } from './components/Logo';
 import { generateBadgeOverlay } from './lib/trayIcon';
 import { Modal } from './components/Modal';
 import { playSfx } from './lib/sfx';
-import { SpaceSettingsModal } from './components/SpaceSettingsModal';
 import { AdvancedConnectionSettings } from './components/AdvancedConnectionSettings';
+
+// Heavy, conditionally-mounted modals are code-split so their JS isn't parsed at
+// cold start — each chunk loads the first time the modal opens. Named exports are
+// adapted to the default-export shape React.lazy expects. Render sites are wrapped
+// in <Suspense fallback={null}> (a modal popping in a frame late is imperceptible).
+const ScreenSharePicker = lazy(() =>
+  import('./components/ScreenSharePicker').then((m) => ({ default: m.ScreenSharePicker })),
+);
+const WelcomeWizard = lazy(() =>
+  import('./components/WelcomeWizard').then((m) => ({ default: m.WelcomeWizard })),
+);
+const RoomModal = lazy(() => import('./components/RoomModal').then((m) => ({ default: m.RoomModal })));
+const SettingsModal = lazy(() =>
+  import('./components/SettingsModal').then((m) => ({ default: m.SettingsModal })),
+);
+const SpaceSettingsModal = lazy(() =>
+  import('./components/SpaceSettingsModal').then((m) => ({ default: m.SpaceSettingsModal })),
+);
 import { speakChatMessage, cancelSpeech } from './lib/tts';
 import { initVoices } from './lib/voices';
 
@@ -67,15 +78,17 @@ export function App(): React.JSX.Element {
   const [outputDeviceId, setOutputDeviceId] = useState(() => store.getOutputDeviceId());
   const [micVolume, applyMicVolume] = usePersistedState(store.getMicVolume, store.setMicVolume);
   const [outputVolume, applyOutputVolume] = usePersistedState(store.getOutputVolume, store.setOutputVolume);
+  const [cameraFeatureEnabled, applyCameraFeatureEnabled] = usePersistedState(store.getCameraFeatureEnabled, store.setCameraFeatureEnabled);
   const [cameraResolution, applyCameraResolution] = usePersistedState(store.getCameraResolution, store.setCameraResolution);
   const [cameraFramerate, applyCameraFramerate] = usePersistedState(store.getCameraFramerate, store.setCameraFramerate);
   const [screenResolution, applyScreenResolution] = usePersistedState(store.getScreenResolution, store.setScreenResolution);
   const [screenFramerate, applyScreenFramerate] = usePersistedState(store.getScreenFramerate, store.setScreenFramerate);
+  const [videoQuality, applyVideoQuality] = usePersistedState(store.getVideoQuality, store.setVideoQuality);
   const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(() => store.getAvatarDataUrl());
   const [localVoicePreference, setLocalVoicePreference] = useState(() => store.getVoicePreference());
   const [localAccentColor, setLocalAccentColor] = useState(() => store.getAccentColor());
   const userId = useMemo(() => store.getUserId(), []);
-  const mesh = usePeerMesh(signaling, iceServers, noiseSuppression, micVolume, cameraResolution, cameraFramerate, screenResolution, screenFramerate, echoCancellation, autoGainControl, inputDeviceId, localAvatarUrl, localVoicePreference, localAccentColor, userId);
+  const mesh = usePeerMesh(signaling, iceServers, noiseSuppression, micVolume, cameraResolution, cameraFramerate, screenResolution, screenFramerate, videoQuality, echoCancellation, autoGainControl, inputDeviceId, localAvatarUrl, localVoicePreference, localAccentColor, userId);
   const colors = useUserColors(signaling.peers.map((p) => p.id));
 
   const [displayName, setDisplayName] = useState(() => store.getName());
@@ -109,13 +122,9 @@ export function App(): React.JSX.Element {
   const [spaceSettingsTarget, setSpaceSettingsTarget] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [inputMode, applyInputMode] = usePersistedState<'open' | 'voice' | 'ptt'>(store.getInputMode, store.setInputMode);
+  const [inputMode, applyInputMode] = usePersistedState<'voice' | 'ptt'>(store.getInputMode, store.setInputMode);
   const [vadThreshold, applyVadThreshold] = usePersistedState(store.getVadThreshold, store.setVadThreshold);
   const [vadReleaseMs, applyVadReleaseMs] = usePersistedState(store.getVadReleaseMs, store.setVadReleaseMs);
-  const [openMicNoiseReductionEnabled, applyOpenMicNoiseReductionEnabled] = usePersistedState(store.getOpenMicNoiseReductionEnabled, store.setOpenMicNoiseReductionEnabled);
-  const [openMicThreshold, applyOpenMicThreshold] = usePersistedState(store.getOpenMicThreshold, store.setOpenMicThreshold);
-  const [openMicReductionDb, applyOpenMicReductionDb] = usePersistedState(store.getOpenMicReductionDb, store.setOpenMicReductionDb);
-  const [openMicReleaseMs, applyOpenMicReleaseMs] = usePersistedState(store.getOpenMicReleaseMs, store.setOpenMicReleaseMs);
   // Persistent mute intent — a single master switch that survives input-mode
   // switches (open/voice/PTT). The mic gate (mesh.micEnabled) is forced off while
   // muted, regardless of mode; modes only manage the gate when unmuted.
@@ -137,15 +146,25 @@ export function App(): React.JSX.Element {
   const [windowVisible, setWindowVisible] = useState(true);
   const [volumes, setVolumes] = useState<Record<string, number>>({});
 
+  // Mirror peers + volumes into refs so the per-tile callbacks below can stay
+  // identity-stable (deps []). signaling.peers gets a fresh array reference on
+  // every presence update (including each peer's speaking edge), so a callback
+  // depending on it would change identity ~constantly and defeat ParticipantTile's
+  // React.memo — exactly the high-frequency churn the memo exists to skip.
+  const peersRef = useRef(signaling.peers);
+  peersRef.current = signaling.peers;
+  const volumesRef = useRef(volumes);
+  volumesRef.current = volumes;
+
   // Manual per-peer volume: update the live (peerId-keyed) map and persist by stable userId
   // so a boost sticks across restarts/reconnects (a new peer.id is re-seeded on join below).
   const handleVolumeChange = useCallback(
     (peerId: string, volume: number) => {
       setVolumes((prev) => ({ ...prev, [peerId]: volume }));
-      const uid = signaling.peers.find((p) => p.id === peerId)?.userId;
+      const uid = peersRef.current.find((p) => p.id === peerId)?.userId;
       if (uid) store.setPeerVolume(uid, volume);
     },
-    [signaling.peers],
+    [],
   );
 
   // Click-to-silence: mute = volume 0, remembering the pre-mute level (by peer.id,
@@ -156,7 +175,7 @@ export function App(): React.JSX.Element {
   const muteOtherSfxRef = useRef({ enabled: false, on: true, volume: 0.25 });
   const togglePeerMute = useCallback(
     (peerId: string) => {
-      const cur = volumes[peerId] ?? 1;
+      const cur = volumesRef.current[peerId] ?? 1;
       if (cur > 0) {
         lastNonZeroVolumeRef.current[peerId] = cur;
         handleVolumeChange(peerId, 0);
@@ -166,7 +185,7 @@ export function App(): React.JSX.Element {
       const sfx = muteOtherSfxRef.current;
       if (sfx.enabled && sfx.on) playSfx('mute-other', sfx.volume);
     },
-    [volumes, handleVolumeChange],
+    [handleVolumeChange],
   );
 
   // Stable userIds of peers we've silenced (volume 0) — drives the compact avatar
@@ -271,18 +290,14 @@ export function App(): React.JSX.Element {
     roomId: currentRoomId,
     onNewMessage: handleNewMessage,
   });
-  // In gated modes (PTT / voice activation) a live mic means we're transmitting.
-  const transmitting = inputMode !== 'open' && mesh.micEnabled;
+  // Both modes (PTT / voice activation) gate the mic, so a live mic means we're
+  // transmitting — which is also exactly the local "speaking" signal driving the
+  // self ripple AND the broadcast (so every client renders an identical ripple).
+  const transmitting = mesh.micEnabled;
   // What the mic button reflects: the persistent mute intent, independent of mode
   // and of the transient transmit gate (so it doesn't flicker with VAD/PTT).
   const micButtonOn = !micMuted;
-  // Unified local "speaking" value driving the self ripple AND the broadcast, so
-  // every client renders an identical ripple. Open mic: RMS-detect the live mic.
-  // Gated modes: the transmit gate already is the speaking signal.
-  const selfAudioSpeaking = useAudioActivity(
-    inputMode === 'open' && mesh.micEnabled ? mesh.localStream : null,
-  );
-  const selfSpeaking = inputMode === 'open' ? selfAudioSpeaking : transmitting;
+  const selfSpeaking = transmitting;
   // Stable userIds of peers currently speaking — drives the compact sidebar's
   // per-avatar speaking outline (self handled separately via selfSpeaking).
   const speakingUserIds = useMemo(
@@ -346,20 +361,26 @@ export function App(): React.JSX.Element {
   // Our effective accent color: the chosen one, else the default self gold.
   const selfColor = localAccentColor || SELF_COLOR;
 
+  // Connection params for the active space — depend on these (not the whole
+  // `spaces` array) so editing/deleting OTHER spaces doesn't tear down + reconnect
+  // the active call (signaling.join always closes the socket and rebuilds the mesh).
+  const activeSpace = spaces.find((s) => s.id === currentSpaceId);
+  const activeSpaceSignalingUrl = activeSpace?.customSignalingUrl || '';
+  const activeSpaceJoinSecret = activeSpace?.joinSecret || '';
+
   // Maintain a continuous space-level WebSocket connection to the signaling server
   useEffect(() => {
     if (currentSpaceId && displayName && userId) {
-      const activeSpace = spaces.find((s) => s.id === currentSpaceId);
-      const url = activeSpace?.customSignalingUrl || (window.chickadee?.signalingUrl ?? 'ws://localhost:8080');
-      const secret = activeSpace?.joinSecret || '';
-      signaling.join(currentSpaceId, currentRoomId, displayName, userId, rooms, selfStatus, localAvatarUrl, localVoicePreference, localAccentColor, secret, url);
+      const url = activeSpaceSignalingUrl || (window.chickadee?.signalingUrl ?? 'ws://localhost:8080');
+      signaling.join(currentSpaceId, currentRoomId, displayName, userId, rooms, selfStatus, localAvatarUrl, localVoicePreference, localAccentColor, activeSpaceJoinSecret, url);
     } else {
       signaling.leave();
     }
-    // We only want to re-establish the connection if the space, user, or name changes.
-    // Room movement and status updates are sent dynamically over the active socket.
+    // We only want to re-establish the connection if the space, user, or name changes,
+    // or the current space's connection params change. Room movement and status updates
+    // are sent dynamically over the active socket.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentSpaceId, userId, displayName, spaces]);
+  }, [currentSpaceId, userId, displayName, activeSpaceSignalingUrl, activeSpaceJoinSecret]);
 
   // Listen for space renames from other clients
   useEffect(() => {
@@ -528,7 +549,7 @@ export function App(): React.JSX.Element {
   );
 
   const cycleInputMode = useCallback(() => {
-    const order = ['open', 'voice', 'ptt'] as const;
+    const order = ['voice', 'ptt'] as const;
     applyInputMode(order[(order.indexOf(inputMode) + 1) % order.length]);
   }, [inputMode, applyInputMode]);
 
@@ -789,7 +810,7 @@ export function App(): React.JSX.Element {
     onDeafenStop: () => { if (deafened) toggleDeafen(); },
     onDeafenToggle: toggleDeafen,
     cameraKey,
-    onCameraToggle: () => { if (allowVideo) mesh.toggleCamera(); },
+    onCameraToggle: () => { if (allowVideo && cameraFeatureEnabled) mesh.toggleCamera(); },
     screenShareKey,
     onScreenShareToggle: () => {
       if (!allowVideo) return;
@@ -814,21 +835,14 @@ export function App(): React.JSX.Element {
     setMicEnabled: mesh.setMicEnabled,
   });
 
-  // Open-mic downward expander: softly attenuates background noise between
-  // speech instead of hard-gating. The mic stays live; only the gain ramps.
-  useNoiseExpander({
-    active: inputMode === 'open' && openMicNoiseReductionEnabled && inRoom,
-    threshold: openMicThreshold,
-    reductionDb: openMicReductionDb,
-    releaseMs: openMicReleaseMs,
-    analyserNode: mesh.analyserNode,
-    expanderGain: mesh.expanderGainNode,
-  });
-
   // Audio/video device lists for Settings and the chevron menus.
   const devices = useMediaDevices(inRoom || settingsOpen || menus.inputMenuOpen || menus.outputMenuOpen || menus.videoMenuOpen);
-  const hasCamera = devices.videoInputs.length > 0;
-  const defaultAction = hasCamera ? defaultVideoAction : 'screen';
+  // Optimistic until the first device scan resolves, so the UI doesn't flash
+  // "(No camera detected)" / disabled controls before enumerateDevices() returns.
+  const hasCamera = !devices.scanned || devices.videoInputs.length > 0;
+  // The camera is usable only when a device exists AND the feature is enabled in settings.
+  const cameraAvailable = hasCamera && cameraFeatureEnabled;
+  const defaultAction = cameraAvailable ? defaultVideoAction : 'screen';
 
   useTraySync({ currentRoomLabel: currentRoom?.label ?? null, handleToggleMic, toggleDeafen });
 
@@ -872,15 +886,17 @@ export function App(): React.JSX.Element {
             avatarUrl={peer.avatarDataUrl ?? null}
             volume={deafened ? 0 : (volumes[peer.id] ?? 1) * outputVolume}
             peerVolume={volumes[peer.id] ?? 1}
-            onVolumeChange={(v) => handleVolumeChange(peer.id, v)}
-            onToggleMute={() => togglePeerMute(peer.id)}
+            peerId={peer.id}
+            userId={peer.userId}
+            onVolumeChange={handleVolumeChange}
+            onToggleMute={togglePeerMute}
             deafened={peer.deafened}
             normalize={normalizeVoices}
             screenSharing={!!peer.screenStreamId}
             windowVisible={mediaVisible}
             subscribed={subscribed}
-            onJoinVideo={() => joinVideo(peer.userId)}
-            onLeaveVideo={() => leaveVideo(peer.userId)}
+            onJoinVideo={joinVideo}
+            onLeaveVideo={leaveVideo}
           />
         );
       })}
@@ -965,8 +981,6 @@ export function App(): React.JSX.Element {
       <div className="main">
         <RoomHeader
           room={currentRoom}
-          count={totalInRoom}
-          maxCount={currentRoomCap}
           chatOpen={chatOpen}
           onToggleChat={toggleChat}
           hasSpace={currentSpaceId !== null}
@@ -1083,10 +1097,6 @@ export function App(): React.JSX.Element {
                 onChangePushToTalkKey={applyPushToTalkKey}
                 vadThreshold={vadThreshold}
                 onChangeVadThreshold={applyVadThreshold}
-                openMicNoiseReductionEnabled={openMicNoiseReductionEnabled}
-                onToggleOpenMicNoiseReduction={() => applyOpenMicNoiseReductionEnabled(!openMicNoiseReductionEnabled)}
-                openMicThreshold={openMicThreshold}
-                onChangeOpenMicThreshold={applyOpenMicThreshold}
                 onOpenVoiceSettings={() => { menus.closeInputModeMenu(); setSettingsInitialTab('audio'); setSettingsOpen(true); }}
                 onClose={menus.closeInputModeMenu}
                 anchorRect={menus.inputModeMenuAnchor}
@@ -1112,7 +1122,7 @@ export function App(): React.JSX.Element {
                 onOpenVideoSettings={() => { menus.closeVideoMenu(); setSettingsInitialTab('video'); setSettingsOpen(true); }}
                 onClose={menus.closeVideoMenu}
                 anchorRect={menus.videoMenuAnchor}
-                hasCamera={hasCamera}
+                hasCamera={cameraAvailable}
               />
             )}
             {menus.reactionMenuOpen && menus.reactionMenuAnchor && (
@@ -1156,16 +1166,22 @@ export function App(): React.JSX.Element {
       </div>
 
       {pickerOpen && (
-        <ScreenSharePicker
-          onPick={(id, withAudio) => {
-            setPickerOpen(false);
-            mesh.startScreenShare(id, withAudio);
-          }}
-          onClose={() => setPickerOpen(false)}
-        />
+        <Suspense fallback={null}>
+          <ScreenSharePicker
+            onPick={(id, withAudio) => {
+              setPickerOpen(false);
+              mesh.startScreenShare(id, withAudio);
+            }}
+            onClose={() => setPickerOpen(false)}
+          />
+        </Suspense>
       )}
 
-      {onboardingNeeded && <WelcomeWizard onSubmit={handleOnboardingSubmit} />}
+      {onboardingNeeded && (
+        <Suspense fallback={null}>
+          <WelcomeWizard onSubmit={handleOnboardingSubmit} />
+        </Suspense>
+      )}
 
       {spaceJoin.createSpaceOpen && (
         <Modal title="Create a Space" onClose={spaceJoin.closeCreateSpace}>
@@ -1238,27 +1254,32 @@ export function App(): React.JSX.Element {
         </Modal>
       )}
 
-      {createOpen && (
-        <RoomModal
-          title="Create a room"
-          submitLabel="Create room"
-          showTypePicker
-          onSubmit={createRoom}
-          onClose={() => setCreateOpen(false)}
-        />
-      )}
-      {renameTarget && (
-        <RoomModal
-          title="Rename room"
-          submitLabel="Save"
-          initialLabel={renameTarget.label}
-          initialIcon={renameTarget.icon}
-          initialType={renameTarget.type}
-          onSubmit={(label, icon) => renameRoom(renameTarget.id, label, icon)}
-          onClose={() => setRenameTarget(null)}
-        />
+      {(createOpen || renameTarget) && (
+        <Suspense fallback={null}>
+          {createOpen && (
+            <RoomModal
+              title="Create a room"
+              submitLabel="Create room"
+              showTypePicker
+              onSubmit={createRoom}
+              onClose={() => setCreateOpen(false)}
+            />
+          )}
+          {renameTarget && (
+            <RoomModal
+              title="Rename room"
+              submitLabel="Save"
+              initialLabel={renameTarget.label}
+              initialIcon={renameTarget.icon}
+              initialType={renameTarget.type}
+              onSubmit={(label, icon) => renameRoom(renameTarget.id, label, icon)}
+              onClose={() => setRenameTarget(null)}
+            />
+          )}
+        </Suspense>
       )}
       {settingsOpen && (
+        <Suspense fallback={null}>
         <SettingsModal
           initialTab={settingsInitialTab}
           hasCamera={hasCamera}
@@ -1286,14 +1307,6 @@ export function App(): React.JSX.Element {
           onChangeVadThreshold={applyVadThreshold}
           vadReleaseMs={vadReleaseMs}
           onChangeVadReleaseMs={applyVadReleaseMs}
-          openMicNoiseReductionEnabled={openMicNoiseReductionEnabled}
-          onChangeOpenMicNoiseReductionEnabled={applyOpenMicNoiseReductionEnabled}
-          openMicThreshold={openMicThreshold}
-          onChangeOpenMicThreshold={applyOpenMicThreshold}
-          openMicReductionDb={openMicReductionDb}
-          onChangeOpenMicReductionDb={applyOpenMicReductionDb}
-          openMicReleaseMs={openMicReleaseMs}
-          onChangeOpenMicReleaseMs={applyOpenMicReleaseMs}
           theme={theme}
           onChangeTheme={applyTheme}
           launchOnStartup={launchOnStartup}
@@ -1346,6 +1359,8 @@ export function App(): React.JSX.Element {
           onChangeMicVolume={applyMicVolume}
           outputVolume={outputVolume}
           onChangeOutputVolume={applyOutputVolume}
+          cameraFeatureEnabled={cameraFeatureEnabled}
+          onChangeCameraFeatureEnabled={applyCameraFeatureEnabled}
           cameraResolution={cameraResolution}
           onChangeCameraResolution={applyCameraResolution}
           cameraFramerate={cameraFramerate}
@@ -1354,6 +1369,8 @@ export function App(): React.JSX.Element {
           onChangeScreenResolution={applyScreenResolution}
           screenFramerate={screenFramerate}
           onChangeScreenFramerate={applyScreenFramerate}
+          videoQuality={videoQuality}
+          onChangeVideoQuality={applyVideoQuality}
           uiScale={uiScale}
           onChangeUiScale={applyUiScale}
           chatFontScale={chatFontScale}
@@ -1378,37 +1395,43 @@ export function App(): React.JSX.Element {
           accentColor={localAccentColor}
           onChangeAccent={handleSaveAccent}
         />
+        </Suspense>
       )}
 
-      {spaceSettingsTarget && (
-        <SpaceSettingsModal
-          space={spaces.find(s => s.id === spaceSettingsTarget)!}
-          onSave={(name, url, secret) => {
-            const oldSpaceId = spaceSettingsTarget;
-            const space = spaces.find(s => s.id === oldSpaceId);
-            const isRename = space && space.name.trim().toLowerCase() !== name.trim().toLowerCase();
+      {spaceSettingsTarget && (() => {
+        const space = spaces.find((s) => s.id === spaceSettingsTarget);
+        if (!space) return null;
+        return (
+          <Suspense fallback={null}>
+          <SpaceSettingsModal
+            space={space}
+            onSave={(name, url, secret) => {
+              const oldSpaceId = spaceSettingsTarget;
+              const isRename = space.name.trim().toLowerCase() !== name.trim().toLowerCase();
 
-            if (isRename && signaling.status === 'connected' && oldSpaceId === currentSpaceId) {
-              const tempSlug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'space';
-              const suffix = Math.random().toString(36).substring(2, 7);
-              const newSpaceId = `${tempSlug}-${suffix}`;
+              if (isRename && signaling.status === 'connected' && oldSpaceId === currentSpaceId) {
+                const tempSlug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'space';
+                const suffix = Math.random().toString(36).substring(2, 7);
+                const newSpaceId = `${tempSlug}-${suffix}`;
 
-              signaling.send({
-                type: 'rename-space',
-                spaceId: oldSpaceId,
-                newSpaceId,
-                newSpaceName: name.trim()
-              });
+                signaling.send({
+                  type: 'rename-space',
+                  spaceId: oldSpaceId,
+                  newSpaceId,
+                  newSpaceName: name.trim()
+                });
 
-              updateSpaceSettings(oldSpaceId, name, url, secret, newSpaceId);
-            } else {
-              updateSpaceSettings(oldSpaceId, name, url, secret);
-            }
-            setSpaceSettingsTarget(null);
-          }}
-          onClose={() => setSpaceSettingsTarget(null)}
-        />
-      )}
+                updateSpaceSettings(oldSpaceId, name, url, secret, newSpaceId);
+              } else {
+                updateSpaceSettings(oldSpaceId, name, url, secret);
+              }
+              setSpaceSettingsTarget(null);
+            }}
+            onClose={() => setSpaceSettingsTarget(null)}
+          />
+          </Suspense>
+        );
+      })()}
     </div>
   );
 }
