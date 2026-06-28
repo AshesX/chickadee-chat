@@ -2519,6 +2519,7 @@ input:focus-visible,
 .space-switcher-btn__name--code {
   background: linear-gradient(135deg, var(--orange), var(--orange));
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   font-weight: var(--fw-2);
   font-family: monospace;
