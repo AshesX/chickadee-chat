@@ -23,17 +23,17 @@ export function AdvancedConnectionSettings({
     <div style={{ marginTop: '12px' }}>
       <button
         type="button"
-        className="welcome__btn"
         style={{
           background: 'transparent',
           border: 'none',
           color: 'var(--dim)',
           textAlign: 'left',
           padding: '0',
-          fontSize: '12px',
+          fontSize: 'var(--fs-1)',
+          width: '100%',
           display: 'flex',
           alignItems: 'center',
-          gap: '4px',
+          gap: 'var(--s-1)',
           cursor: 'pointer',
         }}
         onClick={() => setAdvancedOpen(!advancedOpen)}

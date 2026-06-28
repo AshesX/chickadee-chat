@@ -67,7 +67,7 @@ export function VideoMenu({
   ];
 
   return (
-    <ChevronMenu anchorRect={anchorRect} onClose={onClose} width={240} className="audio-menu">
+    <ChevronMenu anchorRect={anchorRect} onClose={onClose} width={240} className="audio-menu menu-surface">
         {/* Camera Section */}
         {hasCamera && (
           <>

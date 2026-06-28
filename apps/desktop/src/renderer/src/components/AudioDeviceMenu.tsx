@@ -49,7 +49,7 @@ export function AudioDeviceMenu({
   ];
 
   return (
-    <ChevronMenu anchorRect={anchorRect} onClose={onClose} width={280} className="audio-menu">
+    <ChevronMenu anchorRect={anchorRect} onClose={onClose} width={280} className="audio-menu menu-surface">
         <div className="audio-menu__section-label">
           {isInput ? 'Input Device' : 'Output Device'}
         </div>

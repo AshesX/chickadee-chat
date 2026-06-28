@@ -145,7 +145,7 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
   const showResults = searchFocused && searchQuery.trim().length > 0;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="backdrop backdrop--scrim" style={{ zIndex: 100 }} onClick={onClose}>
       <div className="settings-panel" onClick={(e) => e.stopPropagation()}>
 
         {/* Left Sidebar Menu */}
@@ -175,7 +175,7 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
               </button>
             )}
             {showResults && (
-              <div className="settings-sidebar__search-results">
+              <div className="settings-sidebar__search-results menu-surface">
                 {searchResults.length === 0 ? (
                   <div className="settings-sidebar__search-empty">No results</div>
                 ) : (
@@ -342,7 +342,7 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
           </div>
 
           <div className="settings-content__foot">
-            <button className="modal-action" onClick={() => { commitName(); onClose(); }}>
+            <button className="btn btn--primary btn--lg" onClick={() => { commitName(); onClose(); }}>
               Done
             </button>
           </div>

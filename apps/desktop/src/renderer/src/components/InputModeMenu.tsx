@@ -39,7 +39,7 @@ export function InputModeMenu({
   const vadPct = thresholdToPct(vadThreshold);
 
   return (
-    <ChevronMenu anchorRect={anchorRect} onClose={onClose} width={280} className="audio-menu">
+    <ChevronMenu anchorRect={anchorRect} onClose={onClose} width={280} className="audio-menu menu-surface">
         <div className="seg-group" style={{ marginBottom: 10 }}>
           {(['voice', 'ptt'] as const).map((m) => (
             <button

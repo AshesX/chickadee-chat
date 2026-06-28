@@ -245,7 +245,7 @@ export function AudioTab({
               </button>
               {pushToTalkKey && (
                 <button
-                  className="unbind-btn"
+                  className="btn btn--danger-soft unbind-btn"
                   onClick={() => onChangePushToTalkKey('')}
                   title="Clear keybind"
                   aria-label="Clear Push-to-talk keybind"

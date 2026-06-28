@@ -52,11 +52,135 @@ input:focus-visible,
 [role='button']:focus-visible,
 .room-row:focus-visible,
 .pill:focus-visible,
-.ctrl-btn:focus-visible,
-.modal-action:focus-visible {
+.ctrl-btn:focus-visible {
   outline: 2px solid var(--orange);
   outline-offset: 0;
   border-radius: var(--r-1);
+}
+
+/* ── Button primitive (.btn) ─────────────────────────────────
+   Composable button base + variants on the lean tokens (--dur-1,
+   --veil-1/2, --r-1, --s-*, --fs-*, --fw-*). Focus ring comes from the
+   global button:focus-visible rule above.
+
+   Adopted by: primary CTAs (modal-action/welcome__btn/crash → btn--primary),
+   danger (leave/reset → btn--danger), low-emphasis danger (unbind →
+   btn--danger-soft), welcome-wizard Back → btn--ghost.
+
+   Left bespoke on purpose (specialized layout / state / context, not generic
+   buttons): .ctrl-btn (column icon+label + variants), .pill (chat on/off
+   toggle), .winctl__btn (titlebar), .send-btn (fixed gradient icon), and the
+   structural tiles / rows / dropdowns / seg / grid / srccard / swatch.
+
+   Compose: base + one color variant (+ size), e.g.
+     <button class="btn btn--primary btn--lg">  CTA
+     <button class="btn btn--ghost">            secondary
+     <button class="btn btn--danger btn--lg">   destructive confirm
+     <button class="btn btn--danger-soft">      low-emphasis destructive */
+.btn {
+  -webkit-app-region: no-drag;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-1);
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid transparent;
+  border-radius: var(--r-1);
+  background: transparent;
+  color: var(--text-sub);
+  font-family: inherit;
+  font-size: var(--fs-2);
+  font-weight: var(--fw-1);
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all var(--dur-1) ease;
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Primary — brand gradient CTA (modal-action, send-btn, crash, avatar save). */
+.btn--primary {
+  background: var(--gradient);
+  color: var(--on-accent);
+  font-weight: var(--fw-2);
+}
+
+.btn--primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+/* Ghost — transparent; fills with an ink veil on hover, deeper on press
+   (winctl, self-settings, emoji-trigger, space-copy, version-btn). */
+.btn--ghost {
+  color: var(--dim);
+}
+
+.btn--ghost:hover:not(:disabled) {
+  background: var(--veil-1);
+  color: var(--text);
+}
+
+.btn--ghost:active:not(:disabled) {
+  background: var(--veil-2);
+}
+
+/* Danger (solid) — destructive confirm (leave-btn, ctrl/mini --danger). */
+.btn--danger {
+  background: var(--red);
+  border-color: var(--red);
+  color: var(--badge-fg);
+  font-weight: var(--fw-2);
+}
+
+.btn--danger:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+/* Danger (soft) — low-emphasis destructive (reset settings, unbind). */
+.btn--danger-soft {
+  background: var(--danger-bg);
+  border-color: color-mix(in srgb, var(--red) 20%, transparent);
+  color: var(--red);
+}
+
+.btn--danger-soft:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--red) 20%, transparent);
+  border-color: color-mix(in srgb, var(--red) 40%, transparent);
+}
+
+/* Size / shape modifiers (orthogonal to the color variants). */
+.btn--lg {
+  padding: var(--s-3) var(--s-4);
+}
+
+.btn--block {
+  width: 100%;
+}
+
+/* ── Menu surface primitive ──────────────────────────────────
+   Shared floating-panel look for dropdowns / popovers / context
+   menus. --frosted swaps the solid fill for a translucent blur.
+   Components add their own position / width / padding / animation
+   (and any radius/blur deviation) on top. */
+.menu-surface {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  box-shadow: var(--sh-1);
+}
+
+.menu-surface--frosted {
+  background: color-mix(in srgb, var(--card) 96%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
 /* ── Sidebar ──────────────────────────────────────────────── */
@@ -717,25 +841,14 @@ input:focus-visible,
   transform: scale(0.95);
 }
 
-.status-dropdown-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 99;
-}
-
 .status-dropdown {
   position: absolute;
   bottom: 50px;
   left: 12px;
   z-index: 100;
   width: 155px;
-  background: color-mix(in srgb, var(--card) 96%, transparent);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--border);
   border-radius: var(--r-1);
   padding: var(--s-1);
-  box-shadow: var(--sh-1);
   display: flex;
   flex-direction: column;
   gap: var(--s-1);
@@ -1413,28 +1526,6 @@ input:focus-visible,
   margin: 0 var(--s-2);
 }
 
-.leave-btn {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  padding: var(--s-3) var(--s-5);
-  border-radius: var(--r-1);
-  background: var(--red);
-  color: #fff;
-  font-size: var(--fs-2);
-  font-weight: var(--fw-2);
-  box-shadow: none;
-  transition: all var(--dur-1) ease;
-}
-
-.leave-btn:hover {
-  filter: brightness(1.1);
-}
-
-.leave-btn:active {
-  transform: scale(0.94);
-}
-
 .ctrl-group {
   display: flex;
   align-items: stretch;
@@ -1475,10 +1566,6 @@ input:focus-visible,
   display: flex;
   flex-direction: column;
   padding: var(--s-3);
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--r-2);
-  box-shadow: var(--sh-1);
   animation: msgIn 0.14s ease;
 }
 
@@ -1587,10 +1674,7 @@ input:focus-visible,
   max-height: 200px;
   overflow-y: auto;
   padding: var(--s-1);
-  background: var(--card);
-  border: 1px solid var(--border);
   border-radius: var(--r-1);
-  box-shadow: var(--sh-1);
   list-style: none;
   margin: 0;
   animation: msgIn 0.12s ease;
@@ -1791,13 +1875,7 @@ input:focus-visible,
 .reaction-pop {
   position: fixed;
   z-index: 70;
-  background: color-mix(in srgb, var(--card) 96%, transparent);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--border);
-  border-radius: var(--r-2);
   padding: var(--s-2) var(--s-4);
-  box-shadow: var(--sh-1);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -1842,13 +1920,9 @@ input:focus-visible,
 .emoji-picker-pop {
   position: fixed;
   z-index: 80;
-  background: color-mix(in srgb, var(--card) 96%, transparent);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--border);
-  border-radius: var(--r-2);
   padding: var(--s-3);
-  box-shadow: var(--sh-1);
   display: flex;
   flex-direction: column;
   gap: var(--s-3);
@@ -1961,15 +2035,22 @@ input:focus-visible,
 }
 
 /* ── Modals ───────────────────────────────────────────────── */
-.modal-overlay {
+/* ── Backdrop primitive ──────────────────────────────────────
+   Full-screen layer. Bare .backdrop = transparent click-catcher
+   (closes popovers/menus on outside click). --scrim dims + centers
+   its child (modals). z-index is set per call site since stacking
+   order is context-specific. */
+.backdrop {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  -webkit-app-region: no-drag;
+}
+
+.backdrop--scrim {
+  background: var(--scrim);
   display: grid;
   place-items: center;
-  background: var(--scrim);
   padding: var(--s-6);
-  -webkit-app-region: no-drag;
 }
 
 .modal-panel {
@@ -2092,34 +2173,6 @@ input:focus-visible,
 .icon-grid__item--active {
   background: var(--active-bg);
   border-color: var(--orange);
-}
-
-.modal-action,
-.welcome__btn {
-  padding: var(--s-3) var(--s-4);
-  border-radius: var(--r-1);
-  background: var(--gradient);
-  color: var(--on-accent);
-  font-size: var(--fs-2);
-  font-weight: var(--fw-2);
-  transition: all var(--dur-1) ease;
-}
-
-.modal-action:hover,
-.welcome__btn:hover {
-  filter: brightness(1.08);
-}
-
-.modal-action:active,
-.welcome__btn:active {
-  transform: scale(0.97);
-}
-
-.modal-action:disabled,
-.welcome__btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-  filter: none;
 }
 
 .settings-note {
@@ -2268,30 +2321,14 @@ input:focus-visible,
 }
 
 
-/* ── Volume popover ───────────────────────────────────────── */
-.popover-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-}
-
 /* ── Room right-click context menu ────────────────────────── */
-.ctx-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 70;
-}
-
 .ctx-menu {
   position: fixed;
   min-width: 140px;
   display: flex;
   flex-direction: column;
   padding: var(--s-1);
-  background: var(--card);
-  border: 1px solid var(--border);
   border-radius: var(--r-1);
-  box-shadow: var(--sh-1);
   animation: msgIn 0.12s ease;
 }
 
@@ -2348,10 +2385,6 @@ input:focus-visible,
   width: 100%;
   text-align: center;
   margin-bottom: var(--s-4);
-}
-
-.welcome__btn {
-  width: 100%;
 }
 
 /* ── Screen-share picker — uses the shared .modal-panel shell ── */
@@ -2459,14 +2492,6 @@ input:focus-visible,
   white-space: pre-wrap;
   word-break: break-word;
   font-size: var(--fs-2);
-}
-
-.crash button {
-  padding: var(--s-2) var(--s-4);
-  border-radius: var(--r-1);
-  background: var(--gradient);
-  color: var(--on-accent);
-  font-weight: var(--fw-2);
 }
 
 /* ── Space Switcher ───────────────────────────────────────── */
@@ -3096,10 +3121,7 @@ input:focus-visible,
   top: calc(100% + 4px);
   left: 0;
   right: 0;
-  background: var(--card);
-  border: 1px solid var(--border);
   border-radius: var(--r-1);
-  box-shadow: var(--sh-1);
   z-index: 50;
   overflow: hidden;
   display: flex;
@@ -3270,53 +3292,11 @@ input:focus-visible,
   gap: var(--s-2);
 }
 
+/* Fixed-size icon residual; colors + mechanics come from .btn .btn--danger-soft. */
 .unbind-btn {
-  display: grid;
-  place-items: center;
   width: 32px;
   height: 32px;
-  border-radius: var(--r-1);
-  border: 1px solid color-mix(in srgb, var(--red) 20%, transparent);
-  background: color-mix(in srgb, var(--red) 8%, transparent);
-  color: var(--red);
-  transition: all var(--dur-1) ease;
-}
-
-.unbind-btn:hover {
-  background: color-mix(in srgb, var(--red) 20%, transparent);
-  border-color: color-mix(in srgb, var(--red) 40%, transparent);
-  color: var(--red);
-  transform: translateY(-1px);
-}
-
-.unbind-btn:active {
-  transform: scale(0.95);
-}
-
-.danger-action-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--s-2) var(--s-4);
-  border-radius: var(--r-1);
-  border: 1px solid color-mix(in srgb, var(--red) 20%, transparent);
-  background: color-mix(in srgb, var(--red) 8%, transparent);
-  color: var(--red);
-  font-size: var(--fs-1);
-  font-weight: var(--fw-1);
-  transition: all var(--dur-1) ease;
-  cursor: pointer;
-}
-
-.danger-action-btn:hover {
-  background: color-mix(in srgb, var(--red) 20%, transparent);
-  border-color: color-mix(in srgb, var(--red) 40%, transparent);
-  color: var(--red);
-  transform: translateY(-1px);
-}
-
-.danger-action-btn:active {
-  transform: scale(0.97);
+  padding: 0;
 }
 
 /* ─── Avatar images in existing circles ──────────────────────────────────── */
@@ -3452,18 +3432,6 @@ input:focus-visible,
 }
 
 /* ─── AvatarCropModal ─────────────────────────────────────────────────────── */
-
-.avatar-crop-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 300;
-  background: var(--scrim);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-}
 
 .avatar-crop-modal {
   background: var(--card);

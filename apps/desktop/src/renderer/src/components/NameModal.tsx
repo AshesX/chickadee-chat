@@ -15,7 +15,7 @@ export function NameModal({ onSubmit }: NameModalProps): React.JSX.Element {
   }
 
   return (
-    <div className="modal-overlay">
+    <div className="backdrop backdrop--scrim" style={{ zIndex: 100 }}>
       <div className="modal-panel modal-panel--welcome" onClick={(e) => e.stopPropagation()}>
         <Logo size={64} className="welcome__logo" />
         <h2 className="welcome__title">
@@ -31,7 +31,7 @@ export function NameModal({ onSubmit }: NameModalProps): React.JSX.Element {
           autoFocus
           maxLength={32}
         />
-        <button className="welcome__btn" onClick={submit} disabled={!name.trim()}>
+        <button className="btn btn--primary btn--lg btn--block" onClick={submit} disabled={!name.trim()}>
           Enter the lounge
         </button>
       </div>

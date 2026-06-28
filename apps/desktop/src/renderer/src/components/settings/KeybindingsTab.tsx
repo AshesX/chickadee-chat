@@ -114,7 +114,7 @@ export function KeybindingsTab({
           </button>
           {muteKey && (
             <button
-              className="unbind-btn"
+              className="btn btn--danger-soft unbind-btn"
               onClick={() => onChangeMuteKey('')}
               title="Clear keybind"
               aria-label="Clear Mute keybind"
@@ -139,7 +139,7 @@ export function KeybindingsTab({
           </button>
           {deafenKey && (
             <button
-              className="unbind-btn"
+              className="btn btn--danger-soft unbind-btn"
               onClick={() => onChangeDeafenKey('')}
               title="Clear keybind"
               aria-label="Clear Deafen keybind"
@@ -164,7 +164,7 @@ export function KeybindingsTab({
           </button>
           {pushToTalkKey && (
             <button
-              className="unbind-btn"
+              className="btn btn--danger-soft unbind-btn"
               onClick={() => onChangePushToTalkKey('')}
               title="Clear keybind"
               aria-label="Clear Push-to-talk keybind"
@@ -191,7 +191,7 @@ export function KeybindingsTab({
             {capturing === 'camera' ? 'Press a key…' : (cameraKey || 'Unbound')}
           </button>
           {cameraKey && (
-            <button className="unbind-btn" onClick={() => onChangeCameraKey('')}><X size={14} /></button>
+            <button className="btn btn--danger-soft unbind-btn" onClick={() => onChangeCameraKey('')}><X size={14} /></button>
           )}
         </div>
       </div>
@@ -209,7 +209,7 @@ export function KeybindingsTab({
             {capturing === 'screenShare' ? 'Press a key…' : (screenShareKey || 'Unbound')}
           </button>
           {screenShareKey && (
-            <button className="unbind-btn" onClick={() => onChangeScreenShareKey('')}><X size={14} /></button>
+            <button className="btn btn--danger-soft unbind-btn" onClick={() => onChangeScreenShareKey('')}><X size={14} /></button>
           )}
         </div>
       </div>
@@ -230,7 +230,7 @@ export function KeybindingsTab({
             {capturing === 'chatPanel' ? 'Press a key…' : (chatPanelKey || 'Unbound')}
           </button>
           {chatPanelKey && (
-            <button className="unbind-btn" onClick={() => onChangeChatPanelKey('')}><X size={14} /></button>
+            <button className="btn btn--danger-soft unbind-btn" onClick={() => onChangeChatPanelKey('')}><X size={14} /></button>
           )}
         </div>
       </div>
@@ -248,7 +248,7 @@ export function KeybindingsTab({
             {capturing === 'ttsToggle' ? 'Press a key…' : (ttsToggleKey || 'Unbound')}
           </button>
           {ttsToggleKey && (
-            <button className="unbind-btn" onClick={() => onChangeTtsToggleKey('')}><X size={14} /></button>
+            <button className="btn btn--danger-soft unbind-btn" onClick={() => onChangeTtsToggleKey('')}><X size={14} /></button>
           )}
         </div>
       </div>
@@ -266,7 +266,7 @@ export function KeybindingsTab({
             {capturing === 'ttsStop' ? 'Press a key…' : (ttsStopKey || 'Unbound')}
           </button>
           {ttsStopKey && (
-            <button className="unbind-btn" onClick={() => onChangeTtsStopKey('')}><X size={14} /></button>
+            <button className="btn btn--danger-soft unbind-btn" onClick={() => onChangeTtsStopKey('')}><X size={14} /></button>
           )}
         </div>
       </div>

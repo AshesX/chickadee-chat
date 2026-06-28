@@ -24,7 +24,7 @@ export function ReactionPopover({ onReact, onClose, anchorRect, onMouseEnter, on
   }
 
   return (
-    <ChevronMenu anchorRect={anchorRect} onClose={onClose} width={340} className="reaction-pop" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
+    <ChevronMenu anchorRect={anchorRect} onClose={onClose} width={340} className="reaction-pop menu-surface menu-surface--frosted" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
         <div className="reaction-pop__grid">
           {REACTION_EMOJIS.map((emoji) => (
             <button

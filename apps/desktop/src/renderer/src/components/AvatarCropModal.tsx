@@ -198,7 +198,11 @@ export function AvatarCropModal({ onSave, onCancel }: AvatarCropModalProps): Rea
   const maxScale = minScale * 6;
 
   return (
-    <div className="avatar-crop-overlay" onClick={onCancel}>
+    <div
+      className="backdrop backdrop--scrim"
+      style={{ zIndex: 300, backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
+      onClick={onCancel}
+    >
       <div className="avatar-crop-modal" onClick={(e) => e.stopPropagation()}>
         <div className="avatar-crop-modal__title">Set Avatar</div>
         <div className="avatar-crop-modal__hint">

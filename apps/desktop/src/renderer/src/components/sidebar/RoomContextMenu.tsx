@@ -17,7 +17,8 @@ export function RoomContextMenu({
 }: RoomContextMenuProps): React.JSX.Element {
   return (
     <div
-      className="ctx-backdrop"
+      className="backdrop"
+      style={{ zIndex: 70 }}
       onClick={onClose}
       onContextMenu={(e) => {
         e.preventDefault();
@@ -25,7 +26,7 @@ export function RoomContextMenu({
       }}
     >
       <div
-        className="ctx-menu"
+        className="ctx-menu menu-surface"
         style={{ left: menu.x, top: menu.y }}
         onClick={(e) => e.stopPropagation()}
       >

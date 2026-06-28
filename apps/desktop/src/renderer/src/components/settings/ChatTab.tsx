@@ -145,7 +145,7 @@ export function ChatTab({
           </button>
           {chatPanelKey && (
             <button
-              className="unbind-btn"
+              className="btn btn--danger-soft unbind-btn"
               onClick={() => onChangeChatPanelKey('')}
             ><X size={14} /></button>
           )}
@@ -167,7 +167,7 @@ export function ChatTab({
           </button>
           {ttsToggleKey && (
             <button
-              className="unbind-btn"
+              className="btn btn--danger-soft unbind-btn"
               onClick={() => onChangeTtsToggleKey('')}
             ><X size={14} /></button>
           )}
@@ -189,7 +189,7 @@ export function ChatTab({
           </button>
           {ttsStopKey && (
             <button
-              className="unbind-btn"
+              className="btn btn--danger-soft unbind-btn"
               onClick={() => onChangeTtsStopKey('')}
             ><X size={14} /></button>
           )}

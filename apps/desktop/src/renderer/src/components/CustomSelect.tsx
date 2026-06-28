@@ -56,8 +56,8 @@ export function CustomSelect({
 
       {open && (
         <>
-          <div className="popover-backdrop" onClick={() => setOpen(false)} />
-          <ul className="custom-select__menu" style={menuStyle}>
+          <div className="backdrop" style={{ zIndex: 60 }} onClick={() => setOpen(false)} />
+          <ul className="custom-select__menu menu-surface" style={menuStyle}>
             {options.map((opt) => (
               <li key={opt.value}>
                 <button

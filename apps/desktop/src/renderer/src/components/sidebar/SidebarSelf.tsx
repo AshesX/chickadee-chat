@@ -55,8 +55,8 @@ export function SidebarSelf({
 
       {statusMenuOpen && (
         <>
-          <div className="status-dropdown-backdrop" onClick={() => setStatusMenuOpen(false)} />
-          <div className="status-dropdown" onClick={(e) => e.stopPropagation()}>
+          <div className="backdrop" style={{ zIndex: 99 }} onClick={() => setStatusMenuOpen(false)} />
+          <div className="status-dropdown menu-surface menu-surface--frosted" onClick={(e) => e.stopPropagation()}>
             <button
               className={`status-dropdown__item${selfStatus === 'online' ? ' status-dropdown__item--active' : ''}`}
               onClick={() => {
