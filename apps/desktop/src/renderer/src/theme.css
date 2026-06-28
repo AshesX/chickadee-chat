@@ -48,21 +48,29 @@
   --logo-fill: #1f1300;
 
   /* Structural tokens that drive the shared Swiss section in styles.css. */
-  --tint: #1f1300;            /* base for surface veils / hovers / gate marker */
-  --block-bg: #1f1300;        /* selected nav block = ink */
-  --block-fg: #e9e9e9;        /* text/icon on the block */
-  --on-accent: #1f1300;       /* text on an orange block (active control buttons) */
-  --badge-fg: #e9e9e9;        /* text on media (tile badges) */
+  --tint: #1f1300;
+  /* base for surface veils / hovers / gate marker */
+  --block-bg: #1f1300;
+  /* selected nav block = ink */
+  --block-fg: #e9e9e9;
+  /* text/icon on the block */
+  --on-accent: #1f1300;
+  /* text on an orange block (active control buttons) */
+  --badge-fg: #e9e9e9;
+  /* text on media (tile badges) */
   --scrim: rgba(31, 19, 0, 0.45);
-  --shadow-color: rgba(31, 19, 0, 0.24); /* bumped from .18 so tint shadows keep depth */
+  --shadow-color: rgba(31, 19, 0, 0.24);
+  /* bumped from .18 so tint shadows keep depth */
 
   /* ── Ultra-Lean primitives ──────────────────────────────────
      Terse visual scales (see plan act-as-a-strict-deep-puzzle.md).
      Avatars/dots stay round via literal 50%. */
 
   /* Radius — 2 tiers */
-  --r-1: 4px;   /* controls + small surfaces */
-  --r-2: 12px;  /* modals, dropdowns, popovers */
+  --r-1: 4px;
+  /* controls + small surfaces */
+  --r-2: 12px;
+  /* modals, dropdowns, popovers */
 
   /* Spacing — pure 4px scale */
   --s-1: 4px;
@@ -100,10 +108,14 @@
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
 
   /* Z-index — strict overlay layering (low → high) */
-  --z-dropdown: 100;  /* menus / popovers / context menus / dropdowns + their backdrops */
-  --z-modal: 200;     /* modal overlays + panels */
-  --z-nested: 300;    /* a dialog opened over a modal (e.g. avatar crop) */
-  --z-tooltip: 400;   /* tooltips — always on top */
+  --z-dropdown: 100;
+  /* menus / popovers / context menus / dropdowns + their backdrops */
+  --z-modal: 200;
+  /* modal overlays + panels */
+  --z-nested: 300;
+  /* a dialog opened over a modal (e.g. avatar crop) */
+  --z-tooltip: 400;
+  /* tooltips — always on top */
 }
 
 * {
@@ -133,11 +145,9 @@ body::before {
   content: '';
   position: fixed;
   inset: 0;
-  background: radial-gradient(
-    ellipse 55% 50% at 32% 48%,
-    var(--glow) 0%,
-    transparent 70%
-  );
+  background: radial-gradient(ellipse 55% 50% at 32% 48%,
+      var(--glow) 0%,
+      transparent 70%);
   pointer-events: none;
   z-index: 0;
 }
@@ -146,9 +156,11 @@ body::before {
 ::-webkit-scrollbar {
   width: 3px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
   background: var(--scrollbar);
   border-radius: var(--r-1);
@@ -157,6 +169,7 @@ body::before {
 input::placeholder {
   color: var(--placeholder);
 }
+
 input:focus {
   outline: none;
 }
@@ -169,6 +182,7 @@ input:focus {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
+
   100% {
     opacity: 0;
     transform: translateY(-88px) scale(2.3);
@@ -181,6 +195,7 @@ input:focus {
     opacity: 0;
     transform: translateX(14px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -193,13 +208,12 @@ input:focus {
     opacity: 0;
     transform: translateY(7px) scale(0.97);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
 }
-
-
 
 /* Modal fade/scale in */
 @keyframes modalIn {
@@ -207,6 +221,7 @@ input:focus {
     opacity: 0;
     transform: translateY(8px) scale(0.98);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -219,6 +234,7 @@ input:focus {
     opacity: 0;
     transform: translateX(-14px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
