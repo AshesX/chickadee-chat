@@ -20,7 +20,7 @@ export function KeybindControl({
   return (
     <div className="kb-control">
       <div className="kb-control__col">
-        <div className="audio-menu__section-label">Mode</div>
+        <div className="label">Mode</div>
         <div className="seg-group">
           <button
             type="button"
@@ -39,7 +39,7 @@ export function KeybindControl({
         </div>
       </div>
       <div className="kb-control__col kb-control__col--key">
-        <div className="audio-menu__section-label">Key</div>
+        <div className="label">Key</div>
         <KeybindRow value={value} onChange={onChange} clearLabel={clearLabel} />
       </div>
     </div>

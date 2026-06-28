@@ -216,7 +216,7 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
             </div>
           )}
 
-          <div className="settings-sidebar__title" style={{ marginTop: '14px' }}>App Settings</div>
+          <div className="settings-sidebar__title" style={{ marginTop: 'var(--s-4)' }}>App Settings</div>
           <button
             className={`settings-sidebar__item${activeTab === 'audio' ? ' settings-sidebar__item--active' : ''}`}
             onClick={() => setActiveTab('audio')}

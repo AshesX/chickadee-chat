@@ -50,7 +50,7 @@ export function AudioDeviceMenu({
 
   return (
     <ChevronMenu anchorRect={anchorRect} onClose={onClose} width={280} className="audio-menu menu-surface">
-        <div className="audio-menu__section-label">
+        <div className="label">
           {isInput ? 'Input Device' : 'Output Device'}
         </div>
         <CustomSelect
@@ -59,7 +59,7 @@ export function AudioDeviceMenu({
           options={deviceOptions}
         />
 
-        <div className="audio-menu__section-label" style={{ marginTop: 10 }}>
+        <div className="label" style={{ marginTop: 'var(--s-2)' }}>
           {isInput ? `Mic Volume — ${volumePct}%` : `Output Volume — ${volumePct}%`}
         </div>
         <SettingsSlider

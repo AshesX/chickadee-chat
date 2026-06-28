@@ -33,7 +33,7 @@ export function SpaceSettingsModal({ space, onSave, onClose }: SpaceSettingsModa
           placeholder="Enter new space name"
         />
         {name.trim().toLowerCase() !== space.name.toLowerCase() && (
-          <span className="settings-row__hint" style={{ marginTop: '6px', display: 'block', color: 'var(--orange)', fontSize: '11px', fontWeight: '500' }}>
+          <span className="hint" style={{ marginTop: 'var(--s-2)', display: 'block', color: 'var(--orange)', fontSize: 'var(--fs-1)', fontWeight: 'var(--fw-1)' }}>
             ⚠️ Changing name will regenerate invite code to: <strong>{slug}-xxxxx</strong>. Active members in the space will update automatically. Others must receive the new code.
           </span>
         )}
@@ -49,7 +49,7 @@ export function SpaceSettingsModal({ space, onSave, onClose }: SpaceSettingsModa
         onEnterKeyDown={handleSave}
       />
 
-      <button className="btn btn--primary" onClick={handleSave} style={{ marginTop: '24px' }} disabled={!name.trim()}>
+      <button className="btn btn--primary" onClick={handleSave} style={{ marginTop: 'var(--s-6)' }} disabled={!name.trim()}>
         Save Settings
       </button>
     </Modal>

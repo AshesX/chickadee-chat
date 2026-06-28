@@ -48,7 +48,7 @@ export function ChatTab({
       <div className="settings-row">
         <div className="settings-row__label">
           <span>Chat Font Scale</span>
-          <span className="settings-row__hint">Chat message text size.</span>
+          <span className="hint">Chat message text size.</span>
         </div>
         <div className="mic-control-wrap">
           <SettingsSlider
@@ -73,7 +73,7 @@ export function ChatTab({
       <div className="settings-row">
         <div className="settings-row__label">
           <span>Chat position</span>
-          <span className="settings-row__hint">Dock chat to the left or right.</span>
+          <span className="hint">Dock chat to the left or right.</span>
         </div>
         <div className="seg-group">
           <button
@@ -90,7 +90,7 @@ export function ChatTab({
       <div className="settings-row">
         <div className="settings-row__label">
           <span>Read messages aloud (Text-to-Speech)</span>
-          <span className="settings-row__hint">Speaks new messages when app is unfocused.</span>
+          <span className="hint">Speaks new messages when app is unfocused.</span>
         </div>
         <Toggle on={chatTtsEnabled} onClick={() => onChangeChatTtsEnabled(!chatTtsEnabled)} />
       </div>
@@ -98,7 +98,7 @@ export function ChatTab({
       <div className="settings-row">
         <div className="settings-row__label">
           <span>Speak sender's name</span>
-          <span className="settings-row__hint">Reads &quot;[name] says&quot; before messages.</span>
+          <span className="hint">Reads &quot;[name] says&quot; before messages.</span>
         </div>
         <Toggle on={chatTtsSpeakName} onClick={() => onChangeChatTtsSpeakName(!chatTtsSpeakName)} />
       </div>
@@ -106,9 +106,9 @@ export function ChatTab({
       <div className="settings-row">
         <div className="settings-row__label">
           <span>My chat voice</span>
-          <span className="settings-row__hint">Your voice for others using TTS. Listeners match this to their closest system voice.</span>
+          <span className="hint">Your voice for others using TTS. Listeners match this to their closest system voice.</span>
         </div>
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 'var(--s-2)', alignItems: 'center' }}>
           <CustomSelect
             value={voicePreference}
             onChange={onChangeVoicePreference}
@@ -133,7 +133,7 @@ export function ChatTab({
       <div className="settings-row">
         <div className="settings-row__label">
           <span>Chat Panel Key</span>
-          <span className="settings-row__hint">Toggle the chat panel visibility.</span>
+          <span className="hint">Toggle the chat panel visibility.</span>
         </div>
         <div className="keybind-row">
           <button
@@ -155,7 +155,7 @@ export function ChatTab({
       <div className="settings-row">
         <div className="settings-row__label">
           <span>TTS Toggle Key</span>
-          <span className="settings-row__hint">Toggle the "Read messages aloud" setting.</span>
+          <span className="hint">Toggle the "Read messages aloud" setting.</span>
         </div>
         <div className="keybind-row">
           <button
@@ -177,7 +177,7 @@ export function ChatTab({
       <div className="settings-row">
         <div className="settings-row__label">
           <span>TTS Stop Key</span>
-          <span className="settings-row__hint">Immediately stop reading the current message.</span>
+          <span className="hint">Immediately stop reading the current message.</span>
         </div>
         <div className="keybind-row">
           <button

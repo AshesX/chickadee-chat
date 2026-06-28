@@ -24,7 +24,7 @@ export function TitleBar({ chatOpen, onToggleChat, inRoom, compact }: TitleBarPr
           <button
             className={`pill pill--chat${chatOpen ? ' pill--chat-on' : ''}`}
             onClick={onToggleChat}
-            style={{ marginRight: 8 }}
+            style={{ marginRight: 'var(--s-2)' }}
           >
             <MessageSquare size={14} />
             Chat

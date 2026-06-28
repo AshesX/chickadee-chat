@@ -40,7 +40,7 @@ export function InputModeMenu({
 
   return (
     <ChevronMenu anchorRect={anchorRect} onClose={onClose} width={280} className="audio-menu menu-surface">
-        <div className="seg-group" style={{ marginBottom: 10 }}>
+        <div className="seg-group" style={{ marginBottom: 'var(--s-2)' }}>
           {(['voice', 'ptt'] as const).map((m) => (
             <button
               key={m}
@@ -64,8 +64,8 @@ export function InputModeMenu({
         )}
 
         {inputMode === 'voice' && (
-          <div style={{ padding: '0 12px 12px' }}>
-            <div className="audio-menu__section-label" style={{ marginBottom: 8 }}>Threshold — {vadPct}%</div>
+          <div style={{ padding: '0 var(--s-3) var(--s-3)' }}>
+            <div className="label">Threshold — {vadPct}%</div>
             <SettingsSlider
               min={GATE_THRESHOLD_MIN}
               max={GATE_THRESHOLD_MAX}

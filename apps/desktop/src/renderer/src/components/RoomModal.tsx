@@ -47,7 +47,7 @@ export function RoomModal({
   return (
     <Modal title={title} onClose={onClose}>
       {showTypePicker && (
-        <div className="field" style={{ marginBottom: '14px' }}>
+        <div className="field" style={{ marginBottom: 'var(--s-4)' }}>
           <span>Room type</span>
           <div className="seg-group seg-group--room-type">
             <button
@@ -66,7 +66,7 @@ export function RoomModal({
         </div>
       )}
 
-      <label className="field" style={{ marginBottom: '14px' }}>
+      <label className="field" style={{ marginBottom: 'var(--s-4)' }}>
         <span>Room name</span>
         <input
           value={label}
@@ -103,7 +103,7 @@ export function RoomModal({
             </button>
           ))}
           {filteredIcons.length === 0 && (
-            <div style={{ gridColumn: 'span 6', textAlign: 'center', padding: '20px', color: 'var(--dim)', fontSize: '12.5px' }}>
+            <div style={{ gridColumn: 'span 6', textAlign: 'center', padding: 'var(--s-5)', color: 'var(--dim)', fontSize: 'var(--fs-1)' }}>
               No icons found
             </div>
           )}

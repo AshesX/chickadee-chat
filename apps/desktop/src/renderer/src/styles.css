@@ -1504,9 +1504,7 @@ input:focus-visible,
 }
 
 
-.label,
-.audio-menu__section-label,
-.emoji-picker-pop__section-title {
+.label {
   font-size: var(--fs-1);
   font-weight: var(--fw-2);
   letter-spacing: 0.16em;
@@ -2130,12 +2128,6 @@ input:focus-visible,
   min-width: 0;
 }
 
-.settings-row__hint {
-  font-size: var(--fs-1);
-  color: var(--dim);
-}
-
-
 .switch {
   flex-shrink: 0;
   width: 38px;
@@ -2531,15 +2523,15 @@ input:focus-visible,
   flex-direction: column;
   align-items: center;
   gap: var(--s-1);
-  background: rgba(15, 15, 27, 0.85);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: color-mix(in srgb, var(--card) 96%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
   border-radius: var(--r-1);
   padding: var(--s-2) var(--s-3);
   font-size: var(--fs-1);
   font-weight: var(--fw-1);
-  color: #ffffff;
+  color: var(--text);
   box-shadow: var(--sh-1);
   pointer-events: none;
   opacity: 0;
@@ -2549,7 +2541,7 @@ input:focus-visible,
 }
 
 .space-copy-btn__tooltip-action {
-  color: #ffffff;
+  color: var(--text);
   font-weight: var(--fw-1);
 }
 

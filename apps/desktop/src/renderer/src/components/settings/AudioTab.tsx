@@ -70,7 +70,7 @@ export function AudioTab({
       <div className="settings-row">
         <div className="settings-row__label">
           <span>Input device (microphone)</span>
-          <span className="settings-row__hint">Select your active microphone.</span>
+          <span className="hint">Select your active microphone.</span>
         </div>
         <CustomSelect
           value={inputDeviceId}
@@ -86,7 +86,7 @@ export function AudioTab({
       <div className="settings-row">
         <div className="settings-row__label">
           <span>Mic volume</span>
-          <span className="settings-row__hint">Adjust mic level. &gt;100% boosts gain and threshold sensitivity.</span>
+          <span className="hint">Adjust mic level. &gt;100% boosts gain and threshold sensitivity.</span>
         </div>
         <div className="mic-control-wrap">
           <SettingsSlider
@@ -111,7 +111,7 @@ export function AudioTab({
       <div className="settings-row">
         <div className="settings-row__label">
           <span>Output device (speakers)</span>
-          <span className="settings-row__hint">Select your speakers or headphones.</span>
+          <span className="hint">Select your speakers or headphones.</span>
         </div>
         <CustomSelect
           value={outputDeviceId}
@@ -127,7 +127,7 @@ export function AudioTab({
       <div className="settings-row">
         <div className="settings-row__label">
           <span>Output volume</span>
-          <span className="settings-row__hint">Master volume for incoming audio. &gt;100% may distort.</span>
+          <span className="hint">Master volume for incoming audio. &gt;100% may distort.</span>
         </div>
         <SettingsSlider
           min={0}
@@ -152,7 +152,7 @@ export function AudioTab({
       <div className="settings-row">
         <div className="settings-row__label">
           <span>How your mic transmits</span>
-          <span className="settings-row__hint">Voice: opens when speaking. Push-to-Talk: key press required.</span>
+          <span className="hint">Voice: opens when speaking. Push-to-Talk: key press required.</span>
         </div>
         <div className="seg-group">
           <button
@@ -171,7 +171,7 @@ export function AudioTab({
           <div className="settings-row">
             <div className="settings-row__label">
               <span>Voice threshold</span>
-              <span className="settings-row__hint">Minimum volume required to transmit. Higher requires louder speech.</span>
+              <span className="hint">Minimum volume required to transmit. Higher requires louder speech.</span>
             </div>
             <div className="mic-control-wrap">
               <SettingsSlider
@@ -195,7 +195,7 @@ export function AudioTab({
           <div className="settings-row">
             <div className="settings-row__label">
               <span>Voice hold time</span>
-              <span className="settings-row__hint">Duration mic stays open after speaking ends. <strong>Currently {vadReleaseMs} ms.</strong></span>
+              <span className="hint">Duration mic stays open after speaking ends. <strong>Currently {vadReleaseMs} ms.</strong></span>
             </div>
             <SettingsSlider
               value={vadReleaseMs}
@@ -216,7 +216,7 @@ export function AudioTab({
           <div className="settings-row">
             <div className="settings-row__label">
               <span>Push-to-talk mode</span>
-              <span className="settings-row__hint">Hold: live while pressed. Toggle: press to mute/unmute.</span>
+              <span className="hint">Hold: live while pressed. Toggle: press to mute/unmute.</span>
             </div>
             <div className="seg-group">
               <button
@@ -233,7 +233,7 @@ export function AudioTab({
           <div className="settings-row">
             <div className="settings-row__label">
               <span>Push-to-talk key</span>
-              <span className="settings-row__hint">System-wide hotkey. Pick an unused key.</span>
+              <span className="hint">System-wide hotkey. Pick an unused key.</span>
             </div>
             <div className="keybind-row">
               <button
@@ -264,7 +264,7 @@ export function AudioTab({
       <div className="settings-row">
         <div className="settings-row__label">
           <span>Noise suppression</span>
-          <span className="settings-row__hint">Removes steady background noise while speaking.</span>
+          <span className="hint">Removes steady background noise while speaking.</span>
         </div>
         <Toggle on={noiseSuppression} onClick={() => onChangeNoiseSuppression(!noiseSuppression)} />
       </div>
@@ -272,7 +272,7 @@ export function AudioTab({
       <div className="settings-row">
         <div className="settings-row__label">
           <span>Echo cancellation</span>
-          <span className="settings-row__hint">Prevents mic from picking up speaker audio. Disable if using headphones.</span>
+          <span className="hint">Prevents mic from picking up speaker audio. Disable if using headphones.</span>
         </div>
         <Toggle on={echoCancellation} onClick={() => onChangeEchoCancellation(!echoCancellation)} />
       </div>
@@ -280,7 +280,7 @@ export function AudioTab({
       <div className="settings-row">
         <div className="settings-row__label">
           <span>Automatic gain control</span>
-          <span className="settings-row__hint">Automatically adjusts mic volume to a consistent level.</span>
+          <span className="hint">Automatically adjusts mic volume to a consistent level.</span>
         </div>
         <Toggle on={autoGainControl} onClick={() => onChangeAutoGainControl(!autoGainControl)} />
       </div>
@@ -288,7 +288,7 @@ export function AudioTab({
       <div className="settings-row">
         <div className="settings-row__label">
           <span>Normalize voices</span>
-          <span className="settings-row__hint">Auto-levels incoming audio. Boosts quiet users, tames loud ones.</span>
+          <span className="hint">Auto-levels incoming audio. Boosts quiet users, tames loud ones.</span>
         </div>
         <Toggle on={normalizeVoices} onClick={() => onChangeNormalizeVoices(!normalizeVoices)} />
       </div>

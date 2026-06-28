@@ -24,7 +24,7 @@ export function UiTab({
       <div className="settings-row">
         <div className="settings-row__label">
           <span>Theme</span>
-          <span className="settings-row__hint">Application color theme.</span>
+          <span className="hint">Application color theme.</span>
         </div>
         <div className="seg-group">
           <button
@@ -37,9 +37,9 @@ export function UiTab({
       <div className="settings-row">
         <div className="settings-row__label">
           <span>UI Scale Slider</span>
-          <span className="settings-row__hint">Adjust overall application size.</span>
+          <span className="hint">Adjust overall application size.</span>
         </div>
-        <div className="mic-control-wrap" style={{ marginTop: '12px' }}>
+        <div className="mic-control-wrap" style={{ marginTop: 'var(--s-3)' }}>
           <SettingsSlider
             min={0.8}
             max={1.5}
@@ -62,7 +62,7 @@ export function UiTab({
       <div className="settings-row">
         <div className="settings-row__label">
           <span>Chat Width Scale</span>
-          <span className="settings-row__hint">Room chat panel width (100% - 200%).</span>
+          <span className="hint">Room chat panel width (100% - 200%).</span>
         </div>
         <div className="mic-control-wrap">
           <SettingsSlider
@@ -88,7 +88,7 @@ export function UiTab({
       <div className="settings-row">
         <div className="settings-row__label">
           <span>Sidebar Width Scale</span>
-          <span className="settings-row__hint">Sidebar width (100% - 200%).</span>
+          <span className="hint">Sidebar width (100% - 200%).</span>
         </div>
         <div className="mic-control-wrap">
           <SettingsSlider

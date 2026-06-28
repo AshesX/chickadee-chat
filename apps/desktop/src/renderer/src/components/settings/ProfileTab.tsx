@@ -58,7 +58,7 @@ export function ProfileTab({
         </div>
       </div>
 
-      <div id="section-display-name" className="settings-subdivision" style={{ marginTop: '16px' }}>Display Name</div>
+      <div id="section-display-name" className="settings-subdivision" style={{ marginTop: 'var(--s-4)' }}>Display Name</div>
       <label className="field">
         <span>Display name</span>
         <input
@@ -71,8 +71,8 @@ export function ProfileTab({
         />
       </label>
 
-      <div id="section-accent" className="settings-subdivision" style={{ marginTop: '16px' }}>Accent Color</div>
-      <span className="settings-row__hint">Avatar ring and speaking glow color. Auto-assigns if cleared.</span>
+      <div id="section-accent" className="settings-subdivision" style={{ marginTop: 'var(--s-4)' }}>Accent Color</div>
+      <span className="hint">Avatar ring and speaking glow color. Auto-assigns if cleared.</span>
       <div className="accent-swatches">
         {USER_COLORS.map((c) => (
           <button

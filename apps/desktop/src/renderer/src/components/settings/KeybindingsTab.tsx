@@ -52,7 +52,7 @@ export function KeybindingsTab({
       <div className="settings-row">
         <div className="settings-row__label">
           <span>Mute mode</span>
-          <span className="settings-row__hint">Hold: muted while pressed. Toggle: press to mute/unmute.</span>
+          <span className="hint">Hold: muted while pressed. Toggle: press to mute/unmute.</span>
         </div>
         <div className="seg-group">
           <button
@@ -69,7 +69,7 @@ export function KeybindingsTab({
       <div className="settings-row">
         <div className="settings-row__label">
           <span>Deafen mode</span>
-          <span className="settings-row__hint">Hold: deafened while pressed. Toggle: press to deafen/undeafen.</span>
+          <span className="hint">Hold: deafened while pressed. Toggle: press to deafen/undeafen.</span>
         </div>
         <div className="seg-group">
           <button
@@ -86,7 +86,7 @@ export function KeybindingsTab({
       <div className="settings-row">
         <div className="settings-row__label">
           <span>Push-to-talk mode</span>
-          <span className="settings-row__hint">Hold: live while pressed. Toggle: press to mute/unmute.</span>
+          <span className="hint">Hold: live while pressed. Toggle: press to mute/unmute.</span>
         </div>
         <div className="seg-group">
           <button

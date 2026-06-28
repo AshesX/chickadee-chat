@@ -49,7 +49,7 @@ export function VideoTab({
       <div className="settings-row">
         <div className="settings-row__label">
           <span>Quality</span>
-          <span className="settings-row__hint">
+          <span className="hint">
             Caps outbound bitrate for camera, screen, and voice. Lower tiers save bandwidth and CPU in busy rooms.
           </span>
         </div>
@@ -69,7 +69,7 @@ export function VideoTab({
       <div className="settings-row">
         <div className="settings-row__label" style={{ flex: 1 }}>
           <span>What this sends</span>
-          <span className="settings-row__hint">
+          <span className="hint">
             {cameraFeatureEnabled && (
               <>
                 Camera: <strong>{formatBitrate(enc.camera.maxBitrate)}</strong> · {cameraResolution} · {enc.camera.maxFramerate} fps<br />
@@ -89,7 +89,7 @@ export function VideoTab({
       <div className="settings-row">
         <div className="settings-row__label">
           <span>Default action</span>
-          <span className="settings-row__hint">Action when clicking Video button while inactive.</span>
+          <span className="hint">Action when clicking Video button while inactive.</span>
         </div>
         <div className="seg-group">
           <button
@@ -105,10 +105,10 @@ export function VideoTab({
 
       <hr className="settings-divider" />
 
-      <div id="section-camera" className="settings-subdivision" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div id="section-camera" className="settings-subdivision" style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-2)' }}>
         <span>Camera</span>
         {!hasCamera && (
-          <span style={{ color: 'var(--red)', fontSize: '11px', fontWeight: 600, textTransform: 'initial' }}>
+          <span style={{ color: 'var(--red)', fontSize: 'var(--fs-1)', fontWeight: 'var(--fw-2)', textTransform: 'initial' }}>
             (No camera detected)
           </span>
         )}
@@ -117,7 +117,7 @@ export function VideoTab({
       <div className="settings-row">
         <div className="settings-row__label">
           <span>Enable camera</span>
-          <span className="settings-row__hint">Show the camera option in room video controls.</span>
+          <span className="hint">Show the camera option in room video controls.</span>
         </div>
         <Toggle on={cameraFeatureEnabled} onClick={() => onChangeCameraFeatureEnabled(!cameraFeatureEnabled)} />
       </div>
@@ -125,7 +125,7 @@ export function VideoTab({
       <div className="settings-row" style={{ opacity: cameraControlsEnabled ? 1 : 0.5, pointerEvents: cameraControlsEnabled ? undefined : 'none' }}>
         <div className="settings-row__label">
           <span>Streaming resolution</span>
-          <span className="settings-row__hint">Higher resolutions require more bandwidth.</span>
+          <span className="hint">Higher resolutions require more bandwidth.</span>
         </div>
         <select
           className="welcome__input"
@@ -144,7 +144,7 @@ export function VideoTab({
       <div className="settings-row" style={{ opacity: cameraControlsEnabled ? 1 : 0.5, pointerEvents: cameraControlsEnabled ? undefined : 'none' }}>
         <div className="settings-row__label">
           <span>Framerate</span>
-          <span className="settings-row__hint">Camera stream framerate.</span>
+          <span className="hint">Camera stream framerate.</span>
         </div>
         <select
           className="welcome__input"
@@ -164,7 +164,7 @@ export function VideoTab({
       <div className="settings-row">
         <div className="settings-row__label">
           <span>Screen resolution limit</span>
-          <span className="settings-row__hint">Maximum resolution for screen sharing.</span>
+          <span className="hint">Maximum resolution for screen sharing.</span>
         </div>
         <select
           className="welcome__input"
@@ -182,7 +182,7 @@ export function VideoTab({
       <div className="settings-row">
         <div className="settings-row__label">
           <span>Screen framerate limit</span>
-          <span className="settings-row__hint">Maximum framerate for screen sharing.</span>
+          <span className="hint">Maximum framerate for screen sharing.</span>
         </div>
         <select
           className="welcome__input"

@@ -20,7 +20,7 @@ export function AdvancedConnectionSettings({
   onEnterKeyDown,
 }: AdvancedConnectionSettingsProps): React.JSX.Element {
   return (
-    <div style={{ marginTop: '12px' }}>
+    <div style={{ marginTop: 'var(--s-3)' }}>
       <button
         type="button"
         style={{
@@ -43,49 +43,45 @@ export function AdvancedConnectionSettings({
       {advancedOpen && (
         <div
           style={{
-            marginTop: '8px',
-            padding: '8px 12px',
-            background: 'var(--bg-mid)',
+            marginTop: 'var(--s-2)',
+            padding: 'var(--s-2) var(--s-3)',
+            background: 'var(--veil-1)',
             borderRadius: 'var(--r-2)',
             display: 'flex',
             flexDirection: 'column',
-            gap: '8px',
+            gap: 'var(--s-2)',
           }}
         >
-          <div className="field" style={{ gap: '4px' }}>
-            <label className="field-label" style={{ textAlign: 'left', fontSize: '11px' }}>
+          <div className="field" style={{ gap: 'var(--s-1)' }}>
+            <label className="field-label" style={{ textAlign: 'left' }}>
               Signaling Server URL
             </label>
             <input
-              className="welcome__input"
+              className="input"
               value={customSignalingUrl}
               onChange={(e) => setCustomSignalingUrl(e.target.value)}
-              placeholder="e.g. wss://chickadee.example.com"
-              style={{ padding: '6px 9px', fontSize: '13px', marginBottom: '0' }}
-              onKeyDown={(e) => {
+              placeholder="e.g. wss://chickadee.example.com"              onKeyDown={(e) => {
                 if (e.key === 'Enter' && onEnterKeyDown) onEnterKeyDown();
               }}
             />
-            <span className="settings-row__hint" style={{ fontSize: '10px', opacity: 0.85 }}>
+            <span className="hint" style={{ fontSize: 'var(--fs-0)', opacity: 0.85 }}>
               Leave blank to use the default public server.
             </span>
           </div>
-          <div className="field" style={{ gap: '4px' }}>
-            <label className="field-label" style={{ textAlign: 'left', fontSize: '11px' }}>
+          <div className="field" style={{ gap: 'var(--s-1)' }}>
+            <label className="field-label" style={{ textAlign: 'left' }}>
               Join Secret / Password
             </label>
             <input
-              className="welcome__input"
+              className="input"
               type="password"
               value={joinSecret}
               onChange={(e) => setJoinSecret(e.target.value)}
-              placeholder="Leave blank for public servers"
-              style={{ padding: '6px 9px', fontSize: '13px', marginBottom: '0' }}
-              onKeyDown={(e) => {
+              placeholder="Leave blank for public servers"              onKeyDown={(e) => {
                 if (e.key === 'Enter' && onEnterKeyDown) onEnterKeyDown();
               }}
             />
-            <span className="settings-row__hint" style={{ fontSize: '10px', opacity: 0.85 }}>
+            <span className="hint" style={{ fontSize: 'var(--fs-0)', opacity: 0.85 }}>
               Required only if the signaling server has a CHICKADEE_JOIN_SECRET configured.
             </span>
           </div>
