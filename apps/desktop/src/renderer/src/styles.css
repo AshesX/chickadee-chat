@@ -2811,19 +2811,19 @@ input:focus-visible,
   flex-shrink: 0;
 }
 
-.mic-slider-container {
+.settings-slider-container {
   position: relative;
   display: flex;
   align-items: center;
   width: 100%;
 }
 
-.mic-slider-container .settings-slider {
+.settings-slider-container .settings-slider {
   width: 100%;
   flex: 1;
 }
 
-.mic-slider-tick {
+.settings-slider-tick {
   position: absolute;
   top: 50%;
   transform: translate(-50%, -50%);
@@ -2834,7 +2834,7 @@ input:focus-visible,
   border-radius: 1px;
 }
 
-.mic-slider-labels {
+.settings-slider-labels {
   display: flex;
   justify-content: space-between;
   font-size: var(--fs-0);
@@ -2845,7 +2845,7 @@ input:focus-visible,
   position: relative;
 }
 
-.mic-slider-labels__center {
+.settings-slider-labels__center {
   position: absolute;
   transform: translateX(-50%);
   white-space: nowrap;

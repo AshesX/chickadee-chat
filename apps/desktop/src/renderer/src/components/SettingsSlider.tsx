@@ -114,7 +114,7 @@ export function SettingsSlider({
 
   return (
     <div style={{ flex: 1, minWidth: 0 }}>
-      <div className="mic-slider-container">
+      <div className="settings-slider-container">
         <input
           type="range"
           min={discrete ? 0 : min}
@@ -135,21 +135,21 @@ export function SettingsSlider({
           return (
             <div
               key={m}
-              className="mic-slider-tick"
+              className="settings-slider-tick"
               style={{ left: leftCalc }}
             />
           );
         })}
       </div>
       {labels.length > 0 && (
-        <div className="mic-slider-labels" style={{ position: 'relative', height: '14px', marginTop: '-6px' }}>
+        <div className="settings-slider-labels" style={{ position: 'relative', height: '14px', marginTop: '-6px' }}>
           {labels.map((l) => {
             const percent = posPercent(l.value);
             const leftCalc = `calc(${percent}% + ${8 - (percent / 100) * 16}px)`;
             return (
               <span
                 key={l.value}
-                className="mic-slider-labels__center"
+                className="settings-slider-labels__center"
                 style={{ left: leftCalc }}
               >
                 {l.text}
