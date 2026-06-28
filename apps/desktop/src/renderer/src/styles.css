@@ -1,4 +1,4 @@
-/* Chickadee Chat — component styles (tokens & globals live in theme.css). */
+/* Chickadee Chat — component styles */
 
 /* ── App shell ────────────────────────────────────────────── */
 .app {
@@ -28,8 +28,7 @@
   min-width: 0;
 }
 
-/* Sidebar-only "compact mode" (dock-style window): hide everything except the
-   sidebar; the main process shrinks the OS window to match (see main/index.ts). */
+
 .app--compact .main {
   display: none;
 }
@@ -46,7 +45,7 @@ button {
   color: inherit;
 }
 
-/* Keyboard-only focus ring (mouse clicks don't trigger :focus-visible). */
+
 button:focus-visible,
 input:focus-visible,
 [role='button']:focus-visible,
@@ -58,25 +57,7 @@ input:focus-visible,
   border-radius: var(--r-1);
 }
 
-/* ── Button primitive (.btn) ─────────────────────────────────
-   Composable button base + variants on the lean tokens (--dur-1,
-   --veil-1/2, --r-1, --s-*, --fs-*, --fw-*). Focus ring comes from the
-   global button:focus-visible rule above.
-
-   Adopted by: primary CTAs (modal-action/welcome__btn/crash → btn--primary),
-   danger (leave/reset → btn--danger), low-emphasis danger (unbind →
-   btn--danger-soft), welcome-wizard Back → btn--ghost.
-
-   Left bespoke on purpose (specialized layout / state / context, not generic
-   buttons): .ctrl-btn (column icon+label + variants), .pill (chat on/off
-   toggle), .winctl__btn (titlebar), .send-btn (fixed gradient icon), and the
-   structural tiles / rows / dropdowns / seg / grid / srccard / swatch.
-
-   Compose: base + one color variant (+ size), e.g.
-     <button class="btn btn--primary">      CTA
-     <button class="btn btn--ghost">        secondary
-     <button class="btn btn--danger">       destructive confirm
-     <button class="btn btn--danger-soft">  low-emphasis destructive */
+/* ── Button primitive (.btn) ───────────────────────────────── */
 .btn {
   -webkit-app-region: no-drag;
   display: inline-flex;
@@ -106,7 +87,7 @@ input:focus-visible,
   cursor: not-allowed;
 }
 
-/* Primary — brand gradient CTA (modal-action, send-btn, crash, avatar save). */
+
 .btn--primary {
   background: var(--gradient);
   color: var(--on-accent);
@@ -118,8 +99,7 @@ input:focus-visible,
   filter: brightness(1.08);
 }
 
-/* Ghost — transparent; fills with an ink veil on hover, deeper on press
-   (winctl, self-settings, emoji-trigger, space-copy, version-btn). */
+
 .btn--ghost {
   color: var(--dim);
 }
@@ -133,7 +113,7 @@ input:focus-visible,
   background: var(--veil-2);
 }
 
-/* Danger (solid) — destructive confirm (leave-btn, ctrl/mini --danger). */
+
 .btn--danger {
   background: var(--red);
   border-color: var(--red);
@@ -141,7 +121,7 @@ input:focus-visible,
   font-weight: var(--fw-2);
 }
 
-/* Danger (soft) — low-emphasis destructive (reset settings, unbind). */
+
 .btn--danger-soft {
   background: var(--danger-bg);
   border-color: color-mix(in srgb, var(--red) 20%, transparent);
@@ -153,16 +133,12 @@ input:focus-visible,
   border-color: color-mix(in srgb, var(--red) 40%, transparent);
 }
 
-/* Size / shape modifier. */
+
 .btn--block {
   width: 100%;
 }
 
-/* ── Menu surface primitive ──────────────────────────────────
-   Shared floating-panel look for dropdowns / popovers / context
-   menus. --frosted swaps the solid fill for a translucent blur.
-   Components add their own position / width / padding / animation
-   (and any radius/blur deviation) on top. */
+/* ── Menu surface primitive ────────────────────────────────── */
 .menu-surface {
   background: var(--card);
   border: 1px solid var(--border);
@@ -177,11 +153,7 @@ input:focus-visible,
   -webkit-backdrop-filter: blur(16px);
 }
 
-/* ── Avatar primitive ────────────────────────────────────────
-   Rounded-square avatar holder on a 1:2:4 size scale (24/48/96).
-   Centers a letter initial; an optional <img> child covers and
-   inherits the radius, so it stays clipped even when a holder opts
-   into overflow:visible (e.g. the tile speaking ring + mute badge). */
+/* ── Avatar primitive ──────────────────────────────────────── */
 .avatar {
   width: 48px;
   height: 48px;
@@ -309,8 +281,7 @@ input:focus-visible,
 }
 
 
-/* Click-to-collapse room category header (VOICE / VIDEO). Reuses .sidebar__label
-   typography but is a full-width button with a leading rotating chevron. */
+
 .sidebar__section-header {
   display: flex;
   align-items: center;
@@ -329,8 +300,7 @@ input:focus-visible,
   color: var(--text-sub);
 }
 
-/* The VIDEO header sits below the voice list — give it breathing room like the
-   old label's :not(:first-child) top padding. */
+
 .sidebar__section-header--spaced {
   margin-top: var(--s-5);
 }
@@ -375,9 +345,7 @@ input:focus-visible,
   transition: all var(--dur-1) ease;
 }
 
-/* Box-model rules shared by the inner button of a restructured row
-   (`.room-row__main`) and the flat "create room" row, which has no inner
-   button and so still needs them directly. */
+
 .room-row__main,
 .room-row--create {
   width: 100%;
@@ -482,7 +450,7 @@ input:focus-visible,
   font-size: var(--fs-3);
 }
 
-/* Compact occupancy badge (n/cap) — a smaller sibling of .room-header__count. */
+
 .room-row__count {
   flex-shrink: 0;
   font-size: var(--fs-1);
@@ -495,15 +463,13 @@ input:focus-visible,
   letter-spacing: 0.02em;
 }
 
-/* Full room: red badge + signals the row is unjoinable. */
+
 .room-row__count--full {
   border-color: color-mix(in srgb, var(--red) 45%, transparent);
   color: var(--red);
 }
 
-/* Active room: the row background is --block-bg (= --orange in dark), so the
-   default orange badge vanishes against it. Recolor against the row bg via the
-   purpose-built --room-active-count-bg token (dark bg in dark, orange in light). */
+
 .room-row--active .room-row__count,
 .room-row--active .room-row__count--full {
   border-color: color-mix(in srgb, var(--orange) 45%, transparent);
@@ -533,14 +499,13 @@ input:focus-visible,
   margin-left: 0;
 }
 
-/* Active (joined) room, both modes: a green speaking ring (pulled inward) on
-   talking users' avatars. Only the current room ever gets the speaking class. */
+
 .room-row--active .room-row__avatar--speaking {
   outline: 2px solid var(--green);
   outline-offset: -2px;
 }
 
-/* Active room (both modes): avatars are click-to-mute other users. */
+
 .room-row__avatar--mutable {
   position: relative;
   cursor: pointer;
@@ -556,7 +521,7 @@ input:focus-visible,
   transform: none;
 }
 
-/* A silenced peer: white speaker-off icon over a subtle red dim. */
+
 .room-row__avatar-mute {
   position: absolute;
   inset: 0;
@@ -566,14 +531,14 @@ input:focus-visible,
   background: color-mix(in srgb, var(--red) 100%, transparent);
 }
 
-/* Active room (both modes): full-width avatar roster on its own line (fits all ~8). */
+
 .room-row__avatar-strip {
   display: flex;
   align-items: center;
   margin: -4px var(--s-2) var(--s-1) var(--s-2);
 }
 
-/* In the active/joined room, make the avatars larger (27px) to match the control buttons. */
+
 .room-row__avatar-strip .room-row__avatar {
   margin-left: -6px;
 }
@@ -613,10 +578,7 @@ input:focus-visible,
   color: var(--text);
 }
 
-/* Mini voice controls shown under the active room's row in compact mode
-   (mute / deafen / cycle input-mode, + an optional right-aligned leave-video).
-   Fixed light/orange/red button colors (rather than the room row's --block-bg)
-   keep these legible in either theme. Spans the row so --end can push right. */
+
 .room-row__mini-controls {
   display: flex;
   align-items: center;
@@ -624,7 +586,7 @@ input:focus-visible,
   margin: var(--s-1) var(--s-2) var(--s-1) var(--s-2);
 }
 
-/* Pushed to the right edge of the row (e.g. the leave-video button). */
+
 .room-row__mini-btn--end {
   margin-left: auto;
 }
@@ -637,9 +599,7 @@ input:focus-visible,
   height: 27px;
   flex-shrink: 0;
   border-radius: var(--r-1);
-  /* The room row sits on a dark media background, so a light translucent fill
-     + outline read clearly. --active/--danger override with solid orange/red
-     below (they come later, so the base loses without needing a :not()). */
+
   border: 1px solid rgba(255, 255, 255, 0.16);
   background: rgba(255, 255, 255, 0.1);
   color: rgba(255, 255, 255, 0.95);
@@ -660,7 +620,7 @@ input:focus-visible,
   cursor: not-allowed;
 }
 
-/* Muted / deafened: solid red reads unmistakably as "off". */
+
 .room-row__mini-btn--danger,
 .room-row__mini-btn--danger:hover:not(:disabled) {
   background: var(--red);
@@ -672,9 +632,7 @@ input:focus-visible,
   filter: brightness(1.08);
 }
 
-/* Self voice active: the compact input-mode icon greens (online-status style).
-   Only sets color (the lucide icon is currentColor) — defined after the base so
-   it wins without touching the button's bg/border fill. */
+
 .room-row__mini-btn--speaking {
   color: var(--green);
 }
@@ -1080,9 +1038,7 @@ input:focus-visible,
   opacity: 1;
 }
 
-/* Speaking cue for tiles showing video content (camera on) or for screen-sharers: an
-   accent border + glow on the tile frame, riding the existing .tile border/box-shadow
-   transition. Voice-only tiles use the avatar ring above instead, not this frame. */
+
 .tile--speaking {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px var(--accent);
@@ -1144,8 +1100,7 @@ input:focus-visible,
   color: var(--idle);
 }
 
-/* Per-listener volume: bottom-left icon (click to silence) in a pill that
-   expands to the right on hover to reveal a horizontal slider. */
+
 .tile__volume {
   position: absolute;
   bottom: 10px;
@@ -1155,7 +1110,7 @@ input:focus-visible,
   align-items: center;
   gap: var(--s-2);
   max-width: 32px;
-  /* collapsed: icon only; slider + label clipped */
+
   padding: var(--s-1);
   background: color-mix(in srgb, var(--card) 90%, transparent);
   backdrop-filter: blur(16px);
@@ -1214,7 +1169,7 @@ input:focus-visible,
   flex-shrink: 0;
 }
 
-/* Opt-in video: centered "Watch" button shown over an un-joined peer's avatar. */
+
 .tile__watch {
   position: absolute;
   top: 50%;
@@ -1245,7 +1200,7 @@ input:focus-visible,
   transform: translate(-50%, -50%) scale(0.96);
 }
 
-/* Opt-in video: bottom-right "stop watching" button on a joined camera tile. */
+
 .tile__leave {
   position: absolute;
   bottom: 10px;
@@ -1343,7 +1298,7 @@ input:focus-visible,
   opacity: 1;
 }
 
-/* Self stream: small "N watching" chip, top-left of the presentation. */
+
 .screen__watchers {
   position: absolute;
   top: 10px;
@@ -1366,7 +1321,7 @@ input:focus-visible,
   opacity: 1;
 }
 
-/* Joined remote stream: top-right "stop watching" button. */
+
 .screen__leave {
   position: absolute;
   top: 10px;
@@ -1548,7 +1503,7 @@ input:focus-visible,
   padding: var(--s-3);
 }
 
-/* Uppercase micro section-label primitive. */
+
 .label,
 .audio-menu__section-label,
 .emoji-picker-pop__section-title {
@@ -1732,9 +1687,7 @@ input:focus-visible,
   animation: slideInLeft 0.2s ease;
 }
 
-/* Drag handle on the chat panel's grid-facing edge (left when docked right,
-   right when docked left) — resizes the chat panel width. Wider invisible hit
-   area; the visible highlight is the thin `::after` line at the grid-facing edge. */
+
 .chat-panel__resize-handle {
   position: absolute;
   top: 0;
@@ -2008,11 +1961,7 @@ input:focus-visible,
 }
 
 /* ── Modals ───────────────────────────────────────────────── */
-/* ── Backdrop primitive ──────────────────────────────────────
-   Full-screen layer. Bare .backdrop = transparent click-catcher
-   (closes popovers/menus on outside click). --scrim dims + centers
-   its child (modals). z-index is set per call site since stacking
-   order is context-specific. */
+/* ── Backdrop primitive ────────────────────────────────────── */
 .backdrop {
   position: fixed;
   inset: 0;
@@ -2039,7 +1988,7 @@ input:focus-visible,
   animation: modalIn 0.18s ease;
 }
 
-/* Wide variant — e.g. the screen-share source picker. */
+
 .modal-panel--wide {
   max-width: 780px;
 }
@@ -2057,7 +2006,7 @@ input:focus-visible,
   font-weight: var(--fw-2);
 }
 
-/* Square icon button — modal/settings closes + bare icon actions. */
+
 .icon-btn {
   color: var(--dim);
   display: grid;
@@ -2101,7 +2050,7 @@ input:focus-visible,
   margin: var(--s-2) 0 0;
 }
 
-/* Text input primitive (modal / form fields). */
+
 .input,
 .field input,
 .welcome__input,
@@ -2154,7 +2103,7 @@ input:focus-visible,
   line-height: 1.5;
 }
 
-/* Settings rows (label + control) */
+
 .settings-row {
   display: flex;
   align-items: center;
@@ -2162,7 +2111,7 @@ input:focus-visible,
   gap: var(--s-3);
 }
 
-/* Indented sub-row (e.g. SFX sub-toggles); .is-disabled greys it out. */
+
 .settings-row--nested {
   padding-left: var(--s-4);
 }
@@ -2186,7 +2135,7 @@ input:focus-visible,
   color: var(--dim);
 }
 
-/* Toggle switch */
+
 .switch {
   flex-shrink: 0;
   width: 38px;
@@ -2219,7 +2168,7 @@ input:focus-visible,
   background: var(--orange);
 }
 
-/* Push-to-talk rebind button */
+
 .rebind {
   flex-shrink: 0;
   min-width: 84px;
@@ -2238,7 +2187,7 @@ input:focus-visible,
   background: var(--active-bg);
 }
 
-/* PTT Hold/Toggle segmented control */
+
 .seg-group {
   display: flex;
   flex-wrap: wrap;
@@ -2275,7 +2224,7 @@ input:focus-visible,
   font-weight: var(--fw-1);
 }
 
-/* Side-by-side Mode (left) + Key (right) in the room chevron menus. */
+
 .kb-control {
   display: flex;
   gap: var(--s-3);
@@ -2328,7 +2277,7 @@ input:focus-visible,
   background: color-mix(in srgb, var(--red) 16%, transparent);
 }
 
-/* Welcome / first-run name modal */
+
 .modal-panel--welcome {
   max-width: 380px;
   padding: var(--s-6) var(--s-6);
@@ -3028,7 +2977,7 @@ input:focus-visible,
   background: var(--veil-1);
 }
 
-/* Settings search widget */
+
 .settings-sidebar__search-wrap {
   position: relative;
   margin-bottom: var(--s-1);
@@ -3239,7 +3188,7 @@ input:focus-visible,
   }
 }
 
-/* Redesigned Push-to-talk/Mute elements */
+
 .settings-subdivision {
   font-size: var(--fs-1);
   font-weight: var(--fw-2);
@@ -3263,7 +3212,7 @@ input:focus-visible,
   gap: var(--s-2);
 }
 
-/* Fixed-size icon residual; colors + mechanics come from .btn .btn--danger-soft. */
+
 .unbind-btn {
   width: 32px;
   height: 32px;
@@ -3544,7 +3493,7 @@ input:focus-visible,
   margin-bottom: var(--s-4);
 }
 
-/* Custom scrollbar for room icon container */
+
 .room-modal__icon-container::-webkit-scrollbar {
   width: 6px;
 }
@@ -3562,5 +3511,3 @@ input:focus-visible,
   background: var(--dim);
 }
 
-/* Component theming is handled inline above via design tokens (theme.css defines
-   the single "Alabaster Editorial" theme in :root). */

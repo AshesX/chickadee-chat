@@ -1,0 +1,432 @@
+[
+  {
+    "startLine": 1,
+    "endLine": 1,
+    "content": "/* Chickadee Chat — component styles (tokens & globals live in theme.css). */"
+  },
+  {
+    "startLine": 3,
+    "endLine": 3,
+    "content": "/* ── App shell ────────────────────────────────────────────── */"
+  },
+  {
+    "startLine": 31,
+    "endLine": 32,
+    "content": "/* Sidebar-only \"compact mode\" (dock-style window): hide everything except the\r\n   sidebar; the main process shrinks the OS window to match (see main/index.ts). */"
+  },
+  {
+    "startLine": 49,
+    "endLine": 49,
+    "content": "/* Keyboard-only focus ring (mouse clicks don't trigger :focus-visible). */"
+  },
+  {
+    "startLine": 61,
+    "endLine": 79,
+    "content": "/* ── Button primitive (.btn) ─────────────────────────────────\r\n   Composable button base + variants on the lean tokens (--dur-1,\r\n   --veil-1/2, --r-1, --s-*, --fs-*, --fw-*). Focus ring comes from the\r\n   global button:focus-visible rule above.\r\n\r\n   Adopted by: primary CTAs (modal-action/welcome__btn/crash → btn--primary),\r\n   danger (leave/reset → btn--danger), low-emphasis danger (unbind →\r\n   btn--danger-soft), welcome-wizard Back → btn--ghost.\r\n\r\n   Left bespoke on purpose (specialized layout / state / context, not generic\r\n   buttons): .ctrl-btn (column icon+label + variants), .pill (chat on/off\r\n   toggle), .winctl__btn (titlebar), .send-btn (fixed gradient icon), and the\r\n   structural tiles / rows / dropdowns / seg / grid / srccard / swatch.\r\n\r\n   Compose: base + one color variant (+ size), e.g.\r\n     <button class=\"btn btn--primary\">      CTA\r\n     <button class=\"btn btn--ghost\">        secondary\r\n     <button class=\"btn btn--danger\">       destructive confirm\r\n     <button class=\"btn btn--danger-soft\">  low-emphasis destructive */"
+  },
+  {
+    "startLine": 109,
+    "endLine": 109,
+    "content": "/* Primary — brand gradient CTA (modal-action, send-btn, crash, avatar save). */"
+  },
+  {
+    "startLine": 121,
+    "endLine": 122,
+    "content": "/* Ghost — transparent; fills with an ink veil on hover, deeper on press\r\n   (winctl, self-settings, emoji-trigger, space-copy, version-btn). */"
+  },
+  {
+    "startLine": 136,
+    "endLine": 136,
+    "content": "/* Danger (solid) — destructive confirm (leave-btn, ctrl/mini --danger). */"
+  },
+  {
+    "startLine": 144,
+    "endLine": 144,
+    "content": "/* Danger (soft) — low-emphasis destructive (reset settings, unbind). */"
+  },
+  {
+    "startLine": 156,
+    "endLine": 156,
+    "content": "/* Size / shape modifier. */"
+  },
+  {
+    "startLine": 161,
+    "endLine": 165,
+    "content": "/* ── Menu surface primitive ──────────────────────────────────\r\n   Shared floating-panel look for dropdowns / popovers / context\r\n   menus. --frosted swaps the solid fill for a translucent blur.\r\n   Components add their own position / width / padding / animation\r\n   (and any radius/blur deviation) on top. */"
+  },
+  {
+    "startLine": 180,
+    "endLine": 184,
+    "content": "/* ── Avatar primitive ────────────────────────────────────────\r\n   Rounded-square avatar holder on a 1:2:4 size scale (24/48/96).\r\n   Centers a letter initial; an optional <img> child covers and\r\n   inherits the radius, so it stays clipped even when a holder opts\r\n   into overflow:visible (e.g. the tile speaking ring + mute badge). */"
+  },
+  {
+    "startLine": 219,
+    "endLine": 219,
+    "content": "/* ── Sidebar ──────────────────────────────────────────────── */"
+  },
+  {
+    "startLine": 231,
+    "endLine": 234,
+    "content": "/* Drag handle on the sidebar's right edge — resizes the panel (full view) or the\r\n   docked window (compact, via IPC). no-drag so it overrides the header drag region.\r\n   The element is a wider invisible hit area; the visible highlight is the thin\r\n   `::after` line at the very edge. */"
+  },
+  {
+    "startLine": 312,
+    "endLine": 313,
+    "content": "/* Click-to-collapse room category header (VOICE / VIDEO). Reuses .sidebar__label\r\n   typography but is a full-width button with a leading rotating chevron. */"
+  },
+  {
+    "startLine": 332,
+    "endLine": 333,
+    "content": "/* The VIDEO header sits below the voice list — give it breathing room like the\r\n   old label's :not(:first-child) top padding. */"
+  },
+  {
+    "startLine": 378,
+    "endLine": 380,
+    "content": "/* Box-model rules shared by the inner button of a restructured row\r\n   (`.room-row__main`) and the flat \"create room\" row, which has no inner\r\n   button and so still needs them directly. */"
+  },
+  {
+    "startLine": 485,
+    "endLine": 485,
+    "content": "/* Compact occupancy badge (n/cap) — a smaller sibling of .room-header__count. */"
+  },
+  {
+    "startLine": 498,
+    "endLine": 498,
+    "content": "/* Full room: red badge + signals the row is unjoinable. */"
+  },
+  {
+    "startLine": 504,
+    "endLine": 506,
+    "content": "/* Active room: the row background is --block-bg (= --orange in dark), so the\r\n   default orange badge vanishes against it. Recolor against the row bg via the\r\n   purpose-built --room-active-count-bg token (dark bg in dark, orange in light). */"
+  },
+  {
+    "startLine": 536,
+    "endLine": 537,
+    "content": "/* Active (joined) room, both modes: a green speaking ring (pulled inward) on\r\n   talking users' avatars. Only the current room ever gets the speaking class. */"
+  },
+  {
+    "startLine": 543,
+    "endLine": 543,
+    "content": "/* Active room (both modes): avatars are click-to-mute other users. */"
+  },
+  {
+    "startLine": 549,
+    "endLine": 550,
+    "content": "/* Press feedback bounces the avatar itself; cancel the row's press-scale so the\r\n   whole bar doesn't bounce when you click an (inline) avatar to mute. */"
+  },
+  {
+    "startLine": 559,
+    "endLine": 559,
+    "content": "/* A silenced peer: white speaker-off icon over a subtle red dim. */"
+  },
+  {
+    "startLine": 569,
+    "endLine": 569,
+    "content": "/* Active room (both modes): full-width avatar roster on its own line (fits all ~8). */"
+  },
+  {
+    "startLine": 576,
+    "endLine": 576,
+    "content": "/* In the active/joined room, make the avatars larger (27px) to match the control buttons. */"
+  },
+  {
+    "startLine": 616,
+    "endLine": 619,
+    "content": "/* Mini voice controls shown under the active room's row in compact mode\r\n   (mute / deafen / cycle input-mode, + an optional right-aligned leave-video).\r\n   Fixed light/orange/red button colors (rather than the room row's --block-bg)\r\n   keep these legible in either theme. Spans the row so --end can push right. */"
+  },
+  {
+    "startLine": 627,
+    "endLine": 627,
+    "content": "/* Pushed to the right edge of the row (e.g. the leave-video button). */"
+  },
+  {
+    "startLine": 640,
+    "endLine": 642,
+    "content": "/* The room row sits on a dark media background, so a light translucent fill\r\n     + outline read clearly. --active/--danger override with solid orange/red\r\n     below (they come later, so the base loses without needing a :not()). */"
+  },
+  {
+    "startLine": 663,
+    "endLine": 663,
+    "content": "/* Muted / deafened: solid red reads unmistakably as \"off\". */"
+  },
+  {
+    "startLine": 675,
+    "endLine": 677,
+    "content": "/* Self voice active: the compact input-mode icon greens (online-status style).\r\n   Only sets color (the lucide icon is currentColor) — defined after the base so\r\n   it wins without touching the button's bg/border fill. */"
+  },
+  {
+    "startLine": 764,
+    "endLine": 767,
+    "content": "/* When the window is unfocused (e.g. on a 2nd monitor while a game has focus),\r\n   freeze the per-frame animations to save GPU/CPU. Static cues remain: the speaking\r\n   ring/glow is a static, opacity-toggled .tile__avatar::after (and a tile border for\r\n   camera-on tiles), and presence dots keep their solid color — only the motion stops. */"
+  },
+  {
+    "startLine": 870,
+    "endLine": 870,
+    "content": "/* ── Title Bar ────────────────────────────────────────────── */"
+  },
+  {
+    "startLine": 984,
+    "endLine": 984,
+    "content": "/* ── Content area / grid ──────────────────────────────────── */"
+  },
+  {
+    "startLine": 1018,
+    "endLine": 1018,
+    "content": "/* ── Video tile ───────────────────────────────────────────── */"
+  },
+  {
+    "startLine": 1064,
+    "endLine": 1067,
+    "content": "/* Speaking cue for voice-only tiles (camera off, not screen-sharing): a solid accent\r\n   ring + colored glow around the avatar, toggled by opacity only (compositor-friendly)\r\n   so it looks identical focused/unfocused and never animates per-frame. Gated off while\r\n   minimized via the `showSpeaking` prop in JS. */"
+  },
+  {
+    "startLine": 1083,
+    "endLine": 1085,
+    "content": "/* Speaking cue for tiles showing video content (camera on) or for screen-sharers: an\r\n   accent border + glow on the tile frame, riding the existing .tile border/box-shadow\r\n   transition. Voice-only tiles use the avatar ring above instead, not this frame. */"
+  },
+  {
+    "startLine": 1093,
+    "endLine": 1094,
+    "content": "/* Above the avatar speaking ring (.tile__avatar::after) so the mute/deafen badge\r\n     is never hidden under the ring. */"
+  },
+  {
+    "startLine": 1147,
+    "endLine": 1148,
+    "content": "/* Per-listener volume: bottom-left icon (click to silence) in a pill that\r\n   expands to the right on hover to reveal a horizontal slider. */"
+  },
+  {
+    "startLine": 1158,
+    "endLine": 1158,
+    "content": "/* collapsed: icon only; slider + label clipped */"
+  },
+  {
+    "startLine": 1217,
+    "endLine": 1217,
+    "content": "/* Opt-in video: centered \"Watch\" button shown over an un-joined peer's avatar. */"
+  },
+  {
+    "startLine": 1248,
+    "endLine": 1248,
+    "content": "/* Opt-in video: bottom-right \"stop watching\" button on a joined camera tile. */"
+  },
+  {
+    "startLine": 1282,
+    "endLine": 1282,
+    "content": "/* ── Screen share (presentation) ──────────────────────────── */"
+  },
+  {
+    "startLine": 1346,
+    "endLine": 1346,
+    "content": "/* Self stream: small \"N watching\" chip, top-left of the presentation. */"
+  },
+  {
+    "startLine": 1369,
+    "endLine": 1369,
+    "content": "/* Joined remote stream: top-right \"stop watching\" button. */"
+  },
+  {
+    "startLine": 1418,
+    "endLine": 1418,
+    "content": "/* ── Control bar ──────────────────────────────────────────── */"
+  },
+  {
+    "startLine": 1542,
+    "endLine": 1542,
+    "content": "/* ── Audio device menu ────────────────────────────────────── */"
+  },
+  {
+    "startLine": 1551,
+    "endLine": 1551,
+    "content": "/* Uppercase micro section-label primitive. */"
+  },
+  {
+    "startLine": 1615,
+    "endLine": 1615,
+    "content": "/* ── Custom select ────────────────────────────────────────── */"
+  },
+  {
+    "startLine": 1689,
+    "endLine": 1689,
+    "content": "/* ── Empty lounge ─────────────────────────────────────────── */"
+  },
+  {
+    "startLine": 1718,
+    "endLine": 1718,
+    "content": "/* ── Chat panel ───────────────────────────────────────────── */"
+  },
+  {
+    "startLine": 1735,
+    "endLine": 1737,
+    "content": "/* Drag handle on the chat panel's grid-facing edge (left when docked right,\r\n   right when docked left) — resizes the chat panel width. Wider invisible hit\r\n   area; the visible highlight is the thin `::after` line at the grid-facing edge. */"
+  },
+  {
+    "startLine": 1851,
+    "endLine": 1851,
+    "content": "/* ── Reaction Popover ─────────────────────────────────────── */"
+  },
+  {
+    "startLine": 1895,
+    "endLine": 1895,
+    "content": "/* ── Emoji Picker Popover ─────────────────────────────────── */"
+  },
+  {
+    "startLine": 1978,
+    "endLine": 1978,
+    "content": "/* ── Floating reactions ───────────────────────────────────── */"
+  },
+  {
+    "startLine": 1988,
+    "endLine": 1988,
+    "content": "/* ── Toasts ───────────────────────────────────────────────── */"
+  },
+  {
+    "startLine": 2010,
+    "endLine": 2010,
+    "content": "/* ── Modals ───────────────────────────────────────────────── */"
+  },
+  {
+    "startLine": 2011,
+    "endLine": 2015,
+    "content": "/* ── Backdrop primitive ──────────────────────────────────────\r\n   Full-screen layer. Bare .backdrop = transparent click-catcher\r\n   (closes popovers/menus on outside click). --scrim dims + centers\r\n   its child (modals). z-index is set per call site since stacking\r\n   order is context-specific. */"
+  },
+  {
+    "startLine": 2042,
+    "endLine": 2042,
+    "content": "/* Wide variant — e.g. the screen-share source picker. */"
+  },
+  {
+    "startLine": 2060,
+    "endLine": 2060,
+    "content": "/* Square icon button — modal/settings closes + bare icon actions. */"
+  },
+  {
+    "startLine": 2104,
+    "endLine": 2104,
+    "content": "/* Text input primitive (modal / form fields). */"
+  },
+  {
+    "startLine": 2157,
+    "endLine": 2157,
+    "content": "/* Settings rows (label + control) */"
+  },
+  {
+    "startLine": 2165,
+    "endLine": 2165,
+    "content": "/* Indented sub-row (e.g. SFX sub-toggles); .is-disabled greys it out. */"
+  },
+  {
+    "startLine": 2189,
+    "endLine": 2189,
+    "content": "/* Toggle switch */"
+  },
+  {
+    "startLine": 2222,
+    "endLine": 2222,
+    "content": "/* Push-to-talk rebind button */"
+  },
+  {
+    "startLine": 2241,
+    "endLine": 2241,
+    "content": "/* PTT Hold/Toggle segmented control */"
+  },
+  {
+    "startLine": 2278,
+    "endLine": 2278,
+    "content": "/* Side-by-side Mode (left) + Key (right) in the room chevron menus. */"
+  },
+  {
+    "startLine": 2297,
+    "endLine": 2297,
+    "content": "/* ── Room right-click context menu ────────────────────────── */"
+  },
+  {
+    "startLine": 2331,
+    "endLine": 2331,
+    "content": "/* Welcome / first-run name modal */"
+  },
+  {
+    "startLine": 2361,
+    "endLine": 2361,
+    "content": "/* ── Screen-share picker — uses the shared .modal-panel shell ── */"
+  },
+  {
+    "startLine": 2440,
+    "endLine": 2440,
+    "content": "/* ── Error boundary fallback ──────────────────────────────── */"
+  },
+  {
+    "startLine": 2468,
+    "endLine": 2468,
+    "content": "/* ── Space Switcher ───────────────────────────────────────── */"
+  },
+  {
+    "startLine": 2804,
+    "endLine": 2804,
+    "content": "/* ── Mic Volume & Level Meter ──────────────────────────────── */"
+  },
+  {
+    "startLine": 2907,
+    "endLine": 2907,
+    "content": "/* ── Settings Panel Layout (Discord-inspired) ──────────────── */"
+  },
+  {
+    "startLine": 3031,
+    "endLine": 3031,
+    "content": "/* Settings search widget */"
+  },
+  {
+    "startLine": 3166,
+    "endLine": 3167,
+    "content": "/* Left buffer so focus-ring outlines + the active accent swatch's 4px halo aren't\r\n     clipped at x=0 by this scroll container's overflow. */"
+  },
+  {
+    "startLine": 3180,
+    "endLine": 3180,
+    "content": "/* ── Responsive Styling ────────────────────────────────────── */"
+  },
+  {
+    "startLine": 3242,
+    "endLine": 3242,
+    "content": "/* Redesigned Push-to-talk/Mute elements */"
+  },
+  {
+    "startLine": 3266,
+    "endLine": 3266,
+    "content": "/* Fixed-size icon residual; colors + mechanics come from .btn .btn--danger-soft. */"
+  },
+  {
+    "startLine": 3273,
+    "endLine": 3273,
+    "content": "/* ─── Settings profile – avatar section ──────────────────────────────────── */"
+  },
+  {
+    "startLine": 3323,
+    "endLine": 3323,
+    "content": "/* ─── Accent color picker ─────────────────────────────────────────────────── */"
+  },
+  {
+    "startLine": 3378,
+    "endLine": 3378,
+    "content": "/* ─── AvatarCropModal ─────────────────────────────────────────────────────── */"
+  },
+  {
+    "startLine": 3512,
+    "endLine": 3512,
+    "content": "/* ── Custom Room SVG Icons ─────────────────────────────────── */"
+  },
+  {
+    "startLine": 3530,
+    "endLine": 3530,
+    "content": "/* ── Room Modal Icon Picker Search & Container ────────────── */"
+  },
+  {
+    "startLine": 3547,
+    "endLine": 3547,
+    "content": "/* Custom scrollbar for room icon container */"
+  },
+  {
+    "startLine": 3565,
+    "endLine": 3566,
+    "content": "/* Component theming is handled inline above via design tokens (theme.css defines\r\n   the single \"Alabaster Editorial\" theme in :root). */"
+  }
+]

@@ -1,32 +1,24 @@
-/* Chickadee Chat — design tokens & globals. One theme today: "Alabaster
-   Editorial", a light Swiss theme on the logo's Alabaster Grey. The shared Swiss
-   structure (squared geometry, grid rules, solid selection blocks, relit surfaces)
-   lives in styles.css and is driven entirely by the tokens below. A dark theme will
-   be rebuilt from the ground up on top of this baseline via a [data-theme] override.
-   Palette: Alabaster #E9E9E9, Orange #FFA400, Deep Twilight #1B065E,
-   Brick Ember #C20114, Coffee Bean #1F1300. */
+/* Chickadee Chat — design tokens & globals */
 
 :root {
-  /* Surfaces — alabaster canvas, near-white panels, hairline borders */
+  /* Surfaces */
   --bg: #e9e9e9;
   --panel: #fdfdfc;
   --card: #ffffff;
   --border: #d4d4d0;
 
-  /* Text — coffee-bean ink + warm greys (all AA on the alabaster canvas) */
+  /* Text */
   --dim: #5e574d;
   --text: #1f1300;
   --text-sub: #4a4036;
   --fade: #807868;
 
-  /* Semantic accent colors — vivid grass green, brand orange, brick red; the
-     status + danger tokens below derive from them so one set drives every dot,
-     warning and destructive cue. */
+  /* Semantic accent colors */
   --green: #5fb81f;
   --orange: #ffa400;
   --red: #c20114;
 
-  /* Status (derived) */
+  /* Status */
   --online: var(--green);
   /* --idle intentionally aliases the brand --orange. Keep this token as the seam:
      to make "Away" read distinctly later, give --idle its own value
@@ -34,7 +26,7 @@
   --idle: var(--orange);
   --offline: #b5b0a8;
 
-  /* Actions / active — warm orange (destructive uses --red directly). */
+  /* Actions / active */
   --gradient: linear-gradient(135deg, var(--orange), #f59000);
   --active-bg: color-mix(in srgb, var(--orange) 16%, transparent);
   --active-text: #ab4e00;
@@ -44,35 +36,25 @@
   --placeholder: #6e665b;
   --glow: transparent;
 
-  /* Logo bird → ink, readable on the alabaster canvas */
+  /* Logo */
   --logo-fill: #1f1300;
 
-  /* Structural tokens that drive the shared Swiss section in styles.css. */
+  /* Structural tokens */
   --tint: #1f1300;
-  /* base for surface veils / hovers / gate marker */
   --block-bg: #1f1300;
-  /* selected nav block = ink */
   --block-fg: #e9e9e9;
-  /* text/icon on the block */
   --on-accent: #1f1300;
-  /* text on an orange block (active control buttons) */
   --badge-fg: #e9e9e9;
-  /* text on media (tile badges) */
   --scrim: rgba(31, 19, 0, 0.45);
   --shadow-color: rgba(31, 19, 0, 0.24);
-  /* bumped from .18 so tint shadows keep depth */
 
-  /* ── Ultra-Lean primitives ──────────────────────────────────
-     Terse visual scales (see plan act-as-a-strict-deep-puzzle.md).
-     Avatars/dots stay round via literal 50%. */
+  /* ── Ultra-Lean primitives ────────────────────────────────── */
 
-  /* Radius — 2 tiers */
+  /* Radius */
   --r-1: 4px;
-  /* controls + small surfaces */
   --r-2: 12px;
-  /* modals, dropdowns, popovers */
 
-  /* Spacing — pure 4px scale */
+  /* Spacing */
   --s-1: 4px;
   --s-2: 8px;
   --s-3: 12px;
@@ -80,22 +62,22 @@
   --s-5: 20px;
   --s-6: 24px;
 
-  /* Type — 5 sizes */
+  /* Type */
   --fs-0: 10px;
   --fs-1: 12px;
   --fs-2: 14px;
   --fs-3: 16px;
   --fs-4: 20px;
 
-  /* Weight — 2 */
+  /* Weight */
   --fw-1: 500;
   --fw-2: 700;
 
-  /* Veils — translucent ink overlays (hover / active) */
+  /* Veils */
   --veil-1: color-mix(in srgb, var(--tint) 6%, transparent);
   --veil-2: color-mix(in srgb, var(--tint) 12%, transparent);
 
-  /* Elevation — 2 shadows on one tint (--shadow-color above) */
+  /* Elevation */
   --sh-1: 0 8px 28px var(--shadow-color);
   --sh-2: 0 24px 60px var(--shadow-color);
 
@@ -140,7 +122,6 @@ body {
   overflow: hidden;
 }
 
-/* Subtle ambient glow behind everything. */
 body::before {
   content: '';
   position: fixed;
@@ -152,7 +133,6 @@ body::before {
   z-index: 0;
 }
 
-/* Scrollbar */
 ::-webkit-scrollbar {
   width: 3px;
 }
@@ -176,7 +156,6 @@ input:focus {
 
 /* ── Animations ───────────────────────────────────────────── */
 
-/* Emoji floating up on reaction send */
 @keyframes floatUp {
   0% {
     opacity: 1;
@@ -189,7 +168,6 @@ input:focus {
   }
 }
 
-/* Chat panel slide in from the right */
 @keyframes slideInRight {
   from {
     opacity: 0;
@@ -202,7 +180,6 @@ input:focus {
   }
 }
 
-/* Pop-in — menus / popovers / chat messages */
 @keyframes popIn {
   from {
     opacity: 0;
@@ -215,7 +192,6 @@ input:focus {
   }
 }
 
-/* Modal fade/scale in */
 @keyframes modalIn {
   from {
     opacity: 0;
@@ -228,7 +204,6 @@ input:focus {
   }
 }
 
-/* Chat panel slide in from the left */
 @keyframes slideInLeft {
   from {
     opacity: 0;
