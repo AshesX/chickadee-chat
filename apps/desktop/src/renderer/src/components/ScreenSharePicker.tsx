@@ -40,7 +40,7 @@ export function ScreenSharePicker({ onPick, onClose }: ScreenSharePickerProps): 
   const windows = sources?.filter((s) => !s.id.startsWith('screen:')) ?? [];
 
   return (
-    <div className="backdrop backdrop--scrim" style={{ zIndex: 100 }} role="dialog" aria-modal="true" onClick={onClose}>
+    <div className="backdrop backdrop--scrim" style={{ zIndex: 'var(--z-modal)' }} role="dialog" aria-modal="true" onClick={onClose}>
       <div className="modal-panel modal-panel--wide" onClick={(e) => e.stopPropagation()}>
         <div className="modal-panel__head">
           <h2 className="modal-panel__title">Share a screen or window</h2>

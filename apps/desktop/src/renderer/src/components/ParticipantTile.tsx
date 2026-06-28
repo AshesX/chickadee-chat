@@ -157,13 +157,13 @@ function ParticipantTileImpl({
       {!showVideo && (
         <div className="tile__center">
           <div
-            className={`tile__avatar${showAvatarRing ? ' tile__avatar--speaking' : ''}`}
+            className={`avatar avatar--lg tile__avatar${showAvatarRing ? ' tile__avatar--speaking' : ''}`}
             style={{
               background: safeAvatarUrl ? undefined : color,
             }}
           >
             {safeAvatarUrl ? (
-              <img src={safeAvatarUrl} alt={displayName} className="tile__avatar-img" />
+              <img src={safeAvatarUrl} alt={displayName} />
             ) : (
               initial
             )}

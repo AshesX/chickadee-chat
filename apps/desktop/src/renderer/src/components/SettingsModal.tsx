@@ -145,7 +145,7 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
   const showResults = searchFocused && searchQuery.trim().length > 0;
 
   return (
-    <div className="backdrop backdrop--scrim" style={{ zIndex: 100 }} onClick={onClose}>
+    <div className="backdrop backdrop--scrim" style={{ zIndex: 'var(--z-modal)' }} onClick={onClose}>
       <div className="settings-panel" onClick={(e) => e.stopPropagation()}>
 
         {/* Left Sidebar Menu */}
@@ -342,7 +342,7 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
           </div>
 
           <div className="settings-content__foot">
-            <button className="btn btn--primary btn--lg" onClick={() => { commitName(); onClose(); }}>
+            <button className="btn btn--primary" onClick={() => { commitName(); onClose(); }}>
               Done
             </button>
           </div>

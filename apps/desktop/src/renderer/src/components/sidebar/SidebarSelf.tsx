@@ -34,11 +34,11 @@ export function SidebarSelf({
       >
         <div className="friend-row__avatar-wrap">
           <div
-            className="self__avatar"
+            className="avatar"
             style={selfAvatarUrl ? undefined : { background: selfColor }}
           >
             {selfAvatarUrl ? (
-              <img src={selfAvatarUrl} alt={selfName} className="friend-avatar-img" />
+              <img src={selfAvatarUrl} alt={selfName} />
             ) : (
               selfInitial
             )}
@@ -55,7 +55,7 @@ export function SidebarSelf({
 
       {statusMenuOpen && (
         <>
-          <div className="backdrop" style={{ zIndex: 99 }} onClick={() => setStatusMenuOpen(false)} />
+          <div className="backdrop" style={{ zIndex: 'var(--z-dropdown)' }} onClick={() => setStatusMenuOpen(false)} />
           <div className="status-dropdown menu-surface menu-surface--frosted" onClick={(e) => e.stopPropagation()}>
             <button
               className={`status-dropdown__item${selfStatus === 'online' ? ' status-dropdown__item--active' : ''}`}

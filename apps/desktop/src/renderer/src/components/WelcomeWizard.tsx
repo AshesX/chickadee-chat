@@ -57,7 +57,7 @@ export function WelcomeWizard({ onSubmit }: WelcomeWizardProps): React.JSX.Eleme
   }
 
   return (
-    <div className="backdrop backdrop--scrim" style={{ zIndex: 100 }}>
+    <div className="backdrop backdrop--scrim" style={{ zIndex: 'var(--z-modal)' }}>
       <div className="modal-panel modal-panel--welcome">
         <Logo size={64} className="welcome__logo" />
         <h2 className="welcome__title">
@@ -77,7 +77,7 @@ export function WelcomeWizard({ onSubmit }: WelcomeWizardProps): React.JSX.Eleme
               maxLength={32}
             />
             <button
-              className="btn btn--primary btn--lg btn--block"
+              className="btn btn--primary btn--block"
               onClick={next}
               disabled={!displayName.trim()}
             >
@@ -158,7 +158,7 @@ export function WelcomeWizard({ onSubmit }: WelcomeWizardProps): React.JSX.Eleme
 
             <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
               <button
-                className="btn btn--ghost btn--lg"
+                className="btn btn--ghost"
                 style={{ border: '1px solid var(--border)', flex: 1 }}
                 onClick={() => { setStep(1); setError(null); }}
                 disabled={checking}
@@ -166,7 +166,7 @@ export function WelcomeWizard({ onSubmit }: WelcomeWizardProps): React.JSX.Eleme
                 Back
               </button>
               <button
-                className="btn btn--primary btn--lg"
+                className="btn btn--primary"
                 style={{ flex: 2 }}
                 onClick={() => void finish()}
                 disabled={!spaceValue.trim() || checking}

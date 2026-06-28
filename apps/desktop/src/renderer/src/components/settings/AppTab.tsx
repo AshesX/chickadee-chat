@@ -73,7 +73,7 @@ export function AppTab({
           <span className="settings-row__hint">Restore settings to defaults. Profiles and Spaces are preserved.</span>
         </div>
         <button
-          className="btn btn--danger btn--lg"
+          className="btn btn--danger"
           onClick={onResetSettings}
         >
           Reset Settings

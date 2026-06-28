@@ -1209,7 +1209,7 @@ export function App(): React.JSX.Element {
             onEnterKeyDown={spaceJoin.submitCreateSpace}
           />
           <button
-            className="btn btn--primary btn--lg"
+            className="btn btn--primary"
             onClick={spaceJoin.submitCreateSpace}
             disabled={!spaceJoin.newSpaceName.trim()}
           >
@@ -1245,7 +1245,7 @@ export function App(): React.JSX.Element {
             onEnterKeyDown={() => void spaceJoin.submitJoinSpace()}
           />
           <button
-            className="btn btn--primary btn--lg"
+            className="btn btn--primary"
             onClick={() => void spaceJoin.submitJoinSpace()}
             disabled={!spaceJoin.inviteCodeInput.trim() || spaceJoin.joinChecking}
           >

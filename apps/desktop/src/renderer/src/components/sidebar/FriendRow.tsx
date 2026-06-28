@@ -10,11 +10,11 @@ function FriendRowImpl({ user: u }: { user: SpaceUser }): React.JSX.Element {
     <div className="friend-row">
       <div className="friend-row__avatar-wrap">
         <div
-          className="friend-row__avatar"
+          className="avatar"
           style={uAvatar ? undefined : { background: u.color }}
         >
           {uAvatar ? (
-            <img src={uAvatar} alt={u.name} className="friend-avatar-img" />
+            <img src={uAvatar} alt={u.name} />
           ) : (
             u.initial
           )}

@@ -97,6 +97,12 @@
   --dur-1: 0.12s;
   --dur-2: 0.24s;
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Z-index — strict overlay layering (low → high) */
+  --z-dropdown: 100;  /* menus / popovers / context menus / dropdowns + their backdrops */
+  --z-modal: 200;     /* modal overlays + panels */
+  --z-nested: 300;    /* a dialog opened over a modal (e.g. avatar crop) */
+  --z-tooltip: 400;   /* tooltips — always on top */
 }
 
 * {
@@ -180,8 +186,8 @@ input:focus {
   }
 }
 
-/* New chat message bounce */
-@keyframes msgIn {
+/* Pop-in — menus / popovers / chat messages */
+@keyframes popIn {
   from {
     opacity: 0;
     transform: translateY(7px) scale(0.97);

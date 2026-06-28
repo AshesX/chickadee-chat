@@ -18,7 +18,7 @@ export function RoomContextMenu({
   return (
     <div
       className="backdrop"
-      style={{ zIndex: 70 }}
+      style={{ zIndex: 'var(--z-dropdown)' }}
       onClick={onClose}
       onContextMenu={(e) => {
         e.preventDefault();

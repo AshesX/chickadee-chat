@@ -110,7 +110,7 @@ export function RoomModal({
         </div>
       </div>
 
-      <button className="btn btn--primary btn--lg" onClick={submit} disabled={!label.trim()}>
+      <button className="btn btn--primary" onClick={submit} disabled={!label.trim()}>
         {submitLabel}
       </button>
     </Modal>

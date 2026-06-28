@@ -49,7 +49,7 @@ export function SpaceSettingsModal({ space, onSave, onClose }: SpaceSettingsModa
         onEnterKeyDown={handleSave}
       />
 
-      <button className="btn btn--primary btn--lg" onClick={handleSave} style={{ marginTop: '24px' }} disabled={!name.trim()}>
+      <button className="btn btn--primary" onClick={handleSave} style={{ marginTop: '24px' }} disabled={!name.trim()}>
         Save Settings
       </button>
     </Modal>

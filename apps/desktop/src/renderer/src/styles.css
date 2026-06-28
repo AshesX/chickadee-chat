@@ -73,17 +73,17 @@ input:focus-visible,
    structural tiles / rows / dropdowns / seg / grid / srccard / swatch.
 
    Compose: base + one color variant (+ size), e.g.
-     <button class="btn btn--primary btn--lg">  CTA
-     <button class="btn btn--ghost">            secondary
-     <button class="btn btn--danger btn--lg">   destructive confirm
-     <button class="btn btn--danger-soft">      low-emphasis destructive */
+     <button class="btn btn--primary">      CTA
+     <button class="btn btn--ghost">        secondary
+     <button class="btn btn--danger">       destructive confirm
+     <button class="btn btn--danger-soft">  low-emphasis destructive */
 .btn {
   -webkit-app-region: no-drag;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--s-1);
-  padding: var(--s-2) var(--s-3);
+  padding: var(--s-3) var(--s-4);
   border: 1px solid transparent;
   border-radius: var(--r-1);
   background: transparent;
@@ -113,7 +113,8 @@ input:focus-visible,
   font-weight: var(--fw-2);
 }
 
-.btn--primary:hover:not(:disabled) {
+.btn--primary:hover:not(:disabled),
+.btn--danger:hover:not(:disabled) {
   filter: brightness(1.08);
 }
 
@@ -140,10 +141,6 @@ input:focus-visible,
   font-weight: var(--fw-2);
 }
 
-.btn--danger:hover:not(:disabled) {
-  filter: brightness(1.1);
-}
-
 /* Danger (soft) — low-emphasis destructive (reset settings, unbind). */
 .btn--danger-soft {
   background: var(--danger-bg);
@@ -156,11 +153,7 @@ input:focus-visible,
   border-color: color-mix(in srgb, var(--red) 40%, transparent);
 }
 
-/* Size / shape modifiers (orthogonal to the color variants). */
-.btn--lg {
-  padding: var(--s-3) var(--s-4);
-}
-
+/* Size / shape modifier. */
 .btn--block {
   width: 100%;
 }
@@ -173,14 +166,54 @@ input:focus-visible,
 .menu-surface {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: var(--r-2);
+  border-radius: var(--r-1);
   box-shadow: var(--sh-1);
+  animation: popIn var(--dur-1) var(--ease);
 }
 
 .menu-surface--frosted {
   background: color-mix(in srgb, var(--card) 96%, transparent);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+}
+
+/* ── Avatar primitive ────────────────────────────────────────
+   Rounded-square avatar holder on a 1:2:4 size scale (24/48/96).
+   Centers a letter initial; an optional <img> child covers and
+   inherits the radius, so it stays clipped even when a holder opts
+   into overflow:visible (e.g. the tile speaking ring + mute badge). */
+.avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--r-2);
+  overflow: hidden;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  font-size: var(--fs-3);
+  font-weight: var(--fw-2);
+  color: var(--badge-fg);
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  display: block;
+}
+
+.avatar--sm {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--r-1);
+  font-size: var(--fs-1);
+}
+
+.avatar--lg {
+  width: 96px;
+  height: 96px;
+  font-size: var(--fs-4);
 }
 
 /* ── Sidebar ──────────────────────────────────────────────── */
@@ -487,18 +520,8 @@ input:focus-visible,
 }
 
 .room-row__avatar {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  font-size: var(--fs-1);
-  font-weight: var(--fw-2);
-  color: #fff;
-  overflow: hidden;
   border: 1.5px solid var(--panel);
   margin-left: -4px;
-  flex-shrink: 0;
   transition: transform var(--dur-1) ease;
 }
 
@@ -508,12 +531,6 @@ input:focus-visible,
 
 .room-row__avatar:first-child {
   margin-left: 0;
-}
-
-.room-row__avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
 }
 
 /* Active (joined) room, both modes: a green speaking ring (pulled inward) on
@@ -558,9 +575,6 @@ input:focus-visible,
 
 /* In the active/joined room, make the avatars larger (27px) to match the control buttons. */
 .room-row__avatar-strip .room-row__avatar {
-  width: 27px;
-  height: 27px;
-  font-size: var(--fs-1);
   margin-left: -6px;
 }
 
@@ -684,31 +698,6 @@ input:focus-visible,
   flex-shrink: 0;
 }
 
-.friend-row__avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  font-size: var(--fs-2);
-  font-weight: var(--fw-2);
-  color: #fff;
-  overflow: hidden;
-  flex-shrink: 0;
-}
-
-.self__avatar {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  font-size: var(--fs-3);
-  font-weight: var(--fw-2);
-  color: #fff;
-  overflow: hidden;
-  flex-shrink: 0;
-}
 
 .friend-row__avatar-wrap .presence-dot {
   width: 9px;
@@ -829,7 +818,7 @@ input:focus-visible,
   align-items: center;
   position: relative;
   cursor: pointer;
-  border-radius: 50%;
+  border-radius: var(--r-2);
   transition: transform var(--dur-1) ease;
 }
 
@@ -845,14 +834,12 @@ input:focus-visible,
   position: absolute;
   bottom: 50px;
   left: 12px;
-  z-index: 100;
+  z-index: var(--z-dropdown);
   width: 155px;
-  border-radius: var(--r-1);
   padding: var(--s-1);
   display: flex;
   flex-direction: column;
   gap: var(--s-1);
-  animation: modalIn 0.15s var(--ease);
 }
 
 .status-dropdown__item {
@@ -1071,14 +1058,7 @@ input:focus-visible,
 
 .tile__avatar {
   position: relative;
-  width: 68px;
-  height: 68px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  font-size: var(--fs-4);
-  font-weight: var(--fw-2);
-  color: #fff;
+  overflow: visible;
 }
 
 /* Speaking cue for voice-only tiles (camera off, not screen-sharing): a solid accent
@@ -1089,7 +1069,7 @@ input:focus-visible,
   content: '';
   position: absolute;
   inset: -2px;
-  border-radius: 50%;
+  border-radius: var(--r-2);
   box-shadow: 0 0 0 3px var(--accent);
   opacity: 0;
   transition: opacity var(--dur-2) ease;
@@ -1562,11 +1542,10 @@ input:focus-visible,
 /* ── Audio device menu ────────────────────────────────────── */
 .audio-menu {
   position: fixed;
-  z-index: 70;
+  z-index: var(--z-dropdown);
   display: flex;
   flex-direction: column;
   padding: var(--s-3);
-  animation: msgIn 0.14s ease;
 }
 
 /* Uppercase micro section-label primitive. */
@@ -1670,14 +1649,12 @@ input:focus-visible,
 
 .custom-select__menu {
   position: fixed;
-  z-index: 90;
+  z-index: var(--z-dropdown);
   max-height: 200px;
   overflow-y: auto;
   padding: var(--s-1);
-  border-radius: var(--r-1);
   list-style: none;
   margin: 0;
-  animation: msgIn 0.12s ease;
 }
 
 .custom-select__option {
@@ -1819,7 +1796,7 @@ input:focus-visible,
 
 .chat-msg {
   margin-bottom: var(--s-3);
-  animation: msgIn 0.15s ease;
+  animation: popIn 0.15s ease;
 }
 
 .chat-msg__head {
@@ -1874,12 +1851,11 @@ input:focus-visible,
 /* ── Reaction Popover ─────────────────────────────────────── */
 .reaction-pop {
   position: fixed;
-  z-index: 70;
+  z-index: var(--z-dropdown);
   padding: var(--s-2) var(--s-4);
   display: flex;
   justify-content: center;
   align-items: center;
-  animation: msgIn 0.14s ease;
 }
 
 .reaction-pop__grid {
@@ -1919,14 +1895,11 @@ input:focus-visible,
 /* ── Emoji Picker Popover ─────────────────────────────────── */
 .emoji-picker-pop {
   position: fixed;
-  z-index: 80;
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  z-index: var(--z-dropdown);
   padding: var(--s-3);
   display: flex;
   flex-direction: column;
   gap: var(--s-3);
-  animation: msgIn 0.14s ease;
   max-height: 400px;
   overflow-y: auto;
 }
@@ -2328,8 +2301,6 @@ input:focus-visible,
   display: flex;
   flex-direction: column;
   padding: var(--s-1);
-  border-radius: var(--r-1);
-  animation: msgIn 0.12s ease;
 }
 
 .ctx-menu__item {
@@ -2624,7 +2595,7 @@ input:focus-visible,
   opacity: 0;
   transform: translateY(-4px) scale(0.96);
   transition: opacity var(--dur-1) ease, transform var(--dur-1) var(--ease);
-  z-index: 1000;
+  z-index: var(--z-tooltip);
 }
 
 .space-copy-btn__tooltip-action {
@@ -2668,7 +2639,7 @@ input:focus-visible,
   border-top: none;
   border-radius: 0 0 var(--r-1) var(--r-1);
   box-shadow: var(--sh-1);
-  z-index: 101;
+  z-index: var(--z-dropdown);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -3121,8 +3092,7 @@ input:focus-visible,
   top: calc(100% + 4px);
   left: 0;
   right: 0;
-  border-radius: var(--r-1);
-  z-index: 50;
+  z-index: var(--z-dropdown);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -3299,33 +3269,6 @@ input:focus-visible,
   padding: 0;
 }
 
-/* ─── Avatar images in existing circles ──────────────────────────────────── */
-
-.tile__avatar {
-  overflow: visible;
-}
-
-.tile__avatar-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 50%;
-  display: block;
-}
-
-.friend-row__avatar,
-.self__avatar {
-  overflow: hidden;
-}
-
-.friend-avatar-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 50%;
-  display: block;
-}
-
 /* ─── Settings profile – avatar section ──────────────────────────────────── */
 
 .avatar-settings-row {
@@ -3338,7 +3281,7 @@ input:focus-visible,
 .avatar-settings-preview {
   width: 72px;
   height: 72px;
-  border-radius: 50%;
+  border-radius: var(--r-2);
   overflow: hidden;
   display: grid;
   place-items: center;
@@ -3350,7 +3293,7 @@ input:focus-visible,
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 50%;
+  border-radius: var(--r-2);
   display: block;
 }
 
@@ -3563,40 +3506,6 @@ input:focus-visible,
   gap: var(--s-3);
   width: 100%;
   justify-content: flex-end;
-}
-
-.avatar-crop-btn {
-  padding: var(--s-2) var(--s-5);
-  border-radius: var(--r-1);
-  font-size: var(--fs-2);
-  font-weight: var(--fw-1);
-  cursor: pointer;
-  border: none;
-  transition: opacity var(--dur-1), transform var(--dur-1);
-}
-
-.avatar-crop-btn:active {
-  transform: scale(0.96);
-}
-
-.avatar-crop-btn--cancel {
-  background: var(--veil-1);
-  color: var(--text-sub);
-}
-
-.avatar-crop-btn--cancel:hover {
-  background: var(--veil-2);
-  color: var(--text);
-}
-
-.avatar-crop-btn--save {
-  background: var(--gradient);
-  color: var(--on-accent);
-  box-shadow: 0 2px 12px var(--shadow-color);
-}
-
-.avatar-crop-btn--save:hover {
-  opacity: 0.92;
 }
 
 /* ── Custom Room SVG Icons ─────────────────────────────────── */

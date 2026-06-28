@@ -45,7 +45,7 @@ export function ChevronMenu({
 
   return (
     <>
-      <div className="backdrop" style={{ zIndex: 60 }} onClick={onClose} />
+      <div className="backdrop" style={{ zIndex: 'var(--z-dropdown)' }} onClick={onClose} />
       <div
         className={className}
         style={{ bottom, left, width }}

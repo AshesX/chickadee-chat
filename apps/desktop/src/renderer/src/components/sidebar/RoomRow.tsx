@@ -101,7 +101,7 @@ export function RoomRow({
     return (
       <div
         key={u.id}
-        className={`room-row__avatar${isSpeaking ? ' room-row__avatar--speaking' : ''}${muteClickable ? ' room-row__avatar--mutable' : ''}`}
+        className={`avatar avatar--sm room-row__avatar${isSpeaking ? ' room-row__avatar--speaking' : ''}${muteClickable ? ' room-row__avatar--mutable' : ''}`}
         style={{
           ...(uAvatar ? {} : { background: u.color }),
           '--avatar-accent': u.color,
@@ -152,7 +152,7 @@ export function RoomRow({
           <div className="room-row__avatars">
             {roomUsers.slice(0, 4).map(renderAvatar)}
             {roomUsers.length > 4 && (
-              <div className="room-row__avatar" style={{ background: 'var(--border)' }}>
+              <div className="avatar avatar--sm room-row__avatar" style={{ background: 'var(--border)' }}>
                 +{roomUsers.length - 4}
               </div>
             )}

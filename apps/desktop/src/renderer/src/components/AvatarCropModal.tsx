@@ -200,7 +200,7 @@ export function AvatarCropModal({ onSave, onCancel }: AvatarCropModalProps): Rea
   return (
     <div
       className="backdrop backdrop--scrim"
-      style={{ zIndex: 300, backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
+      style={{ zIndex: 'var(--z-nested)' }}
       onClick={onCancel}
     >
       <div className="avatar-crop-modal" onClick={(e) => e.stopPropagation()}>
@@ -269,11 +269,11 @@ export function AvatarCropModal({ onSave, onCancel }: AvatarCropModalProps): Rea
         )}
 
         <div className="avatar-crop-actions">
-          <button className="avatar-crop-btn avatar-crop-btn--cancel" onClick={onCancel}>
+          <button className="btn btn--ghost" onClick={onCancel}>
             Cancel
           </button>
           {imageSrc && (
-            <button className="avatar-crop-btn avatar-crop-btn--save" onClick={handleSave}>
+            <button className="btn btn--primary" onClick={handleSave}>
               Save Avatar
             </button>
           )}
