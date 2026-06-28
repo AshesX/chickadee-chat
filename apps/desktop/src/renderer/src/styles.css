@@ -2836,7 +2836,7 @@ input:focus-visible,
 .mic-slider-labels {
   display: flex;
   justify-content: space-between;
-  font-size: var(--fs-1);
+  font-size: var(--fs-0);
   font-weight: var(--fw-1);
   color: var(--dim);
   opacity: 0.8;

@@ -72,7 +72,8 @@
   --s-5: 20px;
   --s-6: 24px;
 
-  /* Type — 4 sizes */
+  /* Type — 5 sizes */
+  --fs-0: 10px;
   --fs-1: 12px;
   --fs-2: 14px;
   --fs-3: 16px;
