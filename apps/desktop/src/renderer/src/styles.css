@@ -1,61 +1,7 @@
-/* Chickadee Chat — component styles */
+/* Chickadee Chat — component styles (ITCSS upper tiers: Objects → Components → Utilities).
+   Lower tiers — Settings/Generic/Elements + @keyframes — live in theme.css, loaded first. */
 
-/* ── App shell ────────────────────────────────────────────── */
-.app {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  overflow: hidden;
-  background: var(--bg);
-}
-
-.app-body {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-  min-height: 0;
-}
-
-.main {
-  position: relative;
-  z-index: 1;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  min-width: 0;
-}
-
-
-.app--compact .main {
-  display: none;
-}
-
-.app--compact .sidebar {
-  width: 100%;
-}
-
-button {
-  font-family: inherit;
-  cursor: pointer;
-  border: none;
-  background: none;
-  color: inherit;
-}
-
-
-button:focus-visible,
-input:focus-visible,
-[role='button']:focus-visible,
-.room-row:focus-visible,
-.pill:focus-visible,
-.ctrl-btn:focus-visible {
-  outline: 2px solid var(--orange);
-  outline-offset: 0;
-  border-radius: var(--r-1);
-}
+/* ════════════ ④ OBJECTS — Ultra-Lean primitives ════════════ */
 
 /* ── Button primitive (.btn) ───────────────────────────────── */
 .btn {
@@ -186,6 +132,108 @@ input:focus-visible,
   width: 96px;
   height: 96px;
   font-size: var(--fs-4);
+}
+
+/* ── Icon button primitive (.icon-btn) ─────────────────────── */
+.icon-btn {
+  color: var(--dim);
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-1);
+  transition: all var(--dur-1) ease;
+  cursor: pointer;
+}
+
+.icon-btn:hover {
+  background: var(--veil-1);
+  color: var(--text);
+}
+
+/* ── Input primitive (.input) ──────────────────────────────── */
+.input,
+.field input,
+.welcome__input,
+.room-modal__search-input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-1);
+  color: var(--text);
+  font-size: var(--fs-2);
+  padding: var(--s-2) var(--s-3);
+}
+
+.input:focus,
+.field input:focus,
+.welcome__input:focus,
+.room-modal__search-input:focus {
+  border-color: var(--orange);
+  outline: none;
+}
+
+/* ── Label primitive (.label) ──────────────────────────────── */
+.label {
+  font-size: var(--fs-1);
+  font-weight: var(--fw-2);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text);
+  margin-bottom: var(--s-2);
+}
+
+/* ── Backdrop primitive (.backdrop) ────────────────────────── */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  -webkit-app-region: no-drag;
+}
+
+.backdrop--scrim {
+  background: var(--scrim);
+  display: grid;
+  place-items: center;
+  padding: var(--s-6);
+}
+
+
+/* ════════════ ⑤ COMPONENTS ════════════ */
+
+/* ── App shell ────────────────────────────────────────────── */
+.app {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.app-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.main {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+
+.app--compact .main {
+  display: none;
+}
+
+.app--compact .sidebar {
+  width: 100%;
 }
 
 /* ── Sidebar ──────────────────────────────────────────────── */
@@ -1503,16 +1551,6 @@ input:focus-visible,
   padding: var(--s-3);
 }
 
-
-.label {
-  font-size: var(--fs-1);
-  font-weight: var(--fw-2);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--text);
-  margin-bottom: var(--s-2);
-}
-
 .audio-menu__select {
   width: 100%;
   padding: var(--s-1) var(--s-2);
@@ -1959,20 +1997,6 @@ input:focus-visible,
 }
 
 /* ── Modals ───────────────────────────────────────────────── */
-/* ── Backdrop primitive ────────────────────────────────────── */
-.backdrop {
-  position: fixed;
-  inset: 0;
-  -webkit-app-region: no-drag;
-}
-
-.backdrop--scrim {
-  background: var(--scrim);
-  display: grid;
-  place-items: center;
-  padding: var(--s-6);
-}
-
 .modal-panel {
   width: 100%;
   max-width: 420px;
@@ -2004,23 +2028,6 @@ input:focus-visible,
   font-weight: var(--fw-2);
 }
 
-
-.icon-btn {
-  color: var(--dim);
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--r-1);
-  transition: all var(--dur-1) ease;
-  cursor: pointer;
-}
-
-.icon-btn:hover {
-  background: var(--veil-1);
-  color: var(--text);
-}
-
 .modal-panel__body {
   padding: var(--s-4);
   overflow-y: auto;
@@ -2046,27 +2053,6 @@ input:focus-visible,
   font-size: var(--fs-1);
   color: var(--red);
   margin: var(--s-2) 0 0;
-}
-
-
-.input,
-.field input,
-.welcome__input,
-.room-modal__search-input {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--r-1);
-  color: var(--text);
-  font-size: var(--fs-2);
-  padding: var(--s-2) var(--s-3);
-}
-
-.input:focus,
-.field input:focus,
-.welcome__input:focus,
-.room-modal__search-input:focus {
-  border-color: var(--orange);
-  outline: none;
 }
 
 .icon-grid {
@@ -2368,16 +2354,6 @@ input:focus-visible,
   flex-shrink: 0;
 }
 
-.error {
-  color: var(--red);
-  font-size: var(--fs-2);
-}
-
-.hint {
-  color: var(--dim);
-  font-size: var(--fs-1);
-}
-
 /* ── Error boundary fallback ──────────────────────────────── */
 .crash {
   max-width: 560px;
@@ -2557,18 +2533,6 @@ input:focus-visible,
 .space-copy-btn:hover .space-copy-btn__tooltip {
   opacity: 1;
   transform: translateY(0) scale(1);
-}
-
-@keyframes spaceDropdownIn {
-  from {
-    opacity: 0;
-    transform: translateY(-8px) scale(0.95);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
 }
 
 .space-dropdown {
@@ -3503,3 +3467,14 @@ input:focus-visible,
   background: var(--dim);
 }
 
+/* ════════════ ⑥ UTILITIES / TRUMPS ════════════ */
+
+.error {
+  color: var(--red);
+  font-size: var(--fs-2);
+}
+
+.hint {
+  color: var(--dim);
+  font-size: var(--fs-1);
+}
