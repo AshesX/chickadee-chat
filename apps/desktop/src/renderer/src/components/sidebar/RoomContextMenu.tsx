@@ -31,7 +31,7 @@ export function RoomContextMenu({
         onClick={(e) => e.stopPropagation()}
       >
         <button
-          className="ctx-menu__item"
+          className="menu-item"
           onClick={() => {
             onRequestRename(menu.room);
             onClose();
@@ -41,7 +41,7 @@ export function RoomContextMenu({
           Rename
         </button>
         <button
-          className="ctx-menu__item ctx-menu__item--danger"
+          className="menu-item menu-item--danger"
           onClick={() => {
             onRemoveRoom(menu.room.id);
             onClose();

@@ -62,7 +62,7 @@ export function CustomSelect({
               <li key={opt.value}>
                 <button
                   type="button"
-                  className={`custom-select__option${opt.value === value ? ' custom-select__option--active' : ''}`}
+                  className={`menu-item${opt.value === value ? ' menu-item--active' : ''}`}
                   onClick={() => handleSelect(opt.value)}
                 >
                   {opt.label}

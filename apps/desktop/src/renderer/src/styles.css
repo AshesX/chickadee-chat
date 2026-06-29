@@ -3,7 +3,8 @@
 
 /* ════════════ ④ OBJECTS — Ultra-Lean primitives ════════════ */
 
-/* ── Button primitive (.btn) ───────────────────────────────── */
+/* ── Button primitive (.btn) ─────────────────────────────────
+ */
 .btn {
   -webkit-app-region: no-drag;
   display: inline-flex;
@@ -84,7 +85,8 @@
   width: 100%;
 }
 
-/* ── Menu surface primitive ────────────────────────────────── */
+/* ── Menu surface primitive ──────────────────────────────────
+ */
 .menu-surface {
   background: var(--card);
   border: 1px solid var(--border);
@@ -99,7 +101,47 @@
   -webkit-backdrop-filter: blur(16px);
 }
 
-/* ── Avatar primitive ──────────────────────────────────────── */
+/* ── Menu item primitive (.menu-item) ──────────────────────── */
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  padding: var(--s-2) var(--s-3);
+  font-size: var(--fs-1);
+  color: var(--text-sub);
+  border-radius: var(--r-1);
+  transition: background var(--dur-1) ease, color var(--dur-1) ease;
+  text-align: left;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.menu-item:hover {
+  background: var(--veil-1);
+  color: var(--text);
+}
+
+.menu-item--active {
+  background: var(--active-bg);
+  color: var(--active-text);
+  font-weight: var(--fw-2);
+}
+
+.menu-item--danger {
+  color: var(--red);
+}
+
+.menu-item--danger:hover {
+  background: var(--danger-bg);
+  color: var(--red);
+}
+
+/* ── Avatar primitive ────────────────────────────────────────
+ */
 .avatar {
   width: 48px;
   height: 48px;
@@ -139,8 +181,8 @@
   color: var(--dim);
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border-radius: var(--r-1);
   transition: all var(--dur-1) ease;
   cursor: pointer;
@@ -149,6 +191,16 @@
 .icon-btn:hover {
   background: var(--veil-1);
   color: var(--text);
+}
+
+.icon-btn--sm {
+  width: 24px;
+  height: 24px;
+}
+
+.icon-btn--danger:hover {
+  background: var(--danger-bg) !important;
+  color: var(--red) !important;
 }
 
 /* ── Input primitive (.input) ──────────────────────────────── */
@@ -846,31 +898,6 @@
   gap: var(--s-1);
 }
 
-.status-dropdown__item {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  width: 100%;
-  padding: var(--s-2) var(--s-3);
-  font-size: var(--fs-1);
-  font-weight: var(--fw-1);
-  color: var(--text-sub);
-  border-radius: var(--r-1);
-  transition: all var(--dur-1) ease;
-  text-align: left;
-}
-
-.status-dropdown__item:hover {
-  background: var(--veil-1);
-  color: var(--text);
-}
-
-.status-dropdown__item--active {
-  background: color-mix(in srgb, var(--tint) 15%, transparent);
-  color: var(--text);
-  font-weight: var(--fw-1);
-}
-
 /* ── Title Bar ────────────────────────────────────────────── */
 .title-bar {
   flex-shrink: 0;
@@ -1254,8 +1281,8 @@
   z-index: 3;
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   padding: 0;
   color: #fff;
   background: var(--red);
@@ -1646,30 +1673,6 @@
   margin: 0;
 }
 
-.custom-select__option {
-  display: block;
-  width: 100%;
-  padding: var(--s-2) var(--s-2);
-  border-radius: calc(var(--r-1) - 2px);
-  font-size: var(--fs-1);
-  color: var(--text-sub);
-  text-align: left;
-  transition: background var(--dur-1) ease, color var(--dur-1) ease;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.custom-select__option:hover {
-  background: var(--veil-1);
-  color: var(--text);
-}
-
-.custom-select__option--active {
-  color: var(--active-text);
-  background: var(--active-bg);
-}
-
 .settings-device-select {
   width: auto;
   max-width: 230px;
@@ -1924,8 +1927,8 @@
 }
 
 .send-btn {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   flex-shrink: 0;
   border-radius: var(--r-1);
   display: grid;
@@ -2209,32 +2212,6 @@
   padding: var(--s-1);
 }
 
-.ctx-menu__item {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  padding: var(--s-2) var(--s-3);
-  border-radius: var(--r-1);
-  font-size: var(--fs-1);
-  font-weight: var(--fw-1);
-  color: var(--text);
-  text-align: left;
-  transition: background var(--dur-1) ease;
-}
-
-.ctx-menu__item:hover {
-  background: var(--veil-1);
-}
-
-.ctx-menu__item--danger {
-  color: var(--red);
-}
-
-.ctx-menu__item--danger:hover {
-  background: var(--danger-bg);
-}
-
-
 .modal-panel--welcome {
   max-width: 380px;
   padding: var(--s-6) var(--s-6);
@@ -2447,132 +2424,6 @@
 
 .space-switcher-btn__chevron--open {
   transform: rotate(180deg);
-}
-
-.space-dropdown {
-  position: absolute;
-  top: 50px;
-  left: 0;
-  width: calc(100% + 1px);
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-top: none;
-  border-radius: 0 0 var(--r-1) var(--r-1);
-  box-shadow: var(--sh-1);
-  z-index: var(--z-dropdown);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  animation: spaceDropdownIn 0.22s var(--ease);
-  clip-path: inset(0 0 -100px 0);
-}
-
-.space-dropdown__list {
-  display: flex;
-  flex-direction: column;
-  padding: var(--s-1) 0;
-  max-height: 220px;
-  overflow-y: auto;
-  border-bottom: 1px solid var(--border);
-}
-
-.space-dropdown__row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--s-1) var(--s-2);
-  position: relative;
-}
-
-.space-dropdown__item-select {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--s-2) var(--s-2);
-  text-align: left;
-  font-size: var(--fs-1);
-  color: var(--text-sub);
-  border-radius: var(--r-1);
-  transition: background var(--dur-1) ease, color var(--dur-1) ease;
-  min-width: 0;
-}
-
-.space-dropdown__item-select:hover {
-  background: var(--veil-1);
-  color: var(--text);
-}
-
-.space-dropdown__row--active .space-dropdown__item-select,
-.space-dropdown__row--active .space-dropdown__item-select:hover {
-  color: var(--block-fg);
-  font-weight: var(--fw-2);
-  background: var(--block-bg);
-}
-
-.space-dropdown__item-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-  margin-right: var(--s-2);
-}
-
-.space-dropdown__item-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--online);
-  flex-shrink: 0;
-  box-shadow: 0 0 6px var(--online);
-}
-
-/* Compose .icon-btn; residual = size + full-strength rest color + non-shrink.
-   The :hover rules below keep !important to beat the dropdown row's hover. */
-.space-dropdown__item-delete,
-.space-dropdown__item-settings {
-  width: 22px;
-  height: 22px;
-  color: var(--text);
-  flex-shrink: 0;
-}
-
-.space-dropdown__item-settings:hover {
-  opacity: 1 !important;
-  color: var(--text) !important;
-  background: var(--veil-1) !important;
-}
-
-.space-dropdown__item-delete:hover {
-  opacity: 1 !important;
-  color: var(--red) !important;
-  background: var(--danger-bg) !important;
-}
-
-.space-dropdown__actions {
-  padding: var(--s-1);
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-1);
-  background: color-mix(in srgb, var(--tint) 4%, transparent);
-}
-
-.space-dropdown__action-btn {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  padding: var(--s-2) var(--s-3);
-  font-size: var(--fs-2);
-  color: var(--text);
-  width: 100%;
-  border-radius: var(--r-1);
-  transition: background var(--dur-1) ease, color var(--dur-1) ease;
-  text-align: left;
-}
-
-.space-dropdown__action-btn:hover {
-  background: var(--veil-1);
-  color: var(--text);
 }
 
 .settings-slider {

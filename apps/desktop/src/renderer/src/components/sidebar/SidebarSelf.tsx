@@ -56,9 +56,9 @@ export function SidebarSelf({
       {statusMenuOpen && (
         <>
           <div className="backdrop" style={{ zIndex: 'var(--z-dropdown)' }} onClick={() => setStatusMenuOpen(false)} />
-          <div className="status-dropdown menu-surface menu-surface--frosted" onClick={(e) => e.stopPropagation()}>
+          <div className="menu-surface menu-surface--frosted" style={{ position: 'absolute', bottom: '50px', left: '12px', zIndex: 'var(--z-dropdown)', width: '155px', padding: 'var(--s-1)', display: 'flex', flexDirection: 'column', gap: 'var(--s-1)' }} onClick={(e) => e.stopPropagation()}>
             <button
-              className={`status-dropdown__item${selfStatus === 'online' ? ' status-dropdown__item--active' : ''}`}
+              className={`menu-item${selfStatus === 'online' ? ' menu-item--active' : ''}`}
               onClick={() => {
                 onChangeStatus('online');
                 setStatusMenuOpen(false);
@@ -68,7 +68,7 @@ export function SidebarSelf({
               <span>Online</span>
             </button>
             <button
-              className={`status-dropdown__item${selfStatus === 'idle' ? ' status-dropdown__item--active' : ''}`}
+              className={`menu-item${selfStatus === 'idle' ? ' menu-item--active' : ''}`}
               onClick={() => {
                 onChangeStatus('idle');
                 setStatusMenuOpen(false);
@@ -78,7 +78,7 @@ export function SidebarSelf({
               <span>Idle</span>
             </button>
             <button
-              className={`status-dropdown__item${selfStatus === 'dnd' ? ' status-dropdown__item--active' : ''}`}
+              className={`menu-item${selfStatus === 'dnd' ? ' menu-item--active' : ''}`}
               onClick={() => {
                 onChangeStatus('dnd');
                 setStatusMenuOpen(false);

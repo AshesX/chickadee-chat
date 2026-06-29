@@ -148,21 +148,26 @@ export function SpaceSwitcher({
       </div>
 
       {switcherOpen && (
-        <div className="space-dropdown" onClick={(e) => e.stopPropagation()}>
+        <div 
+          className="menu-surface" 
+          style={{ position: 'absolute', top: '56px', left: '8px', width: 'calc(100% - 16px)', zIndex: 'var(--z-dropdown)', display: 'flex', flexDirection: 'column' }}
+          onClick={(e) => e.stopPropagation()}
+        >
           {spaces.length > 0 && (
-            <div className="space-dropdown__list">
+            <div style={{ display: 'flex', flexDirection: 'column', padding: 'var(--s-1) 0', maxHeight: '220px', overflowY: 'auto', borderBottom: '1px solid var(--border)' }}>
               {spaces.map((s) => {
                 const isActive = s.id === activeSpaceId;
                 return (
-                  <div key={s.id} className={`space-dropdown__row${isActive ? ' space-dropdown__row--active' : ''}`}>
+                  <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-1)', padding: 'var(--s-1) var(--s-2)' }}>
                     <button
-                      className="space-dropdown__item-select"
+                      className={`menu-item${isActive ? ' menu-item--active' : ''}`}
+                      style={{ flex: 1, padding: 'var(--s-2)' }}
                       onClick={() => {
                         onSelectSpace(s.id);
                         setSwitcherOpen(false);
                       }}
                     >
-                      <span className="space-dropdown__item-name">
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, textAlign: 'left', marginRight: 'var(--s-2)' }}>
                         {copiedSpaceId === s.id ? (
                           <span
                             className="space-switcher-btn__name--code"
@@ -184,7 +189,7 @@ export function SpaceSwitcher({
                       </span>
                     </button>
                     <button
-                      className="icon-btn space-dropdown__item-settings"
+                      className="icon-btn icon-btn--sm"
                       onClick={(e) => {
                         e.stopPropagation();
                         copySpaceCode(s.id);
@@ -196,7 +201,7 @@ export function SpaceSwitcher({
                       {copiedSpaceId === s.id ? <Check size={12} style={{ color: 'var(--green)' }} /> : <Copy size={12} />}
                     </button>
                     <button
-                      className="icon-btn space-dropdown__item-settings"
+                      className="icon-btn icon-btn--sm"
                       onClick={(e) => {
                         e.stopPropagation();
                         onSpaceSettings(s.id);
@@ -207,7 +212,7 @@ export function SpaceSwitcher({
                       <Settings size={12} />
                     </button>
                     <button
-                      className="icon-btn space-dropdown__item-delete"
+                      className="icon-btn icon-btn--sm icon-btn--danger"
                       onClick={(e) => {
                         e.stopPropagation();
                         onDeleteSpace(s.id, s.name);
@@ -221,9 +226,9 @@ export function SpaceSwitcher({
               })}
             </div>
           )}
-          <div className="space-dropdown__actions">
+          <div style={{ padding: 'var(--s-1)', display: 'flex', flexDirection: 'column', gap: 'var(--s-1)', background: 'color-mix(in srgb, var(--tint) 4%, transparent)' }}>
             <button
-              className="space-dropdown__action-btn"
+              className="menu-item"
               onClick={() => {
                 onCreateSpace();
                 setSwitcherOpen(false);
@@ -233,7 +238,7 @@ export function SpaceSwitcher({
               <span>Create Space</span>
             </button>
             <button
-              className="space-dropdown__action-btn"
+              className="menu-item"
               onClick={() => {
                 onJoinSpace();
                 setSwitcherOpen(false);
