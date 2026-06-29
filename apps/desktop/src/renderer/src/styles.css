@@ -693,8 +693,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 27px;
-  height: 27px;
+  width: 24px;
+  height: 24px;
   flex-shrink: 0;
   border-radius: var(--r-1);
 
@@ -994,7 +994,7 @@
 
 .winctl__btn {
   width: 30px;
-  height: 26px;
+  height: 24x;
   display: grid;
   place-items: center;
   border-radius: var(--r-1);
@@ -1207,8 +1207,8 @@
 .tile__volume-icon-btn {
   display: grid;
   place-items: center;
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   padding: 0;
   border: none;
   background: transparent;
@@ -1462,6 +1462,7 @@
   align-items: center;
   gap: var(--s-1);
   padding: var(--s-2) var(--s-1);
+  height: 48px;
   width: 72px;
   border-radius: var(--r-1);
   border: 1px solid var(--border);
@@ -2997,9 +2998,9 @@
 
 .accent-swatch {
   position: relative;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--r-1);
   border: 1px solid var(--border);
   cursor: pointer;
   padding: 0;
