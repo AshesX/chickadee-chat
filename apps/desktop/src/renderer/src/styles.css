@@ -2386,7 +2386,6 @@
   background-clip: text;
   -webkit-text-fill-color: transparent;
   font-weight: var(--fw-2);
-  font-family: monospace;
   letter-spacing: 0.02em;
 }
 

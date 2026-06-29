@@ -31,8 +31,8 @@
 
   /* Actions / active */
   --gradient: linear-gradient(135deg, var(--orange), #f59000);
-  --active-bg: color-mix(in srgb, var(--orange) 16%, transparent);
-  --active-text: #ab4e00;
+  --active-bg: color-mix(in srgb, var(--dim) 16%, transparent);
+  --active-text: #1f1300;
 
   /* Supporting */
   --scrollbar: #c7c7c2;
