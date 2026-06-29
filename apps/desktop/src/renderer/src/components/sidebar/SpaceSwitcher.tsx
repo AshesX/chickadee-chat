@@ -135,7 +135,7 @@ export function SpaceSwitcher({
           </button>
         </div>
         <button
-          className="sidebar__collapse-btn"
+          className="icon-btn sidebar__collapse-btn"
           onClick={onToggleCompact}
           title={compact ? 'Expand' : 'Collapse to sidebar'}
           aria-label={compact ? 'Expand' : 'Collapse to sidebar'}
@@ -184,7 +184,7 @@ export function SpaceSwitcher({
                       </span>
                     </button>
                     <button
-                      className="space-dropdown__item-settings"
+                      className="icon-btn space-dropdown__item-settings"
                       onClick={(e) => {
                         e.stopPropagation();
                         copySpaceCode(s.id);
@@ -196,7 +196,7 @@ export function SpaceSwitcher({
                       {copiedSpaceId === s.id ? <Check size={12} style={{ color: 'var(--green)' }} /> : <Copy size={12} />}
                     </button>
                     <button
-                      className="space-dropdown__item-settings"
+                      className="icon-btn space-dropdown__item-settings"
                       onClick={(e) => {
                         e.stopPropagation();
                         onSpaceSettings(s.id);
@@ -207,7 +207,7 @@ export function SpaceSwitcher({
                       <Settings size={12} />
                     </button>
                     <button
-                      className="space-dropdown__item-delete"
+                      className="icon-btn space-dropdown__item-delete"
                       onClick={(e) => {
                         e.stopPropagation();
                         onDeleteSpace(s.id, s.name);

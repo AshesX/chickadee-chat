@@ -311,23 +311,11 @@
 }
 
 
+/* Composes .icon-btn (color/center/radius/transition + veil hover); residual = size + spacing. */
 .sidebar__collapse-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   width: 24px;
   height: 24px;
   margin-right: var(--s-1);
-  border-radius: var(--r-1);
-  color: var(--dim);
-  opacity: 1.0;
-  transition: color var(--dur-1) ease, background var(--dur-1) ease, opacity var(--dur-1) ease;
-}
-
-.sidebar__collapse-btn:hover {
-  opacity: 1;
-  color: var(--text);
-  background: var(--veil-1);
 }
 
 .sidebar__collapse-icon {
@@ -2461,71 +2449,6 @@
   transform: rotate(180deg);
 }
 
-.space-copy-btn {
-  color: var(--dim);
-  opacity: 1.0;
-  cursor: pointer;
-  transition: all var(--dur-1) ease;
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  border-radius: var(--r-1);
-  flex-shrink: 0;
-  -webkit-app-region: no-drag;
-}
-
-.space-copy-btn:hover {
-  opacity: 1;
-  background: var(--veil-1);
-  color: var(--text);
-}
-
-.space-copy-btn__tooltip {
-  position: absolute;
-  top: 46px;
-  right: 12px;
-  max-width: 176px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--s-1);
-  background: color-mix(in srgb, var(--card) 96%, transparent);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--border);
-  border-radius: var(--r-1);
-  padding: var(--s-2) var(--s-3);
-  font-size: var(--fs-1);
-  font-weight: var(--fw-1);
-  color: var(--text);
-  box-shadow: var(--sh-1);
-  pointer-events: none;
-  opacity: 0;
-  transform: translateY(-4px) scale(0.96);
-  transition: opacity var(--dur-1) ease, transform var(--dur-1) var(--ease);
-  z-index: var(--z-tooltip);
-}
-
-.space-copy-btn__tooltip-action {
-  color: var(--text);
-  font-weight: var(--fw-1);
-}
-
-.space-copy-btn__tooltip-code {
-  color: var(--orange);
-  font-family: monospace;
-  font-size: var(--fs-1);
-  font-weight: var(--fw-2);
-  letter-spacing: 0.02em;
-  margin-top: var(--s-1);
-}
-
-.space-copy-btn:hover .space-copy-btn__tooltip {
-  opacity: 1;
-  transform: translateY(0) scale(1);
-}
-
 .space-dropdown {
   position: absolute;
   top: 50px;
@@ -2604,17 +2527,13 @@
   box-shadow: 0 0 6px var(--online);
 }
 
+/* Compose .icon-btn; residual = size + full-strength rest color + non-shrink.
+   The :hover rules below keep !important to beat the dropdown row's hover. */
 .space-dropdown__item-delete,
 .space-dropdown__item-settings {
-  display: grid;
-  place-items: center;
   width: 22px;
   height: 22px;
-  border-radius: var(--r-1);
   color: var(--text);
-  opacity: 1;
-  transition: all var(--dur-1) ease;
-  cursor: pointer;
   flex-shrink: 0;
 }
 
