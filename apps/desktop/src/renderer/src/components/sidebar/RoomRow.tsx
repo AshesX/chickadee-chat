@@ -108,14 +108,14 @@ export function RoomRow({
         } as React.CSSProperties}
         {...(muteClickable
           ? {
-              role: 'button',
-              title: muted ? `Unmute ${u.name}` : `Mute ${u.name}`,
-              'aria-label': muted ? `Unmute ${u.name}` : `Mute ${u.name}`,
-              onClick: (e: React.MouseEvent) => {
-                e.stopPropagation();
-                onTogglePeerMute(u.id);
-              },
-            }
+            role: 'button',
+            title: muted ? `Unmute ${u.name}` : `Mute ${u.name}`,
+            'aria-label': muted ? `Unmute ${u.name}` : `Mute ${u.name}`,
+            onClick: (e: React.MouseEvent) => {
+              e.stopPropagation();
+              onTogglePeerMute(u.id);
+            },
+          }
           : {})}
       >
         {uAvatar ? <img src={uAvatar} alt={u.name} /> : u.initial}
@@ -135,7 +135,7 @@ export function RoomRow({
     >
       {active && (
         <div className="room-row__bg-icon">
-          <RoomIcon name={r.icon} size={100} />
+          <RoomIcon name={r.icon} size={115} />
         </div>
       )}
       <button

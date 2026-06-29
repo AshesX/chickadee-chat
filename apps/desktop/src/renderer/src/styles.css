@@ -458,7 +458,7 @@
 
 .room-row__bg-icon {
   position: absolute;
-  right: -10%;
+  right: -24px;
   top: 50%;
   transform: translateY(-50%);
   height: 150%;
