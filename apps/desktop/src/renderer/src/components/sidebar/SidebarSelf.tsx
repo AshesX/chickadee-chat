@@ -64,7 +64,7 @@ export function SidebarSelf({
                 setStatusMenuOpen(false);
               }}
             >
-              <span className="presence-dot presence-dot--online presence-dot--static" />
+              <span className="presence-dot presence-dot--online" />
               <span>Online</span>
             </button>
             <button
@@ -74,7 +74,7 @@ export function SidebarSelf({
                 setStatusMenuOpen(false);
               }}
             >
-              <span className="presence-dot presence-dot--idle presence-dot--static" />
+              <span className="presence-dot presence-dot--idle" />
               <span>Idle</span>
             </button>
             <button
@@ -84,7 +84,7 @@ export function SidebarSelf({
                 setStatusMenuOpen(false);
               }}
             >
-              <span className="presence-dot presence-dot--dnd presence-dot--static" />
+              <span className="presence-dot presence-dot--dnd" />
               <span>Do Not Disturb</span>
             </button>
           </div>

@@ -1,3 +1,7 @@
+# Coding Guidelines
+## Agent Instructions
+Use an ultra-lean,'DRY' (Don't Repeat Yourself) and clean approach to coding.
+
 # Chickadee Chat Design System & Lore
 
 ## Theme: Alabaster Editorial
