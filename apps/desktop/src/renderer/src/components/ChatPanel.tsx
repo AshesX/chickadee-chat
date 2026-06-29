@@ -142,7 +142,7 @@ export function ChatPanel({
     >
       {onResize && (
         <div
-          className="chat-panel__resize-handle"
+          className="resize-handle chat-panel__resize-handle"
           onPointerDown={handleResizeStart}
           title="Drag to resize chat"
           role="separator"

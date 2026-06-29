@@ -272,7 +272,7 @@ export function Sidebar({
 
       {!compact && (
         <div
-          className="sidebar__resize-handle"
+          className="resize-handle sidebar__resize-handle"
           onPointerDown={handleResizeStart}
           title="Drag to resize sidebar"
           role="separator"

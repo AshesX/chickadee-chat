@@ -196,6 +196,35 @@
   padding: var(--s-6);
 }
 
+/* ── Resize handle primitive (.resize-handle) ──────────────── */
+/* Shared drag-to-resize edge: a wide invisible hit area with a thin `::after`
+   line that lights up on hover/active. Residuals set the edge (left/right) +
+   any `no-drag` override. */
+.resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 7px;
+  cursor: ew-resize;
+  z-index: 5;
+  background: transparent;
+}
+
+.resize-handle::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: transparent;
+  transition: background var(--dur-1) ease;
+}
+
+.resize-handle:hover::after,
+.resize-handle:active::after {
+  background: var(--orange);
+}
+
 
 /* ════════════ ⑤ COMPONENTS ════════════ */
 
@@ -253,31 +282,12 @@
    The element is a wider invisible hit area; the visible highlight is the thin
    `::after` line at the very edge. */
 .sidebar__resize-handle {
-  position: absolute;
-  top: 0;
   right: 0;
-  bottom: 0;
-  width: 7px;
-  cursor: ew-resize;
-  z-index: 5;
   -webkit-app-region: no-drag;
-  background: transparent;
 }
 
 .sidebar__resize-handle::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
   right: -1px;
-  width: 2px;
-  background: transparent;
-  transition: background var(--dur-1) ease;
-}
-
-.sidebar__resize-handle:hover::after,
-.sidebar__resize-handle:active::after {
-  background: var(--orange);
 }
 
 
@@ -317,7 +327,7 @@
 .sidebar__collapse-btn:hover {
   opacity: 1;
   color: var(--text);
-  background: color-mix(in srgb, var(--tint) 6%, transparent);
+  background: var(--veil-1);
 }
 
 .sidebar__collapse-icon {
@@ -379,7 +389,7 @@
 
 .sidebar__section-create-btn:hover {
   color: var(--text);
-  background: color-mix(in srgb, var(--tint) 6%, transparent);
+  background: var(--veil-1);
 }
 
 
@@ -427,7 +437,7 @@
 }
 
 .room-row:hover {
-  background: color-mix(in srgb, var(--tint) 6%, transparent);
+  background: var(--veil-1);
 }
 
 .room-row__main:active,
@@ -621,7 +631,7 @@
 }
 
 .room-row--create-inline:hover {
-  background: color-mix(in srgb, var(--tint) 6%, transparent);
+  background: var(--veil-1);
   border-color: var(--orange);
   color: var(--text);
 }
@@ -863,7 +873,7 @@
 }
 
 .status-dropdown__item:hover {
-  background: color-mix(in srgb, var(--tint) 6%, transparent);
+  background: var(--veil-1);
   color: var(--text);
 }
 
@@ -1725,14 +1735,7 @@
 
 
 .chat-panel__resize-handle {
-  position: absolute;
-  top: 0;
-  bottom: 0;
   left: 0;
-  width: 7px;
-  cursor: ew-resize;
-  z-index: 5;
-  background: transparent;
 }
 
 .chat-panel--left .chat-panel__resize-handle {
@@ -1741,24 +1744,12 @@
 }
 
 .chat-panel__resize-handle::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
   left: -1px;
-  width: 2px;
-  background: transparent;
-  transition: background var(--dur-1) ease;
 }
 
 .chat-panel--left .chat-panel__resize-handle::after {
   left: auto;
   right: -1px;
-}
-
-.chat-panel__resize-handle:hover::after,
-.chat-panel__resize-handle:active::after {
-  background: var(--orange);
 }
 
 .chat-panel__head {
@@ -1988,7 +1979,7 @@
 }
 
 .toast {
-  background: color-mix(in srgb, var(--red) 16%, transparent);
+  background: var(--danger-bg);
   border: 1px solid color-mix(in srgb, var(--red) 40%, transparent);
   color: var(--red);
   font-size: var(--fs-1);
@@ -2073,7 +2064,7 @@
 }
 
 .icon-grid__item:hover {
-  background: color-mix(in srgb, var(--tint) 6%, transparent);
+  background: var(--veil-1);
 }
 
 .icon-grid__item--active {
@@ -2244,7 +2235,7 @@
 }
 
 .ctx-menu__item:hover {
-  background: color-mix(in srgb, var(--tint) 6%, transparent);
+  background: var(--veil-1);
 }
 
 .ctx-menu__item--danger {
@@ -2252,7 +2243,7 @@
 }
 
 .ctx-menu__item--danger:hover {
-  background: color-mix(in srgb, var(--red) 16%, transparent);
+  background: var(--danger-bg);
 }
 
 
@@ -2585,7 +2576,7 @@
 }
 
 .space-dropdown__item-select:hover {
-  background: color-mix(in srgb, var(--tint) 6%, transparent);
+  background: var(--veil-1);
   color: var(--text);
 }
 
@@ -2630,13 +2621,13 @@
 .space-dropdown__item-settings:hover {
   opacity: 1 !important;
   color: var(--text) !important;
-  background: color-mix(in srgb, var(--tint) 6%, transparent) !important;
+  background: var(--veil-1) !important;
 }
 
 .space-dropdown__item-delete:hover {
   opacity: 1 !important;
   color: var(--red) !important;
-  background: color-mix(in srgb, var(--red) 16%, transparent) !important;
+  background: var(--danger-bg) !important;
 }
 
 .space-dropdown__actions {
@@ -2661,7 +2652,7 @@
 }
 
 .space-dropdown__action-btn:hover {
-  background: color-mix(in srgb, var(--tint) 6%, transparent);
+  background: var(--veil-1);
   color: var(--text);
 }
 
