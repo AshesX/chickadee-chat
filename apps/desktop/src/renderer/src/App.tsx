@@ -541,7 +541,7 @@ export function App(): React.JSX.Element {
       const clamped = Math.max(1.0, Math.min(2.0, scale));
       setSidebarWidthScale(clamped);
       if (compactMode) {
-        window.chickadee?.windowControls?.setWindowWidth?.(Math.round(260 * clamped));
+        window.chickadee?.windowControls?.setWindowWidth?.(Math.round(280 * clamped));
       }
       if (commit) store.setSidebarWidthScale(clamped);
     },
@@ -594,7 +594,7 @@ export function App(): React.JSX.Element {
   useEffect(() => {
     window.chickadee?.windowControls?.setCompact?.(
       compactMode,
-      Math.round(260 * sidebarWidthScale),
+      Math.round(280 * sidebarWidthScale),
     );
     // sidebarWidthScale intentionally omitted: the dock width is set on toggle and
     // updated live via setWindowWidth in handleSidebarResize while already compact.
