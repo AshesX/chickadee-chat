@@ -31,14 +31,12 @@ export function SliderRow({
         <MicLevelMeter {...meter} />
       </div>
     );
-  } else if (constrained) {
+  } else {
     control = (
       <div className="slider-wrap">
         <SettingsSlider {...slider} />
       </div>
     );
-  } else {
-    control = <SettingsSlider {...slider} />;
   }
 
   return (

@@ -107,8 +107,8 @@
   align-items: center;
   gap: var(--s-2);
   width: 100%;
-  padding: var(--s-2) var(--s-3);
-  font-size: var(--fs-1);
+  padding: var(--s-1) var(--s-2);
+  font-size: var(--fs-0);
   color: var(--text-sub);
   border-radius: var(--r-1);
   transition: background var(--dur-1) ease, color var(--dur-1) ease;
@@ -205,7 +205,6 @@
 
 /* ── Input primitive (.input) ──────────────────────────────── */
 .input,
-.field input,
 .welcome__input,
 .room-modal__search-input {
   background: var(--bg);
@@ -216,17 +215,30 @@
   padding: var(--s-2) var(--s-3);
 }
 
+.field input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-1);
+  color: var(--text);
+  font-size: var(--fs-1);
+  padding: var(--s-1) var(--s-2);
+}
+
 .input:focus,
-.field input:focus,
 .welcome__input:focus,
 .room-modal__search-input:focus {
   border-color: var(--orange);
   outline: none;
 }
 
+.field input:focus {
+  border-color: var(--orange);
+  outline: none;
+}
+
 /* ── Label primitive (.label) ──────────────────────────────── */
 .label {
-  font-size: var(--fs-1);
+  font-size: var(--fs-0);
   font-weight: var(--fw-2);
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -243,6 +255,8 @@
 
 .backdrop--scrim {
   background: var(--scrim);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   display: grid;
   place-items: center;
   padding: var(--s-6);
@@ -1587,7 +1601,7 @@
   border: 1px solid var(--border);
   background: var(--veil-1);
   color: var(--text);
-  font-size: var(--fs-1);
+  font-size: var(--fs-0);
 }
 
 
@@ -1643,7 +1657,7 @@
   justify-content: space-between;
   gap: var(--s-2);
   width: 100%;
-  padding: var(--s-2) var(--s-3);
+  padding: var(--s-1) var(--s-2);
   border-radius: var(--r-1);
   border: 1px solid var(--border);
   background: var(--veil-1);
@@ -1677,10 +1691,6 @@
   margin: 0;
 }
 
-.settings-device-select {
-  width: auto;
-  max-width: 230px;
-}
 
 /* ── Empty lounge ─────────────────────────────────────────── */
 .empty-lounge {
@@ -2068,7 +2078,7 @@
 }
 
 .settings-note {
-  font-size: var(--fs-1);
+  font-size: var(--fs-0);
   color: var(--dim);
   line-height: 1.5;
 }
@@ -2092,30 +2102,18 @@
   pointer-events: none;
 }
 
-/* Native <select> styled like .input but sized to its content (settings tabs). */
-.settings-select {
-  width: auto;
-  max-width: 230px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--r-1);
-  color: var(--text);
-  font-family: inherit;
-  font-size: var(--fs-2);
-  padding: var(--s-2) var(--s-3);
-  cursor: pointer;
-}
-
-.settings-select:focus {
-  border-color: var(--orange);
-  outline: none;
+/* Layout/dimensions for select dropdowns in settings. */
+.settings-select,
+.settings-device-select {
+  width: 220px;
 }
 
 .settings-row__label {
   display: flex;
   flex-direction: column;
   gap: var(--s-1);
-  font-size: var(--fs-2);
+  font-size: var(--fs-1);
+  font-weight: var(--fw-2);
   flex: 1;
   min-width: 0;
 }
@@ -2156,7 +2154,7 @@
 .rebind {
   flex-shrink: 0;
   min-width: 84px;
-  padding: var(--s-2) var(--s-3);
+  padding: var(--s-1) var(--s-3);
   border-radius: var(--r-1);
   border: 1px solid var(--border);
   background: var(--bg);
@@ -2179,7 +2177,7 @@
 }
 
 .seg-btn {
-  padding: var(--s-2) var(--s-3);
+  padding: var(--s-1) var(--s-3);
   border: 1px solid var(--border);
   border-radius: var(--r-1);
   background: var(--bg);
@@ -2498,8 +2496,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--s-2);
-  width: 100%;
-  max-width: 280px;
+  width: 220px;
   flex-shrink: 0;
 }
 
@@ -2588,7 +2585,7 @@
 }
 
 .mic-meter__label {
-  font-size: var(--fs-1);
+  font-size: var(--fs-0);
   font-weight: var(--fw-2);
   color: var(--dim);
   min-width: 60px;
@@ -2650,7 +2647,7 @@
 }
 
 .settings-sidebar__version-btn {
-  font-size: var(--fs-1);
+  font-size: var(--fs-0);
   font-weight: var(--fw-1);
   color: var(--dim);
   opacity: 0.82;
@@ -2719,13 +2716,12 @@
   margin: var(--s-1) 0 var(--s-1) var(--s-5);
   border-left: 2px solid var(--border);
   padding-left: var(--s-2);
-  gap: var(--s-1);
 }
 
 .settings-sidebar__sub-item {
   width: 100%;
-  padding: var(--s-1) var(--s-2);
-  font-size: var(--fs-1);
+  padding: 2px var(--s-2);
+  font-size: var(--fs-0);
   color: var(--dim);
   text-align: left;
   border-radius: var(--r-1);
@@ -2761,7 +2757,7 @@
   color: var(--text);
   font-size: var(--fs-1);
   font-family: inherit;
-  padding: var(--s-2) var(--s-6);
+  padding: var(--s-1) var(--s-6);
   transition: border-color var(--dur-1) ease, background var(--dur-1) ease;
   box-sizing: border-box;
 }
@@ -2895,6 +2891,10 @@
 
 /* ── Responsive Styling ────────────────────────────────────── */
 @media (max-width: 800px) or (max-height: 600px) {
+  .backdrop--scrim:has(.settings-panel) {
+    padding: 0;
+  }
+
   .settings-panel {
     width: 100vw;
     height: 100vh;
@@ -2987,12 +2987,30 @@
 
 
 .unbind-btn {
-  width: 32px;
-  height: 32px;
+  width: 22px;
+  height: 22px;
   padding: 0;
 }
 
 /* ─── Settings profile – avatar section ──────────────────────────────────── */
+
+.profile-settings-layout {
+  display: flex;
+  gap: var(--s-6);
+  align-items: flex-start;
+}
+
+@media (max-width: 640px) {
+  .profile-settings-layout {
+    flex-direction: column;
+    gap: var(--s-4);
+  }
+}
+
+.profile-settings-layout__left,
+.profile-settings-layout__right {
+  flex: 1;
+}
 
 .avatar-settings-row {
   display: flex;
@@ -3072,13 +3090,16 @@
 }
 
 .accent-swatch--custom {
-  display: grid;
-  place-items: center;
-  font-size: var(--fs-4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-3);
   font-weight: var(--fw-1);
   color: var(--text-sub);
   background: transparent;
   border: 1.5px dashed var(--border);
+  line-height: 1;
+  padding-bottom: 2px;
 }
 
 .accent-swatch--custom:hover {
@@ -3293,5 +3314,6 @@
 
 .hint {
   color: var(--dim);
-  font-size: var(--fs-1);
+  font-size: var(--fs-0);
+  font-weight: var(--fw-1);
 }
