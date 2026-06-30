@@ -65,7 +65,7 @@ describe('computeAudioEncoding', () => {
 
 describe('computeMeshEncoding', () => {
   it('combines camera, screen, and audio for the chosen tier', () => {
-    const mesh = computeMeshEncoding('720p', '30', '1080p', '60', 'balanced');
+    const mesh = computeMeshEncoding('720p', '30', '1080p', '60', 'balanced', 'balanced');
     expect(mesh.camera).toEqual(computeVideoEncoding('camera', '720p', '30', 'balanced'));
     expect(mesh.screen).toEqual(computeVideoEncoding('screen', '1080p', '60', 'balanced'));
     expect(mesh.audio).toEqual(computeAudioEncoding('balanced'));
