@@ -2598,8 +2598,8 @@
   position: relative;
   z-index: 100;
   display: flex;
-  width: 780px;
-  height: 540px;
+  width: 858px;
+  height: 594px;
   max-width: 92vw;
   max-height: 85vh;
   background: var(--panel);
@@ -2890,7 +2890,7 @@
 }
 
 /* ── Responsive Styling ────────────────────────────────────── */
-@media (max-width: 800px) or (max-height: 600px) {
+@media (max-width: 900px) or (max-height: 660px) {
   .backdrop--scrim:has(.settings-panel) {
     padding: 0;
   }
