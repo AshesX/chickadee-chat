@@ -460,11 +460,11 @@
 .room-row__main,
 .room-row--create {
   width: 100%;
-  min-height: 33px;
+  min-height: 32px;
   display: flex;
   align-items: center;
   gap: var(--s-2);
-  padding: var(--s-2) var(--s-3) var(--s-2) var(--s-3);
+  padding: var(--s-1) var(--s-2) var(--s-1) var(--s-3);
   font-size: var(--fs-2);
   text-align: left;
 }
@@ -652,7 +652,7 @@
   display: flex;
   align-items: center;
   gap: var(--s-1);
-  margin: var(--s-1) var(--s-2) var(--s-1) var(--s-2);
+  margin: var(--s-1) var(--s-2) var(--s-1) var(--s-3);
 }
 
 .room-row__avatar-strip .room-row__avatar {
@@ -696,7 +696,7 @@
   display: flex;
   align-items: center;
   gap: var(--s-1);
-  margin: var(--s-1) var(--s-2) var(--s-1) var(--s-2);
+  margin: var(--s-1) var(--s-2) var(--s-1) var(--s-3);
 }
 
 

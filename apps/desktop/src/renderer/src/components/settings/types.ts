@@ -1,4 +1,4 @@
-import type { ThemeName, VideoQuality } from '@chickadee/shared';
+import type { AudioQuality, ThemeName, VideoQuality } from '@chickadee/shared';
 import type { MediaDeviceOption } from '../../hooks/useMediaDevices';
 
 export type TabId = 'profile' | 'audio' | 'video' | 'sfx' | 'chat' | 'ui' | 'app' | 'keybindings';
@@ -87,6 +87,8 @@ export interface SettingsModalProps {
   onChangeScreenFramerate: (fps: string) => void;
   videoQuality: VideoQuality;
   onChangeVideoQuality: (q: VideoQuality) => void;
+  audioQuality: AudioQuality;
+  onChangeAudioQuality: (q: AudioQuality) => void;
   uiScale: number;
   onChangeUiScale: (scale: number) => void;
   chatFontScale: number;

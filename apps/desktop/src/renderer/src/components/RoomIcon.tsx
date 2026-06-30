@@ -33,7 +33,7 @@ interface RoomIconProps {
 /**
  * Renders a custom room icon from the SVG files in assets/room-icons/.
  */
-export function RoomIcon({ name, size = 16, className }: RoomIconProps): React.JSX.Element {
+export function RoomIcon({ name, size = 24, className }: RoomIconProps): React.JSX.Element {
   const raw = getSvgContent(name);
 
   if (raw) {

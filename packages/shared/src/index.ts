@@ -155,6 +155,7 @@ export type ThemeName = 'light';
  * tiers progressively trade quality for bandwidth/CPU in the full mesh.
  */
 export type VideoQuality = 'max' | 'high' | 'balanced' | 'saver';
+export type AudioQuality = 'max' | 'high' | 'balanced' | 'saver';
 
 export interface PersistedSettings {
   /** Stable per-user id; generated once in main if missing. */
@@ -211,8 +212,10 @@ export interface PersistedSettings {
   cameraFramerate: string;
   screenResolution: string;
   screenFramerate: string;
-  /** Outbound streaming quality tier (bitrate caps for video + Opus audio). */
+  /** Outbound video quality tier (bitrate caps for camera + screen). */
   videoQuality: VideoQuality;
+  /** Outbound audio quality tier (Opus bitrate cap + mono/stereo). */
+  audioQuality: AudioQuality;
   uiScale: number;
   /** Open the app automatically when the OS starts (packaged builds). */
   launchOnStartup: boolean;
@@ -302,6 +305,7 @@ export function defaultSettings(): PersistedSettings {
     screenResolution: '1080p',
     screenFramerate: '30',
     videoQuality: 'high',
+    audioQuality: 'high',
     uiScale: 1.0,
     launchOnStartup: false,
     closeBehavior: 'quit',

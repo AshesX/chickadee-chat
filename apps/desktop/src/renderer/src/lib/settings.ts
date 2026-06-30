@@ -1,6 +1,7 @@
 import {
   DEFAULT_ROOMS,
   defaultSettings,
+  type AudioQuality,
   type PersistedSettings,
   type Room,
   type SpaceInfo,
@@ -159,6 +160,8 @@ export const store = {
   setScreenFramerate: (screenFramerate: string): void => persist({ screenFramerate }),
   getVideoQuality: (): VideoQuality => cache.videoQuality ?? 'high',
   setVideoQuality: (videoQuality: VideoQuality): void => persist({ videoQuality }),
+  getAudioQuality: (): AudioQuality => cache.audioQuality ?? 'high',
+  setAudioQuality: (audioQuality: AudioQuality): void => persist({ audioQuality }),
   getUiScale: (): number => cache.uiScale ?? 1.0,
   setUiScale: (uiScale: number): void => persist({ uiScale }),
   getLaunchOnStartup: (): boolean => cache.launchOnStartup ?? false,

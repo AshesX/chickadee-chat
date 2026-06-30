@@ -146,7 +146,7 @@ export function RoomRow({
           onContextMenu(r, e.clientX, e.clientY);
         }}
       >
-        <span className="room-row__icon"><RoomIcon name={r.icon} size={18} /></span>
+        <span className="room-row__icon"><RoomIcon name={r.icon} size={24} /></span>
         <span className="room-row__name">{r.label}</span>
         {!useStrip && roomUsers.length > 0 && (
           <div className="room-row__avatars">

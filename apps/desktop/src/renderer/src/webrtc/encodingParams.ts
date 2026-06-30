@@ -13,7 +13,7 @@
  * lever for this app.
  */
 
-import type { VideoQuality } from '@chickadee/shared';
+import type { AudioQuality, VideoQuality } from '@chickadee/shared';
 
 /** The subset of `RTCRtpEncodingParameters` we set, plus the top-level degradation pref. */
 export interface VideoEncoding {
@@ -72,7 +72,7 @@ const QUALITY_MULTIPLIER: Record<Exclude<VideoQuality, 'max'>, number> = {
 };
 
 /** Opus `maxaveragebitrate` (bits/sec) per quality tier; `'max'` = uncapped/stereo. */
-const AUDIO_BPS: Record<VideoQuality, number | undefined> = {
+const AUDIO_BPS: Record<AudioQuality, number | undefined> = {
   max: undefined,
   high: 48_000,
   balanced: 40_000,
@@ -104,7 +104,7 @@ export function computeVideoEncoding(
 }
 
 /** Compute the Opus audio target for a quality tier (mono + bitrate cap below `'max'`). */
-export function computeAudioEncoding(quality: VideoQuality): AudioEncoding {
+export function computeAudioEncoding(quality: AudioQuality): AudioEncoding {
   return { maxAverageBitrate: AUDIO_BPS[quality], mono: quality !== 'max' };
 }
 
@@ -123,17 +123,18 @@ export function formatBitrate(bps?: number): string {
   return `${Math.round(bps / 1000)} kbps`;
 }
 
-/** Build the full mesh encoding config from the current video settings + quality tier. */
+/** Build the full mesh encoding config from the current settings + quality tiers. */
 export function computeMeshEncoding(
   cameraResolution: string,
   cameraFramerate: string,
   screenResolution: string,
   screenFramerate: string,
-  quality: VideoQuality,
+  videoQuality: VideoQuality,
+  audioQuality: AudioQuality,
 ): MeshEncoding {
   return {
-    camera: computeVideoEncoding('camera', cameraResolution, cameraFramerate, quality),
-    screen: computeVideoEncoding('screen', screenResolution, screenFramerate, quality),
-    audio: computeAudioEncoding(quality),
+    camera: computeVideoEncoding('camera', cameraResolution, cameraFramerate, videoQuality),
+    screen: computeVideoEncoding('screen', screenResolution, screenFramerate, videoQuality),
+    audio: computeAudioEncoding(audioQuality),
   };
 }

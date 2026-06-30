@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { PeerId, VideoQuality } from '@chickadee/shared';
+import type { AudioQuality, PeerId, VideoQuality } from '@chickadee/shared';
 import { createPeerLink, type PeerLink } from '../webrtc/peerLink';
 import type { MessageListener, Signaling } from './useSignaling';
 import { getSharedAudioContext } from '../lib/audioContext';
@@ -80,6 +80,7 @@ export function usePeerMesh(
   screenResolution: string,
   screenFramerate: string,
   videoQuality: VideoQuality,
+  audioQuality: AudioQuality,
   echoCancellation: boolean,
   autoGainControl: boolean,
   inputDeviceId: string,
@@ -115,7 +116,7 @@ export function usePeerMesh(
   // peerLink reads the latest via getEncoding without being recreated, and so a
   // live quality change is picked up on the next apply/negotiation.
   const encodingRef = useRef<MeshEncoding>(
-    computeMeshEncoding(cameraResolution, cameraFramerate, screenResolution, screenFramerate, videoQuality),
+    computeMeshEncoding(cameraResolution, cameraFramerate, screenResolution, screenFramerate, videoQuality, audioQuality),
   );
   encodingRef.current = computeMeshEncoding(
     cameraResolution,
@@ -123,6 +124,7 @@ export function usePeerMesh(
     screenResolution,
     screenFramerate,
     videoQuality,
+    audioQuality,
   );
 
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -263,7 +265,7 @@ export function usePeerMesh(
   // Opus target applies on the next negotiation via tuneOpusSdp.)
   useEffect(() => {
     for (const link of linksRef.current.values()) link.applyEncoding();
-  }, [videoQuality, cameraResolution, cameraFramerate, screenResolution, screenFramerate]);
+  }, [videoQuality, audioQuality, cameraResolution, cameraFramerate, screenResolution, screenFramerate]);
 
   const prepareMedia = useCallback(() => {
     void ensureLocalStream();

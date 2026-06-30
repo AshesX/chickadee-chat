@@ -5,7 +5,7 @@ import { SettingsRow } from './SettingsRow';
 import { SelectRow } from './SelectRow';
 import { SegmentedRow } from './SegmentedRow';
 import { ToggleRow } from './ToggleRow';
-import { computeMeshEncoding, formatBitrate } from '../../webrtc/encodingParams';
+import { computeVideoEncoding, formatBitrate } from '../../webrtc/encodingParams';
 
 type VideoTabProps = Pick<
   SettingsModalProps,
@@ -36,23 +36,18 @@ export function VideoTab({
   videoQuality,
   onChangeVideoQuality,
 }: VideoTabProps): React.JSX.Element {
-  // Resolution/framerate controls only matter when the camera feature is on and a device exists.
   const cameraControlsEnabled = hasCamera && cameraFeatureEnabled;
 
-  // Concrete per-stream caps the current tier + resolution/framerate produce, so
-  // the Quality setting explains exactly what it changes (computed from the same
-  // pure helper the mesh uses — no separate source of truth).
-  const enc = computeMeshEncoding(cameraResolution, cameraFramerate, screenResolution, screenFramerate, videoQuality);
-  const audioLabel =
-    enc.audio.maxAverageBitrate == null ? 'Uncapped' : formatBitrate(enc.audio.maxAverageBitrate);
+  const camEnc = computeVideoEncoding('camera', cameraResolution, cameraFramerate, videoQuality);
+  const scrEnc = computeVideoEncoding('screen', screenResolution, screenFramerate, videoQuality);
 
   return (
     <>
-      <SettingsSection id="section-video-quality" title="Streaming Quality" />
+      <SettingsSection id="section-video-quality" title="Video Quality" />
 
       <SelectRow
         label="Quality"
-        hint="Caps outbound bitrate for camera, screen, and voice. Lower tiers save bandwidth and CPU in busy rooms."
+        hint="Caps outbound bitrate for camera and screen share. Lower tiers save bandwidth and CPU in busy rooms."
         value={videoQuality}
         onChange={(v) => onChangeVideoQuality(v as VideoQuality)}
         options={[
@@ -69,29 +64,13 @@ export function VideoTab({
           <>
             {cameraFeatureEnabled && (
               <>
-                Camera: <strong>{formatBitrate(enc.camera.maxBitrate)}</strong> · {cameraResolution} · {enc.camera.maxFramerate} fps<br />
+                Camera: <strong>{formatBitrate(camEnc.maxBitrate)}</strong> · {cameraResolution} · {camEnc.maxFramerate} fps<br />
               </>
             )}
-            Screen: <strong>{formatBitrate(enc.screen.maxBitrate)}</strong> · {screenResolution} · {enc.screen.maxFramerate} fps · maintains resolution<br />
-            Voice: <strong>{audioLabel}</strong> · {enc.audio.mono ? 'mono' : 'stereo'}<br />
+            Screen: <strong>{formatBitrate(scrEnc.maxBitrate)}</strong> · {screenResolution} · {scrEnc.maxFramerate} fps · maintains resolution<br />
             <em>Maximum</em> leaves video uncapped (Chromium decides); lower tiers trade sharpness for bandwidth &amp; CPU.
           </>
         }
-      />
-
-      <hr className="settings-divider" />
-
-      <SettingsSection id="section-video-default" title="Room Video Button" />
-
-      <SegmentedRow
-        label="Default action"
-        hint="Action when clicking Video button while inactive."
-        value={defaultVideoAction}
-        onChange={onChangeDefaultVideoAction}
-        options={[
-          { value: 'screen', label: 'Screen Share' },
-          { value: 'camera', label: 'Camera' },
-        ]}
       />
 
       <hr className="settings-divider" />
@@ -165,6 +144,21 @@ export function VideoTab({
           { value: '15', label: '15 fps' },
           { value: '30', label: '30 fps' },
           { value: '60', label: '60 fps' },
+        ]}
+      />
+
+      <hr className="settings-divider" />
+
+      <SettingsSection id="section-video-default" title="Room Video Button" />
+
+      <SegmentedRow
+        label="Default action"
+        hint="Action when clicking Video button while inactive."
+        value={defaultVideoAction}
+        onChange={onChangeDefaultVideoAction}
+        options={[
+          { value: 'screen', label: 'Screen Share' },
+          { value: 'camera', label: 'Camera' },
         ]}
       />
     </>
