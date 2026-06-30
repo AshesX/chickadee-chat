@@ -27,7 +27,7 @@ export function SpaceSettingsModal({ space, onSave, onClose }: SpaceSettingsModa
       <div className="field">
         <label className="field-label">Space Name</label>
         <input
-          className="welcome__input"
+          className="input"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Enter new space name"

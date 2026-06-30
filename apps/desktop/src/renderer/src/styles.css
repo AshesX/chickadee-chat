@@ -248,6 +248,19 @@
   padding: var(--s-6);
 }
 
+/* Z-index modifiers — replace inline `style={{ zIndex: 'var(--z-*)' }}` on backdrops. */
+.backdrop--dropdown {
+  z-index: var(--z-dropdown);
+}
+
+.backdrop--modal {
+  z-index: var(--z-modal);
+}
+
+.backdrop--nested {
+  z-index: var(--z-nested);
+}
+
 /* ── Resize handle primitive (.resize-handle) ──────────────── */
 /* Shared drag-to-resize edge: a wide invisible hit area with a thin `::after`
    line that lights up on hover/active. Residuals set the edge (left/right) +
@@ -2073,9 +2086,29 @@
   padding-left: var(--s-4);
 }
 
+.settings-row.is-disabled,
 .settings-row--nested.is-disabled {
   opacity: 0.45;
   pointer-events: none;
+}
+
+/* Native <select> styled like .input but sized to its content (settings tabs). */
+.settings-select {
+  width: auto;
+  max-width: 230px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-1);
+  color: var(--text);
+  font-family: inherit;
+  font-size: var(--fs-2);
+  padding: var(--s-2) var(--s-3);
+  cursor: pointer;
+}
+
+.settings-select:focus {
+  border-color: var(--orange);
+  outline: none;
 }
 
 .settings-row__label {
@@ -2458,7 +2491,10 @@
 }
 
 /* ── Mic Volume & Level Meter ──────────────────────────────── */
-.mic-control-wrap {
+/* `.slider-wrap` = a width-capped slider column without a meter (settings sliders
+   that previously borrowed `.mic-control-wrap`). */
+.mic-control-wrap,
+.slider-wrap {
   display: flex;
   flex-direction: column;
   gap: var(--s-2);

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Mic, Video } from 'lucide-react';
 import { capacityForType, type RoomType } from '@chickadee/shared';
 import { Modal } from './Modal';
+import { SegmentedGroup } from './SegmentedGroup';
 import { ROOM_ICONS, RoomIcon } from './RoomIcon';
 
 interface RoomModalProps {
@@ -49,20 +50,21 @@ export function RoomModal({
       {showTypePicker && (
         <div className="field" style={{ marginBottom: 'var(--s-4)' }}>
           <span>Room type</span>
-          <div className="seg-group seg-group--room-type">
-            <button
-              className={`seg-btn${type === 'voice' ? ' seg-btn--active' : ''}`}
-              onClick={() => setType('voice')}
-            >
-              <Mic size={13} /> Voice <span className="seg-btn__cap"> (max {capacityForType('voice')} users)</span>
-            </button>
-            <button
-              className={`seg-btn${type === 'video' ? ' seg-btn--active' : ''}`}
-              onClick={() => setType('video')}
-            >
-              <Video size={13} /> Video <span className="seg-btn__cap"> (max {capacityForType('video')} users)</span>
-            </button>
-          </div>
+          <SegmentedGroup
+            className="seg-group--room-type"
+            value={type}
+            onChange={setType}
+            options={[
+              {
+                value: 'voice',
+                label: <><Mic size={13} /> Voice <span className="seg-btn__cap"> (max {capacityForType('voice')} users)</span></>,
+              },
+              {
+                value: 'video',
+                label: <><Video size={13} /> Video <span className="seg-btn__cap"> (max {capacityForType('video')} users)</span></>,
+              },
+            ]}
+          />
         </div>
       )}
 

@@ -199,8 +199,7 @@ export function AvatarCropModal({ onSave, onCancel }: AvatarCropModalProps): Rea
 
   return (
     <div
-      className="backdrop backdrop--scrim"
-      style={{ zIndex: 'var(--z-nested)' }}
+      className="backdrop backdrop--scrim backdrop--nested"
       onClick={onCancel}
     >
       <div className="avatar-crop-modal" onClick={(e) => e.stopPropagation()}>

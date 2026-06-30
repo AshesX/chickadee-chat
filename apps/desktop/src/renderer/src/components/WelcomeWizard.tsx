@@ -57,7 +57,7 @@ export function WelcomeWizard({ onSubmit }: WelcomeWizardProps): React.JSX.Eleme
   }
 
   return (
-    <div className="backdrop backdrop--scrim" style={{ zIndex: 'var(--z-modal)' }}>
+    <div className="backdrop backdrop--scrim backdrop--modal">
       <div className="modal-panel modal-panel--welcome">
         <Logo size={64} className="welcome__logo" />
         <h2 className="welcome__title">

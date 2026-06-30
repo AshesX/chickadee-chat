@@ -1,4 +1,5 @@
-import { Toggle } from './Toggle';
+import { SettingsRow } from './SettingsRow';
+import { ToggleRow } from './ToggleRow';
 import type { SettingsModalProps } from './types';
 
 type SfxTabProps = Pick<
@@ -33,67 +34,63 @@ export function SfxTab({
 }: SfxTabProps): React.JSX.Element {
   return (
     <>
-      <div className="settings-row">
-        <div className="settings-row__label">
-          <span>Sound effects</span>
-          <span className="hint">Enable or disable all audio cues.</span>
-        </div>
-        <Toggle on={sfxEnabled} onClick={() => onChangeSfxEnabled(!sfxEnabled)} />
-      </div>
+      <ToggleRow
+        label="Sound effects"
+        hint="Enable or disable all audio cues."
+        value={sfxEnabled}
+        onChange={onChangeSfxEnabled}
+      />
 
-      <div className={`settings-row settings-row--nested${sfxEnabled ? '' : ' is-disabled'}`}>
-        <div className="settings-row__label">
-          <span>Room join / leave</span>
-          <span className="hint">Plays when someone joins or leaves.</span>
-        </div>
-        <Toggle on={sfxJoinLeaveEnabled} onClick={() => onChangeSfxJoinLeaveEnabled(!sfxJoinLeaveEnabled)} />
-      </div>
+      <ToggleRow
+        label="Room join / leave"
+        hint="Plays when someone joins or leaves."
+        value={sfxJoinLeaveEnabled}
+        onChange={onChangeSfxJoinLeaveEnabled}
+        nested
+        disabled={!sfxEnabled}
+      />
+      <ToggleRow
+        label="Mic mute / unmute"
+        hint="Plays when toggling mic mute."
+        value={sfxMuteEnabled}
+        onChange={onChangeSfxMuteEnabled}
+        nested
+        disabled={!sfxEnabled}
+      />
+      <ToggleRow
+        label="Mute / unmute others"
+        hint="Plays when silencing/unsilencing others."
+        value={sfxMuteOtherEnabled}
+        onChange={onChangeSfxMuteOtherEnabled}
+        nested
+        disabled={!sfxEnabled}
+      />
+      <ToggleRow
+        label="Transmission start / stop"
+        hint="Plays when mic opens or closes."
+        value={sfxTransmitEnabled}
+        onChange={onChangeSfxTransmitEnabled}
+        nested
+        disabled={!sfxEnabled}
+      />
+      <ToggleRow
+        label="Chat messages"
+        hint="Plays on incoming chat messages."
+        value={sfxChatEnabled}
+        onChange={onChangeSfxChatEnabled}
+        nested
+        disabled={!sfxEnabled}
+      />
+      <ToggleRow
+        label="Deafen / undeafen"
+        hint="Plays when toggling deafen."
+        value={sfxDeafenEnabled}
+        onChange={onChangeSfxDeafenEnabled}
+        nested
+        disabled={!sfxEnabled}
+      />
 
-      <div className={`settings-row settings-row--nested${sfxEnabled ? '' : ' is-disabled'}`}>
-        <div className="settings-row__label">
-          <span>Mic mute / unmute</span>
-          <span className="hint">Plays when toggling mic mute.</span>
-        </div>
-        <Toggle on={sfxMuteEnabled} onClick={() => onChangeSfxMuteEnabled(!sfxMuteEnabled)} />
-      </div>
-
-      <div className={`settings-row settings-row--nested${sfxEnabled ? '' : ' is-disabled'}`}>
-        <div className="settings-row__label">
-          <span>Mute / unmute others</span>
-          <span className="hint">Plays when silencing/unsilencing others.</span>
-        </div>
-        <Toggle on={sfxMuteOtherEnabled} onClick={() => onChangeSfxMuteOtherEnabled(!sfxMuteOtherEnabled)} />
-      </div>
-
-      <div className={`settings-row settings-row--nested${sfxEnabled ? '' : ' is-disabled'}`}>
-        <div className="settings-row__label">
-          <span>Transmission start / stop</span>
-          <span className="hint">Plays when mic opens or closes.</span>
-        </div>
-        <Toggle on={sfxTransmitEnabled} onClick={() => onChangeSfxTransmitEnabled(!sfxTransmitEnabled)} />
-      </div>
-
-      <div className={`settings-row settings-row--nested${sfxEnabled ? '' : ' is-disabled'}`}>
-        <div className="settings-row__label">
-          <span>Chat messages</span>
-          <span className="hint">Plays on incoming chat messages.</span>
-        </div>
-        <Toggle on={sfxChatEnabled} onClick={() => onChangeSfxChatEnabled(!sfxChatEnabled)} />
-      </div>
-
-      <div className={`settings-row settings-row--nested${sfxEnabled ? '' : ' is-disabled'}`}>
-        <div className="settings-row__label">
-          <span>Deafen / undeafen</span>
-          <span className="hint">Plays when toggling deafen.</span>
-        </div>
-        <Toggle on={sfxDeafenEnabled} onClick={() => onChangeSfxDeafenEnabled(!sfxDeafenEnabled)} />
-      </div>
-
-      <div className="settings-row">
-        <div className="settings-row__label">
-          <span>SFX volume</span>
-          <span className="hint">Sound effects volume.</span>
-        </div>
+      <SettingsRow label="SFX volume" hint="Sound effects volume.">
         <input
           type="range"
           min="0"
@@ -104,7 +101,7 @@ export function SfxTab({
           onChange={(e) => onChangeSfxVolume(parseFloat(e.target.value))}
           className="settings-slider"
         />
-      </div>
+      </SettingsRow>
     </>
   );
 }

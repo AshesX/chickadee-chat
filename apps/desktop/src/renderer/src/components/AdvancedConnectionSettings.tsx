@@ -60,7 +60,8 @@ export function AdvancedConnectionSettings({
               className="input"
               value={customSignalingUrl}
               onChange={(e) => setCustomSignalingUrl(e.target.value)}
-              placeholder="e.g. wss://chickadee.example.com"              onKeyDown={(e) => {
+              placeholder="e.g. wss://chickadee.example.com"
+              onKeyDown={(e) => {
                 if (e.key === 'Enter' && onEnterKeyDown) onEnterKeyDown();
               }}
             />
@@ -77,7 +78,8 @@ export function AdvancedConnectionSettings({
               type="password"
               value={joinSecret}
               onChange={(e) => setJoinSecret(e.target.value)}
-              placeholder="Leave blank for public servers"              onKeyDown={(e) => {
+              placeholder="Leave blank for public servers"
+              onKeyDown={(e) => {
                 if (e.key === 'Enter' && onEnterKeyDown) onEnterKeyDown();
               }}
             />

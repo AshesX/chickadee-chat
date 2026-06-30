@@ -1,10 +1,13 @@
-import { X } from 'lucide-react';
 import { CustomSelect } from '../CustomSelect';
-import { SettingsSlider } from '../SettingsSlider';
+import { KeybindRow } from '../KeybindRow';
 import { VOICE_CATEGORIES } from '../../lib/voices';
 import { previewVoice } from '../../lib/tts';
-import { Toggle } from './Toggle';
-import type { KeyCapture, SettingsModalProps } from './types';
+import { SettingsSection } from './SettingsSection';
+import { SettingsRow } from './SettingsRow';
+import { SliderRow } from './SliderRow';
+import { SegmentedRow } from './SegmentedRow';
+import { ToggleRow } from './ToggleRow';
+import type { SettingsModalProps } from './types';
 
 type ChatTabProps = Pick<
   SettingsModalProps,
@@ -16,9 +19,7 @@ type ChatTabProps = Pick<
   | 'chatPanelKey' | 'onChangeChatPanelKey'
   | 'ttsToggleKey' | 'onChangeTtsToggleKey'
   | 'ttsStopKey' | 'onChangeTtsStopKey'
-> & {
-  keyCapture: KeyCapture;
-};
+>;
 
 export function ChatTab({
   chatFontScale,
@@ -37,164 +38,90 @@ export function ChatTab({
   onChangeTtsToggleKey,
   ttsStopKey,
   onChangeTtsStopKey,
-  keyCapture,
 }: ChatTabProps): React.JSX.Element {
-  const { capturing, startCapture, onRebindKey } = keyCapture;
-
   return (
     <>
-      <div id="section-chat-settings" className="settings-subdivision">Chat Settings</div>
+      <SettingsSection id="section-chat-settings" title="Chat Settings" />
 
-      <div className="settings-row">
-        <div className="settings-row__label">
-          <span>Chat Font Scale</span>
-          <span className="hint">Chat message text size.</span>
-        </div>
-        <div className="mic-control-wrap">
-          <SettingsSlider
-            min={0.5}
-            max={2.0}
-            step={0.1}
-            value={chatFontScale}
-            onChange={onChangeChatFontScale}
-            markers={[0.5, 1.0, 1.5, 2.0]}
-            labels={[
-              { value: 0.5, text: '50%' },
-              { value: 1.0, text: '100% (Default)' },
-              { value: 1.5, text: '150%' },
-              { value: 2.0, text: '200%' }
-            ]}
-            snapThreshold={0.08}
-            commitOnRelease={false}
-          />
-        </div>
-      </div>
+      <SliderRow
+        label="Chat Font Scale"
+        hint="Chat message text size."
+        constrained
+        slider={{
+          min: 0.5,
+          max: 2.0,
+          step: 0.1,
+          value: chatFontScale,
+          onChange: onChangeChatFontScale,
+          markers: [0.5, 1.0, 1.5, 2.0],
+          labels: [
+            { value: 0.5, text: '50%' },
+            { value: 1.0, text: '100% (Default)' },
+            { value: 1.5, text: '150%' },
+            { value: 2.0, text: '200%' },
+          ],
+          snapThreshold: 0.08,
+          commitOnRelease: false,
+        }}
+      />
 
-      <div className="settings-row">
-        <div className="settings-row__label">
-          <span>Chat position</span>
-          <span className="hint">Dock chat to the left or right.</span>
-        </div>
-        <div className="seg-group">
-          <button
-            className={`seg-btn${chatPosition === 'left' ? ' seg-btn--active' : ''}`}
-            onClick={() => onChangeChatPosition('left')}
-          >Left</button>
-          <button
-            className={`seg-btn${chatPosition === 'right' ? ' seg-btn--active' : ''}`}
-            onClick={() => onChangeChatPosition('right')}
-          >Right</button>
-        </div>
-      </div>
+      <SegmentedRow
+        label="Chat position"
+        hint="Dock chat to the left or right."
+        value={chatPosition}
+        onChange={onChangeChatPosition}
+        options={[
+          { value: 'left', label: 'Left' },
+          { value: 'right', label: 'Right' },
+        ]}
+      />
 
-      <div className="settings-row">
-        <div className="settings-row__label">
-          <span>Read messages aloud (Text-to-Speech)</span>
-          <span className="hint">Speaks new messages when app is unfocused.</span>
-        </div>
-        <Toggle on={chatTtsEnabled} onClick={() => onChangeChatTtsEnabled(!chatTtsEnabled)} />
-      </div>
+      <ToggleRow
+        label="Read messages aloud (Text-to-Speech)"
+        hint="Speaks new messages when app is unfocused."
+        value={chatTtsEnabled}
+        onChange={onChangeChatTtsEnabled}
+      />
 
-      <div className="settings-row">
-        <div className="settings-row__label">
-          <span>Speak sender's name</span>
-          <span className="hint">Reads &quot;[name] says&quot; before messages.</span>
-        </div>
-        <Toggle on={chatTtsSpeakName} onClick={() => onChangeChatTtsSpeakName(!chatTtsSpeakName)} />
-      </div>
+      <ToggleRow
+        label="Speak sender's name"
+        hint={<>Reads &quot;[name] says&quot; before messages.</>}
+        value={chatTtsSpeakName}
+        onChange={onChangeChatTtsSpeakName}
+      />
 
-      <div className="settings-row">
-        <div className="settings-row__label">
-          <span>My chat voice</span>
-          <span className="hint">Your voice for others using TTS. Listeners match this to their closest system voice.</span>
-        </div>
+      <SettingsRow
+        label="My chat voice"
+        hint="Your voice for others using TTS. Listeners match this to their closest system voice."
+      >
         <div style={{ display: 'flex', gap: 'var(--s-2)', alignItems: 'center' }}>
           <CustomSelect
             value={voicePreference}
             onChange={onChangeVoicePreference}
             options={[
               { value: '', label: 'System Default' },
-              ...VOICE_CATEGORIES.map((c) => ({ value: c.id, label: c.label }))
+              ...VOICE_CATEGORIES.map((c) => ({ value: c.id, label: c.label })),
             ]}
             className="settings-device-select"
           />
-          <button
-            className="seg-btn"
-            onClick={() => previewVoice(voicePreference)}
-          >
+          <button className="seg-btn" onClick={() => previewVoice(voicePreference)}>
             Test
           </button>
         </div>
-      </div>
+      </SettingsRow>
 
       <hr className="settings-divider" />
-      <div id="section-chat-keybindings" className="settings-subdivision">Keybindings</div>
+      <SettingsSection id="section-chat-keybindings" title="Keybindings" />
 
-      <div className="settings-row">
-        <div className="settings-row__label">
-          <span>Chat Panel Key</span>
-          <span className="hint">Toggle the chat panel visibility.</span>
-        </div>
-        <div className="keybind-row">
-          <button
-            className={`rebind${capturing === 'chatPanel' ? ' rebind--active' : ''}`}
-            onClick={() => startCapture('chatPanel')}
-            onKeyDown={capturing === 'chatPanel' ? (e) => onRebindKey(e, onChangeChatPanelKey) : undefined}
-          >
-            {capturing === 'chatPanel' ? 'Press a key…' : (chatPanelKey || 'Unbound')}
-          </button>
-          {chatPanelKey && (
-            <button
-              className="btn btn--danger-soft unbind-btn"
-              onClick={() => onChangeChatPanelKey('')}
-            ><X size={14} /></button>
-          )}
-        </div>
-      </div>
-
-      <div className="settings-row">
-        <div className="settings-row__label">
-          <span>TTS Toggle Key</span>
-          <span className="hint">Toggle the "Read messages aloud" setting.</span>
-        </div>
-        <div className="keybind-row">
-          <button
-            className={`rebind${capturing === 'ttsToggle' ? ' rebind--active' : ''}`}
-            onClick={() => startCapture('ttsToggle')}
-            onKeyDown={capturing === 'ttsToggle' ? (e) => onRebindKey(e, onChangeTtsToggleKey) : undefined}
-          >
-            {capturing === 'ttsToggle' ? 'Press a key…' : (ttsToggleKey || 'Unbound')}
-          </button>
-          {ttsToggleKey && (
-            <button
-              className="btn btn--danger-soft unbind-btn"
-              onClick={() => onChangeTtsToggleKey('')}
-            ><X size={14} /></button>
-          )}
-        </div>
-      </div>
-
-      <div className="settings-row">
-        <div className="settings-row__label">
-          <span>TTS Stop Key</span>
-          <span className="hint">Immediately stop reading the current message.</span>
-        </div>
-        <div className="keybind-row">
-          <button
-            className={`rebind${capturing === 'ttsStop' ? ' rebind--active' : ''}`}
-            onClick={() => startCapture('ttsStop')}
-            onKeyDown={capturing === 'ttsStop' ? (e) => onRebindKey(e, onChangeTtsStopKey) : undefined}
-          >
-            {capturing === 'ttsStop' ? 'Press a key…' : (ttsStopKey || 'Unbound')}
-          </button>
-          {ttsStopKey && (
-            <button
-              className="btn btn--danger-soft unbind-btn"
-              onClick={() => onChangeTtsStopKey('')}
-            ><X size={14} /></button>
-          )}
-        </div>
-      </div>
+      <SettingsRow label="Chat Panel Key" hint="Toggle the chat panel visibility.">
+        <KeybindRow value={chatPanelKey} onChange={onChangeChatPanelKey} clearLabel="Chat Panel keybind" />
+      </SettingsRow>
+      <SettingsRow label="TTS Toggle Key" hint={'Toggle the "Read messages aloud" setting.'}>
+        <KeybindRow value={ttsToggleKey} onChange={onChangeTtsToggleKey} clearLabel="TTS Toggle keybind" />
+      </SettingsRow>
+      <SettingsRow label="TTS Stop Key" hint="Immediately stop reading the current message.">
+        <KeybindRow value={ttsStopKey} onChange={onChangeTtsStopKey} clearLabel="TTS Stop keybind" />
+      </SettingsRow>
     </>
   );
 }

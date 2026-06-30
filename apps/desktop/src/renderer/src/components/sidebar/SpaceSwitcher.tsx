@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Settings, Trash2, ChevronDown, ChevronsLeft, Copy, Check } from 'lucide-react';
 import type { SpaceInfo } from '@chickadee/shared';
+import { useDismissTimeout } from '../../hooks/useDismissTimeout';
 
 
 interface SpaceSwitcherProps {
@@ -38,32 +39,7 @@ export function SpaceSwitcher({
   const [typedCode, setTypedCode] = useState('');
   const activeSpace = spaces.find((s) => s.id === activeSpaceId);
 
-  const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  function startCloseTimeout(): void {
-    if (closeTimeoutRef.current) {
-      clearTimeout(closeTimeoutRef.current);
-    }
-    closeTimeoutRef.current = setTimeout(() => {
-      setSwitcherOpen(false);
-    }, 1000);
-  }
-
-  function cancelCloseTimeout(): void {
-    if (closeTimeoutRef.current) {
-      clearTimeout(closeTimeoutRef.current);
-      closeTimeoutRef.current = null;
-    }
-  }
-
-  // Clear timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (closeTimeoutRef.current) {
-        clearTimeout(closeTimeoutRef.current);
-      }
-    };
-  }, []);
+  const { arm: armClose, cancel: cancelCloseTimeout } = useDismissTimeout(() => setSwitcherOpen(false));
 
   // Close when clicking outside of the switcher container
   useEffect(() => {
@@ -117,7 +93,7 @@ export function SpaceSwitcher({
     <div
       id="sidebar-space-header-container"
       className="sidebar__space-header-container"
-      onMouseLeave={startCloseTimeout}
+      onMouseLeave={() => armClose(1000)}
       onMouseEnter={cancelCloseTimeout}
     >
       <div className="sidebar__space-header">

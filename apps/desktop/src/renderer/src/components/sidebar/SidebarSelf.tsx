@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { Settings } from 'lucide-react';
+import { AvatarBadge } from '../AvatarBadge';
+
+type SelfStatus = 'online' | 'idle' | 'dnd';
 
 interface SidebarSelfProps {
   selfName: string;
@@ -7,10 +10,16 @@ interface SidebarSelfProps {
   selfColor: string;
   selfAvatarUrl?: string | null;
   online: boolean;
-  selfStatus: 'online' | 'idle' | 'dnd';
-  onChangeStatus: (status: 'online' | 'idle' | 'dnd') => void;
+  selfStatus: SelfStatus;
+  onChangeStatus: (status: SelfStatus) => void;
   onOpenSettings: () => void;
 }
+
+const STATUS_OPTIONS: { value: SelfStatus; label: string }[] = [
+  { value: 'online', label: 'Online' },
+  { value: 'idle', label: 'Idle' },
+  { value: 'dnd', label: 'Do Not Disturb' },
+];
 
 /** Sidebar footer: self avatar + presence dot, name, settings cog, and the status dropdown. */
 export function SidebarSelf({
@@ -32,19 +41,13 @@ export function SidebarSelf({
         onClick={() => setStatusMenuOpen(!statusMenuOpen)}
         aria-label="Change status"
       >
-        <div className="friend-row__avatar-wrap">
-          <div
-            className="avatar"
-            style={selfAvatarUrl ? undefined : { background: selfColor }}
-          >
-            {selfAvatarUrl ? (
-              <img src={selfAvatarUrl} alt={selfName} />
-            ) : (
-              selfInitial
-            )}
-          </div>
-          <span className={`presence-dot presence-dot--${online ? selfStatus : 'offline'}`} />
-        </div>
+        <AvatarBadge
+          avatarUrl={selfAvatarUrl}
+          name={selfName}
+          initial={selfInitial}
+          color={selfColor}
+          status={online ? selfStatus : 'offline'}
+        />
       </button>
       <div className="self__meta">
         <div className="self__name">{selfName || 'You'}</div>
@@ -55,38 +58,21 @@ export function SidebarSelf({
 
       {statusMenuOpen && (
         <>
-          <div className="backdrop" style={{ zIndex: 'var(--z-dropdown)' }} onClick={() => setStatusMenuOpen(false)} />
-          <div className="menu-surface menu-surface--frosted" style={{ position: 'absolute', bottom: '50px', left: '12px', zIndex: 'var(--z-dropdown)', width: '155px', padding: 'var(--s-1)', display: 'flex', flexDirection: 'column', gap: 'var(--s-1)' }} onClick={(e) => e.stopPropagation()}>
-            <button
-              className={`menu-item${selfStatus === 'online' ? ' menu-item--active' : ''}`}
-              onClick={() => {
-                onChangeStatus('online');
-                setStatusMenuOpen(false);
-              }}
-            >
-              <span className="presence-dot presence-dot--online" />
-              <span>Online</span>
-            </button>
-            <button
-              className={`menu-item${selfStatus === 'idle' ? ' menu-item--active' : ''}`}
-              onClick={() => {
-                onChangeStatus('idle');
-                setStatusMenuOpen(false);
-              }}
-            >
-              <span className="presence-dot presence-dot--idle" />
-              <span>Idle</span>
-            </button>
-            <button
-              className={`menu-item${selfStatus === 'dnd' ? ' menu-item--active' : ''}`}
-              onClick={() => {
-                onChangeStatus('dnd');
-                setStatusMenuOpen(false);
-              }}
-            >
-              <span className="presence-dot presence-dot--dnd" />
-              <span>Do Not Disturb</span>
-            </button>
+          <div className="backdrop backdrop--dropdown" onClick={() => setStatusMenuOpen(false)} />
+          <div className="menu-surface menu-surface--frosted status-dropdown" onClick={(e) => e.stopPropagation()}>
+            {STATUS_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                className={`menu-item${selfStatus === opt.value ? ' menu-item--active' : ''}`}
+                onClick={() => {
+                  onChangeStatus(opt.value);
+                  setStatusMenuOpen(false);
+                }}
+              >
+                <span className={`presence-dot presence-dot--${opt.value}`} />
+                <span>{opt.label}</span>
+              </button>
+            ))}
           </div>
         </>
       )}

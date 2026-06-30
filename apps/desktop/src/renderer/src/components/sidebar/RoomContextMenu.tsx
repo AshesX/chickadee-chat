@@ -17,8 +17,7 @@ export function RoomContextMenu({
 }: RoomContextMenuProps): React.JSX.Element {
   return (
     <div
-      className="backdrop"
-      style={{ zIndex: 'var(--z-dropdown)' }}
+      className="backdrop backdrop--dropdown"
       onClick={onClose}
       onContextMenu={(e) => {
         e.preventDefault();

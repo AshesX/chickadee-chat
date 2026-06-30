@@ -15,7 +15,7 @@ export function NameModal({ onSubmit }: NameModalProps): React.JSX.Element {
   }
 
   return (
-    <div className="backdrop backdrop--scrim" style={{ zIndex: 'var(--z-modal)' }}>
+    <div className="backdrop backdrop--scrim backdrop--modal">
       <div className="modal-panel modal-panel--welcome" onClick={(e) => e.stopPropagation()}>
         <Logo size={64} className="welcome__logo" />
         <h2 className="welcome__title">

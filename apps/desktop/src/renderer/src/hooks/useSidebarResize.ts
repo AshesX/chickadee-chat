@@ -9,7 +9,7 @@ import { useRef } from 'react';
  * the drag handle's `onPointerDown`.
  */
 export function useSidebarResize(
-  compact: boolean,
+  _compact: boolean,
   widthScale: number,
   onResize: (scale: number, commit: boolean) => void,
 ): {

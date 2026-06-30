@@ -1,4 +1,6 @@
-import { Toggle } from './Toggle';
+import { SettingsRow } from './SettingsRow';
+import { ToggleRow } from './ToggleRow';
+import { SegmentedRow } from './SegmentedRow';
 import type { SettingsModalProps } from './types';
 
 type AppTabProps = Pick<
@@ -24,61 +26,48 @@ export function AppTab({
 }: AppTabProps): React.JSX.Element {
   return (
     <>
-      <div className="settings-row">
-        <div className="settings-row__label">
-          <span>Launch on startup</span>
-          <span className="hint">Start app when Windows boots.</span>
-        </div>
-        <Toggle on={launchOnStartup} onClick={() => onChangeLaunchOnStartup(!launchOnStartup)} />
-      </div>
+      <ToggleRow
+        label="Launch on startup"
+        hint="Start app when Windows boots."
+        value={launchOnStartup}
+        onChange={onChangeLaunchOnStartup}
+      />
 
-      <div className="settings-row">
-        <div className="settings-row__label">
-          <span>When closing the window</span>
-          <span className="hint">Minimize to tray keeps voice connected.</span>
-        </div>
-        <div className="seg-group">
-          <button
-            className={`seg-btn${closeBehavior === 'quit' ? ' seg-btn--active' : ''}`}
-            onClick={() => onChangeCloseBehavior('quit')}
-          >Quit app</button>
-          <button
-            className={`seg-btn${closeBehavior === 'tray' ? ' seg-btn--active' : ''}`}
-            onClick={() => onChangeCloseBehavior('tray')}
-          >Minimize to tray</button>
-        </div>
-      </div>
+      <SegmentedRow
+        label="When closing the window"
+        hint="Minimize to tray keeps voice connected."
+        value={closeBehavior}
+        onChange={onChangeCloseBehavior}
+        options={[
+          { value: 'quit', label: 'Quit app' },
+          { value: 'tray', label: 'Minimize to tray' },
+        ]}
+      />
 
-      <div className="settings-row">
-        <div className="settings-row__label">
-          <span>Always on top</span>
-          <span className="hint">Pin window above other apps.</span>
-        </div>
-        <Toggle on={alwaysOnTop} onClick={() => onChangeAlwaysOnTop(!alwaysOnTop)} />
-      </div>
+      <ToggleRow
+        label="Always on top"
+        hint="Pin window above other apps."
+        value={alwaysOnTop}
+        onChange={onChangeAlwaysOnTop}
+      />
 
-      <div className="settings-row">
-        <div className="settings-row__label">
-          <span>Taskbar unread badge</span>
-          <span className="hint">Show unread count on taskbar icon.</span>
-        </div>
-        <Toggle on={badgeNotificationsEnabled} onClick={() => onChangeBadgeNotificationsEnabled(!badgeNotificationsEnabled)} />
-      </div>
+      <ToggleRow
+        label="Taskbar unread badge"
+        hint="Show unread count on taskbar icon."
+        value={badgeNotificationsEnabled}
+        onChange={onChangeBadgeNotificationsEnabled}
+      />
 
       <hr className="settings-divider" />
 
-      <div className="settings-row" style={{ marginTop: 'var(--s-2)' }}>
-        <div className="settings-row__label">
-          <span style={{ color: 'var(--red)', fontWeight: 'var(--fw-2)' }}>Reset Application Settings</span>
-          <span className="hint">Restore settings to defaults. Profiles and Spaces are preserved.</span>
-        </div>
-        <button
-          className="btn btn--danger"
-          onClick={onResetSettings}
-        >
+      <SettingsRow
+        label={<span style={{ color: 'var(--red)', fontWeight: 'var(--fw-2)' }}>Reset Application Settings</span>}
+        hint="Restore settings to defaults. Profiles and Spaces are preserved."
+      >
+        <button className="btn btn--danger" onClick={onResetSettings}>
           Reset Settings
         </button>
-      </div>
+      </SettingsRow>
     </>
   );
 }

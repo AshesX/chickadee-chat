@@ -2,6 +2,7 @@ import { memo, useMemo } from 'react';
 import { MicOff, VolumeX, Play, EyeOff } from 'lucide-react';
 import { sanitizeAvatarDataUrl } from '@chickadee/shared';
 import { usePeerAudioGraph } from '../hooks/usePeerAudioGraph';
+import { withAlpha } from '../lib/userColors';
 import { TileVolumeControl } from './TileVolumeControl';
 
 export interface ParticipantTileProps {
@@ -138,11 +139,11 @@ function ParticipantTileImpl({
   return (
     <li
       className={`tile${isSelf ? ' tile--self' : ''}${showFrame ? ' tile--speaking' : ''}`}
-      style={{ '--accent': color, '--accent-glow': `${color}70` } as React.CSSProperties}
+      style={{ '--accent': color, '--accent-glow': withAlpha(color, 44) } as React.CSSProperties}
     >
       <div
         className="tile__ambient"
-        style={{ background: `radial-gradient(circle at 50% 62%, ${color}0d 0%, transparent 58%)` }}
+        style={{ background: `radial-gradient(circle at 50% 62%, ${withAlpha(color, 5)} 0%, transparent 58%)` }}
       />
 
       <video
