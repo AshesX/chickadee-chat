@@ -2615,7 +2615,7 @@
   width: 210px;
   background: color-mix(in srgb, var(--tint) 3%, transparent);
   border-right: 1px solid var(--border);
-  padding: var(--s-6) var(--s-3);
+  padding: var(--s-6) var(--s-3) var(--s-2);
   display: flex;
   flex-direction: column;
   gap: var(--s-1);
@@ -2641,7 +2641,7 @@
 
 .settings-sidebar__footer {
   margin-top: auto;
-  padding: var(--s-2) var(--s-3) 0;
+  padding: var(--s-2) 0 0;
   display: flex;
   align-items: center;
 }
@@ -2673,12 +2673,12 @@
   color: var(--text);
   text-transform: uppercase;
   letter-spacing: 0.16em;
-  padding: var(--s-3) var(--s-3) var(--s-2);
+  padding: var(--s-2) var(--s-3) var(--s-1);
   border-bottom: 1px solid var(--border);
 }
 
 .settings-sidebar__title:not(:first-child) {
-  margin-top: var(--s-4);
+  margin-top: var(--s-2);
 }
 
 .settings-sidebar__item {

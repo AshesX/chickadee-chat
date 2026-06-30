@@ -68,7 +68,7 @@ export function VideoTab({
               </>
             )}
             Screen: <strong>{formatBitrate(scrEnc.maxBitrate)}</strong> · {screenResolution} · {scrEnc.maxFramerate} fps · maintains resolution<br />
-            <em>Maximum</em> leaves video uncapped (Chromium decides); lower tiers trade sharpness for bandwidth &amp; CPU.
+            <em>Maximum</em> leaves video uncapped; lower tiers trade sharpness for bandwidth &amp; CPU.
           </>
         }
       />
