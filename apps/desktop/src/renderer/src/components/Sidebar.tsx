@@ -123,7 +123,7 @@ export function Sidebar({
   const [menu, setMenu] = useState<{ room: Room; x: number; y: number } | null>(null);
   const [usersCollapsed, setUsersCollapsed] = useState(false);
 
-  const { navRef, handleResizeStart } = useSidebarResize(compact, widthScale, onResize);
+  const { navRef, handleResizeStart } = useSidebarResize(widthScale, onResize);
 
   const activeSpace = spaces.find((s) => s.id === activeSpaceId);
 
