@@ -13,7 +13,7 @@ export function SliderRow({
   hint,
   slider,
   meter,
-  constrained = false,
+  constrained = true,
   disabled,
 }: {
   label: React.ReactNode;
@@ -31,12 +31,14 @@ export function SliderRow({
         <MicLevelMeter {...meter} />
       </div>
     );
-  } else {
+  } else if (constrained) {
     control = (
       <div className="slider-wrap">
         <SettingsSlider {...slider} />
       </div>
     );
+  } else {
+    control = <SettingsSlider {...slider} />;
   }
 
   return (

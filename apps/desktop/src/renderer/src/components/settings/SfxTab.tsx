@@ -1,4 +1,3 @@
-import { SettingsRow } from './SettingsRow';
 import { ToggleRow } from './ToggleRow';
 import { SliderRow } from './SliderRow';
 import type { SettingsModalProps } from './types';
