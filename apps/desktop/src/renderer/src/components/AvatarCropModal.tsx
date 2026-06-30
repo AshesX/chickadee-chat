@@ -198,7 +198,10 @@ export function AvatarCropModal({ onSave, onCancel }: AvatarCropModalProps): Rea
   const maxScale = minScale * 6;
 
   return (
-    <div className="avatar-crop-overlay" onClick={onCancel}>
+    <div
+      className="backdrop backdrop--scrim backdrop--nested"
+      onClick={onCancel}
+    >
       <div className="avatar-crop-modal" onClick={(e) => e.stopPropagation()}>
         <div className="avatar-crop-modal__title">Set Avatar</div>
         <div className="avatar-crop-modal__hint">
@@ -265,11 +268,11 @@ export function AvatarCropModal({ onSave, onCancel }: AvatarCropModalProps): Rea
         )}
 
         <div className="avatar-crop-actions">
-          <button className="avatar-crop-btn avatar-crop-btn--cancel" onClick={onCancel}>
+          <button className="btn btn--ghost" onClick={onCancel}>
             Cancel
           </button>
           {imageSrc && (
-            <button className="avatar-crop-btn avatar-crop-btn--save" onClick={handleSave}>
+            <button className="btn btn--primary" onClick={handleSave}>
               Save Avatar
             </button>
           )}

@@ -42,7 +42,7 @@ export function KeybindRow({
       {value && (
         <button
           type="button"
-          className="unbind-btn"
+          className="btn btn--danger-soft unbind-btn"
           onClick={() => onChange('')}
           title="Clear keybind"
           aria-label={`Clear ${clearLabel}`}

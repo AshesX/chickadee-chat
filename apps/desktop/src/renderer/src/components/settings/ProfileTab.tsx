@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AvatarCropModal } from '../AvatarCropModal';
 import { USER_COLORS } from '../../lib/userColors';
+import { SettingsSection } from './SettingsSection';
 import type { SettingsModalProps } from './types';
 
 type ProfileTabProps = Pick<
@@ -26,7 +27,7 @@ export function ProfileTab({
 
   return (
     <>
-      <div id="section-avatar" className="settings-subdivision">Avatar</div>
+      <SettingsSection id="section-avatar" title="Avatar" />
       <div className="avatar-settings-row">
         <div
           className="avatar-settings-preview"
@@ -58,7 +59,8 @@ export function ProfileTab({
         </div>
       </div>
 
-      <div id="section-display-name" className="settings-subdivision" style={{ marginTop: '16px' }}>Display Name</div>
+      <hr className="settings-divider" />
+      <SettingsSection id="section-display-name" title="Display Name" />
       <label className="field">
         <span>Display name</span>
         <input
@@ -71,8 +73,9 @@ export function ProfileTab({
         />
       </label>
 
-      <div id="section-accent" className="settings-subdivision" style={{ marginTop: '16px' }}>Accent Color</div>
-      <span className="settings-row__hint">Avatar ring and speaking glow color. Auto-assigns if cleared.</span>
+      <hr className="settings-divider" />
+      <SettingsSection id="section-accent" title="Accent Color" />
+      <span className="hint">Avatar ring and speaking glow color. Auto-assigns if cleared.</span>
       <div className="accent-swatches">
         {USER_COLORS.map((c) => (
           <button

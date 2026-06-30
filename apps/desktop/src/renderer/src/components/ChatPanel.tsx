@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { SendHorizontal } from 'lucide-react';
 import { EmojiPickerPopover } from './EmojiPickerPopover';
+import { useDismissTimeout } from '../hooks/useDismissTimeout';
 
 export interface ChatMessage {
   id: number;
@@ -37,44 +38,21 @@ export function ChatPanel({
   const panelRef = useRef<HTMLDivElement>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerAnchor, setPickerAnchor] = useState<DOMRect | null>(null);
-  const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasEnteredPopoverRef = useRef(false);
+  const { arm, cancel: cancelCloseTimeout } = useDismissTimeout(() => setPickerOpen(false));
 
+  // Linger 3s before the pointer first enters the popover, then a snappier 1s after.
   function startCloseTimeout(): void {
-    if (closeTimeoutRef.current) {
-      clearTimeout(closeTimeoutRef.current);
-    }
-    const delay = hasEnteredPopoverRef.current ? 1000 : 3000;
-    closeTimeoutRef.current = setTimeout(() => {
-      setPickerOpen(false);
-    }, delay);
-  }
-
-  function cancelCloseTimeout(): void {
-    if (closeTimeoutRef.current) {
-      clearTimeout(closeTimeoutRef.current);
-      closeTimeoutRef.current = null;
-    }
+    arm(hasEnteredPopoverRef.current ? 1000 : 3000);
   }
 
   useEffect(() => {
     if (pickerOpen) {
       hasEnteredPopoverRef.current = false;
     } else {
-      if (closeTimeoutRef.current) {
-        clearTimeout(closeTimeoutRef.current);
-        closeTimeoutRef.current = null;
-      }
+      cancelCloseTimeout();
     }
-  }, [pickerOpen]);
-
-  useEffect(() => {
-    return () => {
-      if (closeTimeoutRef.current) {
-        clearTimeout(closeTimeoutRef.current);
-      }
-    };
-  }, []);
+  }, [pickerOpen, cancelCloseTimeout]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -142,7 +120,7 @@ export function ChatPanel({
     >
       {onResize && (
         <div
-          className="chat-panel__resize-handle"
+          className="resize-handle chat-panel__resize-handle"
           onPointerDown={handleResizeStart}
           title="Drag to resize chat"
           role="separator"

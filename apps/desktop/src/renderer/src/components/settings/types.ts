@@ -1,9 +1,5 @@
 import type { ThemeName, VideoQuality } from '@chickadee/shared';
 import type { MediaDeviceOption } from '../../hooks/useMediaDevices';
-import type { useKeyCapture } from '../../hooks/useKeyCapture';
-
-/** Return shape of `useKeyCapture`, shared by every tab that captures keybinds. */
-export type KeyCapture = ReturnType<typeof useKeyCapture>;
 
 export type TabId = 'profile' | 'audio' | 'video' | 'sfx' | 'chat' | 'ui' | 'app' | 'keybindings';
 

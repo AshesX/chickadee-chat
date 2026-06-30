@@ -101,22 +101,20 @@ export function SettingsSlider({
     }
   };
 
-  // Two-tone fill for "boost" sliders (e.g. mic volume >100%): paint the track
-  // purple up to `boostFrom`, orange beyond it, via CSS vars on the track gradient.
   const displayValue = commitOnRelease ? localValue : value;
-  const boostActive = boostFrom != null && !discrete;
   const clampPct = (p: number): number => Math.max(0, Math.min(100, p));
-  const boostStyle = boostActive
-    ? ({
-        '--fill': `${clampPct(posPercent(displayValue))}%`,
-        '--boost': `${clampPct(posPercent(boostFrom as number))}%`,
-        '--thumb': displayValue > (boostFrom as number) ? 'var(--red)' : 'var(--orange)',
-      } as React.CSSProperties)
-    : undefined;
+  const fillPct = clampPct(posPercent(displayValue));
+  const boostPct = boostFrom != null && !discrete ? clampPct(posPercent(boostFrom)) : 100;
+  
+  const customStyle = {
+    '--fill': `${fillPct}%`,
+    '--boost': `${boostPct}%`,
+    '--thumb': boostFrom != null && !discrete && displayValue > boostFrom ? 'var(--red)' : 'var(--orange)',
+  } as React.CSSProperties;
 
   return (
     <div style={{ flex: 1, minWidth: 0 }}>
-      <div className="mic-slider-container">
+      <div className="settings-slider-container">
         <input
           type="range"
           min={discrete ? 0 : min}
@@ -127,8 +125,8 @@ export function SettingsSlider({
           onPointerUp={commitOnRelease ? handleCommit : undefined}
           onKeyUp={commitOnRelease ? handleKeyUp : undefined}
           onBlur={commitOnRelease ? handleCommit : undefined}
-          className={`settings-slider${boostActive ? ' settings-slider--boost' : ''}`}
-          style={boostStyle}
+          className="settings-slider"
+          style={customStyle}
         />
         {(discrete ? snapValues : markers).map((m) => {
           const percent = posPercent(m);
@@ -137,21 +135,21 @@ export function SettingsSlider({
           return (
             <div
               key={m}
-              className="mic-slider-tick"
+              className="settings-slider-tick"
               style={{ left: leftCalc }}
             />
           );
         })}
       </div>
       {labels.length > 0 && (
-        <div className="mic-slider-labels" style={{ position: 'relative', height: '14px', marginTop: '-6px' }}>
+        <div className="settings-slider-labels" style={{ position: 'relative', height: '14px', marginTop: '-6px' }}>
           {labels.map((l) => {
             const percent = posPercent(l.value);
             const leftCalc = `calc(${percent}% + ${8 - (percent / 100) * 16}px)`;
             return (
               <span
                 key={l.value}
-                className="mic-slider-labels__center"
+                className="settings-slider-labels__center"
                 style={{ left: leftCalc }}
               >
                 {l.text}

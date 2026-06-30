@@ -1,6 +1,10 @@
 import type { VideoQuality } from '@chickadee/shared';
 import type { SettingsModalProps } from './types';
-import { Toggle } from './Toggle';
+import { SettingsSection } from './SettingsSection';
+import { SettingsRow } from './SettingsRow';
+import { SelectRow } from './SelectRow';
+import { SegmentedRow } from './SegmentedRow';
+import { ToggleRow } from './ToggleRow';
 import { computeMeshEncoding, formatBitrate } from '../../webrtc/encodingParams';
 
 type VideoTabProps = Pick<
@@ -44,32 +48,25 @@ export function VideoTab({
 
   return (
     <>
-      <div id="section-video-quality" className="settings-subdivision">Streaming Quality</div>
+      <SettingsSection id="section-video-quality" title="Streaming Quality" />
 
-      <div className="settings-row">
-        <div className="settings-row__label">
-          <span>Quality</span>
-          <span className="settings-row__hint">
-            Caps outbound bitrate for camera, screen, and voice. Lower tiers save bandwidth and CPU in busy rooms.
-          </span>
-        </div>
-        <select
-          className="welcome__input"
-          value={videoQuality}
-          onChange={(e) => onChangeVideoQuality(e.target.value as VideoQuality)}
-          style={{ width: 'auto', padding: '6px 12px' }}
-        >
-          <option value="max">Maximum (uncapped)</option>
-          <option value="high">High</option>
-          <option value="balanced">Balanced</option>
-          <option value="saver">Data saver</option>
-        </select>
-      </div>
+      <SelectRow
+        label="Quality"
+        hint="Caps outbound bitrate for camera, screen, and voice. Lower tiers save bandwidth and CPU in busy rooms."
+        value={videoQuality}
+        onChange={(v) => onChangeVideoQuality(v as VideoQuality)}
+        options={[
+          { value: 'max', label: 'Maximum (uncapped)' },
+          { value: 'high', label: 'High' },
+          { value: 'balanced', label: 'Balanced' },
+          { value: 'saver', label: 'Data saver' },
+        ]}
+      />
 
-      <div className="settings-row">
-        <div className="settings-row__label" style={{ flex: 1 }}>
-          <span>What this sends</span>
-          <span className="settings-row__hint">
+      <SettingsRow
+        label="What this sends"
+        hint={
+          <>
             {cameraFeatureEnabled && (
               <>
                 Camera: <strong>{formatBitrate(enc.camera.maxBitrate)}</strong> · {cameraResolution} · {enc.camera.maxFramerate} fps<br />
@@ -78,123 +75,98 @@ export function VideoTab({
             Screen: <strong>{formatBitrate(enc.screen.maxBitrate)}</strong> · {screenResolution} · {enc.screen.maxFramerate} fps · maintains resolution<br />
             Voice: <strong>{audioLabel}</strong> · {enc.audio.mono ? 'mono' : 'stereo'}<br />
             <em>Maximum</em> leaves video uncapped (Chromium decides); lower tiers trade sharpness for bandwidth &amp; CPU.
-          </span>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       <hr className="settings-divider" />
 
-      <div id="section-video-default" className="settings-subdivision">Room Video Button</div>
+      <SettingsSection id="section-video-default" title="Room Video Button" />
 
-      <div className="settings-row">
-        <div className="settings-row__label">
-          <span>Default action</span>
-          <span className="settings-row__hint">Action when clicking Video button while inactive.</span>
-        </div>
-        <div className="seg-group">
-          <button
-            className={`seg-btn${defaultVideoAction === 'screen' ? ' seg-btn--active' : ''}`}
-            onClick={() => onChangeDefaultVideoAction('screen')}
-          >Screen Share</button>
-          <button
-            className={`seg-btn${defaultVideoAction === 'camera' ? ' seg-btn--active' : ''}`}
-            onClick={() => onChangeDefaultVideoAction('camera')}
-          >Camera</button>
-        </div>
-      </div>
+      <SegmentedRow
+        label="Default action"
+        hint="Action when clicking Video button while inactive."
+        value={defaultVideoAction}
+        onChange={onChangeDefaultVideoAction}
+        options={[
+          { value: 'screen', label: 'Screen Share' },
+          { value: 'camera', label: 'Camera' },
+        ]}
+      />
 
       <hr className="settings-divider" />
 
-      <div id="section-camera" className="settings-subdivision" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div id="section-camera" className="settings-subdivision" style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-2)' }}>
         <span>Camera</span>
         {!hasCamera && (
-          <span style={{ color: 'var(--danger-text)', fontSize: '11px', fontWeight: 600, textTransform: 'initial' }}>
+          <span style={{ color: 'var(--red)', fontSize: 'var(--fs-1)', fontWeight: 'var(--fw-2)', textTransform: 'initial' }}>
             (No camera detected)
           </span>
         )}
       </div>
 
-      <div className="settings-row">
-        <div className="settings-row__label">
-          <span>Enable camera</span>
-          <span className="settings-row__hint">Show the camera option in room video controls.</span>
-        </div>
-        <Toggle on={cameraFeatureEnabled} onClick={() => onChangeCameraFeatureEnabled(!cameraFeatureEnabled)} />
-      </div>
+      <ToggleRow
+        label="Enable camera"
+        hint="Show the camera option in room video controls."
+        value={cameraFeatureEnabled}
+        onChange={onChangeCameraFeatureEnabled}
+      />
 
-      <div className="settings-row" style={{ opacity: cameraControlsEnabled ? 1 : 0.5, pointerEvents: cameraControlsEnabled ? undefined : 'none' }}>
-        <div className="settings-row__label">
-          <span>Streaming resolution</span>
-          <span className="settings-row__hint">Higher resolutions require more bandwidth.</span>
-        </div>
-        <select
-          className="welcome__input"
-          value={cameraResolution}
-          onChange={(e) => onChangeCameraResolution(e.target.value)}
-          style={{ width: 'auto', padding: '6px 12px' }}
-        >
-          <option value="480p">480p</option>
-          <option value="720p">720p</option>
-          <option value="1080p">1080p</option>
-          <option value="1440p">1440p</option>
-          <option value="4K">4K</option>
-        </select>
-      </div>
+      <SelectRow
+        label="Streaming resolution"
+        hint="Higher resolutions require more bandwidth."
+        value={cameraResolution}
+        onChange={onChangeCameraResolution}
+        disabled={!cameraControlsEnabled}
+        options={[
+          { value: '480p', label: '480p' },
+          { value: '720p', label: '720p' },
+          { value: '1080p', label: '1080p' },
+          { value: '1440p', label: '1440p' },
+          { value: '4K', label: '4K' },
+        ]}
+      />
 
-      <div className="settings-row" style={{ opacity: cameraControlsEnabled ? 1 : 0.5, pointerEvents: cameraControlsEnabled ? undefined : 'none' }}>
-        <div className="settings-row__label">
-          <span>Framerate</span>
-          <span className="settings-row__hint">Camera stream framerate.</span>
-        </div>
-        <select
-          className="welcome__input"
-          value={cameraFramerate}
-          onChange={(e) => onChangeCameraFramerate(e.target.value)}
-          style={{ width: 'auto', padding: '6px 12px' }}
-        >
-          <option value="15">15 fps</option>
-          <option value="30">30 fps</option>
-          <option value="60">60 fps</option>
-        </select>
-      </div>
+      <SelectRow
+        label="Framerate"
+        hint="Camera stream framerate."
+        value={cameraFramerate}
+        onChange={onChangeCameraFramerate}
+        disabled={!cameraControlsEnabled}
+        options={[
+          { value: '15', label: '15 fps' },
+          { value: '30', label: '30 fps' },
+          { value: '60', label: '60 fps' },
+        ]}
+      />
 
       <hr className="settings-divider" />
-      <div id="section-screen-share" className="settings-subdivision">Screen Share</div>
+      <SettingsSection id="section-screen-share" title="Screen Share" />
 
-      <div className="settings-row">
-        <div className="settings-row__label">
-          <span>Screen resolution limit</span>
-          <span className="settings-row__hint">Maximum resolution for screen sharing.</span>
-        </div>
-        <select
-          className="welcome__input"
-          value={screenResolution}
-          onChange={(e) => onChangeScreenResolution(e.target.value)}
-          style={{ width: 'auto', padding: '6px 12px' }}
-        >
-          <option value="720p">720p</option>
-          <option value="1080p">1080p</option>
-          <option value="1440p">1440p</option>
-          <option value="4K">Unlimited (4K)</option>
-        </select>
-      </div>
+      <SelectRow
+        label="Screen resolution limit"
+        hint="Maximum resolution for screen sharing."
+        value={screenResolution}
+        onChange={onChangeScreenResolution}
+        options={[
+          { value: '720p', label: '720p' },
+          { value: '1080p', label: '1080p' },
+          { value: '1440p', label: '1440p' },
+          { value: '4K', label: 'Unlimited (4K)' },
+        ]}
+      />
 
-      <div className="settings-row">
-        <div className="settings-row__label">
-          <span>Screen framerate limit</span>
-          <span className="settings-row__hint">Maximum framerate for screen sharing.</span>
-        </div>
-        <select
-          className="welcome__input"
-          value={screenFramerate}
-          onChange={(e) => onChangeScreenFramerate(e.target.value)}
-          style={{ width: 'auto', padding: '6px 12px' }}
-        >
-          <option value="15">15 fps</option>
-          <option value="30">30 fps</option>
-          <option value="60">60 fps</option>
-        </select>
-      </div>
+      <SelectRow
+        label="Screen framerate limit"
+        hint="Maximum framerate for screen sharing."
+        value={screenFramerate}
+        onChange={onChangeScreenFramerate}
+        options={[
+          { value: '15', label: '15 fps' },
+          { value: '30', label: '30 fps' },
+          { value: '60', label: '60 fps' },
+        ]}
+      />
     </>
   );
 }

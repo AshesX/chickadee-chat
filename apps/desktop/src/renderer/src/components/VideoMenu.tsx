@@ -67,21 +67,21 @@ export function VideoMenu({
   ];
 
   return (
-    <ChevronMenu anchorRect={anchorRect} onClose={onClose} width={240} className="audio-menu">
+    <ChevronMenu anchorRect={anchorRect} onClose={onClose} width={240} className="audio-menu menu-surface">
         {/* Camera Section */}
         {hasCamera && (
           <>
-            <div className="audio-menu__section-label">Camera</div>
+            <div className="label">Camera</div>
             <button
               type="button"
               className={`seg-btn${cameraEnabled ? ' seg-btn--active' : ''}`}
-              style={{ width: '100%', borderRadius: 'var(--radius-badge)', textAlign: 'center', marginBottom: 10 }}
+              style={{ width: '100%', borderRadius: 'var(--r-1)', textAlign: 'center', marginBottom: 'var(--s-2)' }}
               onClick={onToggleCamera}
             >
               {cameraEnabled ? 'Stop Camera' : 'Start Camera'}
             </button>
 
-            <div className="audio-menu__section-label" style={{ marginBottom: 4 }}>Resolution</div>
+            <div className="label" style={{ marginBottom: 'var(--s-1)' }}>Resolution</div>
             <CustomSelect
               value={cameraResolution}
               onChange={onChangeCameraResolution}
@@ -89,7 +89,7 @@ export function VideoMenu({
               className="settings-device-select"
             />
 
-            <div className="audio-menu__section-label" style={{ marginTop: 10, marginBottom: 4 }}>Framerate</div>
+            <div className="label" style={{ marginTop: 'var(--s-2)', marginBottom: 'var(--s-1)' }}>Framerate</div>
             <CustomSelect
               value={cameraFramerate}
               onChange={onChangeCameraFramerate}
@@ -102,17 +102,17 @@ export function VideoMenu({
         )}
 
         {/* Screen Share Section */}
-        <div className="audio-menu__section-label">Screen Share</div>
+        <div className="label">Screen Share</div>
         <button
           type="button"
           className={`seg-btn${sharingScreen ? ' seg-btn--active' : ''}`}
-          style={{ width: '100%', borderRadius: 'var(--radius-badge)', textAlign: 'center', marginBottom: 10 }}
+          style={{ width: '100%', borderRadius: 'var(--r-1)', textAlign: 'center', marginBottom: 'var(--s-2)' }}
           onClick={onToggleShare}
         >
           {sharingScreen ? 'Stop Sharing' : 'Share Screen'}
         </button>
 
-        <div className="audio-menu__section-label" style={{ marginBottom: 4 }}>Max Resolution</div>
+        <div className="label" style={{ marginBottom: 'var(--s-1)' }}>Max Resolution</div>
         <CustomSelect
           value={screenResolution}
           onChange={onChangeScreenResolution}
@@ -120,7 +120,7 @@ export function VideoMenu({
           className="settings-device-select"
         />
 
-        <div className="audio-menu__section-label" style={{ marginTop: 10, marginBottom: 4 }}>Max Framerate</div>
+        <div className="label" style={{ marginTop: 'var(--s-2)', marginBottom: 'var(--s-1)' }}>Max Framerate</div>
         <CustomSelect
           value={screenFramerate}
           onChange={onChangeScreenFramerate}

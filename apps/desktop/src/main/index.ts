@@ -120,8 +120,8 @@ function configureMediaPermissions(): void {
 
 const NORMAL_MIN_WIDTH = 760;
 const NORMAL_MIN_HEIGHT = 520;
-const COMPACT_WIDTH = 260;
-const COMPACT_MIN_WIDTH = 220;
+const COMPACT_WIDTH = 280;
+const COMPACT_MIN_WIDTH = 280;
 const COMPACT_MAX_WIDTH = COMPACT_WIDTH * 2; // 200% — matches the sidebar width scale cap.
 const COMPACT_MIN_HEIGHT = 360;
 
@@ -163,6 +163,7 @@ function registerWindowControls(): void {
       // it — calling setResizable() here would silently reset the min/max size on
       // Windows, leaving OS-edge drag unconstrained (infinite horizontal stretch).
       // So apply the size constraints and do NOT call setResizable.
+      win.setMaximizable(false);
       win.setMinimumSize(COMPACT_MIN_WIDTH, COMPACT_MIN_HEIGHT);
       win.setMaximumSize(COMPACT_MAX_WIDTH, 0);
       win.setBounds({
@@ -174,6 +175,7 @@ function registerWindowControls(): void {
     } else {
       // Lift the dock's width cap, restore the wide layout, but keep the height.
       // (No setResizable here either — see the note above; it would reset min/max.)
+      win.setMaximizable(true);
       win.setMaximumSize(0, 0);
       win.setMinimumSize(NORMAL_MIN_WIDTH, NORMAL_MIN_HEIGHT);
       const bounds = win.getBounds();
@@ -217,6 +219,7 @@ function createWindow(): void {
     minHeight: startCompact ? COMPACT_MIN_HEIGHT : NORMAL_MIN_HEIGHT,
     maxWidth: startCompact ? COMPACT_MAX_WIDTH : undefined,
     resizable: true,
+    maximizable: !startCompact,
     show: false,
     frame: false,
     autoHideMenuBar: true,
@@ -261,7 +264,6 @@ function createWindow(): void {
     const clamped = clampCompactWidth(newBounds.width);
     if (clamped !== newBounds.width) {
       e.preventDefault();
-      window.setBounds({ ...newBounds, width: clamped });
     }
   });
 

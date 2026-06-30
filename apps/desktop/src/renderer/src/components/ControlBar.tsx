@@ -201,7 +201,7 @@ export function ControlBar({
 
       <div className="control-bar__divider" />
 
-      <button className="leave-btn" onClick={onLeave}>
+      <button className="btn btn--danger" onClick={onLeave}>
         <PhoneOff size={16} />
         Leave
       </button>

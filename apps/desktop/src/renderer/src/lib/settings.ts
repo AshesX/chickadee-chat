@@ -167,12 +167,9 @@ export const store = {
   setCloseBehavior: (closeBehavior: 'quit' | 'tray'): void => persist({ closeBehavior }),
   getAlwaysOnTop: (): boolean => cache.alwaysOnTop ?? false,
   setAlwaysOnTop: (alwaysOnTop: boolean): void => persist({ alwaysOnTop }),
-  // Migrate any legacy/persisted value to the current two-theme union.
-  // Now defaults to 'light'. Explicitly dark legacy themes map to 'dark'.
-  getTheme: (): ThemeName => {
-    const t = cache.theme as string | undefined;
-    return t === 'dark' || t === 'experimental-dark' || t === 'midnight' || t === 'classic' || t === 'oled' ? 'dark' : 'light';
-  },
+  // Only one theme exists today ("light"); any legacy/persisted value (dark,
+  // midnight, oled, …) collapses to it. A future dark theme widens ThemeName.
+  getTheme: (): ThemeName => 'light',
   setTheme: (theme: ThemeName): void => persist({ theme }),
   getChatFontScale: (): number => cache.chatFontScale ?? 1.0,
   setChatFontScale: (chatFontScale: number): void => persist({ chatFontScale }),

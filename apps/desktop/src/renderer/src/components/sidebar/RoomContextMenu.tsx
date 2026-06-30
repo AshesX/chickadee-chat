@@ -17,7 +17,7 @@ export function RoomContextMenu({
 }: RoomContextMenuProps): React.JSX.Element {
   return (
     <div
-      className="ctx-backdrop"
+      className="backdrop backdrop--dropdown"
       onClick={onClose}
       onContextMenu={(e) => {
         e.preventDefault();
@@ -25,12 +25,12 @@ export function RoomContextMenu({
       }}
     >
       <div
-        className="ctx-menu"
+        className="ctx-menu menu-surface"
         style={{ left: menu.x, top: menu.y }}
         onClick={(e) => e.stopPropagation()}
       >
         <button
-          className="ctx-menu__item"
+          className="menu-item"
           onClick={() => {
             onRequestRename(menu.room);
             onClose();
@@ -40,7 +40,7 @@ export function RoomContextMenu({
           Rename
         </button>
         <button
-          className="ctx-menu__item ctx-menu__item--danger"
+          className="menu-item menu-item--danger"
           onClick={() => {
             onRemoveRoom(menu.room.id);
             onClose();

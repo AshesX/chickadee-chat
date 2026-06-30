@@ -123,7 +123,7 @@ export function Sidebar({
   const [menu, setMenu] = useState<{ room: Room; x: number; y: number } | null>(null);
   const [usersCollapsed, setUsersCollapsed] = useState(false);
 
-  const { navRef, handleResizeStart } = useSidebarResize(compact, widthScale, onResize);
+  const { navRef, handleResizeStart } = useSidebarResize(widthScale, onResize);
 
   const activeSpace = spaces.find((s) => s.id === activeSpaceId);
 
@@ -270,13 +270,15 @@ export function Sidebar({
         />
       )}
 
-      <div
-        className="sidebar__resize-handle"
-        onPointerDown={handleResizeStart}
-        title="Drag to resize sidebar"
-        role="separator"
-        aria-orientation="vertical"
-      />
+      {!compact && (
+        <div
+          className="resize-handle sidebar__resize-handle"
+          onPointerDown={handleResizeStart}
+          title="Drag to resize sidebar"
+          role="separator"
+          aria-orientation="vertical"
+        />
+      )}
     </nav>
   );
 }

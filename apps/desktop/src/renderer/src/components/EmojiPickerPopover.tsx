@@ -30,10 +30,10 @@ const CATEGORIES: EmojiCategory[] = [
 
 export function EmojiPickerPopover({ onSelectEmoji, onClose, anchorRect, onMouseEnter, onMouseLeave }: EmojiPickerPopoverProps): React.JSX.Element {
   return (
-    <ChevronMenu anchorRect={anchorRect} onClose={onClose} width={260} className="emoji-picker-pop" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
+    <ChevronMenu anchorRect={anchorRect} onClose={onClose} width={260} className="emoji-picker-pop menu-surface menu-surface--frosted" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
         {CATEGORIES.map((cat) => (
           <div key={cat.name} className="emoji-picker-pop__section">
-            <div className="emoji-picker-pop__section-title">{cat.name}</div>
+            <div className="label">{cat.name}</div>
             <div className="emoji-picker-pop__grid">
               {cat.emojis.map((emoji) => (
                 <button

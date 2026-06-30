@@ -143,8 +143,9 @@ export interface SpaceInfo {
   joinSecret?: string;
 }
 
-/** Active color theme identifier. */
-export type ThemeName = 'dark' | 'light';
+/** Active color theme identifier. Only "light" exists today; a dark theme will
+    be rebuilt from this baseline and added back to the union when ready. */
+export type ThemeName = 'light';
 
 /** Settings persisted to Electron userData (the renderer reads/writes via IPC). */
 /**

@@ -45,7 +45,7 @@ export function ChevronMenu({
 
   return (
     <>
-      <div className="popover-backdrop" onClick={onClose} />
+      <div className="backdrop backdrop--dropdown" onClick={onClose} />
       <div
         className={className}
         style={{ bottom, left, width }}

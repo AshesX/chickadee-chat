@@ -31,7 +31,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       <div className="crash">
         <h1 className="crash__title">Something went wrong</h1>
         <pre className="crash__message">{error.message}</pre>
-        <button onClick={() => window.location.reload()}>Reload</button>
+        <button className="btn btn--primary" onClick={() => window.location.reload()}>Reload</button>
       </div>
     );
   }

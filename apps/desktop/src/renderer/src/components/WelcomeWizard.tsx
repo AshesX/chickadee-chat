@@ -57,7 +57,7 @@ export function WelcomeWizard({ onSubmit }: WelcomeWizardProps): React.JSX.Eleme
   }
 
   return (
-    <div className="modal-overlay">
+    <div className="backdrop backdrop--scrim backdrop--modal">
       <div className="modal-panel modal-panel--welcome">
         <Logo size={64} className="welcome__logo" />
         <h2 className="welcome__title">
@@ -77,7 +77,7 @@ export function WelcomeWizard({ onSubmit }: WelcomeWizardProps): React.JSX.Eleme
               maxLength={32}
             />
             <button
-              className="welcome__btn"
+              className="btn btn--primary btn--block"
               onClick={next}
               disabled={!displayName.trim()}
             >
@@ -88,7 +88,7 @@ export function WelcomeWizard({ onSubmit }: WelcomeWizardProps): React.JSX.Eleme
           <>
             <p className="welcome__sub">Create your own private space or join an existing one.</p>
 
-            <div className="seg-group" style={{ marginBottom: '16px', width: '100%' }}>
+            <div className="seg-group" style={{ marginBottom: 'var(--s-4)', width: '100%' }}>
               <button
                 className={`seg-btn ${action === 'create' ? 'seg-btn--active' : ''}`}
                 style={{ flex: 1, textAlign: 'center' }}
@@ -113,7 +113,7 @@ export function WelcomeWizard({ onSubmit }: WelcomeWizardProps): React.JSX.Eleme
               </button>
             </div>
 
-            <div className="field" style={{ width: '100%', marginBottom: '18px' }}>
+            <div className="field" style={{ width: '100%', marginBottom: 'var(--s-5)' }}>
               {action === 'create' ? (
                 <>
                   <label className="field-label" style={{ textAlign: 'left' }}>Space Name</label>
@@ -156,17 +156,17 @@ export function WelcomeWizard({ onSubmit }: WelcomeWizardProps): React.JSX.Eleme
               />
             </div>
 
-            <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
+            <div style={{ display: 'flex', gap: 'var(--s-2)', width: '100%' }}>
               <button
-                className="welcome__btn"
-                style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--dim)', flex: 1 }}
+                className="btn btn--ghost"
+                style={{ border: '1px solid var(--border)', flex: 1 }}
                 onClick={() => { setStep(1); setError(null); }}
                 disabled={checking}
               >
                 Back
               </button>
               <button
-                className="welcome__btn"
+                className="btn btn--primary"
                 style={{ flex: 2 }}
                 onClick={() => void finish()}
                 disabled={!spaceValue.trim() || checking}

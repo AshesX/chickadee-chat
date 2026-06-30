@@ -1,137 +1,109 @@
-/* Chickadee Chat — design tokens & globals. Two themes, both Swiss "Editorial":
-   Dark = "Coffee Bean" (default; this :root) and Light = "Alabaster"
-   ([data-theme='light']). The shared Swiss structure (squared geometry, grid rules,
-   solid selection blocks, relit surfaces) lives in the [data-theme] override section
-   of styles.css and is driven entirely by the tokens below. */
+/* Chickadee Chat — design tokens & globals */
+/* ITCSS lower tiers: ① Settings · ② Generic · ③ Elements · Animations.
+   Upper tiers (Objects → Components → Utilities) live in styles.css, loaded after this. */
 
+/* ════════════ ① SETTINGS — design tokens ════════════ */
 :root {
-  /* Surfaces — warm near-black; panel/card lifted only by tone + hairline (flat) */
-  --bg: #17110a;
-  --panel: #211810;
-  --card: #2a1f14;
-  --border: #3a2c1c;
-
-  /* Text — warm alabaster + warm greys (AA on the coffee-bean canvas) */
-  --dim: #9c9081;
-  --text: #efeae2;
-  --text-sub: #c4bbac;
-  --fade: #7c6f5b;
-
-  /* Semantic accent colors — each theme defines its own green/orange/red; the
-     status + danger tokens below derive from them so one set drives every dot,
-     warning and destructive cue. (Brick/green brightened to read on dark.) */
-  --green: #6cc72a;
-  --orange: #ffa400;
-  --red: #e0432e;
-
-  /* Status (derived) */
-  --online: var(--green);
-  /* --idle intentionally aliases the brand --orange. Keep this token as the seam:
-     to make "Away" read distinctly later, give --idle its own value per theme
-     (e.g. a warm amber) — do NOT replace var(--idle) usages with var(--orange). */
-  --idle: var(--orange);
-  --offline: #5a4c3a;
-  --dnd: var(--red);
-
-  /* Actions / active — warm orange; twilight lightened to a periwinkle for dark */
-  --danger: var(--red);
-  --danger-glow: color-mix(in srgb, var(--red) 26%, transparent);
-  --danger-text: #f87171; /* danger as text/icon on a subtle/transparent bg (light-red for dark) */
-  --gradient: linear-gradient(135deg, var(--orange), #f59000);
-  --active-bg: color-mix(in srgb, var(--orange) 16%, transparent);
-  --active-border: var(--orange);
-  --active-text: var(--orange);
-  --room-active-count-bg: var(--bg);
-
-  /* Per-user avatars — vivid on dark (orange / periwinkle / brick / teal) */
-  --user-1: var(--orange);
-  --user-2: #8b7bd6;
-  --user-3: var(--red);
-  --user-4: #1fa9a0;
-
-  /* Supporting */
-  --scrollbar: #43331f;
-  --placeholder: #8a7c68;
-  --glow: transparent;
-
-  /* Logo bird → warm alabaster, visible on the dark canvas (pupils use --bg) */
-  --logo-fill: #efeae2;
-
-  /* Structural tokens for the shared Swiss section ([data-theme] in styles.css).
-     Dark values here; the light theme redefines them. */
-  --tint: #efeae2;            /* base for surface veils / hovers / gate marker */
-  --block-bg: var(--orange);  /* selected nav block = orange */
-  --block-fg: #1f1300;        /* text/icon on the block */
-  --on-accent: #1f1300;       /* text on an orange block (active control buttons) */
-  --badge-fg: #efeae2;        /* light text on dark media (tile badges) */
-  --scrim: rgba(0, 0, 0, 0.62);
-  --shadow-color: rgba(0, 0, 0, 0.55);
-
-  /* Geometry — near-square Swiss grid (avatars/dots stay round via hardcoded 50%) */
-  --radius-tile: 3px;
-  --radius-panel: 3px;
-  --radius-badge: 2px;
-  --radius-pill: 2px;
-  --radius-btn: 2px;
-  --gap-grid: 10px;
-  --gap-layout: 14px;
-
-  /* 4px-based spacing scale */
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
-  --icon-gap: 8px; /* canonical icon-to-text gap */
-}
-
-/* Light — "Alabaster Editorial": light Swiss theme on the logo's Alabaster Grey.
-   Overrides only what differs from the dark :root; it inherits --orange, --gradient,
-   --active-bg/-border, --on-accent, --user-1, --user-3 (via --red), --glow, the
-   geometry, the status/danger mapping and the spacing scale. Palette: Alabaster
-   #E9E9E9, Orange #FFA400, Deep Twilight #1B065E, Brick Ember #C20114, Coffee Bean #1F1300. */
-:root[data-theme='light'] {
-  /* Surfaces — alabaster canvas, near-white panels, hairline borders */
+  /* Surfaces */
   --bg: #e9e9e9;
   --panel: #fdfdfc;
   --card: #ffffff;
   --border: #d4d4d0;
 
-  /* Text — coffee-bean ink + warm greys (all AA on the alabaster canvas) */
+  /* Text */
   --dim: #5e574d;
   --text: #1f1300;
   --text-sub: #4a4036;
   --fade: #807868;
 
-  /* Accents — vivid grass green + brick red (orange shared with dark) */
+  /* Semantic accent colors */
   --green: #5fb81f;
+  --orange: #ffa400;
   --red: #c20114;
-  --offline: #b5b0a8;
-  --danger-text: #c20114; /* brick reads as danger text on the alabaster canvas */
 
-  /* Twilight active text + palette avatars (user-1 orange / user-3 red inherited) */
-  --active-text: #ab4e00;
-  --room-active-count-bg: var(--active-border);
-  --user-2: #1b065e;
-  --user-4: #0e7c86;
+  /* Status */
+  --online: var(--green);
+  /* --idle intentionally aliases the brand --orange. Keep this token as the seam:
+     to make "Away" read distinctly later, give --idle its own value
+     (e.g. a warm amber) — do NOT replace var(--idle) usages with var(--orange). */
+  --idle: var(--orange);
+  --offline: #b5b0a8;
+
+  /* Actions / active */
+  --gradient: linear-gradient(135deg, var(--orange), #f59000);
+  --active-bg: color-mix(in srgb, var(--dim) 16%, transparent);
+  --active-text: #1f1300;
 
   /* Supporting */
   --scrollbar: #c7c7c2;
   --placeholder: #6e665b;
+  --glow: transparent;
 
-  /* Logo bird → ink, readable on the alabaster canvas */
+  /* Logo */
   --logo-fill: #1f1300;
 
-  /* Structural tokens — light values (ink selection block, ink-based tints) */
+  /* Structural tokens */
   --tint: #1f1300;
   --block-bg: #1f1300;
   --block-fg: #e9e9e9;
+  --on-accent: #1f1300;
   --badge-fg: #e9e9e9;
   --scrim: rgba(31, 19, 0, 0.45);
-  --shadow-color: rgba(31, 19, 0, 0.18);
+  --shadow-color: rgba(31, 19, 0, 0.24);
+
+  /* ── Ultra-Lean primitives ────────────────────────────────── */
+
+  /* Radius */
+  --r-1: 4px;
+  --r-2: 12px;
+
+  /* Spacing */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+
+  /* Type */
+  --fs-0: 10px;
+  --fs-1: 12px;
+  --fs-2: 14px;
+  --fs-3: 16px;
+  --fs-4: 20px;
+
+  /* Weight */
+  --fw-1: 500;
+  --fw-2: 700;
+
+  /* Veils */
+  --veil-1: color-mix(in srgb, var(--tint) 6%, transparent);
+  --veil-2: color-mix(in srgb, var(--tint) 12%, transparent);
+
+  /* Elevation */
+  --sh-1: 0 8px 28px var(--shadow-color);
+  --sh-2: 0 24px 60px var(--shadow-color);
+
+  /* Danger surface */
+  --danger-bg: color-mix(in srgb, var(--red) 16%, transparent);
+
+  /* Motion */
+  --dur-1: 0.12s;
+  --dur-2: 0.24s;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Z-index — strict overlay layering (low → high) */
+  --z-dropdown: 100;
+  /* menus / popovers / context menus / dropdowns + their backdrops */
+  --z-modal: 200;
+  /* modal overlays + panels */
+  --z-nested: 300;
+  /* a dialog opened over a modal (e.g. avatar crop) */
+  --z-tooltip: 400;
+  /* tooltips — always on top */
 }
 
+/* ════════════ ② GENERIC — reset & normalize ════════════ */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -146,7 +118,7 @@ body,
 
 body {
   font-family: 'Space Grotesk', 'Outfit', -apple-system, system-ui, sans-serif;
-  font-size: 14px;
+  font-size: var(--fs-2);
   color: var(--text);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
@@ -154,112 +126,129 @@ body {
   overflow: hidden;
 }
 
-/* Subtle ambient glow behind everything. */
 body::before {
   content: '';
   position: fixed;
   inset: 0;
-  background: radial-gradient(
-    ellipse 55% 50% at 32% 48%,
-    var(--glow) 0%,
-    transparent 70%
-  );
+  background: radial-gradient(ellipse 55% 50% at 32% 48%,
+      var(--glow) 0%,
+      transparent 70%);
   pointer-events: none;
   z-index: 0;
 }
 
-/* Scrollbar */
 ::-webkit-scrollbar {
   width: 3px;
 }
+
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
   background: var(--scrollbar);
-  border-radius: var(--radius-pill);
+  border-radius: var(--r-1);
 }
 
 input::placeholder {
   color: var(--placeholder);
 }
+
 input:focus {
   outline: none;
 }
 
+/* ════════════ ③ ELEMENTS — bare elements & global state ════════════ */
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+}
+
+button:focus-visible,
+input:focus-visible,
+[role='button']:focus-visible,
+.room-row:focus-visible,
+.pill:focus-visible,
+.ctrl-btn:focus-visible {
+  outline: 2px solid var(--orange);
+  outline-offset: 0;
+  border-radius: var(--r-1);
+}
+
 /* ── Animations ───────────────────────────────────────────── */
 
-/* Emoji floating up on reaction send */
 @keyframes floatUp {
   0% {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
+
   100% {
     opacity: 0;
     transform: translateY(-88px) scale(2.3);
   }
 }
 
-/* Chat panel slide in from the right */
 @keyframes slideInRight {
   from {
     opacity: 0;
     transform: translateX(14px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
   }
 }
 
-/* New chat message bounce */
-@keyframes msgIn {
+@keyframes popIn {
   from {
     opacity: 0;
     transform: translateY(7px) scale(0.97);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
 }
 
-/* Online presence dot pulse */
-/* Compositor-only: pulses opacity + transform on .presence-dot--online::after
-   (the box-shadow on that halo is static), instead of repainting box-shadow every frame. */
-@keyframes dotPulse {
-  0%,
-  100% {
-    opacity: 0.25;
-    transform: scale(0.82);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-/* Modal fade/scale in */
 @keyframes modalIn {
   from {
     opacity: 0;
     transform: translateY(8px) scale(0.98);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
 }
 
-/* Chat panel slide in from the left */
 @keyframes slideInLeft {
   from {
     opacity: 0;
     transform: translateX(-14px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
+  }
+}
+
+@keyframes spaceDropdownIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }

@@ -18,11 +18,11 @@ export function Modal({ title, onClose, children }: ModalProps): React.JSX.Eleme
   }, [onClose]);
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="backdrop backdrop--scrim backdrop--modal" onClick={onClose}>
       <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
         <div className="modal-panel__head">
           <h2 className="modal-panel__title">{title}</h2>
-          <button className="modal-panel__close" onClick={onClose} aria-label="Close">
+          <button className="icon-btn" onClick={onClose} aria-label="Close">
             <X size={16} />
           </button>
         </div>

@@ -5,7 +5,7 @@ import '@fontsource/outfit/500.css';
 import '@fontsource/outfit/600.css';
 import '@fontsource/outfit/700.css';
 import '@fontsource/outfit/800.css';
-// Space Grotesk — neo-grotesque used by the app's Editorial themes (Dark + Light).
+// Space Grotesk — neo-grotesque used by the app's "Alabaster Editorial" theme.
 import '@fontsource/space-grotesk/400.css';
 import '@fontsource/space-grotesk/500.css';
 import '@fontsource/space-grotesk/700.css';

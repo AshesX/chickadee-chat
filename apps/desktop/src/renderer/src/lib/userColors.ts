@@ -12,6 +12,15 @@ export const USER_COLORS = [
 export const SELF_COLOR = USER_COLORS[0];
 
 /**
+ * A translucent variant of a solid color, for accent glows / ambient washes.
+ * `percent` is the opacity (0–100). Uses `color-mix` so it reads clearly and works
+ * with any CSS color, replacing cryptic hex-alpha suffixes like `${color}70`.
+ */
+export function withAlpha(color: string, percent: number): string {
+  return `color-mix(in srgb, ${color} ${percent}%, transparent)`;
+}
+
+/**
  * Stable per-session color assignment for remote peers: each peer keeps its
  * color until it leaves, and a freed color is reused by the next joiner.
  */

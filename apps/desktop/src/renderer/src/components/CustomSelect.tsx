@@ -56,13 +56,13 @@ export function CustomSelect({
 
       {open && (
         <>
-          <div className="popover-backdrop" onClick={() => setOpen(false)} />
-          <ul className="custom-select__menu" style={menuStyle}>
+          <div className="backdrop backdrop--dropdown" onClick={() => setOpen(false)} />
+          <ul className="custom-select__menu menu-surface" style={menuStyle}>
             {options.map((opt) => (
               <li key={opt.value}>
                 <button
                   type="button"
-                  className={`custom-select__option${opt.value === value ? ' custom-select__option--active' : ''}`}
+                  className={`menu-item${opt.value === value ? ' menu-item--active' : ''}`}
                   onClick={() => handleSelect(opt.value)}
                 >
                   {opt.label}

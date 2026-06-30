@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { User, Mic, Volume2, Sliders, X, Video, Monitor, MessageSquare, Search, Keyboard } from 'lucide-react';
 import { defaultSettings } from '@chickadee/shared';
-import { useKeyCapture } from '../hooks/useKeyCapture';
 import type { SettingsModalProps, TabId } from './settings/types';
 import { SUBSECTIONS, TAB_LABELS, getSearchResults } from './settings/searchIndex';
 import { useSharedMicMeter } from './settings/MicMeter';
@@ -20,7 +19,6 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
   const { displayName, initialTab, onClose, onChangeName, analyserNode } = props;
 
   const [name, setName] = useState(displayName);
-  const keyCapture = useKeyCapture();
   const [activeTab, setActiveTab] = useState<TabId>((initialTab as TabId) ?? 'profile');
   const [versionCopied, setVersionCopied] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -145,7 +143,7 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
   const showResults = searchFocused && searchQuery.trim().length > 0;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="backdrop backdrop--scrim backdrop--modal" onClick={onClose}>
       <div className="settings-panel" onClick={(e) => e.stopPropagation()}>
 
         {/* Left Sidebar Menu */}
@@ -175,7 +173,7 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
               </button>
             )}
             {showResults && (
-              <div className="settings-sidebar__search-results">
+              <div className="settings-sidebar__search-results menu-surface">
                 {searchResults.length === 0 ? (
                   <div className="settings-sidebar__search-empty">No results</div>
                 ) : (
@@ -216,7 +214,7 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
             </div>
           )}
 
-          <div className="settings-sidebar__title" style={{ marginTop: '14px' }}>App Settings</div>
+          <div className="settings-sidebar__title">App Settings</div>
           <button
             className={`settings-sidebar__item${activeTab === 'audio' ? ' settings-sidebar__item--active' : ''}`}
             onClick={() => setActiveTab('audio')}
@@ -319,7 +317,7 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
               {activeTab === 'ui' && 'User Interface'}
               {activeTab === 'app' && 'App Settings'}
             </h2>
-            <button className="settings-content__close" onClick={onClose} aria-label="Close settings">
+            <button className="icon-btn" onClick={onClose} aria-label="Close settings">
               <X size={18} />
             </button>
           </div>
@@ -329,20 +327,20 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
               <ProfileTab {...props} name={name} setName={setName} commitName={commitName} />
             )}
             {activeTab === 'audio' && (
-              <AudioTab {...props} micBars={micBars} keyCapture={keyCapture} />
+              <AudioTab {...props} micBars={micBars} />
             )}
             {activeTab === 'video' && <VideoTab {...props} />}
             {activeTab === 'sfx' && <SfxTab {...props} />}
-            {activeTab === 'chat' && <ChatTab {...props} keyCapture={keyCapture} />}
+            {activeTab === 'chat' && <ChatTab {...props} />}
             {activeTab === 'ui' && <UiTab {...props} />}
             {activeTab === 'keybindings' && (
-              <KeybindingsTab {...props} keyCapture={keyCapture} />
+              <KeybindingsTab {...props} />
             )}
             {activeTab === 'app' && <AppTab {...props} onResetSettings={resetAppSettings} />}
           </div>
 
           <div className="settings-content__foot">
-            <button className="modal-action" onClick={() => { commitName(); onClose(); }}>
+            <button className="btn btn--primary" onClick={() => { commitName(); onClose(); }}>
               Done
             </button>
           </div>

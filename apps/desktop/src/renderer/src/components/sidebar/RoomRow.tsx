@@ -101,21 +101,21 @@ export function RoomRow({
     return (
       <div
         key={u.id}
-        className={`room-row__avatar${isSpeaking ? ' room-row__avatar--speaking' : ''}${muteClickable ? ' room-row__avatar--mutable' : ''}`}
+        className={`avatar avatar--sm room-row__avatar${isSpeaking ? ' room-row__avatar--speaking' : ''}${muteClickable ? ' room-row__avatar--mutable' : ''}`}
         style={{
           ...(uAvatar ? {} : { background: u.color }),
           '--avatar-accent': u.color,
         } as React.CSSProperties}
         {...(muteClickable
           ? {
-              role: 'button',
-              title: muted ? `Unmute ${u.name}` : `Mute ${u.name}`,
-              'aria-label': muted ? `Unmute ${u.name}` : `Mute ${u.name}`,
-              onClick: (e: React.MouseEvent) => {
-                e.stopPropagation();
-                onTogglePeerMute(u.id);
-              },
-            }
+            role: 'button',
+            title: muted ? `Unmute ${u.name}` : `Mute ${u.name}`,
+            'aria-label': muted ? `Unmute ${u.name}` : `Mute ${u.name}`,
+            onClick: (e: React.MouseEvent) => {
+              e.stopPropagation();
+              onTogglePeerMute(u.id);
+            },
+          }
           : {})}
       >
         {uAvatar ? <img src={uAvatar} alt={u.name} /> : u.initial}
@@ -135,7 +135,7 @@ export function RoomRow({
     >
       {active && (
         <div className="room-row__bg-icon">
-          <RoomIcon name={r.icon} size={100} />
+          <RoomIcon name={r.icon} size={115} />
         </div>
       )}
       <button
@@ -152,7 +152,7 @@ export function RoomRow({
           <div className="room-row__avatars">
             {roomUsers.slice(0, 4).map(renderAvatar)}
             {roomUsers.length > 4 && (
-              <div className="room-row__avatar" style={{ background: 'var(--border)' }}>
+              <div className="avatar avatar--sm room-row__avatar" style={{ background: 'var(--border)' }}>
                 +{roomUsers.length - 4}
               </div>
             )}
