@@ -2623,6 +2623,23 @@
   flex-direction: column;
   gap: var(--s-1);
   flex-shrink: 0;
+  min-height: 0;
+}
+
+.settings-sidebar__nav {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color var(--dur-2) ease;
+}
+
+.settings-sidebar__nav:hover {
+  scrollbar-color: var(--veil-2) transparent;
 }
 
 .settings-sidebar__footer {
@@ -2894,6 +2911,12 @@
     padding: var(--s-3);
     border-right: none;
     border-bottom: 1px solid var(--border);
+  }
+
+  .settings-sidebar__nav {
+    flex-direction: row;
+    overflow-y: visible;
+    overflow-x: auto;
   }
 
   .settings-sidebar__footer {

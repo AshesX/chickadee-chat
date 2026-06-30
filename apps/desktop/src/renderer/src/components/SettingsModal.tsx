@@ -199,6 +199,7 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
               </div>
             )}
           </div>
+          <div className="settings-sidebar__nav">
           <div className="settings-sidebar__title">User Settings</div>
           <button
             className={`settings-sidebar__item${activeTab === 'profile' ? ' settings-sidebar__item--active' : ''}`}
@@ -293,6 +294,7 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
             <Sliders size={15} />
             <span>App Settings</span>
           </button>
+          </div>
 
           <div className="settings-sidebar__footer">
             <button
