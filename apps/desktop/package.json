@@ -15,12 +15,11 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@fontsource/space-grotesk": "^5.2.10",
+    "@fontsource/geist-sans": "^5.1.1",
     "uiohook-napi": "^1.5.5"
   },
   "devDependencies": {
     "@chickadee/shared": "*",
-    "@fontsource/outfit": "^5.2.8",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^22.10.2",

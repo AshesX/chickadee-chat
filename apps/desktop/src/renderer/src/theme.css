@@ -117,7 +117,7 @@ body,
 }
 
 body {
-  font-family: 'Space Grotesk', 'Outfit', -apple-system, system-ui, sans-serif;
+  font-family: 'Geist', -apple-system, system-ui, sans-serif;
   font-size: var(--fs-2);
   color: var(--text);
   background: var(--bg);
