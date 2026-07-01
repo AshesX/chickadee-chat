@@ -2475,11 +2475,11 @@
   position: absolute;
   top: 50%;
   transform: translate(-50%, -50%);
-  width: 2px;
+  width: 1px;
   height: 12px;
   background: var(--dim);
   pointer-events: none;
-  border-radius: 1px;
+  z-index: 1;
 }
 
 .settings-slider-labels {
