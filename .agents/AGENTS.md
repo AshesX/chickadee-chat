@@ -1,6 +1,6 @@
 # Coding Guidelines
 ## Agent Instructions
-Use an ultra-lean,'DRY' (Don't Repeat Yourself) and clean approach to coding.
+Use an ultra-lean,'DRY' (Don't Repeat Yourself) and clean approach to coding, with a focus on optimized code with the lowest possible CPU and memory usage.
 
 # Chickadee Chat Design System & Lore
 

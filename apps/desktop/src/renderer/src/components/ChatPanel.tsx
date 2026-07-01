@@ -127,7 +127,6 @@ export function ChatPanel({
           aria-orientation="vertical"
         />
       )}
-      <div className="chat-panel__head">ROOM CHAT</div>
 
       <div className="chat-panel__scroll">
         {messages.length === 0 && <p className="chat-panel__empty">No messages yet</p>}
