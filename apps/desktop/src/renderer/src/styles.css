@@ -465,7 +465,6 @@
   overflow: hidden;
   margin-bottom: var(--s-1);
   border-radius: var(--r-1);
-  border: 1px solid transparent;
   color: var(--text);
   transition: all var(--dur-1) ease;
   display: flex;
@@ -490,7 +489,6 @@
   background: var(--veil-1);
 }
 
-.room-row__main:active,
 .room-row--create:active {
   transform: scale(0.97);
 }
@@ -498,7 +496,6 @@
 .room-row--active,
 .room-row--active:hover {
   background: var(--block-bg);
-  border-color: var(--block-bg);
   color: var(--block-fg);
   font-weight: var(--fw-2);
 }
@@ -534,12 +531,6 @@
   align-items: center;
   justify-content: center;
   font-size: var(--fs-3);
-  opacity: 0.85;
-  transition: opacity var(--dur-1) ease;
-}
-
-.room-row:hover .room-row__icon {
-  opacity: 1;
 }
 
 .room-row__name {
@@ -596,13 +587,8 @@
 }
 
 .room-row__avatar {
-  border: 1.5px solid var(--panel);
   margin-left: -4px;
   transition: transform var(--dur-1) ease;
-}
-
-.room-row--active .room-row__avatar {
-  border-color: var(--block-bg);
 }
 
 .room-row__avatar:first-child {
@@ -621,14 +607,8 @@
   cursor: pointer;
 }
 
-/* Press feedback bounces the avatar itself; cancel the row's press-scale so the
-   whole bar doesn't bounce when you click an (inline) avatar to mute. */
 .room-row__avatar--mutable:active {
   transform: scale(0.9);
-}
-
-.room-row__main:has(.room-row__avatar--mutable:active) {
-  transform: none;
 }
 
 
@@ -651,7 +631,6 @@
 
 .room-row__avatar-strip .room-row__avatar {
   margin-left: 0;
-  border: none;
 }
 
 .room-row__avatar-strip .room-row__avatar-mute svg {
