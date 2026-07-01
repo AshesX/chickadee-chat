@@ -1046,7 +1046,7 @@
   background: var(--card);
   border: none;
   border-radius: 0;
-  box-shadow: 1px 1px 0 0 var(--border);
+  box-shadow: 1px 0 0 0 var(--border), 0 1px 0 0 var(--border);
   transition: border var(--dur-2), box-shadow var(--dur-2);
 }
 
@@ -1098,7 +1098,7 @@
 
 
 .tile--speaking {
-  box-shadow: inset 0 0 0 2px var(--accent), 1px 1px 0 0 var(--border);
+  box-shadow: inset 0 0 0 2px var(--accent), 1px 0 0 0 var(--border), 0 1px 0 0 var(--border);
 }
 
 .tile__avatar-mute {
@@ -1328,7 +1328,7 @@
   background: #000;
   border: none;
   border-radius: 0;
-  box-shadow: 1px 1px 0 0 var(--border);
+  box-shadow: 1px 0 0 0 var(--border), 0 1px 0 0 var(--border);
 }
 
 .screen__video {
@@ -1698,10 +1698,11 @@
   background: var(--card);
   border: none;
   border-radius: 0;
-  box-shadow: 1px 1px 0 0 var(--border);
+  box-shadow: -1px 0 0 0 var(--border);
 }
 
 .chat-panel--left {
+  box-shadow: 1px 0 0 0 var(--border);
   border-left: none;
 }
 
