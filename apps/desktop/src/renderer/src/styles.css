@@ -1840,8 +1840,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--s-3);
-  max-height: 400px;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .emoji-picker-pop__section {
@@ -1892,6 +1891,12 @@
   padding: var(--s-1) var(--s-2);
   color: var(--text);
   font-size: calc(14px * var(--chat-font-scale, 1));
+  transition: border-color var(--dur-1) ease, background var(--dur-1) ease;
+}
+
+.chat-panel__input-row input:focus {
+  border-color: var(--orange);
+  outline: none;
 }
 
 .send-btn {
