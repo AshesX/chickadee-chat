@@ -6,12 +6,12 @@ import type { SpaceUser } from '../../hooks/useSpacePresence';
 function FriendRowImpl({ user: u }: { user: SpaceUser }): React.JSX.Element {
   return (
     <div className="friend-row">
-      <AvatarBadge avatarUrl={u.avatarUrl} name={u.name} initial={u.initial} color={u.color} status={u.status} />
+      <AvatarBadge avatarUrl={u.avatarUrl} name={u.name} initial={u.initial} color={u.color} status={u.status} size="sm" />
       <div className="friend-row__meta">
         <div className={`friend-row__name${u.status === 'offline' ? ' friend-row__name--off' : ''}`}>
           {u.name}
+          {u.where ? <span className="friend-row__where">{u.where}</span> : null}
         </div>
-        <div className="friend-row__where">{u.where}</div>
       </div>
     </div>
   );

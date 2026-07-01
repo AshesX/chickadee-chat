@@ -442,8 +442,8 @@
 .sidebar__section-create-btn {
   display: grid;
   place-items: center;
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   border-radius: var(--r-1);
   color: var(--dim);
   opacity: 0;
@@ -771,8 +771,17 @@
   border: 2px solid var(--panel);
 }
 
+.avatar--sm ~ .presence-dot {
+  width: 8px;
+  height: 8px;
+  bottom: -1px;
+  right: -1px;
+  border-width: 1.5px;
+}
+
 .friend-row__meta {
   min-width: 0;
+  flex: 1;
 }
 
 .friend-row__name {
@@ -780,6 +789,9 @@
   font-weight: var(--fw-1);
   color: var(--text);
   line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .friend-row__name--off {
@@ -789,7 +801,8 @@
 .friend-row__where {
   font-size: var(--fs-1);
   color: var(--dim);
-  margin-top: var(--s-1);
+  font-weight: normal;
+  margin-left: var(--s-2);
 }
 
 .presence-dot {
@@ -1116,8 +1129,8 @@
   z-index: 1;
   bottom: -3px;
   right: -3px;
-  min-width: 20px;
-  height: 20px;
+  min-width: 24px;
+  height: 24px;
   padding: 0 var(--s-1);
   border-radius: var(--r-2);
   background: var(--red);

@@ -18,12 +18,10 @@ export function useSpacePresence(signaling: Signaling, rooms: Room[]): SpaceUser
   // Map to UI objects
   const users = signaling.spacePresence.map((p): SpaceUser => {
     const isOffline = p.leftAt !== undefined;
-    let where = 'Online';
-    if (isOffline) {
-      where = 'Offline';
-    } else if (p.roomId) {
+    let where = '';
+    if (p.roomId) {
       const room = rooms.find((r) => r.id === p.roomId);
-      where = room ? `In ${room.label}` : 'In a room';
+      where = room ? `in ${room.label}` : 'in a room';
     }
 
     return {
