@@ -1792,7 +1792,7 @@
 .reaction-pop {
   position: fixed;
   z-index: var(--z-dropdown);
-  padding: var(--s-2) var(--s-4);
+  padding: var(--s-3);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -1801,7 +1801,6 @@
 .reaction-pop__grid {
   display: flex;
   gap: var(--s-2);
-  padding: var(--s-1);
 }
 
 .reaction-pop__btn {
@@ -1811,7 +1810,8 @@
   font-size: var(--fs-4);
   cursor: pointer;
   transition: all var(--dur-1) ease;
-  padding: var(--s-2) var(--s-3);
+  padding: var(--s-1);
+  aspect-ratio: 1;
   line-height: 1;
   display: grid;
   place-items: center;
