@@ -91,7 +91,7 @@
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--r-1);
-  box-shadow: var(--sh-1);
+  box-shadow: none;
   animation: popIn var(--dur-1) var(--ease);
 }
 
@@ -2367,7 +2367,6 @@
   justify-content: space-between;
   padding: 0 var(--s-3) 0 var(--s-4);
   height: 50px;
-  border-bottom: 1px solid var(--border);
   position: relative;
 }
 
