@@ -101,7 +101,7 @@ export function RoomModal({
               onClick={() => setIcon(name)}
               title={name.replace(/-/g, ' ')}
             >
-              <RoomIcon name={name} size={20} />
+              <RoomIcon name={name} size={32} />
             </button>
           ))}
           {filteredIcons.length === 0 && (
