@@ -8,48 +8,44 @@
   --bg: #e9e9e9;
   --panel: #fdfdfc;
   --card: #ffffff;
-  --border: #d4d4d0;
+  --border: #1F2937;
 
   /* Text */
   --dim: #5e574d;
-  --text: #1f1300;
+  --text: #000000;
   --text-sub: #4a4036;
   --fade: #807868;
 
   /* Semantic accent colors */
   --green: #5fb81f;
-  --orange: #ffa400;
+  --orange: #FBBF24;
   --red: #c20114;
 
   /* Status */
-  --online: var(--green);
-  /* --idle intentionally aliases the brand --orange. Keep this token as the seam:
-     to make "Away" read distinctly later, give --idle its own value
-     (e.g. a warm amber) — do NOT replace var(--idle) usages with var(--orange). */
-  --idle: var(--orange);
+  --online: #5fb81f;
+  --idle: #ffa400;
   --offline: #b5b0a8;
 
   /* Actions / active */
   --gradient: linear-gradient(135deg, var(--orange), #f59000);
-  --active-bg: color-mix(in srgb, var(--dim) 16%, transparent);
-  --active-text: #1f1300;
+  --active-bg: color-mix(in srgb, var(--dim) 55%, transparent);
+  --active-text: #000000;
 
   /* Supporting */
   --scrollbar: #c7c7c2;
   --placeholder: #6e665b;
-  --glow: transparent;
 
   /* Logo */
   --logo-fill: #1f1300;
 
   /* Structural tokens */
-  --tint: #1f1300;
-  --block-bg: #1f1300;
+  --tint: #000000;
+  --block-bg: #1D4ED8;
   --block-fg: #e9e9e9;
-  --on-accent: #1f1300;
+  --on-accent: #000000;
   --badge-fg: #e9e9e9;
-  --scrim: rgba(233, 233, 233, 0.6);
-  --shadow-color: rgba(31, 19, 0, 0.24);
+  --scrim: rgba(0, 0, 0, 0.5);
+  --shadow-color: rgba(0, 0, 0, 0.5);
 
   /* ── Ultra-Lean primitives ────────────────────────────────── */
 
@@ -126,16 +122,6 @@ body {
   overflow: hidden;
 }
 
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background: radial-gradient(ellipse 55% 50% at 32% 48%,
-      var(--glow) 0%,
-      transparent 70%);
-  pointer-events: none;
-  z-index: 0;
-}
 
 ::-webkit-scrollbar {
   width: 3px;
