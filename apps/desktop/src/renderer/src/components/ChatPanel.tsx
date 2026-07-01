@@ -167,7 +167,12 @@ export function ChatPanel({
           placeholder="Message…"
           maxLength={500}
         />
-        <button className="send-btn" onClick={submit} aria-label="Send">
+        <button
+          className="send-btn"
+          onClick={submit}
+          aria-label="Send"
+          disabled={!input.trim()}
+        >
           <SendHorizontal size={14} />
         </button>
       </div>
