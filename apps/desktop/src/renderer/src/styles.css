@@ -1007,7 +1007,7 @@
   display: flex;
   overflow: hidden;
   padding: 0;
-  gap: 1px;
+  gap: 0;
   min-height: 0;
 }
 
@@ -1700,12 +1700,12 @@
   background: var(--card);
   border: none;
   border-radius: 0;
-  box-shadow: -1px 0 0 0 var(--border);
+  border-left: 1px solid var(--border);
 }
 
 .chat-panel--left {
-  box-shadow: 1px 0 0 0 var(--border);
   border-left: none;
+  border-right: 1px solid var(--border);
 }
 
 
