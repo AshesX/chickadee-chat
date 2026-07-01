@@ -1693,7 +1693,7 @@
 /* ── Chat panel ───────────────────────────────────────────── */
 .chat-panel {
   position: relative;
-  width: calc(290px * var(--chat-width-scale, 1));
+  width: calc(280px * var(--chat-width-scale, 1));
   flex-shrink: 0;
   display: flex;
   flex-direction: column;

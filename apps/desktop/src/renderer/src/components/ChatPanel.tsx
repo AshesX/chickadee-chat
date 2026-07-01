@@ -86,18 +86,18 @@ export function ChatPanel({
 
   // Drag-to-resize the chat panel width. The handle sits on the grid-facing edge
   // (left when the chat is docked right, right when docked left), so the panel
-  // grows when dragging toward the grid. base 290px maps to the 1.0–2.0 scale.
+  // grows when dragging toward the grid. base 280px maps to the 1.0–2.0 scale.
   function handleResizeStart(e: React.PointerEvent<HTMLDivElement>): void {
     if (!onResize) return;
     e.preventDefault();
     const handle = e.currentTarget;
     const startX = e.screenX;
-    const startWidth = panelRef.current?.getBoundingClientRect().width ?? 290 * (chatWidthScale ?? 1);
+    const startWidth = panelRef.current?.getBoundingClientRect().width ?? 280 * (chatWidthScale ?? 1);
     // Right-docked chat grows when dragging left (−delta); left-docked grows right (+delta).
     const sign = chatPosition === 'left' ? 1 : -1;
     handle.setPointerCapture(e.pointerId);
     const scaleFor = (ev: PointerEvent): number =>
-      Math.max(1.0, Math.min(2.0, (startWidth + sign * (ev.screenX - startX)) / 290));
+      Math.max(1.0, Math.min(2.0, (startWidth + sign * (ev.screenX - startX)) / 280));
     const onMove = (ev: PointerEvent): void => onResize(scaleFor(ev), false);
     const onUp = (ev: PointerEvent): void => {
       onResize(scaleFor(ev), true);

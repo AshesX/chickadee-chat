@@ -182,7 +182,7 @@ function registerWindowControls(): void {
       win.setBounds({
         x: bounds.x,
         y: bounds.y,
-        width: savedFullWidth ?? 1100,
+        width: savedFullWidth ?? 1143,
         height: bounds.height,
       });
       if (wasMaximized) win.maximize();
@@ -213,7 +213,7 @@ function createWindow(): void {
   const startCompactWidth = clampCompactWidth(COMPACT_WIDTH * (getSettings().sidebarWidthScale ?? 1));
 
   const window = new BrowserWindow({
-    width: startCompact ? startCompactWidth : 1100,
+    width: startCompact ? startCompactWidth : 1143,
     height: 720,
     minWidth: startCompact ? COMPACT_MIN_WIDTH : NORMAL_MIN_WIDTH,
     minHeight: startCompact ? COMPACT_MIN_HEIGHT : NORMAL_MIN_HEIGHT,
