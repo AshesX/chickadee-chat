@@ -202,7 +202,7 @@ export function SpaceSwitcher({
               })}
             </div>
           )}
-          <div style={{ padding: 'var(--s-1)', display: 'flex', flexDirection: 'column', gap: 'var(--s-1)', background: 'color-mix(in srgb, var(--tint) 4%, transparent)' }}>
+          <div style={{ padding: 'var(--s-1)', display: 'flex', flexDirection: 'column', gap: 'var(--s-1)', background: 'color-mix(in srgb, var(--tint) 6%, transparent)' }}>
             <button
               className="menu-item"
               onClick={() => {

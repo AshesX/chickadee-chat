@@ -5,10 +5,10 @@
 /* ════════════ ① SETTINGS — design tokens ════════════ */
 :root {
   /* Surfaces */
-  --bg: #e9e9e9;
-  --panel: #fdfdfc;
+  --bg: #ffffff;
+  --panel: #ffffff;
   --card: #ffffff;
-  --border: #1F2937;
+  --border: #e9e9e9;
 
   /* Text */
   --dim: #5e574d;
