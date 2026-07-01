@@ -141,10 +141,7 @@ function ParticipantTileImpl({
       className={`tile${isSelf ? ' tile--self' : ''}${showFrame ? ' tile--speaking' : ''}`}
       style={{ '--accent': color, '--accent-glow': withAlpha(color, 44) } as React.CSSProperties}
     >
-      <div
-        className="tile__ambient"
-        style={{ background: `radial-gradient(circle at 50% 62%, ${withAlpha(color, 5)} 0%, transparent 58%)` }}
-      />
+
 
       <video
         ref={videoRef}

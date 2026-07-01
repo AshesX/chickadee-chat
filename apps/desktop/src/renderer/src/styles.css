@@ -1077,11 +1077,6 @@
   transition: border var(--dur-2), box-shadow var(--dur-2);
 }
 
-.tile__ambient {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
 
 .tile__video {
   position: absolute;
