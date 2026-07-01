@@ -133,11 +133,6 @@ export function RoomRow({
       key={r.id}
       className={`room-row${active ? ' room-row--active' : ''}${full && !active ? ' room-row--full' : ''}`}
     >
-      {active && (
-        <div className="room-row__bg-icon">
-          <RoomIcon name={r.icon} size={115} />
-        </div>
-      )}
       <button
         className="room-row__main"
         onClick={() => onSelectRoom(r.id)}

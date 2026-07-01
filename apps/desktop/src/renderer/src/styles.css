@@ -485,25 +485,6 @@
   text-align: left;
 }
 
-.room-row__bg-icon {
-  position: absolute;
-  right: -24px;
-  top: 50%;
-  transform: translateY(-50%);
-  height: 150%;
-  aspect-ratio: 1 / 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0.15;
-  pointer-events: none;
-  color: inherit;
-}
-
-.room-row__bg-icon svg {
-  width: 100%;
-  height: 100%;
-}
 
 .room-row:hover {
   background: var(--veil-1);
