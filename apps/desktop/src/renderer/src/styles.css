@@ -173,6 +173,7 @@
 .avatar--lg {
   width: 96px;
   height: 96px;
+  border-radius: var(--r-2);
   font-size: var(--fs-4);
 }
 
@@ -389,13 +390,6 @@
   overflow-y: auto;
 }
 
-
-/* Composes .icon-btn (color/center/radius/transition + veil hover); residual = size + spacing. */
-.sidebar__collapse-btn {
-  width: 24px;
-  height: 24px;
-  margin-right: var(--s-1);
-}
 
 .sidebar__collapse-icon {
   transition: transform var(--dur-2) ease;
@@ -2333,7 +2327,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 var(--s-3) 0 var(--s-4);
+  padding: 0 var(--s-5) 0 var(--s-4);
   height: 50px;
   position: relative;
 }
