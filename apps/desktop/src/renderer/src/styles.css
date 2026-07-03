@@ -475,7 +475,8 @@
 }
 
 
-.room-row:hover {
+.room-row:hover,
+.room-row--active {
   background: var(--veil-1);
 }
 
