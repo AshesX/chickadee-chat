@@ -409,10 +409,11 @@
   gap: var(--s-1);
   width: 100%;
   padding: 0 var(--s-3) var(--s-1) var(--s-2);
-  font-size: var(--fs-0);
+  font-family: var(--font-heading);
+  font-size: var(--fs-1);
   font-weight: var(--fw-2);
   letter-spacing: 0.16em;
-  color: var(--dim);
+  color: var(--text);
   cursor: pointer;
   transition: color var(--dur-1) ease;
 }
@@ -489,17 +490,19 @@
   transform: scale(0.97);
 }
 
-.room-row--active,
-.room-row--active:hover {
+.room-row--active .room-row__main,
+.room-row--active:hover .room-row__main {
   background: var(--block-bg);
   color: var(--block-fg);
-  font-weight: var(--fw-2);
+  font-weight: var(--fw-1);
+  border-radius: var(--r-1);
 }
 
 
 .room-row::before {
   content: '';
   position: absolute;
+  z-index: 1;
   left: 0;
   top: 50%;
   transform: translateY(-50%);
@@ -535,11 +538,11 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: var(--fw-1);
+  font-size: var(--fs-3);
 }
 
 .room-row--active .room-row__name {
   font-weight: var(--fw-2);
-  font-size: var(--fs-3);
 }
 
 
@@ -575,11 +578,6 @@
 
 .room-row--full .room-row__main {
   cursor: not-allowed;
-}
-
-.room-row__avatars {
-  display: flex;
-  align-items: center;
 }
 
 .room-row__avatar {
@@ -661,14 +659,6 @@
 }
 
 
-.room-row__mini-controls {
-  display: flex;
-  align-items: center;
-  gap: var(--s-1);
-  margin: var(--s-1) var(--s-2) var(--s-1) var(--s-3);
-}
-
-
 .room-row__mini-btn--end {
   margin-left: auto;
 }
@@ -714,11 +704,6 @@
   filter: brightness(1.08);
 }
 
-
-.room-row__mini-btn--speaking {
-  color: var(--green);
-}
-
 .friend-row {
   display: flex;
   align-items: center;
@@ -761,7 +746,7 @@
 
 .friend-row__name {
   font-size: var(--fs-2);
-  font-weight: var(--fw-1);
+  font-weight: var(--fw-2);
   color: var(--text);
   line-height: 1.25;
   white-space: nowrap;
@@ -827,7 +812,7 @@
 
 .self__name {
   font-size: var(--fs-2);
-  font-weight: var(--fw-1);
+  font-weight: var(--fw-2);
   color: var(--text);
 }
 
@@ -848,6 +833,80 @@
   background: var(--veil-1);
 }
 
+
+/* Compact mode only: mute / deafen / input-mode / settings, one quadrant each —
+   sized to match the 48px self-avatar so the footer reads as two even blocks.
+   The divider between cells is a real grid `gap` revealing the container's
+   own --border background, not a box-shadow seam between flush, differently-
+   colored (sometimes red, e.g. muted/deafened) buttons — adjacent opaque
+   layers with a `transform` transition are prone to compositor edge
+   anti-aliasing bleed where they touch. A real gap has no shared edge to
+   bleed across. Each button also rounds only its own outer corner, so no
+   parent clip mask is needed either. */
+.self__mini-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  gap: 2px;
+  background: var(--border);
+}
+
+.self__mini-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--dim);
+  background: var(--veil-1);
+  transition: background var(--dur-1) ease, color var(--dur-1) ease, transform var(--dur-1) ease;
+}
+
+.self__mini-btn:nth-child(1) {
+  border-top-left-radius: var(--r-1);
+}
+
+.self__mini-btn:nth-child(2) {
+  border-top-right-radius: var(--r-1);
+}
+
+.self__mini-btn:nth-child(3) {
+  border-bottom-left-radius: var(--r-1);
+}
+
+.self__mini-btn:nth-child(4) {
+  border-bottom-right-radius: var(--r-1);
+}
+
+.self__mini-btn:hover:not(:disabled) {
+  color: var(--text-sub);
+  background: var(--veil-2);
+}
+
+.self__mini-btn:active:not(:disabled) {
+  transform: scale(0.9);
+}
+
+.self__mini-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.self__mini-btn--danger,
+.self__mini-btn--danger:hover:not(:disabled) {
+  background: var(--red);
+  color: #fff;
+}
+
+.self__mini-btn--danger:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.self__mini-btn--speaking {
+  color: var(--green);
+}
+
 .sidebar__self-avatar-btn {
   background: none;
   border: none;
@@ -857,8 +916,12 @@
   align-items: center;
   position: relative;
   cursor: pointer;
-  border-radius: var(--r-2);
+  border-radius: var(--r-1);
   transition: transform var(--dur-1) ease;
+}
+
+.sidebar__self-avatar-btn .avatar {
+  border-radius: var(--r-1);
 }
 
 .sidebar__self-avatar-btn:hover {
@@ -906,7 +969,7 @@
 }
 
 .title-bar__wordmark {
-  font-weight: var(--fw-1);
+  font-weight: var(--fw-2);
   font-size: var(--fs-2);
   letter-spacing: 0.05em;
   color: var(--text);
@@ -1094,14 +1157,14 @@
   /* Above the avatar speaking ring (.tile__avatar::after) so the mute/deafen badge
      is never hidden under the ring. */
   z-index: 1;
-  bottom: -3px;
-  right: -3px;
+  bottom: -2px;
+  right: -2px;
   min-width: 24px;
   height: 24px;
   padding: 0 var(--s-1);
-  border-radius: var(--r-2);
+  border-radius: var(--r-1);
   background: var(--red);
-  border: 2px solid var(--card);
+  outline: 3px solid var(--bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1124,7 +1187,7 @@
 
 .tile__badge-name {
   font-size: var(--fs-1);
-  font-weight: var(--fw-1);
+  font-weight: var(--fw-2);
   color: var(--badge-fg);
 }
 
@@ -2360,6 +2423,7 @@
 }
 
 .space-switcher-btn__name {
+  font-family: var(--font-heading);
   font-weight: var(--fw-2);
   font-size: var(--fs-4);
   color: var(--text);

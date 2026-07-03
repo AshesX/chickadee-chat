@@ -62,6 +62,8 @@
   --s-6: 24px;
 
   /* Type */
+  --font-base: 'Geist', -apple-system, system-ui, sans-serif;
+  --font-heading: 'Playfair Display', serif;
   --fs-0: 10px;
   --fs-1: 12px;
   --fs-2: 14px;
@@ -69,8 +71,9 @@
   --fs-4: 20px;
 
   /* Weight */
-  --fw-1: 500;
+  --fw-1: 400;
   --fw-2: 700;
+  --fw-3: 900;
 
   /* Veils */
   --veil-1: color-mix(in srgb, var(--tint) 6%, transparent);
@@ -113,7 +116,7 @@ body,
 }
 
 body {
-  font-family: 'Geist', -apple-system, system-ui, sans-serif;
+  font-family: var(--font-base);
   font-size: var(--fs-2);
   color: var(--text);
   background: var(--bg);

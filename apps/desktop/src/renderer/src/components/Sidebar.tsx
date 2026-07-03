@@ -55,10 +55,6 @@ interface SidebarProps {
   onToggleDeafen: () => void;
   inputMode: 'voice' | 'ptt';
   onCycleInputMode: () => void;
-  /** Whether we've joined any peer's video (drives the compact leave-video button). */
-  hasVideoSubs: boolean;
-  /** Leave all joined video streams (compact-mode control). */
-  onLeaveAllVideo: () => void;
   /** Whether our own voice is currently active (greens the compact input-mode icon). */
   selfSpeaking: boolean;
   /** Stable userIds of peers currently speaking (drives compact avatar outlines). */
@@ -111,8 +107,6 @@ export function Sidebar({
   onToggleDeafen,
   inputMode,
   onCycleInputMode,
-  hasVideoSubs,
-  onLeaveAllVideo,
   selfSpeaking,
   speakingUserIds,
   mutedUserIds,
@@ -145,15 +139,6 @@ export function Sidebar({
       onSelectRoom={onSelectRoom}
       onContextMenu={(room, x, y) => setMenu({ room, x, y })}
       compact={compact}
-      micEnabled={micEnabled}
-      hasMic={hasMic}
-      onToggleMic={onToggleMic}
-      deafened={deafened}
-      onToggleDeafen={onToggleDeafen}
-      inputMode={inputMode}
-      onCycleInputMode={onCycleInputMode}
-      hasVideoSubs={hasVideoSubs}
-      onLeaveAllVideo={onLeaveAllVideo}
       onLeaveRoom={onLeaveRoom}
     />
   );
@@ -259,6 +244,15 @@ export function Sidebar({
         selfStatus={selfStatus}
         onChangeStatus={onChangeStatus}
         onOpenSettings={onOpenSettings}
+        compact={compact}
+        micEnabled={micEnabled}
+        hasMic={hasMic}
+        onToggleMic={onToggleMic}
+        deafened={deafened}
+        onToggleDeafen={onToggleDeafen}
+        inputMode={inputMode}
+        onCycleInputMode={onCycleInputMode}
+        selfSpeaking={selfSpeaking}
       />
 
       {menu && (

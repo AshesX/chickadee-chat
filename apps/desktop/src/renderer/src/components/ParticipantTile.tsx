@@ -167,8 +167,8 @@ function ParticipantTileImpl({
             )}
             {(deafened || showMuteIcon) && (
               <span className="tile__avatar-mute">
-                {deafened && <VolumeX size={11} strokeWidth={2.5} />}
-                {showMuteIcon && <MicOff size={11} strokeWidth={2.5} />}
+                {deafened && <VolumeX size={14} strokeWidth={2.5} />}
+                {showMuteIcon && <MicOff size={14} strokeWidth={2.5} />}
               </span>
             )}
           </div>
@@ -180,8 +180,8 @@ function ParticipantTileImpl({
           {displayName}
           {isSelf && ' (you)'}
         </span>
-        {deafened && showVideo && <VolumeX size={12} className="tile__badge-mute" />}
-        {showMuteIcon && showVideo && <MicOff size={12} className="tile__badge-mute" />}
+        {deafened && showVideo && <VolumeX size={14} className="tile__badge-mute" />}
+        {showMuteIcon && showVideo && <MicOff size={14} className="tile__badge-mute" />}
       </div>
 
       {connNote && <div className="tile__conn">{connNote}</div>}

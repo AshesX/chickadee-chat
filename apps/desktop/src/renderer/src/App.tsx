@@ -117,7 +117,6 @@ export function App(): React.JSX.Element {
     (uid: string) => setVideoSubscriptions((prev) => prev.filter((u) => u !== uid)),
     [],
   );
-  const leaveAllVideo = useCallback(() => setVideoSubscriptions([]), []);
   const [createOpen, setCreateOpen] = useState(false);
   const [renameTarget, setRenameTarget] = useState<Room | null>(null);
   const [spaceSettingsTarget, setSpaceSettingsTarget] = useState<string | null>(null);
@@ -975,8 +974,6 @@ export function App(): React.JSX.Element {
           onToggleDeafen={toggleDeafen}
           inputMode={inputMode}
           onCycleInputMode={cycleInputMode}
-          hasVideoSubs={videoSubscriptions.length > 0}
-          onLeaveAllVideo={leaveAllVideo}
           selfSpeaking={selfSpeaking}
           speakingUserIds={speakingUserIds}
           mutedUserIds={mutedUserIds}
