@@ -928,7 +928,13 @@ export function App(): React.JSX.Element {
       className={`app${windowFocused ? '' : ' app--unfocused'}${compactMode ? ' app--compact' : ''}`}
       style={{ '--sidebar-width-scale': sidebarWidthScale } as React.CSSProperties}
     >
-      <TitleBar chatOpen={chatOpen} onToggleChat={toggleChat} inRoom={inRoom} compact={compactMode} />
+      <TitleBar
+        chatOpen={chatOpen}
+        onToggleChat={toggleChat}
+        inRoom={inRoom}
+        compact={compactMode}
+        onToggleCompact={toggleCompactMode}
+      />
 
       <div className="app-body">
         {chat.floats.map((f) => (
@@ -964,7 +970,6 @@ export function App(): React.JSX.Element {
           onToggleVoiceSection={toggleVoiceSection}
           onToggleVideoSection={toggleVideoSection}
           compact={compactMode}
-          onToggleCompact={toggleCompactMode}
           widthScale={sidebarWidthScale}
           onResize={handleSidebarResize}
           micEnabled={micButtonOn}
@@ -1405,7 +1410,7 @@ export function App(): React.JSX.Element {
           <Suspense fallback={null}>
           <SpaceSettingsModal
             space={space}
-            onSave={(name, url, secret) => {
+            onSave={(name, url, secret, iconDataUrl) => {
               const oldSpaceId = spaceSettingsTarget;
               const isRename = space.name.trim().toLowerCase() !== name.trim().toLowerCase();
 
@@ -1421,9 +1426,9 @@ export function App(): React.JSX.Element {
                   newSpaceName: name.trim()
                 });
 
-                updateSpaceSettings(oldSpaceId, name, url, secret, newSpaceId);
+                updateSpaceSettings(oldSpaceId, name, url, secret, iconDataUrl, newSpaceId);
               } else {
-                updateSpaceSettings(oldSpaceId, name, url, secret);
+                updateSpaceSettings(oldSpaceId, name, url, secret, iconDataUrl);
               }
               setSpaceSettingsTarget(null);
             }}

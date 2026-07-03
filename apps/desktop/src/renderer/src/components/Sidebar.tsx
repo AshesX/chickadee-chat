@@ -43,7 +43,6 @@ interface SidebarProps {
 
   // Compact (sidebar-only dock) mode
   compact: boolean;
-  onToggleCompact: () => void;
   /** Current sidebar width scale (1.0–2.0), shared between compact + full view. */
   widthScale: number;
   /** Live sidebar resize from the drag handle; commit=true on pointer release. */
@@ -97,7 +96,6 @@ export function Sidebar({
   onToggleVideoSection,
 
   compact,
-  onToggleCompact,
   widthScale,
   onResize,
   micEnabled,
@@ -156,8 +154,6 @@ export function Sidebar({
         onJoinSpace={onJoinSpace}
         onDeleteSpace={onDeleteSpace}
         onSpaceSettings={onSpaceSettings}
-        compact={compact}
-        onToggleCompact={onToggleCompact}
       />
 
       <div className="sidebar__scroll">

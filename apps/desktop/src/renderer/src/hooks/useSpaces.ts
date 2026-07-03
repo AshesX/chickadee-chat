@@ -31,7 +31,7 @@ export interface UseSpacesResult {
   /** Initializes the first space during onboarding. */
   initFirstSpace: (val: string, action: 'create' | 'join', customSignalingUrl?: string, joinSecret?: string) => Promise<AddSpaceResult>;
   /** Updates settings for an existing space (supports renaming). */
-  updateSpaceSettings: (spaceId: string, name: string, customSignalingUrl: string, joinSecret: string, precomputedId?: string) => string;
+  updateSpaceSettings: (spaceId: string, name: string, customSignalingUrl: string, joinSecret: string, iconDataUrl: string | null, precomputedId?: string) => string;
   /** Updates room list in state + persisted store. Used by createRoom/renameRoom/removeRoom/signaling sync. */
   updateRooms: (rooms: Room[]) => void;
 }
@@ -136,7 +136,7 @@ export function useSpaces(
     store.setRooms(nextRooms);
   }, []);
 
-  const updateSpaceSettings = useCallback((spaceId: string, name: string, customSignalingUrl: string, joinSecret: string, precomputedId?: string): string => {
+  const updateSpaceSettings = useCallback((spaceId: string, name: string, customSignalingUrl: string, joinSecret: string, iconDataUrl: string | null, precomputedId?: string): string => {
     const spaceToRename = spaces.find(s => s.id === spaceId);
     let newSpaceId = spaceId;
     if (spaceToRename && spaceToRename.name.trim().toLowerCase() !== name.trim().toLowerCase()) {
@@ -150,7 +150,8 @@ export function useSpaces(
           id: newSpaceId,
           name: name.trim(),
           customSignalingUrl,
-          joinSecret
+          joinSecret,
+          iconDataUrl
         };
       }
       return s;

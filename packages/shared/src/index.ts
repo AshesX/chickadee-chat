@@ -141,6 +141,7 @@ export interface SpaceInfo {
   rooms: Room[];
   customSignalingUrl?: string;
   joinSecret?: string;
+  iconDataUrl?: string | null;
 }
 
 /** Active color theme identifier. Only "light" exists today; a dark theme will

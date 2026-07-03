@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Plus, Settings, Trash2, ChevronDown, ChevronsLeft, Copy, Check } from 'lucide-react';
-import type { SpaceInfo } from '@chickadee/shared';
+import { Plus, Settings, Trash2, ChevronDown, Copy, Check } from 'lucide-react';
+import { sanitizeAvatarDataUrl, type SpaceInfo } from '@chickadee/shared';
 import { useDismissTimeout } from '../../hooks/useDismissTimeout';
+import { userColor } from '../../lib/settings';
+import { SpaceContextMenu } from './SpaceContextMenu';
 
 
 interface SpaceSwitcherProps {
@@ -12,14 +14,12 @@ interface SpaceSwitcherProps {
   onJoinSpace: () => void;
   onDeleteSpace: (id: string, name: string) => void;
   onSpaceSettings: (id: string) => void;
-  compact: boolean;
-  onToggleCompact: () => void;
 }
 
 /**
- * The sidebar's space header: the current-space dropdown switcher (with copy-code
- * typewriter hover + settings/delete actions), the collapse-to-dock button, and
- * (in compact mode) the window controls. Owns its open/copied/hover state.
+ * The sidebar's space header: the current-space icon + dropdown switcher (with
+ * copy-code typewriter hover + settings/delete actions). Owns its open/copied/hover
+ * state.
  */
 export function SpaceSwitcher({
   spaces,
@@ -29,14 +29,13 @@ export function SpaceSwitcher({
   onJoinSpace,
   onDeleteSpace,
   onSpaceSettings,
-  compact,
-  onToggleCompact,
 }: SpaceSwitcherProps): React.JSX.Element {
   const [switcherOpen, setSwitcherOpen] = useState(false);
   // Per-space so the "copied" indicator can't appear on a different hovered space.
   const [copiedSpaceId, setCopiedSpaceId] = useState<string | null>(null);
   const [hoveredSpaceId, setHoveredSpaceId] = useState<string | null>(null);
   const [typedCode, setTypedCode] = useState('');
+  const [ctxMenu, setCtxMenu] = useState<{ space: SpaceInfo; x: number; y: number } | null>(null);
   const activeSpace = spaces.find((s) => s.id === activeSpaceId);
 
   const { arm: armClose, cancel: cancelCloseTimeout } = useDismissTimeout(() => setSwitcherOpen(false));
@@ -98,39 +97,47 @@ export function SpaceSwitcher({
     >
       <div className="sidebar__space-header">
         <div className="space-info-wrap">
-          <button className="space-switcher-btn" onClick={() => setSwitcherOpen(!switcherOpen)}>
-            <ChevronDown
-              size={12}
-              className={`sidebar__section-chevron${!switcherOpen ? ' sidebar__section-chevron--collapsed' : ''}`}
-            />
+          <button
+            className="space-switcher-btn"
+            onClick={() => setSwitcherOpen(!switcherOpen)}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              if (activeSpace) setCtxMenu({ space: activeSpace, x: e.clientX, y: e.clientY });
+            }}
+          >
+            {activeSpace && (() => {
+              const safeIcon = sanitizeAvatarDataUrl(activeSpace.iconDataUrl);
+              return (
+                <div className="avatar" style={safeIcon ? undefined : { background: userColor(activeSpace.id) }}>
+                  {safeIcon ? (
+                    <img src={safeIcon} alt={activeSpace.name} />
+                  ) : (
+                    activeSpace.name.trim().charAt(0).toUpperCase() || '?'
+                  )}
+                </div>
+              );
+            })()}
             <div className="space-switcher-btn__meta">
               <span className={`space-switcher-btn__name${!activeSpace ? ' space-switcher-btn__name--empty' : ''}`}>
                 {activeSpace?.name ?? 'Create / Join Space'}
               </span>
             </div>
+            <ChevronDown
+              size={12}
+              className={`sidebar__section-chevron${!switcherOpen ? ' sidebar__section-chevron--collapsed' : ''}`}
+            />
           </button>
         </div>
-        <button
-          className="icon-btn sidebar__collapse-btn"
-          onClick={onToggleCompact}
-          title={compact ? 'Expand' : 'Collapse to sidebar'}
-          aria-label={compact ? 'Expand' : 'Collapse to sidebar'}
-        >
-          <ChevronsLeft
-            size={14}
-            className={`sidebar__collapse-icon${compact ? ' sidebar__collapse-icon--flipped' : ''}`}
-          />
-        </button>
       </div>
 
       {switcherOpen && (
         <div 
           className="menu-surface" 
-          style={{ position: 'absolute', top: '56px', left: '8px', width: 'calc(100% - 16px)', zIndex: 'var(--z-dropdown)', display: 'flex', flexDirection: 'column' }}
+          style={{ position: 'absolute', top: '77px', left: 0, width: '100%', zIndex: 'var(--z-dropdown)', display: 'flex', flexDirection: 'column', border: 'none', borderRadius: 0, boxShadow: 'var(--sh-1)', clipPath: 'inset(0px 0px -40px 0px)' }}
           onClick={(e) => e.stopPropagation()}
         >
           {spaces.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', padding: 'var(--s-1) 0', maxHeight: '220px', overflowY: 'auto', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', padding: 'var(--s-1) 0', maxHeight: '220px', overflowY: 'auto' }}>
               {spaces.map((s) => {
                 const isActive = s.id === activeSpaceId;
                 return (
@@ -143,13 +150,11 @@ export function SpaceSwitcher({
                         setSwitcherOpen(false);
                       }}
                     >
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, textAlign: 'left', marginRight: 'var(--s-2)' }}>
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, textAlign: 'left', marginRight: 'var(--s-2)', fontFamily: 'var(--font-heading)' }}>
                         {copiedSpaceId === s.id ? (
                           <span
                             className="space-switcher-btn__name--code"
                             style={{
-                              background: 'none',
-                              WebkitTextFillColor: 'var(--green)',
                               color: 'var(--green)'
                             }}
                           >
@@ -202,7 +207,7 @@ export function SpaceSwitcher({
               })}
             </div>
           )}
-          <div style={{ padding: 'var(--s-1)', display: 'flex', flexDirection: 'column', gap: 'var(--s-1)', background: 'color-mix(in srgb, var(--tint) 6%, transparent)' }}>
+          <div style={{ padding: 'var(--s-1) var(--s-1) var(--s-2) var(--s-1)', display: 'flex', flexDirection: 'column', gap: 'var(--s-1)' }}>
             <button
               className="menu-item"
               onClick={() => {
@@ -225,6 +230,16 @@ export function SpaceSwitcher({
             </button>
           </div>
         </div>
+      )}
+
+      {ctxMenu && (
+        <SpaceContextMenu
+          menu={ctxMenu}
+          onClose={() => setCtxMenu(null)}
+          onSpaceSettings={onSpaceSettings}
+          onCopyCode={copySpaceCode}
+          onDeleteSpace={onDeleteSpace}
+        />
       )}
     </div>
   );

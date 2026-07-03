@@ -11,11 +11,11 @@ export function WindowControls({ showMaximize = true }: WindowControlsProps): Re
   return (
     <div className="winctl">
       <button className="winctl__btn" onClick={() => wc?.minimize()} aria-label="Minimize">
-        <Minus size={15} />
+        <Minus size={14} />
       </button>
       {showMaximize && (
         <button className="winctl__btn" onClick={() => wc?.toggleMaximize()} aria-label="Maximize">
-          <Square size={11} />
+          <Square size={14} />
         </button>
       )}
       <button
@@ -23,7 +23,7 @@ export function WindowControls({ showMaximize = true }: WindowControlsProps): Re
         onClick={() => wc?.close()}
         aria-label="Close"
       >
-        <X size={16} />
+        <X size={14} />
       </button>
     </div>
   );
