@@ -108,7 +108,8 @@
   gap: var(--s-2);
   width: 100%;
   padding: var(--s-1) var(--s-2);
-  font-size: var(--fs-0);
+  font-size: var(--fs-1);
+  font-weight: var(--fw-2);
   color: var(--text-sub);
   border-radius: var(--r-1);
   transition: background var(--dur-1) ease, color var(--dur-1) ease;
@@ -128,6 +129,7 @@
 .menu-item--active {
   background: var(--active-bg);
   color: var(--active-text);
+  font-size: var(--fs-1);
   font-weight: var(--fw-2);
 }
 
@@ -886,7 +888,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 0 var(--s-4);
-  height: 32px;
+  height: 36px;
   background: var(--bg);
   border-bottom: 1px solid var(--border);
   -webkit-app-region: drag;
@@ -899,13 +901,13 @@
 }
 
 .title-bar__logo {
-  width: 16px;
-  height: 16px;
+  width: 24px;
+  height: 24px;
 }
 
 .title-bar__wordmark {
-  font-weight: var(--fw-2);
-  font-size: var(--fs-1);
+  font-weight: var(--fw-1);
+  font-size: var(--fs-2);
   letter-spacing: 0.05em;
   color: var(--text);
 }
@@ -969,7 +971,7 @@
 
 .winctl__btn {
   width: 30px;
-  height: 24x;
+  height: 24px;
   display: grid;
   place-items: center;
   border-radius: var(--r-1);
@@ -2359,7 +2361,7 @@
 
 .space-switcher-btn__name {
   font-weight: var(--fw-2);
-  font-size: var(--fs-3);
+  font-size: var(--fs-4);
   color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
