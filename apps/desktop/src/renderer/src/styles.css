@@ -402,7 +402,7 @@
   margin-left: calc(-1 * var(--s-2));
   margin-right: calc(-1 * var(--s-2));
   width: calc(100% + (var(--s-2) * 2));
-  height: 24px;
+  height: 32px;
   padding: 0 var(--s-4);
   font-family: var(--font-base);
   font-size: var(--fs-0);
@@ -458,7 +458,10 @@
   position: relative;
   overflow: hidden;
   margin-bottom: var(--s-1);
-  border-radius: var(--r-1);
+  margin-left: calc(-1 * var(--s-2));
+  margin-right: calc(-1 * var(--s-2));
+  width: calc(100% + (var(--s-2) * 2));
+  border-radius: 0;
   color: var(--text);
   transition: all var(--dur-1) ease;
   display: flex;
@@ -474,31 +477,28 @@
   display: flex;
   align-items: center;
   gap: var(--s-2);
-  padding: var(--s-1) var(--s-2) var(--s-1) var(--s-3);
-  font-size: var(--fs-2);
+  padding: 0 var(--s-4) 0 var(--s-5);
+  font-size: var(--fs-3);
   text-align: left;
 }
 
 
-.room-row:hover,
-.room-row--active {
+.room-row:hover {
   background: var(--veil-1);
+}
+
+.room-row--active,
+.room-row--active:hover {
+  background: var(--block-bg);
+  color: var(--block-fg);
 }
 
 .room-row--create:active {
   transform: scale(0.97);
 }
 
-.room-row--active .room-row__main,
-.room-row--active:hover .room-row__main {
-  background: var(--block-bg);
-  color: var(--block-fg);
-  font-weight: var(--fw-1);
-  border-radius: var(--r-1);
-}
 
-
-.room-row__main::before {
+.room-row::before {
   content: '';
   position: absolute;
   z-index: 1;
@@ -513,13 +513,13 @@
   opacity: 0;
 }
 
-.room-row:hover .room-row__main::before {
+.room-row:hover::before {
   height: 12px;
   opacity: 1;
 }
 
-.room-row--active .room-row__main::before,
-.room-row--active:hover .room-row__main::before {
+.room-row--active::before,
+.room-row--active:hover::before {
   height: calc(100% - 12px);
   opacity: 1;
 }
@@ -538,10 +538,6 @@
   white-space: nowrap;
   font-weight: var(--fw-1);
   font-size: var(--fs-3);
-}
-
-.room-row--active .room-row__name {
-  font-weight: var(--fw-1);
 }
 
 
@@ -619,7 +615,7 @@
   display: flex;
   align-items: center;
   gap: var(--s-1);
-  margin: var(--s-1) var(--s-2) var(--s-1) var(--s-3);
+  margin: var(--s-1) var(--s-4) var(--s-1) var(--s-5);
 }
 
 .room-row__avatar-strip .room-row__avatar {
