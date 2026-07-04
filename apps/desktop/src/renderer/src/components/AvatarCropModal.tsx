@@ -70,21 +70,22 @@ export function AvatarCropModal({ onSave, onCancel }: AvatarCropModalProps): Rea
     const imgH = img.naturalHeight * sc;
     ctx.drawImage(img, cx + off.x - imgW / 2, cy + off.y - imgH / 2, imgW, imgH);
 
-    // Darkened region outside the crop circle (even-odd rule cuts a hole).
+    // Darkened region outside the crop area (even-odd rule cuts a hole).
     ctx.save();
     ctx.fillStyle = 'rgba(0,0,0,0.62)';
     ctx.beginPath();
     ctx.rect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
-    ctx.arc(cx, cy, CIRCLE_RADIUS, 0, Math.PI * 2, true);
+    // 64px radius matches the 25% border-radius of the avatar (12px radius on 48px avatar -> 64px on 256px crop window)
+    ctx.roundRect(cx - CIRCLE_RADIUS, cy - CIRCLE_RADIUS, CIRCLE_RADIUS * 2, CIRCLE_RADIUS * 2, 64);
     ctx.fill('evenodd');
     ctx.restore();
 
-    // Circle border
+    // Crop border
     ctx.save();
     ctx.strokeStyle = 'rgba(255,255,255,0.45)';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.arc(cx, cy, CIRCLE_RADIUS, 0, Math.PI * 2);
+    ctx.roundRect(cx - CIRCLE_RADIUS, cy - CIRCLE_RADIUS, CIRCLE_RADIUS * 2, CIRCLE_RADIUS * 2, 64);
     ctx.stroke();
     ctx.restore();
   }, []);
