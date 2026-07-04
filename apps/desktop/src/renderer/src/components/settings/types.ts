@@ -87,6 +87,9 @@ export interface SettingsModalProps {
   onChangeScreenFramerate: (fps: string) => void;
   videoQuality: VideoQuality;
   onChangeVideoQuality: (q: VideoQuality) => void;
+  /** Total stage-stream upload budget in Mbps (0 = unlimited). */
+  uploadBudgetMbps: number;
+  onChangeUploadBudgetMbps: (mbps: number) => void;
   audioQuality: AudioQuality;
   onChangeAudioQuality: (q: AudioQuality) => void;
   uiScale: number;

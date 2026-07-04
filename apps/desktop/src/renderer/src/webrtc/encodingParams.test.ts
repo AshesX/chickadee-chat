@@ -87,6 +87,15 @@ describe('applyUploadBudget', () => {
       expect(perViewer * viewers).toBeLessThanOrEqual(12_000_000);
     }
   });
+
+  it('treats a <= 0 / non-finite budget as unlimited (returns the tier cap unchanged)', () => {
+    const highCap = computeVideoEncoding('screen', '1080p', '30', 'high');
+    expect(applyUploadBudget(highCap, 7, 0)).toEqual(highCap);
+    expect(applyUploadBudget(highCap, 7, Infinity)).toEqual(highCap);
+    // 'max' tier + unlimited budget stays truly uncapped.
+    const maxCap = computeVideoEncoding('screen', '1080p', '30', 'max');
+    expect(applyUploadBudget(maxCap, 7, 0).maxBitrate).toBeUndefined();
+  });
 });
 
 describe('computeMeshEncoding', () => {

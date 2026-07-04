@@ -77,6 +77,7 @@ export function App(): React.JSX.Element {
   const [screenFramerate, applyScreenFramerate] = usePersistedState(store.getScreenFramerate, store.setScreenFramerate);
   const [videoQuality, applyVideoQuality] = usePersistedState(store.getVideoQuality, store.setVideoQuality);
   const [audioQuality, applyAudioQuality] = usePersistedState(store.getAudioQuality, store.setAudioQuality);
+  const [uploadBudgetMbps, applyUploadBudgetMbps] = usePersistedState(store.getUploadBudgetMbps, store.setUploadBudgetMbps);
   const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(() => store.getAvatarDataUrl());
   const [localVoicePreference, setLocalVoicePreference] = useState(() => store.getVoicePreference());
   const [localAccentColor, setLocalAccentColor] = useState(() => store.getAccentColor());
@@ -93,7 +94,9 @@ export function App(): React.JSX.Element {
     signaling.spotlightHolderId != null && signaling.spotlightHolderId === signaling.selfId
       ? signaling.spotlightKind
       : null;
-  const mesh = usePeerMesh(signaling, iceServers, noiseSuppression, micVolume, cameraResolution, cameraFramerate, screenResolution, screenFramerate, videoQuality, audioQuality, echoCancellation, autoGainControl, inputDeviceId, localAvatarUrl, localVoicePreference, localAccentColor, userId, myStageKind, selfWatcherCount);
+  // The stage upload budget in bits/sec (0 = unlimited), from the user's Mbps setting.
+  const uploadBudgetBps = uploadBudgetMbps > 0 ? uploadBudgetMbps * 1_000_000 : 0;
+  const mesh = usePeerMesh(signaling, iceServers, noiseSuppression, micVolume, cameraResolution, cameraFramerate, screenResolution, screenFramerate, videoQuality, audioQuality, echoCancellation, autoGainControl, inputDeviceId, localAvatarUrl, localVoicePreference, localAccentColor, userId, myStageKind, selfWatcherCount, uploadBudgetBps);
   const colors = useUserColors(signaling.peers.map((p) => p.id));
 
   const [displayName, setDisplayName] = useState(() => store.getName());
@@ -1485,6 +1488,8 @@ export function App(): React.JSX.Element {
           onChangeScreenFramerate={applyScreenFramerate}
           videoQuality={videoQuality}
           onChangeVideoQuality={applyVideoQuality}
+          uploadBudgetMbps={uploadBudgetMbps}
+          onChangeUploadBudgetMbps={applyUploadBudgetMbps}
           audioQuality={audioQuality}
           onChangeAudioQuality={applyAudioQuality}
           uiScale={uiScale}

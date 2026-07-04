@@ -233,6 +233,12 @@ export interface PersistedSettings {
   videoQuality: VideoQuality;
   /** Outbound audio quality tier (Opus bitrate cap + mono/stereo). */
   audioQuality: AudioQuality;
+  /**
+   * Total outbound bitrate (in Mbps) the single stage stream may consume across
+   * all its viewers combined. Caps per-viewer bitrate to budget/viewers so the
+   * full mesh stays safe as a room fills. `0` = unlimited (tier cap only).
+   */
+  uploadBudgetMbps: number;
   uiScale: number;
   /** Open the app automatically when the OS starts (packaged builds). */
   launchOnStartup: boolean;
@@ -330,6 +336,7 @@ export function defaultSettings(): PersistedSettings {
     screenFramerate: '30',
     videoQuality: 'high',
     audioQuality: 'high',
+    uploadBudgetMbps: 12,
     uiScale: 1.0,
     launchOnStartup: false,
     closeBehavior: 'quit',

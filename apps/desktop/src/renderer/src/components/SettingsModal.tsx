@@ -122,6 +122,7 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
     props.onChangeScreenResolution(defaults.screenResolution);
     props.onChangeScreenFramerate(defaults.screenFramerate);
     props.onChangeVideoQuality(defaults.videoQuality);
+    props.onChangeUploadBudgetMbps(defaults.uploadBudgetMbps);
     props.onChangeAudioQuality(defaults.audioQuality);
     props.onChangeUiScale(defaults.uiScale);
     props.onChangeChatFontScale(defaults.chatFontScale);

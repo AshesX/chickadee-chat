@@ -141,13 +141,16 @@ export function computeVideoEncoding(
  * Clamp a stage encoding to the per-viewer share of the upload budget:
  * `min(tierCap, floor(budget / viewers))`. The budget applies even to the `'max'`
  * tier (uncapped `maxBitrate`), so total stage upload stays bounded at ~`budget`
- * regardless of how many peers subscribe. `viewers` is floored at 1.
+ * regardless of how many peers subscribe. `viewers` is floored at 1. A non-finite
+ * or `<= 0` budget means "unlimited" — the encoding is returned unchanged (the
+ * tier cap, if any, still applies; `'max'` stays uncapped).
  */
 export function applyUploadBudget(
   enc: VideoEncoding,
   viewers: number,
   budget: number = STAGE_UPLOAD_BUDGET_BPS,
 ): VideoEncoding {
+  if (!Number.isFinite(budget) || budget <= 0) return enc;
   const perViewer = Math.floor(budget / Math.max(1, viewers));
   const capped = enc.maxBitrate == null ? perViewer : Math.min(enc.maxBitrate, perViewer);
   return { ...enc, maxBitrate: capped };

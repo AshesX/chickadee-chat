@@ -17,6 +17,7 @@ type VideoTabProps = Pick<
   | 'screenResolution' | 'onChangeScreenResolution'
   | 'screenFramerate' | 'onChangeScreenFramerate'
   | 'videoQuality' | 'onChangeVideoQuality'
+  | 'uploadBudgetMbps' | 'onChangeUploadBudgetMbps'
 >;
 
 export function VideoTab({
@@ -35,11 +36,16 @@ export function VideoTab({
   onChangeScreenFramerate,
   videoQuality,
   onChangeVideoQuality,
+  uploadBudgetMbps,
+  onChangeUploadBudgetMbps,
 }: VideoTabProps): React.JSX.Element {
   const cameraControlsEnabled = hasCamera && cameraFeatureEnabled;
 
-  const camEnc = computeVideoEncoding('camera', cameraResolution, cameraFramerate, videoQuality);
-  const scrEnc = computeVideoEncoding('screen', screenResolution, screenFramerate, videoQuality);
+  // Stage (spotlighted) per-viewer caps and the compressed gallery thumbnail cap.
+  const camEnc = computeVideoEncoding('camera', cameraResolution, cameraFramerate, videoQuality, 'stage');
+  const scrEnc = computeVideoEncoding('screen', screenResolution, screenFramerate, videoQuality, 'stage');
+  const thumbEnc = computeVideoEncoding('camera', cameraResolution, cameraFramerate, videoQuality, 'thumbnail');
+  const budgetLabel = uploadBudgetMbps > 0 ? `${uploadBudgetMbps} Mbps` : 'Unlimited';
 
   return (
     <>
@@ -47,7 +53,7 @@ export function VideoTab({
 
       <SelectRow
         label="Quality"
-        hint="Caps outbound bitrate for camera and screen share. Lower tiers save bandwidth and CPU in busy rooms."
+        hint="Per-stream bitrate ceiling for the spotlighted (stage) camera or screen. Lower tiers save bandwidth and CPU."
         value={videoQuality}
         onChange={(v) => onChangeVideoQuality(v as VideoQuality)}
         options={[
@@ -58,17 +64,33 @@ export function VideoTab({
         ]}
       />
 
+      <SelectRow
+        label="Upload limit"
+        hint="Total outbound for your stage stream, shared across everyone watching (bitrate drops as more people watch, so a full room can't saturate your uplink). Match it to your internet upload speed."
+        value={String(uploadBudgetMbps)}
+        onChange={(v) => onChangeUploadBudgetMbps(Number(v))}
+        options={[
+          { value: '5', label: '5 Mbps' },
+          { value: '10', label: '10 Mbps' },
+          { value: '12', label: '12 Mbps (recommended)' },
+          { value: '20', label: '20 Mbps' },
+          { value: '30', label: '30 Mbps' },
+          { value: '50', label: '50 Mbps' },
+          { value: '0', label: 'Unlimited (tier cap only)' },
+        ]}
+      />
+
       <SettingsRow
         label="What this sends"
         hint={
           <>
+            On the <strong>stage</strong> (spotlighted): screen up to <strong>{formatBitrate(scrEnc.maxBitrate)}</strong> · {screenResolution} · {scrEnc.maxFramerate} fps
             {cameraFeatureEnabled && (
-              <>
-                Camera: <strong>{formatBitrate(camEnc.maxBitrate)}</strong> · {cameraResolution} · {camEnc.maxFramerate} fps<br />
-              </>
+              <> · camera up to <strong>{formatBitrate(camEnc.maxBitrate)}</strong> · {cameraResolution} · {camEnc.maxFramerate} fps</>
             )}
-            Screen: <strong>{formatBitrate(scrEnc.maxBitrate)}</strong> · {screenResolution} · {scrEnc.maxFramerate} fps · maintains resolution<br />
-            <em>Maximum</em> leaves video uncapped; lower tiers trade sharpness for bandwidth &amp; CPU.
+            <br />
+            In the <strong>gallery</strong>: other webcams compress to <strong>~{formatBitrate(thumbEnc.maxBitrate)}</strong> each.<br />
+            Total stage upload stays under <strong>{budgetLabel}</strong>, split across viewers as the room fills.
           </>
         }
       />

@@ -93,6 +93,8 @@ export function usePeerMesh(
   stageKind: 'screen' | 'camera' | null,
   /** How many peers are subscribed to our stage stream (drives the adaptive budget). */
   stageWatcherCount: number,
+  /** Total outbound budget (bits/sec) for the stage stream across all viewers; 0 = unlimited. */
+  uploadBudgetBps: number,
 ): PeerMesh {
   const { subscribe, send, status } = signaling;
 
@@ -132,6 +134,7 @@ export function usePeerMesh(
     audioQuality,
     stageKind,
     stageWatcherCount,
+    uploadBudgetBps,
   );
 
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -273,7 +276,7 @@ export function usePeerMesh(
   // the fresh config; this pushes it to existing senders without renegotiation.
   useEffect(() => {
     for (const link of linksRef.current.values()) link.applyEncoding();
-  }, [videoQuality, audioQuality, cameraResolution, cameraFramerate, screenResolution, screenFramerate, stageKind, stageWatcherCount]);
+  }, [videoQuality, audioQuality, cameraResolution, cameraFramerate, screenResolution, screenFramerate, stageKind, stageWatcherCount, uploadBudgetBps]);
 
   const prepareMedia = useCallback(() => {
     void ensureLocalStream();
