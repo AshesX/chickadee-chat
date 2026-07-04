@@ -73,12 +73,10 @@ export interface SettingsModalProps {
   onChangeMicVolume: (vol: number) => void;
   outputVolume: number;
   onChangeOutputVolume: (vol: number) => void;
-  cameraFeatureEnabled: boolean;
-  onChangeCameraFeatureEnabled: (on: boolean) => void;
+
   cameraResolution: string;
   onChangeCameraResolution: (res: string) => void;
-  defaultVideoAction: 'camera' | 'screen';
-  onChangeDefaultVideoAction: (action: 'camera' | 'screen') => void;
+
   cameraFramerate: string;
   onChangeCameraFramerate: (fps: string) => void;
   screenResolution: string;

@@ -70,7 +70,7 @@ export function App(): React.JSX.Element {
   const [outputDeviceId, setOutputDeviceId] = useState(() => store.getOutputDeviceId());
   const [micVolume, applyMicVolume] = usePersistedState(store.getMicVolume, store.setMicVolume);
   const [outputVolume, applyOutputVolume] = usePersistedState(store.getOutputVolume, store.setOutputVolume);
-  const [cameraFeatureEnabled, applyCameraFeatureEnabled] = usePersistedState(store.getCameraFeatureEnabled, store.setCameraFeatureEnabled);
+
   const [cameraResolution, applyCameraResolution] = usePersistedState(store.getCameraResolution, store.setCameraResolution);
   const [cameraFramerate, applyCameraFramerate] = usePersistedState(store.getCameraFramerate, store.setCameraFramerate);
   const [screenResolution, applyScreenResolution] = usePersistedState(store.getScreenResolution, store.setScreenResolution);
@@ -268,7 +268,7 @@ export function App(): React.JSX.Element {
   const [launchOnStartup, setLaunchOnStartup] = useState(() => store.getLaunchOnStartup());
   const [closeBehavior, applyCloseBehavior] = usePersistedState<'quit' | 'tray'>(store.getCloseBehavior, store.setCloseBehavior);
   const [alwaysOnTop, setAlwaysOnTop] = useState(() => store.getAlwaysOnTop());
-  const [defaultVideoAction, applyDefaultVideoAction] = usePersistedState<'camera' | 'screen'>(store.getDefaultVideoAction, store.setDefaultVideoAction);
+  const [activeVideoMode, setActiveVideoMode] = usePersistedState<'camera' | 'screen'>(store.getDefaultVideoAction, store.setDefaultVideoAction);
 
   // Apply initial UI scale and whenever it changes
   useEffect(() => {
@@ -888,7 +888,7 @@ export function App(): React.JSX.Element {
     onDeafenStop: () => { if (deafened) toggleDeafen(); },
     onDeafenToggle: toggleDeafen,
     cameraKey,
-    onCameraToggle: () => { if (cameraFeatureEnabled) mesh.toggleCamera(); },
+    onCameraToggle: () => { mesh.toggleCamera(); },
     screenShareKey,
     onScreenShareToggle: () => {
       mesh.sharingScreen ? mesh.stopScreenShare() : setPickerOpen(true);
@@ -918,8 +918,8 @@ export function App(): React.JSX.Element {
   // "(No camera detected)" / disabled controls before enumerateDevices() returns.
   const hasCamera = !devices.scanned || devices.videoInputs.length > 0;
   // The camera is usable only when a device exists AND the feature is enabled in settings.
-  const cameraAvailable = hasCamera && cameraFeatureEnabled;
-  const defaultAction = cameraAvailable ? defaultVideoAction : 'screen';
+  const cameraAvailable = hasCamera;
+  const defaultAction = cameraAvailable ? activeVideoMode : 'screen';
 
   useTraySync({ currentRoomLabel: currentRoom?.label ?? null, handleToggleMic, toggleDeafen });
 
@@ -1143,7 +1143,7 @@ export function App(): React.JSX.Element {
                 mesh.sharingScreen ? mesh.stopScreenShare() : setPickerOpen(true);
               }}
               onVideoMenu={menus.openVideoMenu}
-              defaultAction={defaultAction}
+              activeVideoMode={activeVideoMode}
               inputMode={inputMode}
               onCycleInputMode={cycleInputMode}
               onInputModeMenu={menus.openInputModeMenu}
@@ -1229,6 +1229,14 @@ export function App(): React.JSX.Element {
                 onClose={menus.closeVideoMenu}
                 anchorRect={menus.videoMenuAnchor}
                 hasCamera={cameraAvailable}
+                activeVideoMode={activeVideoMode}
+                onSelectVideoMode={(mode) => {
+                  if (mode === 'camera' && !cameraAvailable) {
+                    mesh.setCameraError("No camera detected.");
+                  } else {
+                    setActiveVideoMode(mode);
+                  }
+                }}
               />
             )}
             {menus.reactionMenuOpen && menus.reactionMenuAnchor && (
@@ -1260,15 +1268,28 @@ export function App(): React.JSX.Element {
           </div>
         )}
 
-        {errors.length > 0 && (
-          <div className="toasts">
+        {errors.length > 0 && (() => {
+          const activeToastAnchor =
+            (menus.videoMenuOpen && menus.videoMenuAnchor) ||
+            (menus.inputMenuOpen && menus.inputMenuAnchor) ||
+            (menus.outputMenuOpen && menus.outputMenuAnchor) ||
+            (menus.inputModeMenuOpen && menus.inputModeMenuAnchor) ||
+            (menus.reactionMenuOpen && menus.reactionMenuAnchor) || null;
+
+          const toastStyle: React.CSSProperties | undefined = activeToastAnchor
+            ? { left: `${activeToastAnchor.left + activeToastAnchor.width / 2}px` }
+            : undefined;
+
+          return (
+            <div className="toasts" style={toastStyle}>
             {errors.map((e, i) => (
               <div key={i} className="toast">
                 {e}
               </div>
             ))}
           </div>
-        )}
+          );
+        })()}
       </div>
       </div>
 
@@ -1416,8 +1437,7 @@ export function App(): React.JSX.Element {
           onChangeInputDevice={applyInputDevice}
           outputDeviceId={outputDeviceId}
           onChangeOutputDevice={applyOutputDevice}
-          defaultVideoAction={defaultVideoAction}
-          onChangeDefaultVideoAction={applyDefaultVideoAction}
+
           inputMode={inputMode}
           onChangeInputMode={applyInputMode}
           vadThreshold={vadThreshold}
@@ -1476,8 +1496,7 @@ export function App(): React.JSX.Element {
           onChangeMicVolume={applyMicVolume}
           outputVolume={outputVolume}
           onChangeOutputVolume={applyOutputVolume}
-          cameraFeatureEnabled={cameraFeatureEnabled}
-          onChangeCameraFeatureEnabled={applyCameraFeatureEnabled}
+
           cameraResolution={cameraResolution}
           onChangeCameraResolution={applyCameraResolution}
           cameraFramerate={cameraFramerate}

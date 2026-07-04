@@ -19,6 +19,8 @@ interface VideoMenuProps {
   onClose: () => void;
   anchorRect: DOMRect;
   hasCamera: boolean;
+  activeVideoMode: 'camera' | 'screen';
+  onSelectVideoMode: (mode: 'camera' | 'screen') => void;
 }
 
 export function VideoMenu({
@@ -38,6 +40,8 @@ export function VideoMenu({
   onClose,
   anchorRect,
   hasCamera,
+  activeVideoMode,
+  onSelectVideoMode,
 }: VideoMenuProps): React.JSX.Element {
   const cameraResolutionOptions = [
     { value: '480p', label: '480p' },
@@ -68,19 +72,27 @@ export function VideoMenu({
 
   return (
     <ChevronMenu anchorRect={anchorRect} onClose={onClose} width={240} className="audio-menu menu-surface">
-        {/* Camera Section */}
-        {hasCamera && (
-          <>
-            <div className="label">Camera</div>
-            <button
-              type="button"
-              className={`seg-btn${cameraEnabled ? ' seg-btn--active' : ''}`}
-              style={{ width: '100%', borderRadius: 'var(--r-1)', textAlign: 'center', marginBottom: 'var(--s-2)' }}
-              onClick={onToggleCamera}
-            >
-              {cameraEnabled ? 'Stop Camera' : 'Start Camera'}
-            </button>
+        <div style={{ display: 'flex', gap: 'var(--s-1)', marginBottom: 'var(--s-2)' }}>
+          <button
+            type="button"
+            className={`seg-btn${activeVideoMode === 'screen' ? ' seg-btn--active' : ''}`}
+            style={{ flex: 1, borderRadius: 'var(--r-1)', textAlign: 'center' }}
+            onClick={() => onSelectVideoMode('screen')}
+          >
+            Screen
+          </button>
+          <button
+            type="button"
+            className={`seg-btn${activeVideoMode === 'camera' ? ' seg-btn--active' : ''}`}
+            style={{ flex: 1, borderRadius: 'var(--r-1)', textAlign: 'center' }}
+            onClick={() => onSelectVideoMode('camera')}
+          >
+            Camera
+          </button>
+        </div>
 
+        {activeVideoMode === 'camera' && hasCamera ? (
+          <>
             <div className="label" style={{ marginBottom: 'var(--s-1)' }}>Resolution</div>
             <CustomSelect
               value={cameraResolution}
@@ -96,37 +108,26 @@ export function VideoMenu({
               options={cameraFramerateOptions}
               className="settings-device-select"
             />
+          </>
+        ) : (
+          <>
+            <div className="label" style={{ marginBottom: 'var(--s-1)' }}>Max Resolution</div>
+            <CustomSelect
+              value={screenResolution}
+              onChange={onChangeScreenResolution}
+              options={screenResolutionOptions}
+              className="settings-device-select"
+            />
 
-            <hr className="audio-menu__divider" />
+            <div className="label" style={{ marginTop: 'var(--s-2)', marginBottom: 'var(--s-1)' }}>Max Framerate</div>
+            <CustomSelect
+              value={screenFramerate}
+              onChange={onChangeScreenFramerate}
+              options={screenFramerateOptions}
+              className="settings-device-select"
+            />
           </>
         )}
-
-        {/* Screen Share Section */}
-        <div className="label">Screen Share</div>
-        <button
-          type="button"
-          className={`seg-btn${sharingScreen ? ' seg-btn--active' : ''}`}
-          style={{ width: '100%', borderRadius: 'var(--r-1)', textAlign: 'center', marginBottom: 'var(--s-2)' }}
-          onClick={onToggleShare}
-        >
-          {sharingScreen ? 'Stop Sharing' : 'Share Screen'}
-        </button>
-
-        <div className="label" style={{ marginBottom: 'var(--s-1)' }}>Max Resolution</div>
-        <CustomSelect
-          value={screenResolution}
-          onChange={onChangeScreenResolution}
-          options={screenResolutionOptions}
-          className="settings-device-select"
-        />
-
-        <div className="label" style={{ marginTop: 'var(--s-2)', marginBottom: 'var(--s-1)' }}>Max Framerate</div>
-        <CustomSelect
-          value={screenFramerate}
-          onChange={onChangeScreenFramerate}
-          options={screenFramerateOptions}
-          className="settings-device-select"
-        />
 
         <hr className="audio-menu__divider" />
 

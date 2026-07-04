@@ -9,9 +9,9 @@ import { computeVideoEncoding, formatBitrate } from '../../webrtc/encodingParams
 
 type VideoTabProps = Pick<
   SettingsModalProps,
-  | 'defaultVideoAction' | 'onChangeDefaultVideoAction'
+
   | 'hasCamera'
-  | 'cameraFeatureEnabled' | 'onChangeCameraFeatureEnabled'
+
   | 'cameraResolution' | 'onChangeCameraResolution'
   | 'cameraFramerate' | 'onChangeCameraFramerate'
   | 'screenResolution' | 'onChangeScreenResolution'
@@ -21,11 +21,9 @@ type VideoTabProps = Pick<
 >;
 
 export function VideoTab({
-  defaultVideoAction,
-  onChangeDefaultVideoAction,
+
   hasCamera = true,
-  cameraFeatureEnabled,
-  onChangeCameraFeatureEnabled,
+
   cameraResolution,
   onChangeCameraResolution,
   cameraFramerate,
@@ -39,7 +37,7 @@ export function VideoTab({
   uploadBudgetMbps,
   onChangeUploadBudgetMbps,
 }: VideoTabProps): React.JSX.Element {
-  const cameraControlsEnabled = hasCamera && cameraFeatureEnabled;
+  const cameraControlsEnabled = hasCamera;
 
   // Stage (spotlighted) per-viewer caps and the compressed gallery thumbnail cap.
   const camEnc = computeVideoEncoding('camera', cameraResolution, cameraFramerate, videoQuality, 'stage');
@@ -53,7 +51,7 @@ export function VideoTab({
 
       <SelectRow
         label="Quality"
-        hint="Per-stream bitrate ceiling for the spotlighted (stage) camera or screen. Lower tiers save bandwidth and CPU."
+        hint={<><strong>Per-stream</strong> bitrate ceiling for stage camera or screen. Lower tiers save bandwidth and CPU.</>}
         value={videoQuality}
         onChange={(v) => onChangeVideoQuality(v as VideoQuality)}
         options={[
@@ -66,7 +64,7 @@ export function VideoTab({
 
       <SelectRow
         label="Upload limit"
-        hint="Total outbound for your stage stream, shared across everyone watching (bitrate drops as more people watch, so a full room can't saturate your uplink). Match it to your internet upload speed."
+        hint={<><strong>Total outbound</strong> bandwidth, shared across all viewers. Bitrate drops automatically as the room fills.</>}
         value={String(uploadBudgetMbps)}
         onChange={(v) => onChangeUploadBudgetMbps(Number(v))}
         options={[
@@ -85,7 +83,7 @@ export function VideoTab({
         hint={
           <>
             On the <strong>stage</strong> (spotlighted): screen up to <strong>{formatBitrate(scrEnc.maxBitrate)}</strong> · {screenResolution} · {scrEnc.maxFramerate} fps
-            {cameraFeatureEnabled && (
+            {hasCamera && (
               <> · camera up to <strong>{formatBitrate(camEnc.maxBitrate)}</strong> · {cameraResolution} · {camEnc.maxFramerate} fps</>
             )}
             <br />
@@ -93,52 +91,6 @@ export function VideoTab({
             Total stage upload stays under <strong>{budgetLabel}</strong>, split across viewers as the room fills.
           </>
         }
-      />
-
-      <hr className="settings-divider" />
-
-      <div id="section-camera" className="settings-subdivision" style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-2)' }}>
-        <span>Camera</span>
-        {!hasCamera && (
-          <span style={{ color: 'var(--red)', fontSize: 'var(--fs-1)', fontWeight: 'var(--fw-2)', textTransform: 'initial' }}>
-            (No camera detected)
-          </span>
-        )}
-      </div>
-
-      <ToggleRow
-        label="Enable camera"
-        hint="Show the camera option in room video controls."
-        value={cameraFeatureEnabled}
-        onChange={onChangeCameraFeatureEnabled}
-      />
-
-      <SelectRow
-        label="Streaming resolution"
-        hint="Higher resolutions require more bandwidth."
-        value={cameraResolution}
-        onChange={onChangeCameraResolution}
-        disabled={!cameraControlsEnabled}
-        options={[
-          { value: '480p', label: '480p' },
-          { value: '720p', label: '720p' },
-          { value: '1080p', label: '1080p' },
-          { value: '1440p', label: '1440p' },
-          { value: '4K', label: '4K' },
-        ]}
-      />
-
-      <SelectRow
-        label="Framerate"
-        hint="Camera stream framerate."
-        value={cameraFramerate}
-        onChange={onChangeCameraFramerate}
-        disabled={!cameraControlsEnabled}
-        options={[
-          { value: '15', label: '15 fps' },
-          { value: '30', label: '30 fps' },
-          { value: '60', label: '60 fps' },
-        ]}
       />
 
       <hr className="settings-divider" />
@@ -171,18 +123,45 @@ export function VideoTab({
 
       <hr className="settings-divider" />
 
-      <SettingsSection id="section-video-default" title="Room Video Button" />
+      <div id="section-camera" className="settings-subdivision" style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-2)' }}>
+        <span>Camera</span>
+        {!hasCamera && (
+          <span style={{ color: 'var(--red)', fontSize: 'var(--fs-1)', fontWeight: 'var(--fw-2)', textTransform: 'initial' }}>
+            (No camera detected)
+          </span>
+        )}
+      </div>
 
-      <SegmentedRow
-        label="Default action"
-        hint="Action when clicking Video button while inactive."
-        value={defaultVideoAction}
-        onChange={onChangeDefaultVideoAction}
+
+
+      <SelectRow
+        label="Streaming resolution"
+        hint="Higher resolutions require more bandwidth."
+        value={cameraResolution}
+        onChange={onChangeCameraResolution}
+        disabled={!cameraControlsEnabled}
         options={[
-          { value: 'screen', label: 'Screen Share' },
-          { value: 'camera', label: 'Camera' },
+          { value: '480p', label: '480p' },
+          { value: '720p', label: '720p' },
+          { value: '1080p', label: '1080p' },
+          { value: '1440p', label: '1440p' },
+          { value: '4K', label: '4K' },
         ]}
       />
+
+      <SelectRow
+        label="Framerate"
+        hint="Camera stream framerate."
+        value={cameraFramerate}
+        onChange={onChangeCameraFramerate}
+        disabled={!cameraControlsEnabled}
+        options={[
+          { value: '15', label: '15 fps' },
+          { value: '30', label: '30 fps' },
+          { value: '60', label: '60 fps' },
+        ]}
+      />
+
     </>
   );
 }

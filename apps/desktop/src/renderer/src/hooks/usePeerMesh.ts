@@ -61,6 +61,7 @@ export interface PeerMesh {
   stopScreenShare: () => void;
   analyserNode: AnalyserNode | null;
   teardown: () => void;
+  setCameraError: (error: string | null) => void;
 }
 
 const TERMINAL_STATUSES = new Set(['idle', 'closed', 'error', 'room-full']);
@@ -844,5 +845,6 @@ export function usePeerMesh(
     stopScreenShare,
     analyserNode,
     teardown,
+    setCameraError,
   };
 }

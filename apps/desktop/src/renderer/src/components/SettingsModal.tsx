@@ -115,7 +115,7 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
     props.onChangeSfxDeafenEnabled(defaults.sfxDeafenEnabled);
     props.onChangeBadgeNotificationsEnabled(defaults.badgeNotificationsEnabled);
     props.onChangeMicVolume(defaults.micVolume);
-    props.onChangeCameraFeatureEnabled(defaults.cameraFeatureEnabled);
+
     props.onChangeCameraResolution(defaults.cameraResolution);
     props.onChangeDefaultVideoAction(defaults.defaultVideoAction ?? 'screen');
     props.onChangeCameraFramerate(defaults.cameraFramerate);
@@ -237,7 +237,7 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
             onClick={() => setActiveTab('video')}
           >
             <Video size={15} />
-            <span>Video & Screen Share</span>
+            <span>Video</span>
           </button>
           {activeTab === 'video' && (
             <div className="settings-sidebar__sub-items">
@@ -314,7 +314,7 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
             <h2 className="settings-content__title">
               {activeTab === 'profile' && 'My Profile'}
               {activeTab === 'audio' && 'Voice & Audio'}
-              {activeTab === 'video' && 'Video & Screen Share'}
+              {activeTab === 'video' && 'Video'}
               {activeTab === 'sfx' && 'Sound Effects'}
               {activeTab === 'chat' && 'Chat Settings'}
               {activeTab === 'keybindings' && 'Keybindings'}

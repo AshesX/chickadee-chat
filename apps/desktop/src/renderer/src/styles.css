@@ -2081,11 +2081,11 @@
 
 /* ── Toasts ───────────────────────────────────────────────── */
 .toasts {
-  position: absolute;
+  position: fixed;
   bottom: 86px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 40;
+  z-index: var(--z-tooltip);
   display: flex;
   flex-direction: column;
   gap: var(--s-2);
@@ -2093,9 +2093,9 @@
 }
 
 .toast {
-  background: var(--danger-bg);
-  border: 1px solid color-mix(in srgb, var(--red) 40%, transparent);
-  color: var(--red);
+  background: var(--red);
+  border: 1px solid var(--red);
+  color: #fff;
   font-size: var(--fs-1);
   padding: var(--s-2) var(--s-4);
   border-radius: var(--r-1);

@@ -14,10 +14,10 @@ export const SETTINGS_SEARCH_INDEX: SearchEntry[] = [
   { label: 'Auto Gain Control', description: 'Automatically adjusts mic volume to a consistent level', tab: 'audio', sectionId: 'section-processing', keywords: ['agc', 'auto gain', 'automatic', 'level', 'processing'] },
   { label: 'Video Quality', description: 'Caps outbound bitrate for camera and screen share', tab: 'video', sectionId: 'section-video-quality', keywords: ['quality', 'bitrate', 'bandwidth', 'data saver', 'cpu', 'performance', 'video', 'streaming'] },
   { label: 'Upload Limit', description: 'Cap total upload of your spotlighted stage stream', tab: 'video', sectionId: 'section-video-quality', keywords: ['upload', 'bandwidth', 'budget', 'limit', 'mbps', 'bitrate', 'stage', 'spotlight', 'uplink', 'internet speed'] },
-  { label: 'Enable Camera', description: 'Turn the camera feature on or off', tab: 'video', sectionId: 'section-camera', keywords: ['camera', 'enable', 'disable', 'on', 'off', 'toggle', 'webcam', 'video'] },
+
   { label: 'Camera Resolution', description: 'Set streaming resolution for your camera', tab: 'video', sectionId: 'section-camera', keywords: ['camera', 'resolution', '720p', '1080p', '4k', 'quality', 'fps', 'framerate'] },
   { label: 'Screen Share Quality', description: 'Maximum resolution and framerate for screen sharing', tab: 'video', sectionId: 'section-screen-share', keywords: ['screen share', 'screen capture', 'resolution', 'framerate', 'fps', 'quality'] },
-  { label: 'Default Video Button', description: 'Action when clicking Video button while inactive', tab: 'video', sectionId: 'section-video-default', keywords: ['default', 'video', 'camera', 'screen share', 'button'] },
+
   { label: 'Sound Effects', description: 'Enable or disable all audio cues', tab: 'sfx', keywords: ['sfx', 'sounds', 'audio cues', 'join', 'leave', 'beep', 'chime', 'notification'] },
   { label: 'SFX Volume', description: 'Sound effects volume', tab: 'sfx', keywords: ['sfx volume', 'sound effects volume', 'sounds'] },
   { label: 'Text-to-Speech', description: 'Speaks new messages when app is unfocused', tab: 'chat', sectionId: 'section-chat-settings', keywords: ['tts', 'text to speech', 'read aloud', 'voice', 'speak', 'speech'] },
@@ -55,7 +55,7 @@ export const SUBSECTIONS: Partial<Record<string, { label: string; id: string }[]
     { label: 'Video Quality', id: 'section-video-quality' },
     { label: 'Camera', id: 'section-camera' },
     { label: 'Screen Share', id: 'section-screen-share' },
-    { label: 'Default Button Action', id: 'section-video-default' },
+
   ],
   chat: [
     { label: 'Chat Settings', id: 'section-chat-settings' },
@@ -69,7 +69,7 @@ export const SUBSECTIONS: Partial<Record<string, { label: string; id: string }[]
 };
 
 export const TAB_LABELS: Record<TabId, string> = {
-  profile: 'My Profile', audio: 'Voice & Audio', video: 'Video & Screen Share',
+  profile: 'My Profile', audio: 'Voice & Audio', video: 'Video',
   sfx: 'Sound Effects', chat: 'Chat Settings', ui: 'User Interface',
   app: 'App Settings', keybindings: 'Keybindings',
 };

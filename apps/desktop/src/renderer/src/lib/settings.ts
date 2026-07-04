@@ -151,8 +151,7 @@ export const store = {
   setTtsToggleKey: (ttsToggleKey: string): void => persist({ ttsToggleKey }),
   getTtsStopKey: (): string => cache.ttsStopKey ?? '',
   setTtsStopKey: (ttsStopKey: string): void => persist({ ttsStopKey }),
-  getCameraFeatureEnabled: (): boolean => cache.cameraFeatureEnabled ?? false,
-  setCameraFeatureEnabled: (cameraFeatureEnabled: boolean): void => persist({ cameraFeatureEnabled }),
+
   getCameraResolution: (): string => cache.cameraResolution ?? '720p',
   setCameraResolution: (cameraResolution: string): void => persist({ cameraResolution }),
   getCameraFramerate: (): string => cache.cameraFramerate ?? '30',

@@ -56,7 +56,7 @@ interface ControlBarProps {
   sharingScreen: boolean;
   onToggleShare: () => void;
   onVideoMenu: (rect: DOMRect) => void;
-  defaultAction: 'camera' | 'screen';
+  activeVideoMode: 'camera' | 'screen';
   inputMode: 'voice' | 'ptt';
   /** Cycle Voice Activation → Push-to-Talk. */
   onCycleInputMode: () => void;
@@ -81,7 +81,7 @@ export function ControlBar({
   sharingScreen,
   onToggleShare,
   onVideoMenu,
-  defaultAction,
+  activeVideoMode,
   inputMode,
   onCycleInputMode,
   onInputModeMenu,
@@ -152,8 +152,8 @@ export function ControlBar({
 
       <div className="ctrl-group">
         <ControlButton
-          icon={cameraEnabled ? VideoOff : (sharingScreen ? ScreenShareOff : (defaultAction === 'screen' ? ScreenShare : Video))}
-          label={cameraEnabled ? 'Stop Cam' : (sharingScreen ? 'Stop Share' : (defaultAction === 'screen' ? 'Share' : 'Camera'))}
+          icon={cameraEnabled ? VideoOff : (sharingScreen ? ScreenShareOff : (activeVideoMode === 'screen' ? ScreenShare : Video))}
+          label={cameraEnabled ? 'Stop Cam' : (sharingScreen ? 'Stop Share' : (activeVideoMode === 'screen' ? 'Share' : 'Camera'))}
           state={(cameraEnabled || sharingScreen) ? 'active' : 'default'}
           onClick={() => {
             if (cameraEnabled) {
@@ -161,7 +161,7 @@ export function ControlBar({
             } else if (sharingScreen) {
               onToggleShare();
             } else {
-              if (defaultAction === 'screen') {
+              if (activeVideoMode === 'screen') {
                 onToggleShare();
               } else {
                 onToggleCamera();
