@@ -3,8 +3,7 @@ import type { SettingsModalProps } from './types';
 import { SettingsSection } from './SettingsSection';
 import { SettingsRow } from './SettingsRow';
 import { SelectRow } from './SelectRow';
-import { SegmentedRow } from './SegmentedRow';
-import { ToggleRow } from './ToggleRow';
+
 import { computeVideoEncoding, formatBitrate } from '../../webrtc/encodingParams';
 
 type VideoTabProps = Pick<

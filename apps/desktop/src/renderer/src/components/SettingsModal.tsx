@@ -117,7 +117,6 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
     props.onChangeMicVolume(defaults.micVolume);
 
     props.onChangeCameraResolution(defaults.cameraResolution);
-    props.onChangeDefaultVideoAction(defaults.defaultVideoAction ?? 'screen');
     props.onChangeCameraFramerate(defaults.cameraFramerate);
     props.onChangeScreenResolution(defaults.screenResolution);
     props.onChangeScreenFramerate(defaults.screenFramerate);

@@ -919,7 +919,7 @@ export function App(): React.JSX.Element {
   const hasCamera = !devices.scanned || devices.videoInputs.length > 0;
   // The camera is usable only when a device exists AND the feature is enabled in settings.
   const cameraAvailable = hasCamera;
-  const defaultAction = cameraAvailable ? activeVideoMode : 'screen';
+
 
   useTraySync({ currentRoomLabel: currentRoom?.label ?? null, handleToggleMic, toggleDeafen });
 
@@ -1210,13 +1210,7 @@ export function App(): React.JSX.Element {
             )}
             {menus.videoMenuOpen && menus.videoMenuAnchor && (
               <VideoMenu
-                cameraEnabled={mesh.cameraEnabled}
-                onToggleCamera={mesh.toggleCamera}
-                sharingScreen={mesh.sharingScreen}
-                onToggleShare={() => {
-                  menus.closeVideoMenu();
-                  mesh.sharingScreen ? mesh.stopScreenShare() : setPickerOpen(true);
-                }}
+
                 cameraResolution={cameraResolution}
                 onChangeCameraResolution={applyCameraResolution}
                 cameraFramerate={cameraFramerate}

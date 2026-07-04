@@ -3,10 +3,7 @@ import { CustomSelect } from './CustomSelect';
 import { ChevronMenu } from './ChevronMenu';
 
 interface VideoMenuProps {
-  cameraEnabled: boolean;
-  onToggleCamera: () => void;
-  sharingScreen: boolean;
-  onToggleShare: () => void;
+
   cameraResolution: string;
   onChangeCameraResolution: (res: string) => void;
   cameraFramerate: string;
@@ -24,10 +21,7 @@ interface VideoMenuProps {
 }
 
 export function VideoMenu({
-  cameraEnabled,
-  onToggleCamera,
-  sharingScreen,
-  onToggleShare,
+
   cameraResolution,
   onChangeCameraResolution,
   cameraFramerate,
