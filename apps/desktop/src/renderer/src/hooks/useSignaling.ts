@@ -32,6 +32,10 @@ export interface SignalingState {
   rooms: Room[];
   /** Synced space presence. */
   spacePresence: SpacePresence[];
+  /** The peer id currently holding the room's single "stage" slot, or null if free. */
+  spotlightHolderId: PeerId | null;
+  /** What the stage holder is spotlighting ('screen' | 'camera'), or null if free. */
+  spotlightKind: 'screen' | 'camera' | null;
 }
 
 export interface Signaling extends SignalingState {
@@ -48,6 +52,10 @@ export interface Signaling extends SignalingState {
   verifySpace: (spaceId: string, signalingUrl: string, secret?: string) => Promise<'exists' | 'not-found' | 'unreachable'>;
   /** Subscribe to raw inbound server messages; returns an unsubscribe fn. */
   subscribe: (listener: MessageListener) => () => void;
+  /** Claim the room's stage for a screen/camera; `force` takes it over from the current holder. */
+  claimSpotlight: (kind: 'screen' | 'camera', force?: boolean) => void;
+  /** Release the stage if this client holds it. */
+  releaseSpotlight: () => void;
 }
 
 const INITIAL: SignalingState = {
@@ -57,6 +65,8 @@ const INITIAL: SignalingState = {
   error: null,
   rooms: [],
   spacePresence: [],
+  spotlightHolderId: null,
+  spotlightKind: null,
 };
 
 /** Pure reducer: maps an inbound server message to a new SignalingState. Exported for unit tests. */
@@ -70,6 +80,8 @@ export function applyPresenceUpdate(state: SignalingState, msg: ServerMessage): 
         selfId: msg.selfId,
         peers: msg.peers,
         rooms: msg.rooms || state.rooms,
+        spotlightHolderId: msg.spotlightHolderId ?? null,
+        spotlightKind: msg.spotlightKind ?? null,
       };
     case 'space-presence':
       return { ...state, spacePresence: msg.presence };
@@ -93,8 +105,20 @@ export function applyPresenceUpdate(state: SignalingState, msg: ServerMessage): 
       return state.peers.some((p) => p.id === msg.peer.id)
         ? state
         : { ...state, peers: [...state.peers, msg.peer] };
-    case 'peer-left':
-      return { ...state, peers: state.peers.filter((p) => p.id !== msg.peerId) };
+    case 'peer-left': {
+      // If the leaver held the stage, free it locally too (the server also
+      // broadcasts spotlight-state null, but clearing here avoids a stuck theater
+      // if that message is missed).
+      const heldStage = state.spotlightHolderId === msg.peerId;
+      return {
+        ...state,
+        peers: state.peers.filter((p) => p.id !== msg.peerId),
+        spotlightHolderId: heldStage ? null : state.spotlightHolderId,
+        spotlightKind: heldStage ? null : state.spotlightKind,
+      };
+    }
+    case 'spotlight-state':
+      return { ...state, spotlightHolderId: msg.holderId, spotlightKind: msg.kind };
     case 'mic-state':
       return {
         ...state,
@@ -163,7 +187,7 @@ export function applyPresenceUpdate(state: SignalingState, msg: ServerMessage): 
       return {
         ...INITIAL,
         status: 'room-full',
-        error: `Room "${msg.room}" is full (max 4).`,
+        error: `Room "${msg.room}" is full.`,
         rooms: state.rooms,
       };
     default:
@@ -428,6 +452,17 @@ export function useSignaling(): Signaling {
     [send],
   );
 
+  const claimSpotlight = useCallback(
+    (kind: 'screen' | 'camera', force?: boolean) => {
+      send({ type: 'claim-spotlight', kind, force });
+    },
+    [send],
+  );
+
+  const releaseSpotlight = useCallback(() => {
+    send({ type: 'release-spotlight' });
+  }, [send]);
+
   const leave = useCallback(() => {
     shouldReconnectRef.current = false;
     clearTimers();
@@ -444,5 +479,5 @@ export function useSignaling(): Signaling {
     };
   }, [clearTimers, closeSocket]);
 
-  return { ...state, join, leave, joinRoom, send, subscribe, verifySpace };
+  return { ...state, join, leave, joinRoom, send, subscribe, verifySpace, claimSpotlight, releaseSpotlight };
 }

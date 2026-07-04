@@ -1,6 +1,11 @@
 import { useCallback, useState } from 'react';
-import { DEFAULT_ROOMS, type SpaceInfo, type Room } from '@chickadee/shared';
+import { DEFAULT_ROOMS, normalizeRoomType, type SpaceInfo, type Room } from '@chickadee/shared';
 import { store } from '../lib/settings';
+
+/** Normalize legacy 'voice'/'video' room types to the unified 'hybrid' on read. */
+function normalizeRooms(rooms: Room[]): Room[] {
+  return rooms.map((r) => ({ ...r, type: normalizeRoomType(r.type) }));
+}
 
 function generateSpaceId(name: string): string {
   const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'space';
@@ -53,7 +58,7 @@ export function useSpaces(
     store.setActiveSpaceId(spaceId);
     setCurrentSpaceId(spaceId);
     const active = store.getSpaces().find((s) => s.id === spaceId);
-    setRooms(active ? active.rooms : []);
+    setRooms(active ? normalizeRooms(active.rooms) : []);
   }
 
   async function addSpace(val: string, type: 'create' | 'join', customSignalingUrl?: string, joinSecret?: string): Promise<AddSpaceResult> {
@@ -164,7 +169,7 @@ export function useSpaces(
       store.setActiveSpaceId(newSpaceId);
       setCurrentSpaceId(newSpaceId);
       if (spaceToRename) {
-        setRooms(spaceToRename.rooms);
+        setRooms(normalizeRooms(spaceToRename.rooms));
       }
     }
 

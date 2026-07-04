@@ -9,6 +9,8 @@ const BASE_STATE: SignalingState = {
   error: null,
   rooms: [],
   spacePresence: [],
+  spotlightHolderId: null,
+  spotlightKind: null,
 };
 
 function makePeer(over: Partial<Peer> & { id: PeerId }): Peer {
@@ -90,5 +92,59 @@ describe('applyPresenceUpdate', () => {
   it('returns the same state for an unhandled message type', () => {
     const next = applyPresenceUpdate(BASE_STATE, { type: 'pong' } as ServerMessage);
     expect(next).toBe(BASE_STATE);
+  });
+
+  it('welcome carries the current stage holder (spotlight) for mid-join clients', () => {
+    const next = applyPresenceUpdate(BASE_STATE, {
+      type: 'welcome',
+      selfId: 'me',
+      peers: [makePeer({ id: 'a' })],
+      rooms: [],
+      spotlightHolderId: 'a',
+      spotlightKind: 'screen',
+    } as ServerMessage);
+    expect(next.spotlightHolderId).toBe('a');
+    expect(next.spotlightKind).toBe('screen');
+  });
+
+  it('spotlight-state sets the holder + kind, and null frees the stage', () => {
+    const claimed = applyPresenceUpdate(BASE_STATE, {
+      type: 'spotlight-state',
+      holderId: 'a',
+      kind: 'camera',
+    } as ServerMessage);
+    expect(claimed.spotlightHolderId).toBe('a');
+    expect(claimed.spotlightKind).toBe('camera');
+
+    const freed = applyPresenceUpdate(claimed, {
+      type: 'spotlight-state',
+      holderId: null,
+      kind: null,
+    } as ServerMessage);
+    expect(freed.spotlightHolderId).toBeNull();
+    expect(freed.spotlightKind).toBeNull();
+  });
+
+  it('peer-left clears the stage if the leaver was holding it', () => {
+    const start: SignalingState = {
+      ...BASE_STATE,
+      peers: [makePeer({ id: 'a' }), makePeer({ id: 'b' })],
+      spotlightHolderId: 'a',
+      spotlightKind: 'screen',
+    };
+    const next = applyPresenceUpdate(start, { type: 'peer-left', peerId: 'a' } as ServerMessage);
+    expect(next.spotlightHolderId).toBeNull();
+    expect(next.spotlightKind).toBeNull();
+  });
+
+  it('peer-left keeps the stage when a different peer leaves', () => {
+    const start: SignalingState = {
+      ...BASE_STATE,
+      peers: [makePeer({ id: 'a' }), makePeer({ id: 'b' })],
+      spotlightHolderId: 'a',
+      spotlightKind: 'screen',
+    };
+    const next = applyPresenceUpdate(start, { type: 'peer-left', peerId: 'b' } as ServerMessage);
+    expect(next.spotlightHolderId).toBe('a');
   });
 });

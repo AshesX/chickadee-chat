@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { DEFAULT_ICE_SERVERS, capacityForType, type Room, type RoomType, type ThemeName } from '@chickadee/shared';
+import { Play } from 'lucide-react';
+import { DEFAULT_ICE_SERVERS, capacityForType, type Room, type ThemeName } from '@chickadee/shared';
 import { useSignaling } from './hooks/useSignaling';
 import { usePeerMesh } from './hooks/usePeerMesh';
 import { useRoomChat } from './hooks/useRoomChat';
@@ -52,15 +53,6 @@ const SpaceSettingsModal = lazy(() =>
 import { speakChatMessage, cancelSpeech } from './lib/tts';
 import { initVoices } from './lib/voices';
 
-interface ActiveScreen {
-  key: string;
-  displayName: string;
-  isSelf: boolean;
-  stream: MediaStream;
-  /** Stable userId of the sharer (remote only), so the viewer can leave the stream. */
-  userId?: string;
-}
-
 function slugify(label: string): string {
   return label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'room';
 }
@@ -89,7 +81,19 @@ export function App(): React.JSX.Element {
   const [localVoicePreference, setLocalVoicePreference] = useState(() => store.getVoicePreference());
   const [localAccentColor, setLocalAccentColor] = useState(() => store.getAccentColor());
   const userId = useMemo(() => store.getUserId(), []);
-  const mesh = usePeerMesh(signaling, iceServers, noiseSuppression, micVolume, cameraResolution, cameraFramerate, screenResolution, screenFramerate, videoQuality, audioQuality, echoCancellation, autoGainControl, inputDeviceId, localAvatarUrl, localVoicePreference, localAccentColor, userId);
+  // How many peers are watching OUR stage stream (their subscriptions include us) —
+  // drives the adaptive upload budget for the high-quality stage encoding.
+  const selfWatcherCount = useMemo(
+    () => signaling.peers.filter((p) => p.videoSubscriptions?.includes(userId)).length,
+    [signaling.peers, userId],
+  );
+  // Which of our streams (if any) currently holds the room stage, per the
+  // server-authoritative spotlight — 'stage' encoding for that kind, thumbnails else.
+  const myStageKind: 'screen' | 'camera' | null =
+    signaling.spotlightHolderId != null && signaling.spotlightHolderId === signaling.selfId
+      ? signaling.spotlightKind
+      : null;
+  const mesh = usePeerMesh(signaling, iceServers, noiseSuppression, micVolume, cameraResolution, cameraFramerate, screenResolution, screenFramerate, videoQuality, audioQuality, echoCancellation, autoGainControl, inputDeviceId, localAvatarUrl, localVoicePreference, localAccentColor, userId, myStageKind, selfWatcherCount);
   const colors = useUserColors(signaling.peers.map((p) => p.id));
 
   const [displayName, setDisplayName] = useState(() => store.getName());
@@ -104,8 +108,12 @@ export function App(): React.JSX.Element {
 
   const [chatOpen, setChatOpen] = useState(() => store.getChatVisible());
   const [compactMode, setCompactMode] = useState(() => store.getCompactMode());
-  const [voiceSectionCollapsed, setVoiceSectionCollapsed] = useState(() => store.getVoiceSectionCollapsed());
-  const [videoSectionCollapsed, setVideoSectionCollapsed] = useState(() => store.getVideoSectionCollapsed());
+  const [roomsSectionCollapsed, setRoomsSectionCollapsed] = useState(() => store.getRoomsSectionCollapsed());
+  // Spotlight (stage) take-over prompt: set when our claim lost to the current holder.
+  const [pendingTakeover, setPendingTakeover] = useState<{ kind: 'screen' | 'camera'; holderName: string } | null>(null);
+  // Our intent to hold the stage (survives a reconnect/room-switch, which clears the
+  // server-side slot). Separate from the authoritative `myStageKind` above.
+  const desiredStageKindRef = useRef<'screen' | 'camera' | null>(null);
   // Opt-in video: stable userIds whose video/screen we've joined ("Watch").
   // Session-only (cleared on room change); broadcast to the room via sink-state.
   const [videoSubscriptions, setVideoSubscriptions] = useState<string[]>([]);
@@ -309,8 +317,6 @@ export function App(): React.JSX.Element {
   const inRoom = currentRoomId !== null;
   const currentRoom = rooms.find((r) => r.id === currentRoomId) ?? null;
   const currentRoomCap = capacityForType(currentRoom?.type);
-  // Voice rooms are audio-only: hide camera/screen-share controls and ignore their keybinds.
-  const allowVideo = (currentRoom?.type ?? 'video') === 'video';
   const totalInRoom = inRoom ? signaling.peers.length + 1 : 0;
   const rawUsers = useSpacePresence(signaling, signaling.rooms);
 
@@ -438,9 +444,9 @@ export function App(): React.JSX.Element {
     signaling.joinRoom(id);
   }
 
-  function createRoom(label: string, icon: string, type: RoomType): void {
+  function createRoom(label: string, icon: string): void {
     const id = slugify(label);
-    const next = rooms.some((r) => r.id === id) ? rooms : [...rooms, { id, label, icon, type }];
+    const next = rooms.some((r) => r.id === id) ? rooms : [...rooms, { id, label, icon, type: 'hybrid' as const }];
     updateRooms(next);
     setCreateOpen(false);
     if (signaling.status === 'connected' && currentSpaceId) {
@@ -561,21 +567,34 @@ export function App(): React.JSX.Element {
     });
   }, []);
 
-  const toggleVoiceSection = useCallback(() => {
-    setVoiceSectionCollapsed((c) => {
+  const toggleRoomsSection = useCallback(() => {
+    setRoomsSectionCollapsed((c) => {
       const next = !c;
-      store.setVoiceSectionCollapsed(next);
+      store.setRoomsSectionCollapsed(next);
       return next;
     });
   }, []);
 
-  const toggleVideoSection = useCallback(() => {
-    setVideoSectionCollapsed((c) => {
-      const next = !c;
-      store.setVideoSectionCollapsed(next);
-      return next;
+  // --- Spotlight (stage) actions ---
+  const spotlightCamera = useCallback(() => {
+    desiredStageKindRef.current = 'camera';
+    signaling.claimSpotlight('camera');
+  }, [signaling.claimSpotlight]);
+
+  const unspotlight = useCallback(() => {
+    desiredStageKindRef.current = null;
+    signaling.releaseSpotlight();
+  }, [signaling.releaseSpotlight]);
+
+  const confirmTakeover = useCallback(() => {
+    setPendingTakeover((p) => {
+      if (p) {
+        desiredStageKindRef.current = p.kind;
+        signaling.claimSpotlight(p.kind, true);
+      }
+      return null;
     });
-  }, []);
+  }, [signaling.claimSpotlight]);
 
   // Sidebar actions that open a real modal (Settings, Create/Rename Room, Space
   // Settings, Create/Join Space) need real screen space, so expand the window
@@ -750,6 +769,60 @@ export function App(): React.JSX.Element {
     });
   }, [signaling.peers]);
 
+  // Auto-claim the single room stage when a screen share starts (a thumbnail-sized
+  // screen is unreadable); release it when the share stops if we still held it.
+  const prevSharingRef = useRef(false);
+  useEffect(() => {
+    const was = prevSharingRef.current;
+    prevSharingRef.current = mesh.sharingScreen;
+    if (mesh.sharingScreen && !was) {
+      desiredStageKindRef.current = 'screen';
+      signaling.claimSpotlight('screen');
+    } else if (!mesh.sharingScreen && was && desiredStageKindRef.current === 'screen') {
+      desiredStageKindRef.current = null;
+      signaling.releaseSpotlight();
+    }
+  }, [mesh.sharingScreen, signaling.claimSpotlight, signaling.releaseSpotlight]);
+
+  // Turning the camera off while it holds the stage frees the stage.
+  const prevCamStageRef = useRef(false);
+  useEffect(() => {
+    const was = prevCamStageRef.current;
+    prevCamStageRef.current = mesh.cameraEnabled;
+    if (!mesh.cameraEnabled && was && desiredStageKindRef.current === 'camera') {
+      desiredStageKindRef.current = null;
+      signaling.releaseSpotlight();
+    }
+  }, [mesh.cameraEnabled, signaling.releaseSpotlight]);
+
+  // If someone else holds/took the stage, drop our own desire to hold it.
+  useEffect(() => {
+    if (signaling.spotlightHolderId != null && signaling.spotlightHolderId !== signaling.selfId) {
+      desiredStageKindRef.current = null;
+    }
+  }, [signaling.spotlightHolderId, signaling.selfId]);
+
+  // A blocked (non-force) claim replies `spotlight-busy` → offer to take over.
+  useEffect(() => {
+    return signaling.subscribe((msg) => {
+      if (msg.type === 'spotlight-busy') {
+        const holder = peersRef.current.find((p) => p.id === msg.holderId);
+        setPendingTakeover({
+          kind: desiredStageKindRef.current ?? 'screen',
+          holderName: holder?.displayName ?? 'Someone',
+        });
+      }
+    });
+  }, [signaling.subscribe]);
+
+  // Re-claim the stage after a reconnect (new selfId) or room switch, which clears
+  // the server-side slot but not our local media. No-op unless we still intend to hold it.
+  useEffect(() => {
+    if (signaling.status === 'connected' && currentRoomId && desiredStageKindRef.current) {
+      signaling.claimSpotlight(desiredStageKindRef.current);
+    }
+  }, [signaling.selfId, currentRoomId, signaling.status, signaling.claimSpotlight]);
+
   // Keep local rooms in sync with the signaling server's room list for this Space.
   useEffect(() => {
     if (signaling.status === 'connected' && signaling.rooms) {
@@ -812,10 +885,9 @@ export function App(): React.JSX.Element {
     onDeafenStop: () => { if (deafened) toggleDeafen(); },
     onDeafenToggle: toggleDeafen,
     cameraKey,
-    onCameraToggle: () => { if (allowVideo && cameraFeatureEnabled) mesh.toggleCamera(); },
+    onCameraToggle: () => { if (cameraFeatureEnabled) mesh.toggleCamera(); },
     screenShareKey,
     onScreenShareToggle: () => {
-      if (!allowVideo) return;
       mesh.sharingScreen ? mesh.stopScreenShare() : setPickerOpen(true);
     },
     chatPanelKey,
@@ -869,6 +941,8 @@ export function App(): React.JSX.Element {
         avatarUrl={localAvatarUrl}
         screenSharing={mesh.sharingScreen}
         windowVisible={mediaVisible}
+        showSpotlightButton={mesh.cameraEnabled && myStageKind == null}
+        onSpotlight={spotlightCamera}
       />
       {signaling.peers.map((peer) => {
         const media = mesh.remote[peer.id];
@@ -905,21 +979,29 @@ export function App(): React.JSX.Element {
     </>
   );
 
-  // Active screen shares: ours + any peer sharing.
-  const activeScreens: ActiveScreen[] = [];
-  if (mesh.sharingScreen && mesh.localScreenStream) {
-    activeScreens.push({ key: 'self-screen', displayName, isSelf: true, stream: mesh.localScreenStream });
-  }
-  for (const peer of signaling.peers) {
-    const subscribed = videoSubscriptions.includes(peer.userId);
-    const screen = subscribed && peer.screenStreamId ? mesh.remote[peer.id]?.screenStream : null;
-    if (screen) {
-      activeScreens.push({ key: `${peer.id}-screen`, displayName: peer.displayName, isSelf: false, stream: screen, userId: peer.userId });
-    }
-  }
-  const presenting = activeScreens.length > 0;
-  // How many peers have joined our stream (their subscriptions include our userId).
-  const selfWatcherCount = signaling.peers.filter((p) => p.videoSubscriptions?.includes(userId)).length;
+  // --- Stage (spotlight) derivation: at most ONE large tile per room ---
+  // 0 active videos → Voice Lounge; videos but no spotlight → Gallery (both `.grid`);
+  // someone spotlighted → Theater (`.presentation`: one stage tile + filmstrip).
+  const isSelfStage = myStageKind != null;
+  const stagePeer =
+    signaling.spotlightHolderId != null && !isSelfStage
+      ? signaling.peers.find((p) => p.id === signaling.spotlightHolderId) ?? null
+      : null;
+  const stageSubscribed = stagePeer ? videoSubscriptions.includes(stagePeer.userId) : true;
+  // The stage stream (null for a peer we haven't opted into → large "Watch" placeholder).
+  const stageStream: MediaStream | null = isSelfStage
+    ? signaling.spotlightKind === 'screen'
+      ? mesh.localScreenStream
+      : mesh.localStream
+    : stagePeer && stageSubscribed
+      ? signaling.spotlightKind === 'screen'
+        ? mesh.remote[stagePeer.id]?.screenStream ?? null
+        : mesh.remote[stagePeer.id]?.cameraStream ?? null
+      : null;
+  const theater = isSelfStage || stagePeer != null;
+  const stageName = isSelfStage ? displayName : stagePeer?.displayName ?? '';
+  const stageUserId = stagePeer?.userId;
+  const stageAvatarUrl = isSelfStage ? localAvatarUrl : stagePeer?.avatarDataUrl ?? null;
 
   const errors = [mesh.micError, mesh.cameraError, mesh.screenError, signaling.error].filter(Boolean);
 
@@ -965,10 +1047,8 @@ export function App(): React.JSX.Element {
           onSpaceSettings={(id) => openExpanded(() => setSpaceSettingsTarget(id))}
           selfStatus={selfStatus}
           onChangeStatus={applyStatus}
-          voiceCollapsed={voiceSectionCollapsed}
-          videoCollapsed={videoSectionCollapsed}
-          onToggleVoiceSection={toggleVoiceSection}
-          onToggleVideoSection={toggleVideoSection}
+          roomsCollapsed={roomsSectionCollapsed}
+          onToggleRoomsSection={toggleRoomsSection}
           compact={compactMode}
           widthScale={sidebarWidthScale}
           onResize={handleSidebarResize}
@@ -995,21 +1075,43 @@ export function App(): React.JSX.Element {
                 <ChatPanel messages={chat.messages} onSend={chat.sendChat} chatFontScale={chatFontScale} chatPosition={chatPosition} chatWidthScale={chatWidthScale} onResize={handleChatResize} />
               )}
 
-              {presenting ? (
+              {theater ? (
                 <div className="presentation">
-                  <div className="stage" data-count={Math.min(activeScreens.length, 4)}>
-                    {activeScreens.map((s) => (
+                  <div className="stage" data-count={1}>
+                    {stageStream ? (
                       <ScreenView
-                        key={s.key}
-                        displayName={s.displayName}
-                        isSelf={s.isSelf}
-                        stream={s.stream}
+                        key={`stage-${signaling.spotlightHolderId}`}
+                        displayName={stageName}
+                        isSelf={isSelfStage}
+                        kind={signaling.spotlightKind ?? 'screen'}
+                        stream={stageStream}
                         outputDeviceId={outputDeviceId}
                         windowVisible={mediaVisible}
-                        watcherCount={s.isSelf ? selfWatcherCount : undefined}
-                        onLeave={s.userId ? () => leaveVideo(s.userId!) : undefined}
+                        watcherCount={isSelfStage ? selfWatcherCount : undefined}
+                        onLeave={!isSelfStage && stageUserId ? () => leaveVideo(stageUserId) : undefined}
+                        onUnspotlight={
+                          isSelfStage
+                            ? signaling.spotlightKind === 'screen'
+                              ? mesh.stopScreenShare
+                              : unspotlight
+                            : undefined
+                        }
                       />
-                    ))}
+                    ) : (
+                      <div className="screen stage__placeholder">
+                        <div className="stage__placeholder-body">
+                          <div className="avatar avatar--lg" style={{ background: stageAvatarUrl ? undefined : (stagePeer?.accentColor || colors[stagePeer?.id ?? ''] || SELF_COLOR) }}>
+                            {stageAvatarUrl ? <img src={stageAvatarUrl} alt={stageName} /> : (stageName.trim().charAt(0).toUpperCase() || '?')}
+                          </div>
+                          <p>{stageName} is presenting</p>
+                          {stageUserId && (
+                            <button className="btn btn--primary" onClick={() => joinVideo(stageUserId)}>
+                              <Play size={15} strokeWidth={2.5} fill="currentColor" /> Watch
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <ul className="filmstrip">{tiles}</ul>
                 </div>
@@ -1029,7 +1131,6 @@ export function App(): React.JSX.Element {
               hasMic={!!mesh.localStream}
               onToggleMic={handleToggleMic}
               onInputMenu={menus.openInputMenu}
-              allowVideo={allowVideo}
               cameraEnabled={mesh.cameraEnabled}
               onToggleCamera={mesh.toggleCamera}
               sharingScreen={mesh.sharingScreen}
@@ -1180,6 +1281,18 @@ export function App(): React.JSX.Element {
         </Suspense>
       )}
 
+      {pendingTakeover && (
+        <Modal title="Stage in use" onClose={() => setPendingTakeover(null)}>
+          <p style={{ marginBottom: 'var(--s-4)' }}>
+            {pendingTakeover.holderName} is presenting on the stage. Take it over?
+          </p>
+          <div style={{ display: 'flex', gap: 'var(--s-2)', justifyContent: 'flex-end' }}>
+            <button className="btn btn--ghost" onClick={() => setPendingTakeover(null)}>Cancel</button>
+            <button className="btn btn--primary" onClick={confirmTakeover}>Take over</button>
+          </div>
+        </Modal>
+      )}
+
       {onboardingNeeded && (
         <Suspense fallback={null}>
           <WelcomeWizard onSubmit={handleOnboardingSubmit} />
@@ -1263,7 +1376,6 @@ export function App(): React.JSX.Element {
             <RoomModal
               title="Create a room"
               submitLabel="Create room"
-              showTypePicker
               onSubmit={createRoom}
               onClose={() => setCreateOpen(false)}
             />
@@ -1274,7 +1386,6 @@ export function App(): React.JSX.Element {
               submitLabel="Save"
               initialLabel={renameTarget.label}
               initialIcon={renameTarget.icon}
-              initialType={renameTarget.type}
               onSubmit={(label, icon) => renameRoom(renameTarget.id, label, icon)}
               onClose={() => setRenameTarget(null)}
             />

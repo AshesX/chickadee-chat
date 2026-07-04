@@ -88,6 +88,11 @@ export function usePeerMesh(
   localVoicePreference: string,
   localAccentColor: string,
   localUserId: string,
+  /** Which of our streams (if any) currently holds the room stage — its encoding
+   *  becomes high-quality (budget-clamped); everything else is a thumbnail. */
+  stageKind: 'screen' | 'camera' | null,
+  /** How many peers are subscribed to our stage stream (drives the adaptive budget). */
+  stageWatcherCount: number,
 ): PeerMesh {
   const { subscribe, send, status } = signaling;
 
@@ -125,6 +130,8 @@ export function usePeerMesh(
     screenFramerate,
     videoQuality,
     audioQuality,
+    stageKind,
+    stageWatcherCount,
   );
 
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -260,12 +267,13 @@ export function usePeerMesh(
   }, [micVolume]);
 
   // Re-apply video bitrate/framerate caps to every live sender when the quality
-  // tier or capture resolution/framerate changes. (encodingRef already holds the
-  // fresh config; this pushes it to existing senders without renegotiation. The
-  // Opus target applies on the next negotiation via tuneOpusSdp.)
+  // tier / capture resolution/framerate changes, OR when our stage role or the
+  // number of stage watchers changes (both shift the effective caps: stage vs
+  // thumbnail role, and the adaptive per-viewer budget). encodingRef already holds
+  // the fresh config; this pushes it to existing senders without renegotiation.
   useEffect(() => {
     for (const link of linksRef.current.values()) link.applyEncoding();
-  }, [videoQuality, audioQuality, cameraResolution, cameraFramerate, screenResolution, screenFramerate]);
+  }, [videoQuality, audioQuality, cameraResolution, cameraFramerate, screenResolution, screenFramerate, stageKind, stageWatcherCount]);
 
   const prepareMedia = useCallback(() => {
     void ensureLocalStream();

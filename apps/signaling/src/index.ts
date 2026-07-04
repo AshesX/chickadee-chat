@@ -62,6 +62,14 @@ interface Connection {
 /** room id -> (peer id -> connection). In-memory only; restart clears all state. */
 const rooms = new Map<RoomId, Map<PeerId, Connection>>();
 
+/**
+ * composite room id -> the single "stage" holder (spotlight). At most one peer
+ * per room may hold the stage; a screen/camera on the stage streams at high
+ * quality while everyone else's video is a compressed thumbnail. Server-arbitrated
+ * so two claimants can't both win (mirror of the `room-full` reject pattern).
+ */
+const spotlights = new Map<RoomId, { holderId: PeerId; kind: 'screen' | 'camera' }>();
+
 /** space id -> Room[] list. In-memory only; cleared when no users remain in the space. */
 const spaces = new Map<string, Room[]>();
 
@@ -225,8 +233,18 @@ function handleJoin(socket: WebSocket, msg: Extract<ClientMessage, { type: 'join
     spaceGraceTimers.delete(spaceId);
   }
 
-  // Tell the newcomer who is already here (newcomer will initiate offers in Phase 2) and the current room list.
-  send(socket, { type: 'welcome', selfId: peer.id, peers: existingPeers, rooms: spaceRooms, wasEmpty });
+  // Tell the newcomer who is already here (newcomer will initiate offers in Phase 2), the
+  // current room list, and who (if anyone) currently holds the room's stage.
+  const joinSpotlight = fullRoomId ? spotlights.get(fullRoomId) : undefined;
+  send(socket, {
+    type: 'welcome',
+    selfId: peer.id,
+    peers: existingPeers,
+    rooms: spaceRooms,
+    wasEmpty,
+    spotlightHolderId: joinSpotlight?.holderId ?? null,
+    spotlightKind: joinSpotlight?.kind ?? null,
+  });
 
   // Update space presence
   const presenceMap = spacePresence.get(spaceId) ?? new Map<string, SpacePresence>();
@@ -274,12 +292,17 @@ function handleJoinRoom(conn: Connection, newRoom: RoomId | null): void {
 
   // 1. Leave old room if in one
   if (oldFullRoomId) {
+    // Free the stage if the leaver held it, before dropping them from the room.
+    clearSpotlightIfHeld(oldFullRoomId, conn.peer.id);
     const members = rooms.get(oldFullRoomId);
     if (members) {
       members.delete(conn.peer.id);
       broadcast(oldFullRoomId, { type: 'peer-left', peerId: conn.peer.id });
       console.log(`[leave-room] ${conn.peer.displayName} (${conn.peer.id}) <- room "${oldFullRoomId}" (${members.size})`);
-      if (members.size === 0) rooms.delete(oldFullRoomId);
+      if (members.size === 0) {
+        rooms.delete(oldFullRoomId);
+        spotlights.delete(oldFullRoomId);
+      }
     }
   }
 
@@ -302,8 +325,16 @@ function handleJoinRoom(conn: Connection, newRoom: RoomId | null): void {
       members.set(conn.peer.id, conn);
       rooms.set(newFullRoomId, members);
 
-      // Send welcome to newcomer
-      send(conn.socket, { type: 'welcome', selfId: conn.peer.id, peers: existingPeers, rooms: spaceRooms });
+      // Send welcome to newcomer, including who holds the new room's stage.
+      const roomSpotlight = spotlights.get(newFullRoomId);
+      send(conn.socket, {
+        type: 'welcome',
+        selfId: conn.peer.id,
+        peers: existingPeers,
+        rooms: spaceRooms,
+        spotlightHolderId: roomSpotlight?.holderId ?? null,
+        spotlightKind: roomSpotlight?.kind ?? null,
+      });
 
       // Broadcast peer-joined to new room
       broadcast(newFullRoomId, { type: 'peer-joined', peer: conn.peer }, conn.peer.id);
@@ -437,6 +468,46 @@ function handleSinkState(conn: Connection, subscriptions: unknown, wantsVideo: u
   );
 }
 
+/**
+ * Claim the room's single stage slot for a screen/camera. Grants if the slot is
+ * free, already held by this peer, or `force` (take-over). On grant, broadcasts
+ * `spotlight-state` to the whole room (incl. the claimant, so it confirms). On a
+ * blocked non-force claim, replies `spotlight-busy` so the client can offer take-over.
+ */
+function handleClaimSpotlight(conn: Connection, kind: 'screen' | 'camera', force: boolean): void {
+  const roomId = conn.room;
+  if (!roomId) return;
+  const current = spotlights.get(roomId);
+  if (current && current.holderId !== conn.peer.id && !force) {
+    send(conn.socket, { type: 'spotlight-busy', holderId: current.holderId });
+    return;
+  }
+  spotlights.set(roomId, { holderId: conn.peer.id, kind });
+  broadcast(roomId, { type: 'spotlight-state', holderId: conn.peer.id, kind });
+}
+
+/** Release the stage slot if this peer holds it, and tell the room it's free. */
+function handleReleaseSpotlight(conn: Connection): void {
+  const roomId = conn.room;
+  if (!roomId) return;
+  if (spotlights.get(roomId)?.holderId === conn.peer.id) {
+    spotlights.delete(roomId);
+    broadcast(roomId, { type: 'spotlight-state', holderId: null, kind: null });
+  }
+}
+
+/**
+ * Free the stage if `peerId` holds `roomId`'s spotlight (on leave/disconnect),
+ * broadcasting to the remaining members. Called wherever a peer exits a room.
+ */
+function clearSpotlightIfHeld(roomId: RoomId | null, peerId: PeerId): void {
+  if (!roomId) return;
+  if (spotlights.get(roomId)?.holderId === peerId) {
+    spotlights.delete(roomId);
+    broadcast(roomId, { type: 'spotlight-state', holderId: null, kind: null });
+  }
+}
+
 /** Record a peer's presence status and tell the room (mirror pattern). */
 function handleStatusState(conn: Connection, status: 'online' | 'idle' | 'dnd'): void {
   const safe = sanitizeStatus(status);
@@ -490,12 +561,17 @@ function handleChat(conn: Connection, text: string, reaction: boolean | undefine
 
 function handleDisconnect(conn: Connection): void {
   if (conn.room) {
+    // Free the stage if this peer held it, so the room doesn't stay stuck in theater.
+    clearSpotlightIfHeld(conn.room, conn.peer.id);
     const members = rooms.get(conn.room);
     if (members) {
       members.delete(conn.peer.id);
       broadcast(conn.room, { type: 'peer-left', peerId: conn.peer.id });
       console.log(`[leave] ${conn.peer.displayName} (${conn.peer.id}) <- room "${conn.room}" (${members.size})`);
-      if (members.size === 0) rooms.delete(conn.room);
+      if (members.size === 0) {
+        rooms.delete(conn.room);
+        spotlights.delete(conn.room);
+      }
     }
   }
 
@@ -641,6 +717,10 @@ wss.on('connection', (socket) => {
       handleVoiceState(conn, msg.voicePreference);
     } else if (msg.type === 'sink-state') {
       handleSinkState(conn, msg.subscriptions, msg.wantsVideo);
+    } else if (msg.type === 'claim-spotlight') {
+      handleClaimSpotlight(conn, msg.kind === 'camera' ? 'camera' : 'screen', Boolean(msg.force));
+    } else if (msg.type === 'release-spotlight') {
+      handleReleaseSpotlight(conn);
     } else if (msg.type === 'accent-state') {
       handleAccentState(conn, msg.accentColor);
     } else if (msg.type === 'update-rooms') {

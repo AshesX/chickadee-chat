@@ -35,11 +35,9 @@ interface SidebarProps {
   onDeleteSpace: (id: string, name: string) => void;
   onSpaceSettings: (id: string) => void;
 
-  // Collapsible room category sections (VOICE / VIDEO)
-  voiceCollapsed: boolean;
-  videoCollapsed: boolean;
-  onToggleVoiceSection: () => void;
-  onToggleVideoSection: () => void;
+  // Collapsible ROOMS section (rooms are unified hybrid — one list).
+  roomsCollapsed: boolean;
+  onToggleRoomsSection: () => void;
 
   // Compact (sidebar-only dock) mode
   compact: boolean;
@@ -90,10 +88,8 @@ export function Sidebar({
   onDeleteSpace,
   onSpaceSettings,
 
-  voiceCollapsed,
-  videoCollapsed,
-  onToggleVoiceSection,
-  onToggleVideoSection,
+  roomsCollapsed,
+  onToggleRoomsSection,
 
   compact,
   widthScale,
@@ -141,9 +137,6 @@ export function Sidebar({
     />
   );
 
-  const voiceRooms = rooms.filter((r) => (r.type ?? 'video') === 'voice');
-  const videoRooms = rooms.filter((r) => (r.type ?? 'video') === 'video');
-
   return (
     <nav className="sidebar" ref={navRef}>
       <SpaceSwitcher
@@ -161,16 +154,16 @@ export function Sidebar({
           <>
             <div
               className="sidebar__section-header"
-              onClick={onToggleVoiceSection}
-              title={voiceCollapsed ? 'Expand voice rooms' : 'Collapse voice rooms'}
+              onClick={onToggleRoomsSection}
+              title={roomsCollapsed ? 'Expand rooms' : 'Collapse rooms'}
               role="button"
               tabIndex={0}
             >
               <ChevronDown
                 size={12}
-                className={`sidebar__section-chevron${voiceCollapsed ? ' sidebar__section-chevron--collapsed' : ''}`}
+                className={`sidebar__section-chevron${roomsCollapsed ? ' sidebar__section-chevron--collapsed' : ''}`}
               />
-              <span>VOICE</span>
+              <span>ROOMS</span>
               <div style={{ flex: 1 }} />
               <button
                 className="sidebar__section-create-btn"
@@ -183,35 +176,7 @@ export function Sidebar({
                 <Plus size={14} />
               </button>
             </div>
-            {!voiceCollapsed && voiceRooms.map(renderRoomRow)}
-
-            <div
-              className="sidebar__section-header sidebar__section-header--spaced"
-              onClick={onToggleVideoSection}
-              title={videoCollapsed ? 'Expand video rooms' : 'Collapse video rooms'}
-              role="button"
-              tabIndex={0}
-            >
-              <ChevronDown
-                size={12}
-                className={`sidebar__section-chevron${videoCollapsed ? ' sidebar__section-chevron--collapsed' : ''}`}
-              />
-              <span>VIDEO</span>
-              <div style={{ flex: 1 }} />
-              <button
-                className="sidebar__section-create-btn"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onCreateRoom();
-                }}
-                title="Create Room"
-              >
-                <Plus size={14} />
-              </button>
-            </div>
-            {!videoCollapsed && videoRooms.map(renderRoomRow)}
-
-
+            {!roomsCollapsed && rooms.map(renderRoomRow)}
 
             <div
               className="sidebar__section-header sidebar__section-header--spaced"

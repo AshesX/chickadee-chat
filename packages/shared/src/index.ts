@@ -6,24 +6,39 @@
  * `ice-candidate`) verbatim and never inspects their payloads.
  */
 
-/** Maximum number of peers allowed in a single video room (full-mesh limit). */
+/**
+ * Legacy per-type peer caps, kept for reference/tests. Rooms are now uniformly
+ * 'hybrid' and 8-capped — the full mesh is protected by the asymmetric-quality
+ * "one stage stream + thumbnails" model (see encodingParams.ts), not a low headcount.
+ */
 export const MAX_PEERS_PER_ROOM = 4;
 
 /** Maximum number of peers allowed in a single voice room (audio-only, lighter mesh). */
 export const MAX_PEERS_VOICE = 8;
 
-/** The kind of a room: 'voice' (audio only, larger cap) or 'video' (camera/screen, smaller cap). */
-export type RoomType = 'voice' | 'video';
+/** Peer capacity of a hybrid room (audio + golden-ratio video). */
+export const MAX_PEERS_HYBRID = 8;
 
-/** Peer capacity per room type. */
+/**
+ * The kind of a room. 'hybrid' is the current unified room (audio + optional
+ * video, 8-cap); 'voice'/'video' are legacy values that migrate to 'hybrid'.
+ */
+export type RoomType = 'voice' | 'video' | 'hybrid';
+
+/** Peer capacity per room type. All types are 8 now (hybrid rooms). */
 export const ROOM_CAPACITY: Record<RoomType, number> = {
-  video: MAX_PEERS_PER_ROOM,
-  voice: MAX_PEERS_VOICE,
+  video: MAX_PEERS_HYBRID,
+  voice: MAX_PEERS_HYBRID,
+  hybrid: MAX_PEERS_HYBRID,
 };
 
-/** Resolve a room's peer capacity from its type; rooms without a type default to 'video'. */
-export function capacityForType(type: RoomType | undefined): number {
-  return ROOM_CAPACITY[type ?? 'video'];
+/**
+ * Resolve a room's peer capacity. Every room is a hybrid 8-cap now (the
+ * golden-ratio media model keeps 8-way video mesh-safe), so this is uniformly 8
+ * regardless of the (possibly legacy) type.
+ */
+export function capacityForType(_type: RoomType | undefined): number {
+  return MAX_PEERS_HYBRID;
 }
 
 // --- Input bounds (enforced server-side; reused client-side for defense in depth) ---
@@ -129,7 +144,8 @@ export interface Room {
   id: string;
   label: string;
   icon: string;
-  /** 'voice' (audio only, 8-cap) or 'video' (camera/screen, 4-cap). Omitted = legacy 'video'. */
+  /** Room kind. 'hybrid' (audio + optional video, 8-cap) going forward; legacy
+   *  'voice'/'video'/omitted are normalized to 'hybrid' on load. */
   type?: RoomType;
 }
 
@@ -254,17 +270,24 @@ export interface PersistedSettings {
   ttsStopKey: string;
   /** Sidebar-only dock mode: window shrinks, room header/grid/control-bar hidden. */
   compactMode: boolean;
-  /** Whether the sidebar VOICE room section is collapsed. */
-  voiceSectionCollapsed: boolean;
-  /** Whether the sidebar VIDEO room section is collapsed. */
-  videoSectionCollapsed: boolean;
+  /** Whether the sidebar ROOMS section is collapsed. */
+  roomsSectionCollapsed: boolean;
 }
 
 export const DEFAULT_ROOMS: Room[] = [
-  { id: 'general', label: 'General', icon: 'chat-bubble', type: 'voice' },
-  { id: 'gaming', label: 'Gaming', icon: 'dice-twenty-faces-twenty', type: 'video' },
-  { id: 'lounge', label: 'Lounge', icon: 'sofa', type: 'voice' },
+  { id: 'general', label: 'General', icon: 'chat-bubble', type: 'hybrid' },
+  { id: 'gaming', label: 'Gaming', icon: 'dice-twenty-faces-twenty', type: 'hybrid' },
+  { id: 'lounge', label: 'Lounge', icon: 'sofa', type: 'hybrid' },
 ];
+
+/**
+ * Normalize a possibly-legacy room type to the unified 'hybrid'. All rooms are
+ * hybrid now; this keeps persisted 'voice'/'video'/undefined rooms rendering in
+ * the single sidebar list. Applied on load (the client is the room-list writer).
+ */
+export function normalizeRoomType(_type: RoomType | undefined): RoomType {
+  return 'hybrid';
+}
 
 export function defaultSettings(): PersistedSettings {
   return {
@@ -330,8 +353,7 @@ export function defaultSettings(): PersistedSettings {
     ttsToggleKey: '',
     ttsStopKey: '',
     compactMode: false,
-    voiceSectionCollapsed: false,
-    videoSectionCollapsed: false,
+    roomsSectionCollapsed: false,
   };
 }
 
@@ -365,6 +387,11 @@ export type ClientMessage =
   // This peer's video opt-in state: which userIds it has joined (subscriptions)
   // and whether it's rendering video now (wantsVideo false while docked/compact).
   | { type: 'sink-state'; subscriptions: string[]; wantsVideo: boolean }
+  // Claim the single room "stage" slot for a screen or camera (high-quality tile).
+  // `force` takes it over from the current holder (after a take-over confirm).
+  | { type: 'claim-spotlight'; kind: 'screen' | 'camera'; force?: boolean }
+  // Release the stage slot if this peer holds it.
+  | { type: 'release-spotlight' }
   // Broadcast room list changes to the active space.
   | { type: 'update-rooms'; spaceId: string; rooms: Room[] }
   // Broadcast space rename to active peers.
@@ -388,8 +415,10 @@ export type ServerMessage =
   | { type: 'space-presence'; presence: SpacePresence[] }
   | { type: 'space-peer-update'; presence: SpacePresence }
   | { type: 'space-peer-remove'; userId: string }
-  // Sent to the newcomer right after a successful join.
-  | { type: 'welcome'; selfId: PeerId; peers: Peer[]; rooms: Room[]; wasEmpty?: boolean }
+  // Sent to the newcomer right after a successful join. Carries the room's current
+  // stage holder (spotlight) so a mid-join client renders theater immediately —
+  // broadcasts only reach existing members (same reason peers carry screenStreamId).
+  | { type: 'welcome'; selfId: PeerId; peers: Peer[]; rooms: Room[]; wasEmpty?: boolean; spotlightHolderId?: PeerId | null; spotlightKind?: 'screen' | 'camera' | null }
   // Sent to existing peers when someone new joins.
   | { type: 'peer-joined'; peer: Peer }
   // Sent to remaining peers when someone disconnects.
@@ -423,6 +452,11 @@ export type ServerMessage =
   // A peer updated its video opt-in state (joined subscriptions and/or dock
   // state); broadcast to the room (the mesh is room-scoped).
   | { type: 'sink-state'; from: PeerId; subscriptions: string[]; wantsVideo: boolean }
+  // The room's stage holder changed (null = stage free). Broadcast to the whole room.
+  | { type: 'spotlight-state'; holderId: PeerId | null; kind: 'screen' | 'camera' | null }
+  // Reply to a `claim-spotlight` that lost to the current holder (no `force`) —
+  // drives the take-over prompt on the claimant.
+  | { type: 'spotlight-busy'; holderId: PeerId }
   // Broadcast room list changes to the active space.
   | { type: 'rooms-updated'; spaceId: string; rooms: Room[] }
   // Broadcast space rename to all clients in the space.

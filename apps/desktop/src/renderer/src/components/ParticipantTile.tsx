@@ -1,5 +1,5 @@
 import { memo, useMemo } from 'react';
-import { MicOff, VolumeX, Play, EyeOff } from 'lucide-react';
+import { MicOff, VolumeX, Play, EyeOff, Maximize2 } from 'lucide-react';
 import { sanitizeAvatarDataUrl } from '@chickadee/shared';
 import { usePeerAudioGraph } from '../hooks/usePeerAudioGraph';
 import { withAlpha } from '../lib/userColors';
@@ -60,6 +60,10 @@ export interface ParticipantTileProps {
   onJoinVideo?: (userId: string) => void;
   /** Remote only: leave this peer's video (stop watching). Takes `userId` so the handler stays stable. */
   onLeaveVideo?: (userId: string) => void;
+  /** Self only: show the "Spotlight" button (promote this camera to the room stage). */
+  showSpotlightButton?: boolean;
+  /** Self only: claim the stage for this camera. */
+  onSpotlight?: () => void;
 }
 
 const CONN_LABEL: Partial<Record<RTCPeerConnectionState, string>> = {
@@ -95,6 +99,8 @@ function ParticipantTileImpl({
   subscribed = false,
   onJoinVideo,
   onLeaveVideo,
+  showSpotlightButton = false,
+  onSpotlight,
 }: ParticipantTileProps): React.JSX.Element {
   // Validate peer-supplied avatar data URLs before rendering (defense in depth;
   // the server already sanitizes, but never trust an <img src> from the wire).
@@ -199,6 +205,18 @@ function ParticipantTileImpl({
         <button type="button" className="tile__watch" onClick={() => onJoinVideo?.(userId)}>
           <Play size={15} strokeWidth={2.5} fill="currentColor" />
           Watch
+        </button>
+      )}
+
+      {showSpotlightButton && onSpotlight && (
+        <button
+          type="button"
+          className="tile__spotlight"
+          onClick={onSpotlight}
+          title="Spotlight your camera on the stage"
+          aria-label="Spotlight your camera on the stage"
+        >
+          <Maximize2 size={14} strokeWidth={2.5} />
         </button>
       )}
 

@@ -1097,6 +1097,21 @@
   grid-template-rows: 1fr 1fr;
 }
 
+/* Hybrid rooms hold up to 8 members (self + 7). Voice Lounge / Gallery lay the
+   compact avatar/thumbnail tiles out in a 3-wide grid past 4. */
+.grid[data-count='5'],
+.grid[data-count='6'] {
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+}
+
+.grid[data-count='7'],
+.grid[data-count='8'],
+.grid[data-count='9'] {
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+}
+
 /* ── Video tile ───────────────────────────────────────────── */
 .tile {
   position: relative;
@@ -1320,6 +1335,40 @@
 }
 
 
+/* Self-only: promote this camera to the room stage. Bottom-left so it doesn't
+   collide with the bottom-right stop-watching / top volume affordances. */
+.tile__spotlight {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: var(--on-accent);
+  background: var(--orange);
+  border: none;
+  border-radius: var(--r-1);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur-2) ease, filter var(--dur-1) ease, transform var(--dur-1) ease;
+}
+
+.tile:hover .tile__spotlight {
+  opacity: 0.95;
+}
+
+.tile__spotlight:hover {
+  opacity: 1;
+  filter: brightness(1.06);
+}
+
+.tile__spotlight:active {
+  transform: scale(0.92);
+}
+
 .tile__leave {
   position: absolute;
   bottom: 10px;
@@ -1398,6 +1447,33 @@
   height: 100%;
   object-fit: contain;
   background: #000;
+}
+
+/* A spotlighted self camera mirrors like the tile self-preview. */
+.screen__video--mirror {
+  transform: scaleX(-1);
+}
+
+/* Large "Watch" placeholder shown on the stage when the holder is a peer we
+   haven't opted into (video stays opt-in even for the stage). */
+.stage__placeholder {
+  display: grid;
+  place-items: center;
+}
+
+.stage__placeholder-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-3);
+  color: #fff;
+  text-align: center;
+}
+
+.stage__placeholder-body p {
+  margin: 0;
+  font-size: var(--fs-2);
+  font-weight: var(--fw-1);
 }
 
 .screen__label {

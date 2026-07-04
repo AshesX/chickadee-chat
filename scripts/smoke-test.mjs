@@ -1,6 +1,7 @@
 // Signaling smoke test: verifies presence (welcome/peer-joined/peer-left), the
-// per-type room caps (4 video / 8 voice), and Phase 2 mute broadcast (mic-state)
-// against a running signaling server on ws://localhost:8080.
+// unified hybrid room cap (8), the stage spotlight (claim/busy/take-over/release/
+// leave-frees), and the per-peer state broadcasts against a running signaling
+// server on ws://localhost:8080.
 import { WebSocket } from 'ws';
 
 const URL = 'ws://localhost:8080';
@@ -87,32 +88,23 @@ const d = client('Delta');
 const wd = await d.ready;
 check('D is 4th peer -> welcome lists 3 existing', wd.type === 'welcome' && wd.peers.length === 3);
 
-const e = client('Echo');
-const we = await e.ready;
-check('E is 5th peer -> rejected with room-full (video cap 4)', we.type === 'room-full');
-
-// Voice rooms hold up to 8 (vs 4 for video). The first joiner seeds the room
-// list (carrying type:'voice') into the server's in-memory space map, so the
-// server derives the larger cap from the room type.
-const VOICE_SPACE = 'voice-space';
-const VOICE_ROOM = 'vroom';
-const VOICE_ROOMS = [{ id: VOICE_ROOM, label: 'V', icon: 'sofa', type: 'voice' }];
-const voiceClients = [];
-for (let i = 0; i < 8; i++) {
-  const vc = client(`Voice${i}`, { room: VOICE_ROOM, spaceId: VOICE_SPACE, userId: `uid-v${i}`, rooms: VOICE_ROOMS });
-  vc.welcome = await vc.ready;
-  voiceClients.push(vc);
+// Hybrid rooms hold up to 8 (unified cap; the golden-ratio media model keeps an
+// 8-way video mesh safe). Fill peers 5..8, then a 9th is rejected.
+const fillers = [];
+for (let i = 5; i <= 8; i++) {
+  const fc = client(`Fill${i}`, { userId: `uid-fill${i}` });
+  fc.welcome = await fc.ready;
+  fillers.push(fc);
 }
-check('voice room accepts a 5th peer (cap > 4)', voiceClients[4].welcome.type === 'welcome');
+check('hybrid room accepts a 5th peer (cap 8, not 4)', fillers[0].welcome.type === 'welcome');
 check(
-  'voice room 8th peer welcomed listing 7 existing',
-  voiceClients[7].welcome.type === 'welcome' && voiceClients[7].welcome.peers.length === 7,
+  'hybrid room 8th peer welcomed listing 7 existing',
+  fillers[3].welcome.type === 'welcome' && fillers[3].welcome.peers.length === 7,
 );
-const v9 = client('Voice8', { room: VOICE_ROOM, spaceId: VOICE_SPACE, userId: 'uid-v8', rooms: VOICE_ROOMS });
-const wv9 = await v9.ready;
-check('voice room rejects a 9th peer with room-full (voice cap 8)', wv9.type === 'room-full');
-for (const vc of voiceClients) vc.ws.close();
-v9.ws.close();
+const e = client('Echo', { userId: 'uid-echo' });
+const we = await e.ready;
+check('hybrid room rejects a 9th peer with room-full (cap 8)', we.type === 'room-full');
+for (const fc of fillers) fc.ws.close();
 await wait(150);
 
 // B leaves; remaining peers should get peer-left for B.
@@ -158,6 +150,46 @@ const fromCShareOff = (ev) =>
   ev.type === 'screen-state' && ev.from === wc.selfId && ev.streamId === null;
 check('A receives C screen-state(off)', a.events.some(fromCShareOff));
 check('C does not receive its own screen-state', !c.events.some((ev) => ev.type === 'screen-state'));
+
+// Phase 4b: stage spotlight (single slot, server-arbitrated).
+c.ws.send(JSON.stringify({ type: 'claim-spotlight', kind: 'screen' }));
+await wait(200);
+const cStageScreen = (ev) => ev.type === 'spotlight-state' && ev.holderId === wc.selfId && ev.kind === 'screen';
+check('A receives spotlight-state after C claims the stage', a.events.some(cStageScreen));
+check('C receives its own spotlight-state (claimant confirmed)', c.events.some(cStageScreen));
+
+// D tries to claim while C holds it -> spotlight-busy (only to D).
+d.ws.send(JSON.stringify({ type: 'claim-spotlight', kind: 'camera' }));
+await wait(200);
+check('D receives spotlight-busy (stage held by C)', d.events.some((ev) => ev.type === 'spotlight-busy' && ev.holderId === wc.selfId));
+check('A not sent a spotlight-state for the blocked claim', a.events.filter(cStageScreen).length === 1);
+
+// D forces a take-over -> stage transfers to D, broadcast to the room.
+d.ws.send(JSON.stringify({ type: 'claim-spotlight', kind: 'camera', force: true }));
+await wait(200);
+const dStageCam = (ev) => ev.type === 'spotlight-state' && ev.holderId === wd.selfId && ev.kind === 'camera';
+check('A receives spotlight-state after D takes over', a.events.some(dStageCam));
+check('C is told D took the stage', c.events.some(dStageCam));
+
+// D releases -> stage freed (holderId null).
+d.ws.send(JSON.stringify({ type: 'release-spotlight' }));
+await wait(200);
+check('A receives spotlight-state(null) after D releases', a.events.some((ev) => ev.type === 'spotlight-state' && ev.holderId === null));
+
+// Spotlight frees when the holder disconnects (in a separate room).
+const STAGE_ROOMS = [{ id: 'stage-room', label: 'S', icon: 'sofa', type: 'hybrid' }];
+const sg1 = client('StageG1', { room: 'stage-room', spaceId: 'stage-space', userId: 'uid-sg1', rooms: STAGE_ROOMS });
+const wsg1 = await sg1.ready;
+const sg2 = client('StageG2', { room: 'stage-room', spaceId: 'stage-space', userId: 'uid-sg2', rooms: STAGE_ROOMS });
+await sg2.ready;
+sg1.ws.send(JSON.stringify({ type: 'claim-spotlight', kind: 'screen' }));
+await wait(150);
+check('StageG2 sees StageG1 hold the stage', sg2.events.some((ev) => ev.type === 'spotlight-state' && ev.holderId === wsg1.selfId));
+sg1.ws.close();
+await wait(200);
+check('stage freed (spotlight-state null) when the holder disconnects', sg2.events.some((ev) => ev.type === 'spotlight-state' && ev.holderId === null));
+sg2.ws.close();
+await wait(100);
 
 // Phase 6B: chat relay (ephemeral) — A sends, C/D receive, A is not echoed.
 a.ws.send(JSON.stringify({ type: 'chat', text: 'hello room' }));

@@ -1,6 +1,7 @@
 import {
   DEFAULT_ROOMS,
   defaultSettings,
+  normalizeRoomType,
   type AudioQuality,
   type PersistedSettings,
   type Room,
@@ -69,7 +70,9 @@ export const store = {
   setActiveSpaceId: (id: string | null): void => persist({ activeSpaceId: id }),
   getRooms: (): Room[] => {
     const active = cache.spaces.find((s) => s.id === cache.activeSpaceId);
-    return active ? active.rooms : [];
+    // Normalize legacy 'voice'/'video'/undefined room types to the unified 'hybrid'
+    // so persisted rooms render in the single sidebar list at 8-cap.
+    return active ? active.rooms.map((r) => ({ ...r, type: normalizeRoomType(r.type) })) : [];
   },
   setRooms: (rooms: Room[]): void => {
     const nextSpaces = cache.spaces.map((s) =>
@@ -196,10 +199,8 @@ export const store = {
   setDefaultVideoAction: (defaultVideoAction: 'camera' | 'screen'): void => persist({ defaultVideoAction }),
   getCompactMode: (): boolean => cache.compactMode ?? false,
   setCompactMode: (compactMode: boolean): void => persist({ compactMode }),
-  getVoiceSectionCollapsed: (): boolean => cache.voiceSectionCollapsed ?? false,
-  setVoiceSectionCollapsed: (voiceSectionCollapsed: boolean): void => persist({ voiceSectionCollapsed }),
-  getVideoSectionCollapsed: (): boolean => cache.videoSectionCollapsed ?? false,
-  setVideoSectionCollapsed: (videoSectionCollapsed: boolean): void => persist({ videoSectionCollapsed }),
+  getRoomsSectionCollapsed: (): boolean => cache.roomsSectionCollapsed ?? false,
+  setRoomsSectionCollapsed: (roomsSectionCollapsed: boolean): void => persist({ roomsSectionCollapsed }),
 };
 
 const FRIEND_PALETTE = [
