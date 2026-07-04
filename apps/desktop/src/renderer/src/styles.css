@@ -1082,6 +1082,15 @@
   grid-template-rows: 1fr;
 }
 
+/* A lone occupant has no neighboring tile to abut, so it can afford real
+   elevation instead of the grid's flat hairline divider — scoped to this one
+   case so a full room's tiles don't compete with stacked shadows. A faint warm
+   radial behind the centered avatar reads as "present," not "unfinished." */
+.grid[data-count='1'] .tile {
+  box-shadow: var(--sh-1);
+  background: radial-gradient(420px circle at 50% 50%, color-mix(in srgb, var(--orange) 6%, transparent), transparent 70%), var(--bg);
+}
+
 .grid[data-count='2'] {
   grid-template-columns: 1fr 1fr;
   grid-template-rows: 1fr;
@@ -1159,7 +1168,7 @@
   position: absolute;
   inset: -2px;
   border-radius: var(--r-2);
-  box-shadow: 0 0 0 3px var(--accent);
+  box-shadow: 0 0 0 3px var(--accent), 0 0 16px var(--accent-glow);
   opacity: 0;
   transition: opacity var(--dur-2) ease;
   pointer-events: none;
@@ -1317,7 +1326,7 @@
   border: none;
   border-radius: var(--r-1);
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 14px var(--shadow-color);
   transition: transform var(--dur-1) ease, filter var(--dur-1) ease;
 }
 
@@ -1428,6 +1437,9 @@
   grid-template-rows: 1fr 1fr;
 }
 
+/* The stage tile is the room's one "live" moment — a restrained violet ambient
+   glow (soft, outward only; no hard ring across the video content) marks it as
+   such, whether it's an active ScreenView or the unwatched placeholder below. */
 .screen {
   position: relative;
   min-height: 0;
@@ -1435,7 +1447,7 @@
   background: #000;
   border: none;
   border-radius: 0;
-  box-shadow: 1px 0 0 0 var(--border), 0 1px 0 0 var(--border);
+  box-shadow: 0 0 24px var(--secondary-glow), 1px 0 0 0 var(--border), 0 1px 0 0 var(--border);
 }
 
 .screen__video {
@@ -1801,6 +1813,7 @@
   display: grid;
   place-items: center;
   padding: var(--s-6);
+  background: radial-gradient(480px circle at 50% 42%, color-mix(in srgb, var(--orange) 7%, transparent), transparent 70%);
 }
 
 .empty-lounge__card {
@@ -2588,9 +2601,9 @@
   height: 14px;
   margin-top: -4px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--knob);
   border: 2px solid var(--thumb, var(--orange));
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 1px 3px var(--shadow-color);
   cursor: pointer;
 }
 
@@ -3146,7 +3159,7 @@
 .avatar-settings-preview__initial {
   font-size: var(--fs-4);
   font-weight: var(--fw-2);
-  color: #fff;
+  color: var(--badge-fg);
 }
 
 .avatar-settings-actions {

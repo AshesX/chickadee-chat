@@ -27,7 +27,10 @@ export function UiTab({
         hint="Application color theme."
         value={theme}
         onChange={onChangeTheme}
-        options={[{ value: 'light', label: 'Light' }]}
+        options={[
+          { value: 'light', label: 'Light' },
+          { value: 'dark', label: 'Dark' },
+        ]}
       />
 
       <SliderRow

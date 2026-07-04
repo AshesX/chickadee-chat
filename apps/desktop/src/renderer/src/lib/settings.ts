@@ -174,9 +174,9 @@ export const store = {
   setCloseBehavior: (closeBehavior: 'quit' | 'tray'): void => persist({ closeBehavior }),
   getAlwaysOnTop: (): boolean => cache.alwaysOnTop ?? false,
   setAlwaysOnTop: (alwaysOnTop: boolean): void => persist({ alwaysOnTop }),
-  // Only one theme exists today ("light"); any legacy/persisted value (dark,
-  // midnight, oled, …) collapses to it. A future dark theme widens ThemeName.
-  getTheme: (): ThemeName => 'light',
+  // Any legacy/unrecognized persisted value (midnight, oled, …) collapses to
+  // the 'light' default rather than widening ThemeName further.
+  getTheme: (): ThemeName => (cache.theme === 'dark' ? 'dark' : 'light'),
   setTheme: (theme: ThemeName): void => persist({ theme }),
   getChatFontScale: (): number => cache.chatFontScale ?? 1.0,
   setChatFontScale: (chatFontScale: number): void => persist({ chatFontScale }),

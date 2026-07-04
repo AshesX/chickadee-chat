@@ -160,9 +160,8 @@ export interface SpaceInfo {
   iconDataUrl?: string | null;
 }
 
-/** Active color theme identifier. Only "light" exists today; a dark theme will
-    be rebuilt from this baseline and added back to the union when ready. */
-export type ThemeName = 'light';
+/** Active color theme identifier. */
+export type ThemeName = 'light' | 'dark';
 
 /** Settings persisted to Electron userData (the renderer reads/writes via IPC). */
 /**

@@ -25,7 +25,7 @@ export const SETTINGS_SEARCH_INDEX: SearchEntry[] = [
   { label: 'Chat Font Size', description: 'Chat message text size', tab: 'chat', sectionId: 'section-chat-settings', keywords: ['font', 'size', 'scale', 'text', 'chat', 'zoom'] },
   { label: 'Chat Width', description: 'Room chat panel width', tab: 'chat', sectionId: 'section-chat-settings', keywords: ['width', 'panel', 'chat', 'size', 'scale'] },
   { label: 'Chat Position', description: 'Dock chat to the left or right', tab: 'chat', sectionId: 'section-chat-settings', keywords: ['chat', 'position', 'left', 'right', 'layout', 'side'] },
-  { label: 'Theme', description: 'Application color theme', tab: 'ui', keywords: ['theme', 'color', 'light', 'swiss', 'alabaster', 'appearance', 'colours'] },
+  { label: 'Theme', description: 'Application color theme', tab: 'ui', keywords: ['theme', 'color', 'light', 'dark', 'midnight', 'swiss', 'alabaster', 'appearance', 'colours'] },
   { label: 'UI Scale', description: 'Adjust overall application size', tab: 'ui', keywords: ['scale', 'zoom', 'size', 'ui', 'interface', 'accessibility', 'dpi'] },
   { label: 'Launch on Startup', description: 'Start app when Windows boots', tab: 'app', keywords: ['startup', 'autostart', 'boot', 'launch', 'windows', 'login'] },
   { label: 'Minimize to Tray', description: 'Minimize to tray keeps voice connected', tab: 'app', keywords: ['tray', 'close', 'minimize', 'background', 'quit', 'system tray'] },
