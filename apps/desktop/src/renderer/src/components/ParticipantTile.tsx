@@ -127,11 +127,13 @@ function ParticipantTileImpl({
   // Opt-in video: we only render a peer's camera/screen once we've joined them
   // (self always sees its own). Un-joined peers show their avatar + a Watch button.
   const showVideo = cameraOn && (isSelf || subscribed);
-  const mediaShown = showVideo || (screenSharing && (isSelf || subscribed));
-  // Two mutually-exclusive cues: tiles actually showing video/screen get the
-  // rectangular frame outline; avatar (voice-only / un-joined) tiles get the ring.
-  const showFrame = showSpeaking && mediaShown;
-  const showAvatarRing = showSpeaking && !mediaShown;
+  
+  // The speaking indicators:
+  // - If video is showing, the small badge avatar is outlined.
+  // - If video is not showing (avatar is in the center), the center avatar is outlined.
+  const showCenterAvatarRing = showSpeaking && !showVideo;
+  const showBadgeAvatarRing = showSpeaking && showVideo;
+
   // Watch (join) appears when this peer has video available but we haven't joined.
   const showWatch = !isSelf && !subscribed && (cameraOn || screenSharing);
 
@@ -142,9 +144,25 @@ function ParticipantTileImpl({
   // slider on hover. Edits this peer's raw volume factor; master/deafen apply separately.
   const showVolumeControl = !isSelf && onVolumeChange != null && peerId != null;
 
+  const renderAvatar = (size: 'sm' | 'lg', showRing: boolean, extraOverlay?: React.ReactNode) => (
+    <div
+      className={`avatar avatar--${size} tile__avatar${showRing ? ' tile__avatar--speaking' : ''}`}
+      style={{
+        background: safeAvatarUrl ? undefined : color,
+      }}
+    >
+      {safeAvatarUrl ? (
+        <img src={safeAvatarUrl} alt={displayName} />
+      ) : (
+        initial
+      )}
+      {extraOverlay}
+    </div>
+  );
+
   return (
     <li
-      className={`tile${isSelf ? ' tile--self' : ''}${showFrame ? ' tile--speaking' : ''}`}
+      className={`tile${isSelf ? ' tile--self' : ''}`}
       style={{ '--accent': color, '--accent-glow': withAlpha(color, 44) } as React.CSSProperties}
     >
 
@@ -160,28 +178,21 @@ function ParticipantTileImpl({
 
       {!showVideo && (
         <div className="tile__center">
-          <div
-            className={`avatar avatar--lg tile__avatar${showAvatarRing ? ' tile__avatar--speaking' : ''}`}
-            style={{
-              background: safeAvatarUrl ? undefined : color,
-            }}
-          >
-            {safeAvatarUrl ? (
-              <img src={safeAvatarUrl} alt={displayName} />
-            ) : (
-              initial
-            )}
-            {(deafened || showMuteIcon) && (
+          {renderAvatar(
+            'lg',
+            showCenterAvatarRing,
+            (deafened || showMuteIcon) && (
               <span className="tile__avatar-mute">
                 {deafened && <VolumeX size={14} strokeWidth={2.5} />}
                 {showMuteIcon && <MicOff size={14} strokeWidth={2.5} />}
               </span>
-            )}
-          </div>
+            )
+          )}
         </div>
       )}
 
       <div className="tile__badge">
+        {showVideo && renderAvatar('sm', showBadgeAvatarRing)}
         <span className="tile__badge-name">
           {displayName}
           {isSelf && ' (you)'}
