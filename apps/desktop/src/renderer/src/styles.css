@@ -439,7 +439,7 @@
   width: 24px;
   height: 24px;
   border-radius: var(--r-1);
-  color: var(--bg);
+  color: var(--text);
   opacity: 1;
   transition: all var(--dur-1) ease;
 }
