@@ -87,6 +87,11 @@
   --veil-1: color-mix(in srgb, var(--tint) 6%, transparent);
   --veil-2: color-mix(in srgb, var(--tint) 12%, transparent);
 
+  /* Fixed dark overlay for text legibility over an arbitrary photo (Space
+     banner) — deliberately not --veil-1/2 (those are theme-aware ink hover/
+     active overlays, not permanent legibility scrims). */
+  --scrim-legibility: color-mix(in srgb, black 75%, transparent);
+
   /* Elevation */
   --sh-1: 0 8px 28px var(--shadow-color);
   --sh-2: 0 24px 60px var(--shadow-color);

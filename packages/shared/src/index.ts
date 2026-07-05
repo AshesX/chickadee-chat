@@ -56,7 +56,14 @@ export const MAX_ID_LEN = 128;
  */
 export const MAX_AVATAR_DATA_URL_LEN = 256 * 1024;
 
-const AVATAR_DATA_URL_RE = /^data:image\/(?:png|jpe?g|webp);base64,[A-Za-z0-9+/=]+$/;
+/**
+ * Max length of a Space banner data URL. A ~960×320 hero banner covers far more
+ * visible pixels than a 128×128 avatar, so it gets a larger ceiling — still a
+ * bounded, generous cap that stops amplification abuse.
+ */
+export const MAX_BANNER_DATA_URL_LEN = 400 * 1024;
+
+const IMAGE_DATA_URL_RE = /^data:image\/(?:png|jpe?g|webp);base64,[A-Za-z0-9+/=]+$/;
 
 /**
  * Validate an untrusted avatar value: must be a base64 PNG/JPEG/WebP data URL
@@ -66,7 +73,18 @@ const AVATAR_DATA_URL_RE = /^data:image\/(?:png|jpe?g|webp);base64,[A-Za-z0-9+/=
 export function sanitizeAvatarDataUrl(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   if (value.length > MAX_AVATAR_DATA_URL_LEN) return null;
-  return AVATAR_DATA_URL_RE.test(value) ? value : null;
+  return IMAGE_DATA_URL_RE.test(value) ? value : null;
+}
+
+/**
+ * Validate an untrusted Space banner value the same way `sanitizeAvatarDataUrl`
+ * does (reject-only, no truncation/resize). Used by the signaling server on
+ * intake and by the renderer before binding to an <img>.
+ */
+export function sanitizeBannerDataUrl(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  if (value.length > MAX_BANNER_DATA_URL_LEN) return null;
+  return IMAGE_DATA_URL_RE.test(value) ? value : null;
 }
 
 /** Coerce an untrusted value to a trimmed string capped at `max` chars (default '' on non-strings). */
@@ -157,7 +175,22 @@ export interface SpaceInfo {
   rooms: Room[];
   customSignalingUrl?: string;
   joinSecret?: string;
-  iconDataUrl?: string | null;
+  /**
+   * Stable userId of this Space's creator/owner — currently the only member
+   * allowed to set/change the banner. null/undefined = unknown/unclaimed:
+   * either a pre-existing Space created before this feature shipped, or (rare)
+   * a Space whose server-side owner record was lost across a full server
+   * restart. Any future owner-exclusive feature (kick, room-edit gating, etc.)
+   * should reuse this field rather than inventing a parallel ownership notion.
+   */
+  ownerId?: string | null;
+  /**
+   * Space banner — a hero image shown full-bleed behind the centered name in
+   * the sidebar header (replaces the old small circular Space icon entirely).
+   * WebP/JPEG, authored for the sidebar's widest resizable state. null/undefined
+   * = no banner (flat compact header, name only).
+   */
+  bannerDataUrl?: string | null;
 }
 
 /** Active color theme identifier. */
@@ -375,7 +408,7 @@ export interface ScreenSource {
 
 /** Messages sent from a client up to the signaling server. */
 export type ClientMessage =
-  | { type: 'join'; spaceId: string; room: RoomId | null; displayName: string; userId: string; rooms: Room[]; status?: 'online' | 'idle' | 'dnd'; avatarDataUrl?: string | null; voicePreference?: string; accentColor?: string; secret?: string }
+  | { type: 'join'; spaceId: string; room: RoomId | null; displayName: string; userId: string; rooms: Room[]; status?: 'online' | 'idle' | 'dnd'; avatarDataUrl?: string | null; voicePreference?: string; accentColor?: string; secret?: string; bannerDataUrl?: string | null }
   | { type: 'join-room'; room: RoomId | null }
   | { type: 'offer'; to: PeerId; sdp: RTCSessionDescriptionInit }
   | { type: 'answer'; to: PeerId; sdp: RTCSessionDescriptionInit }
@@ -402,6 +435,12 @@ export type ClientMessage =
   | { type: 'update-rooms'; spaceId: string; rooms: Room[] }
   // Broadcast space rename to active peers.
   | { type: 'rename-space'; spaceId: string; newSpaceId: string; newSpaceName: string }
+  // Claim ownership of this connection's Space if nobody owns it yet
+  // (first-claim-wins; no force/take-over — ownership isn't disputed once set).
+  | { type: 'claim-ownership' }
+  // Owner-only: set/clear this connection's Space banner. Silently ignored
+  // server-side if the sender isn't the recorded owner.
+  | { type: 'set-banner'; bannerDataUrl: string | null }
   // Non-mutating existence probe — answered before/without joining. A Space "exists"
   // only while ≥1 member is currently connected (the server is in-memory).
   | { type: 'check-space'; spaceId: string; secret?: string }
@@ -424,7 +463,10 @@ export type ServerMessage =
   // Sent to the newcomer right after a successful join. Carries the room's current
   // stage holder (spotlight) so a mid-join client renders theater immediately —
   // broadcasts only reach existing members (same reason peers carry screenStreamId).
-  | { type: 'welcome'; selfId: PeerId; peers: Peer[]; rooms: Room[]; wasEmpty?: boolean; spotlightHolderId?: PeerId | null; spotlightKind?: 'screen' | 'camera' | null }
+  // `ownerId`/`bannerDataUrl` are only populated on a fresh Space join, never on
+  // a same-space room switch — absence there means "no update," not "cleared,"
+  // since owner/banner are Space-scoped and must survive a room switch.
+  | { type: 'welcome'; selfId: PeerId; peers: Peer[]; rooms: Room[]; wasEmpty?: boolean; spotlightHolderId?: PeerId | null; spotlightKind?: 'screen' | 'camera' | null; ownerId?: string | null; bannerDataUrl?: string | null }
   // Sent to existing peers when someone new joins.
   | { type: 'peer-joined'; peer: Peer }
   // Sent to remaining peers when someone disconnects.
@@ -467,6 +509,10 @@ export type ServerMessage =
   | { type: 'rooms-updated'; spaceId: string; rooms: Room[] }
   // Broadcast space rename to all clients in the space.
   | { type: 'space-renamed'; spaceId: string; newSpaceId: string; newSpaceName: string }
+  // The Space's owner was (re)established; broadcast to every space member.
+  | { type: 'owner-state'; spaceId: string; ownerId: string | null }
+  // The Space's banner changed (or was cleared); broadcast to every space member.
+  | { type: 'banner-state'; spaceId: string; bannerDataUrl: string | null; updatedBy: string }
   // Relayed room chat / reaction.
   | { type: 'chat'; from: PeerId; text: string; reaction?: boolean }
   // Reply to a client ping.

@@ -39,7 +39,7 @@ export interface SignalingState {
 }
 
 export interface Signaling extends SignalingState {
-  join: (spaceId: string, room: string | null, displayName: string, userId: string, rooms: Room[], status: 'online' | 'idle' | 'dnd', avatarDataUrl?: string | null, voicePreference?: string, accentColor?: string, joinSecret?: string, signalingUrl?: string) => void;
+  join: (spaceId: string, room: string | null, displayName: string, userId: string, rooms: Room[], status: 'online' | 'idle' | 'dnd', avatarDataUrl?: string | null, voicePreference?: string, accentColor?: string, joinSecret?: string, signalingUrl?: string, bannerDataUrl?: string | null) => void;
   leave: () => void;
   joinRoom: (room: string | null) => void;
   /** Send a message to the server (used by WebRTC negotiation + mic-state). */
@@ -221,6 +221,7 @@ export function useSignaling(): Signaling {
   const roomsRef = useRef<Room[]>([]);
   const statusRef = useRef<'online' | 'idle' | 'dnd'>('online');
   const avatarDataUrlRef = useRef<string | null>(null);
+  const bannerDataUrlRef = useRef<string | null>(null);
   const voicePreferenceRef = useRef<string>('');
   const accentColorRef = useRef<string>('');
   const joinSecretRef = useRef<string>('');
@@ -298,6 +299,7 @@ export function useSignaling(): Signaling {
           accentColor: accentColorRef.current,
           // Use space-specific secret if provided, else fallback to global.
           secret: joinSecretRef.current || (window.chickadee?.joinSecret ?? ''),
+          bannerDataUrl: bannerDataUrlRef.current,
         }),
       );
       // Heartbeat: ping periodically; if pongs stop, force-close → reconnect.
@@ -367,7 +369,7 @@ export function useSignaling(): Signaling {
   }, [connect]);
 
   const join = useCallback(
-    (spaceId: string, room: string | null, displayName: string, userId: string, roomsList: Room[], status: 'online' | 'idle' | 'dnd', avatarDataUrl?: string | null, voicePreference?: string, accentColor?: string, joinSecret?: string, signalingUrl?: string) => {
+    (spaceId: string, room: string | null, displayName: string, userId: string, roomsList: Room[], status: 'online' | 'idle' | 'dnd', avatarDataUrl?: string | null, voicePreference?: string, accentColor?: string, joinSecret?: string, signalingUrl?: string, bannerDataUrl?: string | null) => {
       closeSocket();
       clearTimers();
       shouldReconnectRef.current = true;
@@ -383,6 +385,7 @@ export function useSignaling(): Signaling {
       accentColorRef.current = accentColor ?? '';
       joinSecretRef.current = joinSecret ?? '';
       if (signalingUrl) signalingUrlRef.current = signalingUrl;
+      bannerDataUrlRef.current = bannerDataUrl ?? null;
       setState({ ...INITIAL, status: 'connecting', rooms: roomsList });
       connect();
     },

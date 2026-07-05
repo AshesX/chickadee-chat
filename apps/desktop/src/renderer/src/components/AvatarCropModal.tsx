@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { MAX_AVATAR_DATA_URL_LEN } from '@chickadee/shared';
+import { compressToBudget } from '../lib/compressToBudget';
 
 const CANVAS_SIZE = 288;
-const CIRCLE_RADIUS = 128;
-const OUTPUT_SIZE = 128;
+/** Padding (px) between the on-screen crop window and the canvas edge. */
+const CROP_WINDOW_PADDING = 16;
 
 interface DragState {
   startX: number;
@@ -17,22 +19,62 @@ interface Offset {
 }
 
 export interface AvatarCropModalProps {
+  /** Output image width in px. Default 128 (today's avatar size). */
+  outputWidth?: number;
+  /** Output image height in px. Default 128 (today's avatar size). */
+  outputHeight?: number;
+  title?: string;
+  saveLabel?: string;
+  /** Byte-budget (base64 data-URL char length) to compress toward. Default matches the avatar cap. */
+  maxDataUrlLen?: number;
   onSave: (dataUrl: string) => void;
   onCancel: () => void;
 }
 
-function clampOffset(off: Offset, scale: number, img: HTMLImageElement): Offset {
-  const halfImgW = (img.naturalWidth * scale) / 2;
-  const halfImgH = (img.naturalHeight * scale) / 2;
-  const maxX = Math.max(0, halfImgW - CIRCLE_RADIUS);
-  const maxY = Math.max(0, halfImgH - CIRCLE_RADIUS);
+/**
+ * On-screen half-width/half-height of the crop window, fit ("contain") within
+ * the square canvas while preserving the output's aspect ratio. For the
+ * default 128x128 (1:1) output this resolves to 128/128 — identical to the
+ * previous fixed circular-crop radius.
+ */
+function cropWindowHalfExtents(outputWidth: number, outputHeight: number): { halfW: number; halfH: number } {
+  const maxHalf = CANVAS_SIZE / 2 - CROP_WINDOW_PADDING;
+  const aspect = outputWidth / outputHeight;
+  return aspect >= 1 ? { halfW: maxHalf, halfH: maxHalf / aspect } : { halfW: maxHalf * aspect, halfH: maxHalf };
+}
+
+/**
+ * Clamp a pan offset so the crop window (half-extents `cropHalfW`/`cropHalfH`)
+ * never shows past the image's edges at the given `scale`. Takes plain
+ * width/height rather than a full HTMLImageElement so it's testable without a
+ * DOM Image.
+ */
+export function clampOffset(
+  off: Offset,
+  scale: number,
+  imgSize: { naturalWidth: number; naturalHeight: number },
+  cropHalfW: number,
+  cropHalfH: number,
+): Offset {
+  const halfImgW = (imgSize.naturalWidth * scale) / 2;
+  const halfImgH = (imgSize.naturalHeight * scale) / 2;
+  const maxX = Math.max(0, halfImgW - cropHalfW);
+  const maxY = Math.max(0, halfImgH - cropHalfH);
   return {
     x: Math.max(-maxX, Math.min(maxX, off.x)),
     y: Math.max(-maxY, Math.min(maxY, off.y)),
   };
 }
 
-export function AvatarCropModal({ onSave, onCancel }: AvatarCropModalProps): React.JSX.Element {
+export function AvatarCropModal({
+  outputWidth = 128,
+  outputHeight = 128,
+  title = 'Set Avatar',
+  saveLabel = 'Save Avatar',
+  maxDataUrlLen = MAX_AVATAR_DATA_URL_LEN,
+  onSave,
+  onCancel,
+}: AvatarCropModalProps): React.JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imgRef = useRef<HTMLImageElement | null>(null);
   const dragRef = useRef<DragState | null>(null);
@@ -40,6 +82,9 @@ export function AvatarCropModal({ onSave, onCancel }: AvatarCropModalProps): Rea
   const offsetRef = useRef<Offset>({ x: 0, y: 0 });
   const minScaleRef = useRef(1);
   const isDraggingRef = useRef(false);
+
+  const { halfW: cropHalfW, halfH: cropHalfH } = cropWindowHalfExtents(outputWidth, outputHeight);
+  const cropCornerRadius = Math.min(cropHalfW, cropHalfH) * 0.5;
 
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [scale, setScale] = useState(1);
@@ -75,8 +120,7 @@ export function AvatarCropModal({ onSave, onCancel }: AvatarCropModalProps): Rea
     ctx.fillStyle = 'rgba(0,0,0,0.62)';
     ctx.beginPath();
     ctx.rect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
-    // 64px radius matches the 25% border-radius of the avatar (12px radius on 48px avatar -> 64px on 256px crop window)
-    ctx.roundRect(cx - CIRCLE_RADIUS, cy - CIRCLE_RADIUS, CIRCLE_RADIUS * 2, CIRCLE_RADIUS * 2, 64);
+    ctx.roundRect(cx - cropHalfW, cy - cropHalfH, cropHalfW * 2, cropHalfH * 2, cropCornerRadius);
     ctx.fill('evenodd');
     ctx.restore();
 
@@ -85,10 +129,10 @@ export function AvatarCropModal({ onSave, onCancel }: AvatarCropModalProps): Rea
     ctx.strokeStyle = 'rgba(255,255,255,0.45)';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.roundRect(cx - CIRCLE_RADIUS, cy - CIRCLE_RADIUS, CIRCLE_RADIUS * 2, CIRCLE_RADIUS * 2, 64);
+    ctx.roundRect(cx - cropHalfW, cy - cropHalfH, cropHalfW * 2, cropHalfH * 2, cropCornerRadius);
     ctx.stroke();
     ctx.restore();
-  }, []);
+  }, [cropHalfW, cropHalfH, cropCornerRadius]);
 
   useEffect(() => {
     drawCanvas();
@@ -102,8 +146,8 @@ export function AvatarCropModal({ onSave, onCancel }: AvatarCropModalProps): Rea
       img.onload = () => {
         imgRef.current = img;
         const minSc = Math.max(
-          (CIRCLE_RADIUS * 2) / img.naturalWidth,
-          (CIRCLE_RADIUS * 2) / img.naturalHeight,
+          (cropHalfW * 2) / img.naturalWidth,
+          (cropHalfH * 2) / img.naturalHeight,
         );
         minScaleRef.current = minSc;
         scaleRef.current = minSc;
@@ -137,6 +181,8 @@ export function AvatarCropModal({ onSave, onCancel }: AvatarCropModalProps): Rea
       { x: dragRef.current.startOffX + dx, y: dragRef.current.startOffY + dy },
       scaleRef.current,
       imgRef.current,
+      cropHalfW,
+      cropHalfH,
     );
     offsetRef.current = newOff;
     setOffset(newOff);
@@ -153,7 +199,7 @@ export function AvatarCropModal({ onSave, onCancel }: AvatarCropModalProps): Rea
     const factor = e.deltaY < 0 ? 1.08 : 1 / 1.08;
     const minSc = minScaleRef.current;
     const newScale = Math.max(minSc, Math.min(scaleRef.current * factor, minSc * 6));
-    const newOff = clampOffset(offsetRef.current, newScale, imgRef.current);
+    const newOff = clampOffset(offsetRef.current, newScale, imgRef.current, cropHalfW, cropHalfH);
     scaleRef.current = newScale;
     offsetRef.current = newOff;
     setScale(newScale);
@@ -163,7 +209,7 @@ export function AvatarCropModal({ onSave, onCancel }: AvatarCropModalProps): Rea
   const handleZoomSlider = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newScale = parseFloat(e.target.value);
     if (!imgRef.current) return;
-    const newOff = clampOffset(offsetRef.current, newScale, imgRef.current);
+    const newOff = clampOffset(offsetRef.current, newScale, imgRef.current, cropHalfW, cropHalfH);
     scaleRef.current = newScale;
     offsetRef.current = newOff;
     setScale(newScale);
@@ -175,8 +221,8 @@ export function AvatarCropModal({ onSave, onCancel }: AvatarCropModalProps): Rea
     if (!img) return;
 
     const outputCanvas = document.createElement('canvas');
-    outputCanvas.width = OUTPUT_SIZE;
-    outputCanvas.height = OUTPUT_SIZE;
+    outputCanvas.width = outputWidth;
+    outputCanvas.height = outputHeight;
     const outCtx = outputCanvas.getContext('2d');
     if (!outCtx) return;
 
@@ -184,14 +230,27 @@ export function AvatarCropModal({ onSave, onCancel }: AvatarCropModalProps): Rea
     const off = offsetRef.current;
     const cropCX = img.naturalWidth / 2 - off.x / sc;
     const cropCY = img.naturalHeight / 2 - off.y / sc;
-    const cropR = CIRCLE_RADIUS / sc;
+    const cropRW = cropHalfW / sc;
+    const cropRH = cropHalfH / sc;
 
-    outCtx.drawImage(img, cropCX - cropR, cropCY - cropR, cropR * 2, cropR * 2, 0, 0, OUTPUT_SIZE, OUTPUT_SIZE);
+    outCtx.drawImage(img, cropCX - cropRW, cropCY - cropRH, cropRW * 2, cropRH * 2, 0, 0, outputWidth, outputHeight);
 
-    let dataUrl = outputCanvas.toDataURL('image/webp', 0.85);
-    if (!dataUrl.startsWith('data:image/webp')) {
-      dataUrl = outputCanvas.toDataURL('image/jpeg', 0.88);
-    }
+    const encodeCanvas = (canvas: HTMLCanvasElement, quality: number): string => {
+      const dataUrl = canvas.toDataURL('image/webp', quality);
+      return dataUrl.startsWith('data:image/webp') ? dataUrl : canvas.toDataURL('image/jpeg', quality);
+    };
+
+    const downscale = (): string => {
+      const smallCanvas = document.createElement('canvas');
+      smallCanvas.width = Math.max(1, Math.round(outputWidth / 2));
+      smallCanvas.height = Math.max(1, Math.round(outputHeight / 2));
+      const smallCtx = smallCanvas.getContext('2d');
+      if (!smallCtx) return encodeCanvas(outputCanvas, 0.4);
+      smallCtx.drawImage(outputCanvas, 0, 0, smallCanvas.width, smallCanvas.height);
+      return encodeCanvas(smallCanvas, 0.6);
+    };
+
+    const dataUrl = compressToBudget((quality) => encodeCanvas(outputCanvas, quality), maxDataUrlLen, undefined, downscale);
     onSave(dataUrl);
   };
 
@@ -204,7 +263,7 @@ export function AvatarCropModal({ onSave, onCancel }: AvatarCropModalProps): Rea
       onClick={onCancel}
     >
       <div className="avatar-crop-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="avatar-crop-modal__title">Set Avatar</div>
+        <div className="avatar-crop-modal__title">{title}</div>
         <div className="avatar-crop-modal__hint">
           {imageSrc ? 'Drag to reposition · Scroll or slider to zoom' : 'Choose an image to get started'}
         </div>
@@ -274,7 +333,7 @@ export function AvatarCropModal({ onSave, onCancel }: AvatarCropModalProps): Rea
           </button>
           {imageSrc && (
             <button className="btn btn--primary" onClick={handleSave}>
-              Save Avatar
+              {saveLabel}
             </button>
           )}
         </div>

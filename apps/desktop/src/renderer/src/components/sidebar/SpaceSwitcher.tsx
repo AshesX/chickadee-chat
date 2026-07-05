@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Settings, Trash2, ChevronDown, Copy, Check } from 'lucide-react';
-import { sanitizeAvatarDataUrl, type SpaceInfo } from '@chickadee/shared';
+import { sanitizeBannerDataUrl, type SpaceInfo } from '@chickadee/shared';
 import { useDismissTimeout } from '../../hooks/useDismissTimeout';
-import { userColor } from '../../lib/settings';
 import { SpaceContextMenu } from './SpaceContextMenu';
 
 
@@ -17,9 +16,9 @@ interface SpaceSwitcherProps {
 }
 
 /**
- * The sidebar's space header: the current-space icon + dropdown switcher (with
- * copy-code typewriter hover + settings/delete actions). Owns its open/copied/hover
- * state.
+ * The sidebar's space header: the current-space name (over its banner image,
+ * when set) + dropdown switcher (with copy-code typewriter hover + settings/
+ * delete actions). Owns its open/copied/hover state.
  */
 export function SpaceSwitcher({
   spaces,
@@ -37,6 +36,13 @@ export function SpaceSwitcher({
   const [typedCode, setTypedCode] = useState('');
   const [ctxMenu, setCtxMenu] = useState<{ space: SpaceInfo; x: number; y: number } | null>(null);
   const activeSpace = spaces.find((s) => s.id === activeSpaceId);
+  const safeBanner = activeSpace ? sanitizeBannerDataUrl(activeSpace.bannerDataUrl) : null;
+  const [bannerLoaded, setBannerLoaded] = useState(false);
+  // Reset the fade-in whenever the banner value changes (switching spaces, or the
+  // banner being set/changed/cleared) so a stale "already loaded" state can't skip it.
+  useEffect(() => {
+    setBannerLoaded(false);
+  }, [safeBanner]);
 
   const { arm: armClose, cancel: cancelCloseTimeout } = useDismissTimeout(() => setSwitcherOpen(false));
 
@@ -95,7 +101,20 @@ export function SpaceSwitcher({
       onMouseLeave={() => armClose(1000)}
       onMouseEnter={cancelCloseTimeout}
     >
-      <div className="sidebar__space-header">
+      <div className={`sidebar__space-header${safeBanner ? ' sidebar__space-header--banner' : ''}`}>
+        {safeBanner && (
+          <>
+            <img
+              key={safeBanner}
+              src={safeBanner}
+              alt=""
+              decoding="async"
+              className={`sidebar__space-header-banner-img${bannerLoaded ? ' sidebar__space-header-banner-img--loaded' : ''}`}
+              onLoad={() => setBannerLoaded(true)}
+            />
+            <div className="sidebar__space-header-scrim" />
+          </>
+        )}
         <div className="space-info-wrap">
           <button
             className="space-switcher-btn"
@@ -105,18 +124,6 @@ export function SpaceSwitcher({
               if (activeSpace) setCtxMenu({ space: activeSpace, x: e.clientX, y: e.clientY });
             }}
           >
-            {activeSpace && (() => {
-              const safeIcon = sanitizeAvatarDataUrl(activeSpace.iconDataUrl);
-              return (
-                <div className="avatar" style={safeIcon ? undefined : { background: userColor(activeSpace.id) }}>
-                  {safeIcon ? (
-                    <img src={safeIcon} alt={activeSpace.name} />
-                  ) : (
-                    activeSpace.name.trim().charAt(0).toUpperCase() || '?'
-                  )}
-                </div>
-              );
-            })()}
             <div className="space-switcher-btn__meta">
               <span className={`space-switcher-btn__name${!activeSpace ? ' space-switcher-btn__name--empty' : ''}`}>
                 {activeSpace?.name ?? 'Create / Join Space'}
@@ -131,9 +138,9 @@ export function SpaceSwitcher({
       </div>
 
       {switcherOpen && (
-        <div 
-          className="menu-surface" 
-          style={{ position: 'absolute', top: '77px', left: 0, width: '100%', zIndex: 'var(--z-dropdown)', display: 'flex', flexDirection: 'column', border: 'none', borderRadius: 0, boxShadow: 'var(--sh-1)', clipPath: 'inset(0px 0px -40px 0px)' }}
+        <div
+          className="menu-surface"
+          style={{ position: 'absolute', top: safeBanner ? '177px' : '77px', left: 0, width: '100%', zIndex: 'var(--z-dropdown)', display: 'flex', flexDirection: 'column', border: 'none', borderRadius: 0, boxShadow: 'var(--sh-1)', clipPath: 'inset(0px 0px -40px 0px)' }}
           onClick={(e) => e.stopPropagation()}
         >
           {spaces.length > 0 && (

@@ -36,14 +36,22 @@ export interface UseSpacesResult {
   /** Initializes the first space during onboarding. */
   initFirstSpace: (val: string, action: 'create' | 'join', customSignalingUrl?: string, joinSecret?: string) => Promise<AddSpaceResult>;
   /** Updates settings for an existing space (supports renaming). */
-  updateSpaceSettings: (spaceId: string, name: string, customSignalingUrl: string, joinSecret: string, iconDataUrl: string | null, precomputedId?: string) => string;
+  updateSpaceSettings: (spaceId: string, name: string, customSignalingUrl: string, joinSecret: string, precomputedId?: string) => string;
   /** Updates room list in state + persisted store. Used by createRoom/renameRoom/removeRoom/signaling sync. */
   updateRooms: (rooms: Room[]) => void;
+  /** Applies a Space banner update (from a live `banner-state`/`welcome`, or a local owner edit) to state + persisted store. */
+  updateSpaceBanner: (spaceId: string, bannerDataUrl: string | null) => void;
+  /** Applies a Space owner update (from a live `owner-state`/`welcome`) to state + persisted store. */
+  updateSpaceOwnerId: (spaceId: string, ownerId: string | null) => void;
+  /** Set right after creating a brand-new space, so the app can auto-send `claim-ownership` once connected. */
+  pendingOwnerClaimSpaceId: string | null;
+  clearPendingOwnerClaim: () => void;
 }
 
 export function useSpaces(
   clearRoom: () => void,
   verifySpace: (spaceId: string, signalingUrl: string, secret?: string) => Promise<'exists' | 'not-found' | 'unreachable'>,
+  userId: string,
 ): UseSpacesResult {
   function resolveSignalingUrl(customSignalingUrl?: string): string {
     return customSignalingUrl || (window.chickadee?.signalingUrl ?? 'ws://localhost:8080');
@@ -52,6 +60,8 @@ export function useSpaces(
   const [spaces, setSpaces] = useState<SpaceInfo[]>(() => store.getSpaces());
   const [currentSpaceId, setCurrentSpaceId] = useState<string | null>(() => store.getActiveSpaceId());
   const [rooms, setRooms] = useState<Room[]>(() => store.getRooms());
+  const [pendingOwnerClaimSpaceId, setPendingOwnerClaimSpaceId] = useState<string | null>(null);
+  const clearPendingOwnerClaim = useCallback(() => setPendingOwnerClaimSpaceId(null), []);
 
   function switchSpace(spaceId: string): void {
     clearRoom();
@@ -86,11 +96,19 @@ export function useSpaces(
       spaceName = parseSpaceName(spaceId);
     }
 
-    const newSpace: SpaceInfo = { id: spaceId, name: spaceName, rooms: DEFAULT_ROOMS, customSignalingUrl, joinSecret };
+    const newSpace: SpaceInfo = {
+      id: spaceId,
+      name: spaceName,
+      rooms: DEFAULT_ROOMS,
+      customSignalingUrl,
+      joinSecret,
+      ...(type === 'create' ? { ownerId: userId } : {}),
+    };
     const nextSpaces = [...spaces, newSpace];
     store.setSpaces(nextSpaces);
     setSpaces(nextSpaces);
     switchSpace(spaceId);
+    if (type === 'create') setPendingOwnerClaimSpaceId(spaceId);
     return { ok: true };
   }
 
@@ -127,12 +145,20 @@ export function useSpaces(
       if (result !== 'exists') return { ok: false, reason: result };
       spaceName = parseSpaceName(val);
     }
-    const newSpace: SpaceInfo = { id: spaceId, name: spaceName, rooms: DEFAULT_ROOMS, customSignalingUrl, joinSecret };
+    const newSpace: SpaceInfo = {
+      id: spaceId,
+      name: spaceName,
+      rooms: DEFAULT_ROOMS,
+      customSignalingUrl,
+      joinSecret,
+      ...(action === 'create' ? { ownerId: userId } : {}),
+    };
     store.setSpaces([newSpace]);
     store.setActiveSpaceId(spaceId);
     setSpaces([newSpace]);
     setCurrentSpaceId(spaceId);
     setRooms(DEFAULT_ROOMS);
+    if (action === 'create') setPendingOwnerClaimSpaceId(spaceId);
     return { ok: true };
   }
 
@@ -141,7 +167,7 @@ export function useSpaces(
     store.setRooms(nextRooms);
   }, []);
 
-  const updateSpaceSettings = useCallback((spaceId: string, name: string, customSignalingUrl: string, joinSecret: string, iconDataUrl: string | null, precomputedId?: string): string => {
+  const updateSpaceSettings = useCallback((spaceId: string, name: string, customSignalingUrl: string, joinSecret: string, precomputedId?: string): string => {
     const spaceToRename = spaces.find(s => s.id === spaceId);
     let newSpaceId = spaceId;
     if (spaceToRename && spaceToRename.name.trim().toLowerCase() !== name.trim().toLowerCase()) {
@@ -156,7 +182,6 @@ export function useSpaces(
           name: name.trim(),
           customSignalingUrl,
           joinSecret,
-          iconDataUrl
         };
       }
       return s;
@@ -176,5 +201,35 @@ export function useSpaces(
     return newSpaceId;
   }, [spaces, currentSpaceId]);
 
-  return { spaces, currentSpaceId, rooms, switchSpace, addSpace, deleteSpace, initFirstSpace, updateRooms, updateSpaceSettings };
+  const updateSpaceBanner = useCallback((spaceId: string, bannerDataUrl: string | null): void => {
+    setSpaces((prev) => {
+      const next = prev.map((s) => (s.id === spaceId ? { ...s, bannerDataUrl } : s));
+      store.setSpaces(next);
+      return next;
+    });
+  }, []);
+
+  const updateSpaceOwnerId = useCallback((spaceId: string, ownerId: string | null): void => {
+    setSpaces((prev) => {
+      const next = prev.map((s) => (s.id === spaceId ? { ...s, ownerId } : s));
+      store.setSpaces(next);
+      return next;
+    });
+  }, []);
+
+  return {
+    spaces,
+    currentSpaceId,
+    rooms,
+    switchSpace,
+    addSpace,
+    deleteSpace,
+    initFirstSpace,
+    updateRooms,
+    updateSpaceSettings,
+    updateSpaceBanner,
+    updateSpaceOwnerId,
+    pendingOwnerClaimSpaceId,
+    clearPendingOwnerClaim,
+  };
 }

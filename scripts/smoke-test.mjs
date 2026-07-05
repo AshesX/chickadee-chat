@@ -8,7 +8,7 @@ const URL = 'ws://localhost:8080';
 const ROOM = 'smoke';
 const SPACE = 'smoke-space';
 
-function client(displayName, { room = ROOM, userId = `uid-${displayName}`, spaceId = SPACE, rooms } = {}) {
+function client(displayName, { room = ROOM, userId = `uid-${displayName}`, spaceId = SPACE, rooms, bannerDataUrl } = {}) {
   const events = [];
   const ws = new WebSocket(URL);
   const ready = new Promise((resolve) => {
@@ -16,6 +16,7 @@ function client(displayName, { room = ROOM, userId = `uid-${displayName}`, space
       const join = { type: 'join', spaceId, room, displayName };
       if (userId !== null) join.userId = userId;
       if (rooms) join.rooms = rooms;
+      if (bannerDataUrl !== undefined) join.bannerDataUrl = bannerDataUrl;
       ws.send(JSON.stringify(join));
     });
     ws.on('message', (d) => {
@@ -317,6 +318,85 @@ noSpace.on('message', () => { noSpaceReplied = true; });
 await wait(200);
 check('join without spaceId is rejected (no reply)', noSpaceReplied === false);
 noSpace.close();
+
+// Phase 7: Space Owner (first-claim-wins) + Space Banner (owner-gated, sanitized).
+// Uses a brand-new spaceId — spaceOwners/spaceBanners are never cleared (by design,
+// see apps/signaling/src/index.ts), so this assumes a freshly-started server, same
+// as the rest of this file.
+const OWNER_SPACE = 'owner-banner-space';
+const VALID_BANNER = 'data:image/webp;base64,aGVsbG8=';
+
+const ownerA = client('OwnerA', { room: null, spaceId: OWNER_SPACE, userId: 'uid-owner-a', bannerDataUrl: null });
+const wOwnerA = await ownerA.ready;
+check('fresh space -> welcome ownerId is null', wOwnerA.ownerId === null);
+check('fresh space -> welcome bannerDataUrl is null', wOwnerA.bannerDataUrl === null);
+
+const ownerB = client('OwnerB', { room: null, spaceId: OWNER_SPACE, userId: 'uid-owner-b' });
+await ownerB.ready;
+
+ownerA.ws.send(JSON.stringify({ type: 'claim-ownership' }));
+await wait(150);
+const aIsOwner = (ev) => ev.type === 'owner-state' && ev.spaceId === OWNER_SPACE && ev.ownerId === 'uid-owner-a';
+check('OwnerA (self) receives owner-state confirming itself as owner', ownerA.events.some(aIsOwner));
+check('OwnerB receives owner-state naming OwnerA as owner', ownerB.events.some(aIsOwner));
+
+// A later claim by someone else is a no-op — first-claim-wins, no take-over.
+ownerB.ws.send(JSON.stringify({ type: 'claim-ownership' }));
+await wait(150);
+check(
+  'a later claim by a non-owner does not change ownership',
+  !ownerB.events.some((ev) => ev.type === 'owner-state' && ev.ownerId === 'uid-owner-b'),
+);
+
+// Non-owner set-banner is silently ignored — no banner-state broadcast at all.
+const beforeBBanner = ownerA.events.length;
+ownerB.ws.send(JSON.stringify({ type: 'set-banner', bannerDataUrl: VALID_BANNER }));
+await wait(150);
+check(
+  'non-owner set-banner is silently ignored (no banner-state broadcast)',
+  !ownerA.events.slice(beforeBBanner).some((ev) => ev.type === 'banner-state'),
+);
+
+// Owner's set-banner broadcasts to everyone, including self (self-confirm).
+ownerA.ws.send(JSON.stringify({ type: 'set-banner', bannerDataUrl: VALID_BANNER }));
+await wait(150);
+const bannerSet = (ev) =>
+  ev.type === 'banner-state' && ev.spaceId === OWNER_SPACE && ev.bannerDataUrl === VALID_BANNER && ev.updatedBy === 'uid-owner-a';
+check('OwnerA (self) receives banner-state after setting', ownerA.events.some(bannerSet));
+check('OwnerB receives banner-state after the owner sets it', ownerB.events.some(bannerSet));
+
+// Invalid banner (bad scheme) sanitizes to null.
+ownerA.ws.send(JSON.stringify({ type: 'set-banner', bannerDataUrl: 'javascript:alert(1)' }));
+await wait(150);
+check(
+  'invalid banner is sanitized to null',
+  ownerB.events.some((ev) => ev.type === 'banner-state' && ev.bannerDataUrl === null),
+);
+
+// Restore a known banner, then confirm a mid-joiner's welcome reflects owner + banner.
+ownerA.ws.send(JSON.stringify({ type: 'set-banner', bannerDataUrl: VALID_BANNER }));
+await wait(150);
+const ownerC = client('OwnerC', { room: null, spaceId: OWNER_SPACE, userId: 'uid-owner-c' });
+const wOwnerC = await ownerC.ready;
+check('mid-joiner welcome reflects the claimed owner', wOwnerC.ownerId === 'uid-owner-a');
+check('mid-joiner welcome reflects the current banner', wOwnerC.bannerDataUrl === VALID_BANNER);
+
+// Regression guard: a same-space room-switch welcome must OMIT ownerId/bannerDataUrl
+// entirely (not send them as null) — absence means "no update," since these fields
+// are Space-scoped and must survive a room switch (unlike the room-scoped spotlight).
+ownerC.ws.send(JSON.stringify({ type: 'join-room', room: 'some-room' }));
+await wait(150);
+const ownerCWelcomes = ownerC.events.filter((ev) => ev.type === 'welcome');
+const roomSwitchWelcome = ownerCWelcomes[ownerCWelcomes.length - 1];
+check(
+  'room-switch welcome omits ownerId/bannerDataUrl entirely (not just null)',
+  !('ownerId' in roomSwitchWelcome) && !('bannerDataUrl' in roomSwitchWelcome),
+);
+
+ownerA.ws.close();
+ownerB.ws.close();
+ownerC.ws.close();
+await wait(100);
 
 for (const cl of [a, c, d, e]) cl.ws.close();
 await wait(100);

@@ -2489,6 +2489,55 @@
   border-bottom: 1px solid var(--border);
 }
 
+/* Hero banner variant: taller header, full-bleed image + scrim, centered name. */
+.sidebar__space-header--banner {
+  height: 176px;
+  padding: 0;
+  overflow: hidden;
+  transition: height var(--dur-2) var(--ease);
+}
+
+.sidebar__space-header-banner-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity var(--dur-2) var(--ease);
+}
+
+.sidebar__space-header-banner-img--loaded {
+  opacity: 1;
+}
+
+.sidebar__space-header-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, var(--scrim-legibility) 0%, transparent 65%);
+}
+
+.sidebar__space-header--banner .space-info-wrap {
+  position: relative;
+  z-index: 1;
+  margin-right: 0;
+}
+
+.sidebar__space-header--banner .space-switcher-btn {
+  justify-content: center;
+}
+
+.sidebar__space-header--banner .space-switcher-btn__meta {
+  flex: 0 1 auto;
+}
+
+.sidebar__space-header--banner .space-switcher-btn__name {
+  color: #fff;
+  text-shadow: 0 1px 3px color-mix(in srgb, black 60%, transparent);
+  white-space: normal;
+  text-align: center;
+}
+
 .space-info-wrap {
   display: flex;
   align-items: center;
@@ -3161,6 +3210,29 @@
   display: flex;
   flex-direction: column;
   gap: var(--s-2);
+}
+
+.avatar-settings-actions--row {
+  flex-direction: row;
+  margin-top: var(--s-2);
+}
+
+.space-banner-settings-preview {
+  width: 100%;
+  /* Matches the sidebar's widest resizable state (560px) over its fixed hero
+     header height (176px) — see .sidebar__space-header--banner below. */
+  aspect-ratio: 560 / 176;
+  border-radius: var(--r-2);
+  overflow: hidden;
+  box-shadow: none;
+}
+
+.space-banner-settings-preview__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: var(--r-2);
+  display: block;
 }
 
 .avatar-settings-remove {

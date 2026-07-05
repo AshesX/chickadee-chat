@@ -3,6 +3,7 @@ import { WebSocketServer, type WebSocket } from 'ws';
 import {
   CHAT_MAX_LEN,
   MAX_AVATAR_DATA_URL_LEN,
+  MAX_BANNER_DATA_URL_LEN,
   MAX_DISPLAY_NAME_LEN,
   MAX_ID_LEN,
   MAX_PEERS_VOICE,
@@ -12,6 +13,7 @@ import {
   parseClientMessage,
   sanitizeAccentColor,
   sanitizeAvatarDataUrl,
+  sanitizeBannerDataUrl,
   sanitizeStatus,
   type ClientMessage,
   type Peer,
@@ -24,9 +26,10 @@ import {
 
 const PORT = Number(process.env.PORT ?? 8080);
 
-/** Cap on a single inbound WS frame. The largest legitimate message is an avatar
- *  data URL; everything else is tiny. Keeps a small headroom over the avatar cap. */
-const MAX_WS_PAYLOAD = MAX_AVATAR_DATA_URL_LEN + 8 * 1024;
+/** Cap on a single inbound WS frame. The largest legitimate message is a Space
+ *  banner or avatar data URL; everything else is tiny. Keeps a small headroom
+ *  over the larger of the two caps. */
+const MAX_WS_PAYLOAD = Math.max(MAX_AVATAR_DATA_URL_LEN, MAX_BANNER_DATA_URL_LEN) + 8 * 1024;
 
 /** Per-connection message rate limit (generous — well above WebRTC ICE trickle bursts). */
 const MSG_RATE_LIMIT = 200;
@@ -69,6 +72,24 @@ const rooms = new Map<RoomId, Map<PeerId, Connection>>();
  * so two claimants can't both win (mirror of the `room-full` reject pattern).
  */
 const spotlights = new Map<RoomId, { holderId: PeerId; kind: 'screen' | 'camera' }>();
+
+/**
+ * space id -> owning member's stable userId. Ephemeral (in-memory only) but,
+ * unlike `spaces`/`spacePresence`, deliberately NOT cleared by
+ * scheduleSpaceCleanup when a Space fully empties — a Space emptying out (e.g.
+ * overnight) is routine, and resetting ownership then would let whoever
+ * reconnects first silently and permanently claim it (no take-over mechanic
+ * exists for ownership, unlike spotlight). Only a full server restart resets
+ * this map.
+ */
+const spaceOwners = new Map<string, string>();
+
+/**
+ * space id -> the Space's current banner + who set it. Same "not cleared on
+ * empty" reasoning as spaceOwners above — it's sticky content, not
+ * per-connection presence.
+ */
+const spaceBanners = new Map<string, { dataUrl: string | null; setBy: string }>();
 
 /** space id -> Room[] list. In-memory only; cleared when no users remain in the space. */
 const spaces = new Map<string, Room[]>();
@@ -213,6 +234,15 @@ function handleJoin(socket: WebSocket, msg: Extract<ClientMessage, { type: 'join
   }
   const spaceRooms = spaces.get(spaceId) ?? joinRooms;
 
+  // Seed the Space's banner from the first joiner's local cache if the server
+  // has no live record yet (same "resurrect from the joining client" discipline
+  // as the room-list seed above). Any joiner can seed it — unlike ownership, a
+  // wrong seed here is just a stale picture until the real owner reconnects and
+  // re-sends set-banner, not a trust/security concern.
+  if (!spaceBanners.has(spaceId) && msg.bannerDataUrl !== undefined) {
+    spaceBanners.set(spaceId, { dataUrl: sanitizeBannerDataUrl(msg.bannerDataUrl), setBy: peer.userId });
+  }
+
   // Snapshot existing peers before adding the newcomer.
   const existingPeers: Peer[] = members ? [...members.values()].map((c) => c.peer) : [];
 
@@ -244,6 +274,8 @@ function handleJoin(socket: WebSocket, msg: Extract<ClientMessage, { type: 'join
     wasEmpty,
     spotlightHolderId: joinSpotlight?.holderId ?? null,
     spotlightKind: joinSpotlight?.kind ?? null,
+    ownerId: spaceOwners.get(spaceId) ?? null,
+    bannerDataUrl: spaceBanners.get(spaceId)?.dataUrl ?? null,
   });
 
   // Update space presence
@@ -544,8 +576,39 @@ function handleRenameSpace(conn: Connection, newSpaceId: string, newSpaceName: s
 
   // Broadcast the space-renamed message to everyone in the current space except the sender
   broadcastSpace(spaceId, { type: 'space-renamed', spaceId, newSpaceId: clampedId, newSpaceName: clampedName }, conn);
-  
+
   console.log(`[space-rename] space "${spaceId}" renamed to "${clampedName}" with new ID "${clampedId}"`);
+}
+
+/**
+ * First-claim-wins ownership for this connection's Space. No force/take-over —
+ * unlike the stage spotlight, ownership isn't meant to be disputed once set (no
+ * transfer feature exists yet). Always broadcasts the resulting authoritative
+ * ownerId to the whole Space (including the claimant), so a losing claim (a
+ * benign two-client race) still resolves everyone's UI to the truth.
+ */
+function handleClaimOwnership(conn: Connection): void {
+  const spaceId = conn.space;
+  if (!spaceOwners.has(spaceId)) {
+    spaceOwners.set(spaceId, conn.peer.userId);
+  }
+  broadcastSpace(spaceId, { type: 'owner-state', spaceId, ownerId: spaceOwners.get(spaceId)! });
+}
+
+/**
+ * Set/clear this connection's Space banner. Owner-gated — the first
+ * server-side authorization check in this codebase; kept as simple as the rest
+ * of the app's soft/no-auth trust model (silent no-op on rejection, not a
+ * security boundary). Sanitizes before storing/broadcasting, exactly like
+ * handleAvatarState — this is the primary amplification-DoS guard since the
+ * banner fans out space-wide.
+ */
+function handleSetBanner(conn: Connection, bannerDataUrl: unknown): void {
+  const spaceId = conn.space;
+  if (spaceOwners.get(spaceId) !== conn.peer.userId) return;
+  const safe = sanitizeBannerDataUrl(bannerDataUrl);
+  spaceBanners.set(spaceId, { dataUrl: safe, setBy: conn.peer.userId });
+  broadcastSpace(spaceId, { type: 'banner-state', spaceId, bannerDataUrl: safe, updatedBy: conn.peer.userId });
 }
 
 /** Relay an ephemeral chat message / reaction to the rest of the room. */
@@ -727,6 +790,10 @@ wss.on('connection', (socket) => {
       handleUpdateRooms(msg.spaceId, msg.rooms);
     } else if (msg.type === 'rename-space') {
       handleRenameSpace(conn, msg.newSpaceId, msg.newSpaceName);
+    } else if (msg.type === 'claim-ownership') {
+      handleClaimOwnership(conn);
+    } else if (msg.type === 'set-banner') {
+      handleSetBanner(conn, msg.bannerDataUrl);
     } else if (msg.type === 'chat') {
       handleChat(conn, msg.text, msg.reaction);
     }

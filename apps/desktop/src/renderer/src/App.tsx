@@ -105,8 +105,21 @@ export function App(): React.JSX.Element {
     signaling.joinRoom(null);
     setCurrentRoomId(null);
   }, [signaling.joinRoom]);
-  const { spaces, currentSpaceId, rooms, switchSpace, addSpace, deleteSpace, initFirstSpace, updateRooms, updateSpaceSettings } =
-    useSpaces(leaveRoom, signaling.verifySpace);
+  const {
+    spaces,
+    currentSpaceId,
+    rooms,
+    switchSpace,
+    addSpace,
+    deleteSpace,
+    initFirstSpace,
+    updateRooms,
+    updateSpaceSettings,
+    updateSpaceBanner,
+    updateSpaceOwnerId,
+    pendingOwnerClaimSpaceId,
+    clearPendingOwnerClaim,
+  } = useSpaces(leaveRoom, signaling.verifySpace, userId);
   const spaceJoin = useSpaceJoin(addSpace);
 
   const [chatOpen, setChatOpen] = useState(() => store.getChatVisible());
@@ -367,6 +380,28 @@ export function App(): React.JSX.Element {
     [signaling.status, signaling.send],
   );
 
+  // Space Owner sets/clears the banner: persist locally immediately, and live-sync
+  // only while connected to that same space (the server's owner check keys off
+  // the current connection, so a sync while viewing another space would be a no-op anyway).
+  const handleSaveBanner = useCallback(
+    (spaceId: string, bannerDataUrl: string | null) => {
+      updateSpaceBanner(spaceId, bannerDataUrl);
+      if (spaceId === currentSpaceId && signaling.status === 'connected') {
+        signaling.send({ type: 'set-banner', bannerDataUrl });
+      }
+    },
+    [currentSpaceId, signaling.status, signaling.send, updateSpaceBanner],
+  );
+
+  const handleClaimOwnership = useCallback(
+    (spaceId: string) => {
+      if (spaceId === currentSpaceId && signaling.status === 'connected') {
+        signaling.send({ type: 'claim-ownership' });
+      }
+    },
+    [currentSpaceId, signaling.status, signaling.send],
+  );
+
   // Our effective accent color: the chosen one, else the default self gold.
   const selfColor = localAccentColor || SELF_COLOR;
 
@@ -381,7 +416,7 @@ export function App(): React.JSX.Element {
   useEffect(() => {
     if (currentSpaceId && displayName && userId) {
       const url = activeSpaceSignalingUrl || (window.chickadee?.signalingUrl ?? 'ws://localhost:8080');
-      signaling.join(currentSpaceId, currentRoomId, displayName, userId, rooms, selfStatus, localAvatarUrl, localVoicePreference, localAccentColor, activeSpaceJoinSecret, url);
+      signaling.join(currentSpaceId, currentRoomId, displayName, userId, rooms, selfStatus, localAvatarUrl, localVoicePreference, localAccentColor, activeSpaceJoinSecret, url, activeSpace?.bannerDataUrl ?? null);
     } else {
       signaling.leave();
     }
@@ -391,7 +426,7 @@ export function App(): React.JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentSpaceId, userId, displayName, activeSpaceSignalingUrl, activeSpaceJoinSecret]);
 
-  // Listen for space renames from other clients
+  // Listen for space renames + owner/banner sync from other clients (and our own welcome).
   useEffect(() => {
     const unsubscribe = signaling.subscribe((msg) => {
       if (msg.type === 'space-renamed') {
@@ -409,10 +444,29 @@ export function App(): React.JSX.Element {
             );
           }
         }
+      } else if (msg.type === 'owner-state') {
+        updateSpaceOwnerId(msg.spaceId, msg.ownerId);
+      } else if (msg.type === 'banner-state') {
+        updateSpaceBanner(msg.spaceId, msg.bannerDataUrl);
+      } else if (msg.type === 'welcome' && currentSpaceId) {
+        // Fresh space-join only — a same-space room-switch welcome omits these
+        // fields entirely, so `!== undefined` (not `?? null`) avoids wiping known
+        // owner/banner state on ordinary room switches.
+        if (msg.ownerId !== undefined) updateSpaceOwnerId(currentSpaceId, msg.ownerId);
+        if (msg.bannerDataUrl !== undefined) updateSpaceBanner(currentSpaceId, msg.bannerDataUrl);
       }
     });
     return unsubscribe;
-  }, [signaling.subscribe, spaces, updateSpaceSettings]);
+  }, [signaling.subscribe, spaces, updateSpaceSettings, updateSpaceOwnerId, updateSpaceBanner, currentSpaceId]);
+
+  // One-shot: right after a brand-new space's first successful connection,
+  // auto-claim ownership (guaranteed to win — the space is empty at this point).
+  useEffect(() => {
+    if (signaling.status === 'connected' && pendingOwnerClaimSpaceId && pendingOwnerClaimSpaceId === currentSpaceId) {
+      signaling.send({ type: 'claim-ownership' });
+      clearPendingOwnerClaim();
+    }
+  }, [signaling.status, pendingOwnerClaimSpaceId, currentSpaceId, signaling.send, clearPendingOwnerClaim]);
 
   const applyStatus = useCallback((status: 'online' | 'idle' | 'dnd') => {
     setSelfStatus(status);
@@ -1539,7 +1593,10 @@ export function App(): React.JSX.Element {
           <Suspense fallback={null}>
           <SpaceSettingsModal
             space={space}
-            onSave={(name, url, secret, iconDataUrl) => {
+            myUserId={userId}
+            onSaveBanner={handleSaveBanner}
+            onClaimOwnership={handleClaimOwnership}
+            onSave={(name, url, secret) => {
               const oldSpaceId = spaceSettingsTarget;
               const isRename = space.name.trim().toLowerCase() !== name.trim().toLowerCase();
 
@@ -1555,9 +1612,9 @@ export function App(): React.JSX.Element {
                   newSpaceName: name.trim()
                 });
 
-                updateSpaceSettings(oldSpaceId, name, url, secret, iconDataUrl, newSpaceId);
+                updateSpaceSettings(oldSpaceId, name, url, secret, newSpaceId);
               } else {
-                updateSpaceSettings(oldSpaceId, name, url, secret, iconDataUrl);
+                updateSpaceSettings(oldSpaceId, name, url, secret);
               }
               setSpaceSettingsTarget(null);
             }}
