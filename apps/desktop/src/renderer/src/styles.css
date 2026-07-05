@@ -439,13 +439,13 @@
   width: 24px;
   height: 24px;
   border-radius: var(--r-1);
-  color: var(--text);
+  color: var(--dim);
   opacity: 1;
   transition: all var(--dur-1) ease;
 }
 
 .sidebar__section-header:hover .sidebar__section-create-btn {
-  color: var(--dim);
+  color: var(--text);
 }
 
 .sidebar__section-create-btn:hover {
