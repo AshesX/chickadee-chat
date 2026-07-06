@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Plus, Settings, Trash2, ChevronDown, Copy, Check } from 'lucide-react';
 import { sanitizeBannerDataUrl, type SpaceInfo } from '@chickadee/shared';
 import { useDismissTimeout } from '../../hooks/useDismissTimeout';
+import { SIDEBAR_HEADER_HEIGHT_PX } from '../../lib/spaceHeader';
 import { SpaceContextMenu } from './SpaceContextMenu';
 
 
@@ -140,7 +141,7 @@ export function SpaceSwitcher({
       {switcherOpen && (
         <div
           className="menu-surface"
-          style={{ position: 'absolute', top: safeBanner ? '177px' : '77px', left: 0, width: '100%', zIndex: 'var(--z-dropdown)', display: 'flex', flexDirection: 'column', border: 'none', borderRadius: 0, boxShadow: 'var(--sh-1)', clipPath: 'inset(0px 0px -40px 0px)' }}
+          style={{ position: 'absolute', top: `${SIDEBAR_HEADER_HEIGHT_PX + 1}px`, left: 0, width: '100%', zIndex: 'var(--z-dropdown)', display: 'flex', flexDirection: 'column', border: 'none', borderRadius: 0, boxShadow: 'var(--sh-1)', clipPath: 'inset(0px 0px -40px 0px)' }}
           onClick={(e) => e.stopPropagation()}
         >
           {spaces.length > 0 && (

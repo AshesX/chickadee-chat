@@ -20,6 +20,13 @@
   --green: #5fb81f;
   --orange: #FBBF24;
   --red: #c20114;
+  /* Bright metallic gray for the sidebar section-header shimmer line — kept
+     theme-invariant like --orange (an identity accent, not a surface color).
+     Dimmed just enough below pure white to read as "silver" rather than a
+     blown-out hot spot; the gold used alongside it is blended toward this
+     same tone (not left at full saturation) so the two stay close enough in
+     brightness to shimmer together instead of visually fighting each other. */
+  --silver: color-mix(in srgb, white 82%, black 18%);
   /* Cool secondary — reserved for "live" moments (spotlight, screen-share).
      Deepened here vs. the dark-theme value so it holds contrast on paper. */
   --secondary: #7c3aed;
@@ -91,6 +98,13 @@
      banner) — deliberately not --veil-1/2 (those are theme-aware ink hover/
      active overlays, not permanent legibility scrims). */
   --scrim-legibility: color-mix(in srgb, black 75%, transparent);
+
+  /* Softer, shorter twin of --scrim-legibility for the Space banner's bottom-
+     edge grounding fade — decorative depth, not a legibility aid (the radial
+     vignette centered behind the name still uses --scrim-legibility for
+     that). Same literal-black, theme-invariant construction (photo overlays
+     don't follow --tint). */
+  --scrim-edge: color-mix(in srgb, black 30%, transparent);
 
   /* Elevation */
   --sh-1: 0 8px 28px var(--shadow-color);

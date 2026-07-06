@@ -3,18 +3,16 @@ import { Modal } from './Modal';
 import { AdvancedConnectionSettings } from './AdvancedConnectionSettings';
 import { AvatarCropModal } from './AvatarCropModal';
 import { userColor } from '../lib/settings';
+import { SIDEBAR_HEADER_HEIGHT_PX, SIDEBAR_MAX_WIDTH_PX } from '../lib/spaceHeader';
 import { MAX_BANNER_DATA_URL_LEN, sanitizeBannerDataUrl, type SpaceInfo } from '@chickadee/shared';
 
-// The banner is authored for the sidebar's widest resizable state (base 280px *
-// max 2.0x scale, see useSidebarResize.ts) at its fixed header height (176px,
-// see .sidebar__space-header--banner in styles.css), so object-fit:cover never
-// has to guess an aspect ratio that doesn't match what's actually rendered.
-// Cropped at 2x pixel density for crisp rendering on HiDPI displays.
-const SIDEBAR_MAX_WIDTH_PX = 560;
-const BANNER_HEADER_HEIGHT_PX = 176;
+// The banner is authored for the sidebar's widest resizable state at its fixed
+// header height (see lib/spaceHeader.ts), so object-fit:cover never has to
+// guess an aspect ratio that doesn't match what's actually rendered. Cropped
+// at 2x pixel density for crisp rendering on HiDPI displays.
 const BANNER_PIXEL_DENSITY = 2;
 const BANNER_OUTPUT_WIDTH = SIDEBAR_MAX_WIDTH_PX * BANNER_PIXEL_DENSITY;
-const BANNER_OUTPUT_HEIGHT = BANNER_HEADER_HEIGHT_PX * BANNER_PIXEL_DENSITY;
+const BANNER_OUTPUT_HEIGHT = SIDEBAR_HEADER_HEIGHT_PX * BANNER_PIXEL_DENSITY;
 
 interface SpaceSettingsModalProps {
   space: SpaceInfo;

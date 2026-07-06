@@ -411,7 +411,42 @@
   color: var(--text);
   background: var(--veil-1);
   cursor: pointer;
+  position: relative;
   transition: background var(--dur-1) ease, color var(--dur-1) ease;
+}
+
+/* Style deviation: a gold/silvery shimmer line framing each section header,
+   top and bottom — bright at center, fading to transparent at the edges.
+   Reuses the same --orange + --active-text pairing as .sidebar__wordmark-accent. */
+.sidebar__section-header::before,
+.sidebar__section-header::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  pointer-events: none;
+  /* Silver-dominant with gold as a subordinate accent, not two saturated
+     colors at equal strength — the gold stops are blended INTO the silver
+     (not just lowered in alpha) so they land as a faint warm tone close in
+     brightness to the silver center, rather than a fully-saturated orange
+     that still reads as "orange" even when faded. Silver also holds the
+     middle third of the line on its own before gold's warmth enters, so the
+     dominant impression is metallic silver, not gold. */
+  background: linear-gradient(90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--silver) 70%, var(--orange) 30%) 35%,
+    var(--silver) 50%,
+    color-mix(in srgb, var(--silver) 70%, var(--orange) 30%) 65%,
+    transparent 100%);
+}
+
+.sidebar__section-header::before {
+  top: 0;
+}
+
+.sidebar__section-header::after {
+  bottom: 0;
 }
 
 .sidebar__section-header:hover {
@@ -2479,22 +2514,32 @@
   width: 100%;
 }
 
+/* Fixed 96px hero strip — identical whether or not a banner image is set (a
+   plain --panel background + centered name when there's none); ~2.9:1 over the
+   default 280px sidebar width, a wide/compact proportion rather than a taller,
+   portrait one. The banner image + scrim (rendered only when bannerDataUrl is
+   set) and the `--banner` modifier below are the *only* things that differ.
+   Keep this height in sync with SIDEBAR_HEADER_HEIGHT_PX in lib/spaceHeader.ts
+   (CSS can't import that constant, so this one stays a literal). */
 .sidebar__space-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 var(--s-4);
-  height: 76px;
+  justify-content: center;
+  height: 96px;
+  padding: 0;
   position: relative;
+  overflow: hidden;
   border-bottom: 1px solid var(--border);
 }
 
-/* Hero banner variant: taller header, full-bleed image + scrim, centered name. */
+/* The ROOMS section header directly below already gets its own top-edge
+   shimmer line (.sidebar__section-header::before) — over a banner photo,
+   this flat neutral hairline sitting immediately above that colored shimmer
+   reads as a stray mismatched-color seam. Drop it only for the banner state;
+   the plain-panel (no photo) header keeps it since there's no shimmer-vs-
+   photo clash to cause the seam there. */
 .sidebar__space-header--banner {
-  height: 176px;
-  padding: 0;
-  overflow: hidden;
-  transition: height var(--dur-2) var(--ease);
+  border-bottom: none;
 }
 
 .sidebar__space-header-banner-img {
@@ -2514,66 +2559,82 @@
 .sidebar__space-header-scrim {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, var(--scrim-legibility) 0%, transparent 65%);
-}
-
-.sidebar__space-header--banner .space-info-wrap {
-  position: relative;
-  z-index: 1;
-  margin-right: 0;
-}
-
-.sidebar__space-header--banner .space-switcher-btn {
-  justify-content: center;
-}
-
-.sidebar__space-header--banner .space-switcher-btn__meta {
-  flex: 0 1 auto;
-}
-
-.sidebar__space-header--banner .space-switcher-btn__name {
-  color: #fff;
-  text-shadow: 0 1px 3px color-mix(in srgb, black 60%, transparent);
-  white-space: normal;
-  text-align: center;
+  /* Short, light bottom-edge fade only (decorative grounding) — the
+     legibility vignette lives on .space-switcher-btn__name::before instead,
+     so it can hug the name's own rendered width (see below) rather than
+     guessing a fixed size here. Replaces a single tall linear scrim whose
+     dark end sat at the bottom edge while fading to nothing by the
+     vertically-centered name it was meant to read against. */
+  background: linear-gradient(to top, var(--scrim-edge) 0%, transparent 30%);
 }
 
 .space-info-wrap {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   min-width: 0;
   flex: 1;
-  margin-right: var(--s-2);
 }
 
 .space-switcher-btn {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: var(--s-2);
   cursor: pointer;
-  text-align: left;
+  text-align: center;
   width: 100%;
 }
 
 .space-switcher-btn__meta {
   display: flex;
   flex-direction: column;
+  flex: 0 1 auto;
   min-width: 0;
-  flex: 1;
 }
 
 .space-switcher-btn__name {
+  position: relative;
+  display: inline-block;
   font-family: var(--font-heading);
   font-weight: var(--fw-2);
   font-size: var(--fs-4);
   color: var(--text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  text-align: center;
   line-height: 1.25;
-  position: relative;
-  top: -2px;
+}
+
+/* Banner-only override: white text + shadow for legibility over an arbitrary
+   photo (the plain --panel background needs neither). */
+.sidebar__space-header--banner .space-switcher-btn__name {
+  color: #fff;
+  text-shadow: 0 1px 3px color-mix(in srgb, black 60%, transparent);
+}
+
+/* Legibility vignette sized off the name's own shrink-to-fit box (via inset,
+   not a fixed width/height) so it grows and shrinks with the actual space
+   name. A blurred, rounded-rectangle "pill" — NOT a radial-gradient ellipse:
+   an ellipse tapers at its horizontal ends, so a long name's first/last words
+   fall outside the coverage; a pill keeps uniform darkness across the whole
+   width and only rounds at the very ends. `filter: blur` (rather than a
+   box-shadow spread, which leaves a visibly defined pill outline) gives a
+   soft, edgeless falloff. Perf: this element is painted ONCE on space load —
+   it's not animated and lives in no rAF/interval/transition loop — so the
+   one-off blur raster + composited layer has no per-frame cost.
+   z-index: -1 is required — a positioned pseudo-element (position: absolute)
+   always paints above non-positioned in-flow content (the text) in CSS's
+   stacking order regardless of DOM order, so without it the vignette renders
+   in FRONT of the name. */
+.sidebar__space-header--banner .space-switcher-btn__name::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: -6px -40px;
+  border-radius: 100px;
+  background: var(--scrim-legibility);
+  filter: blur(14px);
 }
 
 .space-switcher-btn__name--code {
@@ -3220,8 +3281,9 @@
 .space-banner-settings-preview {
   width: 100%;
   /* Matches the sidebar's widest resizable state (560px) over its fixed hero
-     header height (176px) — see .sidebar__space-header--banner below. */
-  aspect-ratio: 560 / 176;
+     header height (96px) — see .sidebar__space-header above and
+     lib/spaceHeader.ts (the source of truth these two derive from). */
+  aspect-ratio: 560 / 96;
   border-radius: var(--r-2);
   overflow: hidden;
   box-shadow: none;
