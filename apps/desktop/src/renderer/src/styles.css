@@ -385,8 +385,13 @@
   letter-spacing: -0.01em;
 }
 
+/* The gradient's end stop resolves per theme: gold → pale champagne on the
+   dark canvas, gold → deep amber ink on the light one. (The former
+   --active-text end stop was #fff in light mode — invisible on alabaster.)
+   The raw-gold START stop stays lower-contrast in light; accepted brand
+   tradeoff on a decorative wordmark. */
 .sidebar__wordmark-accent {
-  background: linear-gradient(90deg, var(--orange), var(--active-text));
+  background: linear-gradient(90deg, var(--orange), color-mix(in srgb, var(--orange) 45%, var(--text) 55%));
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -423,7 +428,8 @@
 
 /* Style deviation: a gold/silvery shimmer line framing each section header,
    top and bottom — bright at center, fading to transparent at the edges.
-   Reuses the same --orange + --active-text pairing as .sidebar__wordmark-accent. */
+   Pairs --orange with the theme-varying --silver (graphite in light, bright
+   metal in dark) so the line reads on both canvases. */
 .sidebar__section-header::before,
 .sidebar__section-header::after {
   content: '';
@@ -713,15 +719,18 @@
   flex-shrink: 0;
   border-radius: var(--r-1);
 
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.95);
+  /* Sits on the dark active row in BOTH themes (--active-bg is ink/indigo),
+     so its washes derive from --block-fg — the "light ink on a dark block"
+     token — rather than theme-blind raw white alphas. */
+  border: 1px solid color-mix(in srgb, var(--block-fg) 16%, transparent);
+  background: color-mix(in srgb, var(--block-fg) 10%, transparent);
+  color: var(--block-fg);
   transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
 }
 
 .room-row__mini-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.3);
+  background: color-mix(in srgb, var(--block-fg) 20%, transparent);
+  border-color: color-mix(in srgb, var(--block-fg) 30%, transparent);
 }
 
 .room-row__mini-btn:active:not(:disabled) {

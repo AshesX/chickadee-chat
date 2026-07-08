@@ -12,7 +12,9 @@
 
   /* Text */
   --dim: #5e574d;
-  --text: #000000;
+  /* Deep warm ink, not pure #000 — softer against the warm alabaster canvas
+     (still ≈16:1 on --bg, AAA). Also feeds --active-bg below. */
+  --text: #211c16;
   --text-sub: #4a4036;
   --fade: #807868;
 
@@ -20,13 +22,14 @@
   --green: #5fb81f;
   --orange: #FBBF24;
   --red: #c20114;
-  /* Bright metallic gray for the sidebar section-header shimmer line — kept
-     theme-invariant like --orange (an identity accent, not a surface color).
-     Dimmed just enough below pure white to read as "silver" rather than a
-     blown-out hot spot; the gold used alongside it is blended toward this
+  /* Metallic gray for the sidebar section-header shimmer line. The token's
+     intent is "readable metallic accent", which one literal can't satisfy on
+     both canvases: the dark theme's bright silver is near-invisible on the
+     light alabaster, so light gets a deeper graphite-silver and dark
+     re-brightens it below. The gold used alongside it is blended toward this
      same tone (not left at full saturation) so the two stay close enough in
      brightness to shimmer together instead of visually fighting each other. */
-  --silver: color-mix(in srgb, white 82%, black 18%);
+  --silver: color-mix(in srgb, white 62%, black 38%);
   /* Cool secondary — reserved for "live" moments (spotlight, screen-share).
      Deepened here vs. the dark-theme value so it holds contrast on paper. */
   --secondary: #7c3aed;
@@ -54,14 +57,16 @@
 
   /* Structural tokens */
   --tint: #000000;
-  --block-bg: #000000;
+  --block-bg: #211c16;
   --block-fg: #e9e9e9;
   --on-accent: #000000;
   --badge-fg: #e9e9e9;
   /* Tuned to carry modal focus on opacity alone — the backdrop deliberately
      has no blur (a full-window backdrop-filter re-rasterizes live video). */
   --scrim: rgba(0, 0, 0, 0.55);
-  --shadow-color: rgba(0, 0, 0, 0.5);
+  /* Light elevation is a soft warm shadow, not 50% black — premium-light
+     surfaces separate by tone, and the 1px --border carries the definition. */
+  --shadow-color: rgba(32, 26, 20, 0.16);
 
   /* ── Ultra-Lean primitives ────────────────────────────────── */
 
@@ -165,6 +170,10 @@
   --fade: #6c7280;
 
   --secondary: #a78bfa;
+
+  /* Bright silver — dimmed just enough below pure white to read as metal
+     rather than a blown-out hot spot (see the light-theme note above). */
+  --silver: color-mix(in srgb, white 82%, black 18%);
 
   --active-bg: #232a3c;
   --active-text: #ffffff;
