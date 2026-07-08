@@ -248,7 +248,7 @@
 .label {
   font-size: var(--fs-0);
   font-weight: var(--fw-2);
-  letter-spacing: 0.16em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text);
   margin-bottom: var(--s-2);
@@ -413,7 +413,7 @@
   font-family: var(--font-base);
   font-size: var(--fs-0);
   font-weight: var(--fw-1);
-  letter-spacing: 0.16em;
+  letter-spacing: 0.08em;
   color: var(--text);
   background: var(--veil-1);
   cursor: pointer;
@@ -789,7 +789,7 @@
   font-size: var(--fs-2);
   font-weight: var(--fw-2);
   color: var(--text);
-  line-height: 1.25;
+  line-height: var(--lh-1);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -802,7 +802,8 @@
 .friend-row__where {
   font-size: var(--fs-1);
   color: var(--dim);
-  font-weight: normal;
+  /* Un-bolds from the parent __name (fw-2). */
+  font-weight: var(--fw-1);
   margin-left: var(--s-2);
 }
 
@@ -1903,7 +1904,7 @@
 .empty-lounge__card p {
   font-size: var(--fs-2);
   color: var(--dim);
-  line-height: 1.5;
+  line-height: var(--lh-2);
 }
 
 /* ── Chat panel ───────────────────────────────────────────── */
@@ -1981,7 +1982,7 @@
 .chat-msg__text {
   font-size: calc(14px * var(--chat-font-scale, 1));
   color: var(--text-sub);
-  line-height: 1.5;
+  line-height: var(--lh-2);
   word-break: break-word;
 }
 
@@ -2268,7 +2269,7 @@
 .settings-note {
   font-size: var(--fs-0);
   color: var(--dim);
-  line-height: 1.5;
+  line-height: var(--lh-2);
 }
 
 
@@ -2644,7 +2645,7 @@
   color: var(--text);
   white-space: normal;
   text-align: center;
-  line-height: 1.25;
+  line-height: var(--lh-1);
 }
 
 /* Banner-only override: white text for legibility over an arbitrary
@@ -2947,7 +2948,7 @@
   font-weight: var(--fw-2);
   color: var(--text);
   text-transform: uppercase;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.08em;
   padding: var(--s-2) var(--s-3) var(--s-1);
   border-bottom: 1px solid var(--border);
 }

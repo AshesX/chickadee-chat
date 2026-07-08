@@ -93,6 +93,12 @@
   --fw-2: 700;
   --fw-3: 900;
 
+  /* Line height */
+  --lh-1: 1.25;
+  /* tight — UI chrome: labels, names, single-line rows */
+  --lh-2: 1.5;
+  /* reading — chat messages, modal copy, notes */
+
   /* Veils */
   --veil-1: color-mix(in srgb, var(--tint) 6%, transparent);
   --veil-2: color-mix(in srgb, var(--tint) 12%, transparent);
@@ -192,6 +198,7 @@ body,
 body {
   font-family: var(--font-base);
   font-size: var(--fs-2);
+  line-height: var(--lh-1);
   color: var(--text);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
