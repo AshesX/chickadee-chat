@@ -77,13 +77,14 @@
 
   /* Type */
   --font-base: 'Geist', -apple-system, system-ui, sans-serif;
-  --font-heading: 'Playfair Display', serif;
+
   --font-mono: 'Geist Mono', monospace;
   --fs-0: 10px;
   --fs-1: 12px;
   --fs-2: 14px;
   --fs-3: 16px;
   --fs-4: 20px;
+  --fs-5: 28px;
 
   /* Weight */
   --fw-1: 500;
@@ -97,7 +98,7 @@
   /* Fixed dark overlay for text legibility over an arbitrary photo (Space
      banner) — deliberately not --veil-1/2 (those are theme-aware ink hover/
      active overlays, not permanent legibility scrims). */
-  --scrim-legibility: color-mix(in srgb, black 75%, transparent);
+  --scrim-legibility: color-mix(in srgb, black 50%, transparent);
 
   /* Softer, shorter twin of --scrim-legibility for the Space banner's bottom-
      edge grounding fade — decorative depth, not a legibility aid (the radial

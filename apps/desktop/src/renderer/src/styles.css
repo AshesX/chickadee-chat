@@ -434,11 +434,11 @@
      middle third of the line on its own before gold's warmth enters, so the
      dominant impression is metallic silver, not gold. */
   background: linear-gradient(90deg,
-    transparent 0%,
-    color-mix(in srgb, var(--silver) 70%, var(--orange) 30%) 35%,
-    var(--silver) 50%,
-    color-mix(in srgb, var(--silver) 70%, var(--orange) 30%) 65%,
-    transparent 100%);
+      transparent 0%,
+      color-mix(in srgb, var(--silver) 70%, var(--orange) 30%) 35%,
+      var(--silver) 50%,
+      color-mix(in srgb, var(--silver) 70%, var(--orange) 30%) 65%,
+      transparent 100%);
 }
 
 .sidebar__section-header::before {
@@ -2597,20 +2597,19 @@
 .space-switcher-btn__name {
   position: relative;
   display: inline-block;
-  font-family: var(--font-heading);
+  font-family: var(--font-base);
   font-weight: var(--fw-2);
-  font-size: var(--fs-4);
+  font-size: var(--fs-5);
   color: var(--text);
   white-space: normal;
   text-align: center;
   line-height: 1.25;
 }
 
-/* Banner-only override: white text + shadow for legibility over an arbitrary
+/* Banner-only override: white text for legibility over an arbitrary
    photo (the plain --panel background needs neither). */
 .sidebar__space-header--banner .space-switcher-btn__name {
   color: #fff;
-  text-shadow: 0 1px 3px color-mix(in srgb, black 60%, transparent);
 }
 
 /* Legibility vignette sized off the name's own shrink-to-fit box (via inset,
@@ -2631,10 +2630,10 @@
   content: '';
   position: absolute;
   z-index: -1;
-  inset: -6px -40px;
+  inset: 2px -24px;
   border-radius: 100px;
   background: var(--scrim-legibility);
-  filter: blur(14px);
+  filter: blur(16px);
 }
 
 .space-switcher-btn__name--code {

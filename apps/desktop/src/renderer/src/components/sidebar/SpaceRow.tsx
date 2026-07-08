@@ -39,7 +39,7 @@ export function SpaceRow({
         style={{ flex: 1, padding: 'var(--s-2)' }}
         onClick={onSelect}
       >
-        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, textAlign: 'left', marginRight: 'var(--s-2)', fontFamily: 'var(--font-heading)' }}>
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, textAlign: 'left', marginRight: 'var(--s-2)' }}>
           {copied ? (
             <span className="space-switcher-btn__name--code" style={{ color: 'var(--green)' }}>
               copied

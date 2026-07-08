@@ -4,9 +4,7 @@ import { createRoot } from 'react-dom/client';
 import '@fontsource/geist-sans/500.css';
 import '@fontsource/geist-sans/700.css';
 import '@fontsource/geist-sans/900.css';
-import '@fontsource/playfair-display/500.css';
-import '@fontsource/playfair-display/700.css';
-import '@fontsource/playfair-display/900.css';
+
 import { App } from './App';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import './theme.css';
