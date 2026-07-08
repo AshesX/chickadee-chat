@@ -2619,13 +2619,20 @@
    fall outside the coverage; a pill keeps uniform darkness across the whole
    width and only rounds at the very ends. `filter: blur` (rather than a
    box-shadow spread, which leaves a visibly defined pill outline) gives a
-   soft, edgeless falloff. Perf: this element is painted ONCE on space load —
-   it's not animated and lives in no rAF/interval/transition loop — so the
-   one-off blur raster + composited layer has no per-frame cost.
+   soft, edgeless falloff.
    z-index: -1 is required — a positioned pseudo-element (position: absolute)
    always paints above non-positioned in-flow content (the text) in CSS's
    stacking order regardless of DOM order, so without it the vignette renders
-   in FRONT of the name. */
+   in FRONT of the name.
+   `will-change: filter` is load-bearing, not a perf nicety: without a compositor
+   layer of its own, Chromium can fold this element's raster in with unrelated
+   sidebar content, so *any* repaint elsewhere in that shared layer — e.g. the
+   mic icon swapping in the self-status row on Mute — re-rasterizes this blur
+   and the name text together, and the two rasterizations aren't guaranteed
+   pixel-identical. That's the faint flash on the space name: confirmed via
+   Chrome DevTools paint-flashing + pixel diffing (it reproduced on every
+   input event and vanished once this element got its own layer). Pinning the
+   layer here stops unrelated clicks from ever re-rasterizing it. */
 .sidebar__space-header--banner .space-switcher-btn__name::before {
   content: '';
   position: absolute;
@@ -2634,6 +2641,7 @@
   border-radius: 100px;
   background: var(--scrim-legibility);
   filter: blur(16px);
+  will-change: filter;
 }
 
 .space-switcher-btn__name--code {
