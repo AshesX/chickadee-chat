@@ -1078,15 +1078,14 @@
   color: var(--text);
 }
 
+/* Hover/active only — :focus-visible is deliberately NOT reset here, so the
+   global gold focus ring (theme.css) stays on these keyboard stops. */
 .pill--chat:hover,
 .pill--chat:active,
-.pill--chat:focus-visible,
 .pill--chat-on:hover,
-.pill--chat-on:active,
-.pill--chat-on:focus-visible {
+.pill--chat-on:active {
   background: transparent;
   border-color: transparent;
-  outline: none;
 }
 
 .winctl {
