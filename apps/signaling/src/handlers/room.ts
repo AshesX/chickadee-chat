@@ -104,8 +104,12 @@ export function handleJoin(socket: WebSocket, msg: Extract<ClientMessage, { type
   // has no live record yet (same "resurrect from the joining client" discipline
   // as the room-list seed above). Any joiner can seed it — unlike ownership, a
   // wrong seed here is just a stale picture until the real owner reconnects and
-  // re-sends set-banner, not a trust/security concern.
-  if (!spaceBanners.has(spaceId) && msg.bannerDataUrl !== undefined) {
+  // re-sends set-banner, not a trust/security concern. Only a non-null value
+  // seeds, though: a joiner with no locally-cached banner (e.g. a second test
+  // client, or anyone who isn't the owner) must not lock the map to "no banner"
+  // ahead of the actual owner's own rejoin, which would otherwise wipe a real
+  // banner it never got the chance to re-seed.
+  if (!spaceBanners.has(spaceId) && msg.bannerDataUrl != null) {
     spaceBanners.set(spaceId, { dataUrl: sanitizeBannerDataUrl(msg.bannerDataUrl), setBy: peer.userId });
   }
 

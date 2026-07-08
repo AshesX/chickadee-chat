@@ -108,6 +108,14 @@ export function SpaceSwitcher({
           <>
             <img
               key={safeBanner}
+              // A data: URI can finish decoding before (or right as) this ref
+              // attaches, so `onLoad` alone can miss the event on a genuine
+              // fresh page load — this happened to go unnoticed in day-to-day
+              // dev testing because a Vite/React-Refresh hot-reload remount
+              // doesn't hit the same race, masking it. The `.complete` check
+              // catches the case `onLoad` missed; `onLoad` still covers a
+              // slower/first-ever decode.
+              ref={(el) => { if (el?.complete && el.naturalWidth > 0) setBannerLoaded(true); }}
               src={safeBanner}
               alt=""
               decoding="async"

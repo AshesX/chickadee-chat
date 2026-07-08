@@ -398,6 +398,23 @@ ownerB.ws.close();
 ownerC.ws.close();
 await wait(100);
 
+// Regression guard: a joiner with no locally-cached banner (bannerDataUrl: null)
+// must not lock the Space's banner to "none" ahead of the real owner's own
+// rejoin — this is exactly what happens after a signaling-server restart when
+// a second client reconnects before the owner does.
+const RACE_SPACE = 'banner-seed-race-space';
+const bystander = client('Bystander', { room: null, spaceId: RACE_SPACE, userId: 'uid-bystander', bannerDataUrl: null });
+await bystander.ready;
+const raceOwner = client('RaceOwner', { room: null, spaceId: RACE_SPACE, userId: 'uid-race-owner', bannerDataUrl: VALID_BANNER });
+const wRaceOwner = await raceOwner.ready;
+check(
+  "a banner-less joiner does not lock out a later joiner's real banner",
+  wRaceOwner.bannerDataUrl === VALID_BANNER,
+);
+bystander.ws.close();
+raceOwner.ws.close();
+await wait(100);
+
 for (const cl of [a, c, d, e]) cl.ws.close();
 await wait(100);
 

@@ -396,12 +396,25 @@ export function App(): React.JSX.Element {
         // Fresh space-join only — a same-space room-switch welcome omits these
         // fields entirely, so `!== undefined` (not `?? null`) avoids wiping known
         // owner/banner state on ordinary room switches.
-        if (msg.ownerId !== undefined) updateSpaceOwnerId(currentSpaceId, msg.ownerId);
+        if (msg.ownerId !== undefined) {
+          const knownSpace = spaces.find((s) => s.id === currentSpaceId);
+          if (msg.ownerId === null && knownSpace?.ownerId === userId) {
+            // The signaling server's in-memory ownership record is gone (e.g. a
+            // restart cleared it) but we're the space's recorded owner locally —
+            // reclaim it instead of silently demoting ourselves to unowned.
+            // First-claim-wins is already the trust model and nobody else has
+            // claimed it, so this is uncontested; the resulting `owner-state`
+            // reply applies the (re)confirmed ownerId.
+            signaling.send({ type: 'claim-ownership' });
+          } else {
+            updateSpaceOwnerId(currentSpaceId, msg.ownerId);
+          }
+        }
         if (msg.bannerDataUrl !== undefined) updateSpaceBanner(currentSpaceId, msg.bannerDataUrl);
       }
     });
     return unsubscribe;
-  }, [signaling.subscribe, spaces, updateSpaceSettings, updateSpaceOwnerId, updateSpaceBanner, currentSpaceId]);
+  }, [signaling.subscribe, spaces, updateSpaceSettings, updateSpaceOwnerId, updateSpaceBanner, currentSpaceId, userId, signaling.send]);
 
   // One-shot: right after a brand-new space's first successful connection,
   // auto-claim ownership (guaranteed to win — the space is empty at this point).
