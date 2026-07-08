@@ -95,10 +95,13 @@
   animation: popIn var(--dur-1) var(--ease);
 }
 
+/* Near-opaque elevated surface. Formerly a backdrop-filter blur — removed:
+   these popovers (emoji/reactions/status) can open over the live video grid,
+   where a backdrop blur re-rasterizes every video frame. The modifier name is
+   kept so the three call sites need no churn; --sh-1 carries the depth. */
 .menu-surface--frosted {
-  background: color-mix(in srgb, var(--card) 96%, transparent);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: color-mix(in srgb, var(--card) 98%, transparent);
+  box-shadow: var(--sh-1);
 }
 
 /* ── Menu item primitive (.menu-item) ──────────────────────── */
@@ -256,10 +259,11 @@
   -webkit-app-region: no-drag;
 }
 
+/* Opacity-only dim — no backdrop-filter: a full-window blur re-rasterizes
+   the entire app (including live video) for as long as a modal is open.
+   --scrim is tuned slightly stronger to carry the focus on its own. */
 .backdrop--scrim {
   background: var(--scrim);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
   display: grid;
   place-items: center;
   padding: var(--s-6);
@@ -533,30 +537,35 @@
 }
 
 
+/* The animated part is transform/opacity only (compositor-safe); `height`
+   is never transitioned — the hover nub scales in at a fixed 12px, and the
+   hover→active growth is a discrete swap that lands together with the row's
+   background flip, so selection reads as one crisp state change. */
 .room-row::before {
   content: '';
   position: absolute;
   z-index: 1;
   left: 0;
   top: 50%;
-  transform: translateY(-50%);
   width: 4px;
-  height: 0;
+  height: 12px;
   border-radius: 0 var(--r-1) var(--r-1) 0;
   background: var(--orange);
-  transition: height var(--dur-2) var(--ease), opacity var(--dur-2) ease;
   opacity: 0;
+  transform: translateY(-50%) scaleY(0.4);
+  transition: transform var(--dur-2) var(--ease), opacity var(--dur-2) var(--ease);
 }
 
 .room-row:hover::before {
-  height: 12px;
   opacity: 1;
+  transform: translateY(-50%) scaleY(1);
 }
 
 .room-row--active::before,
 .room-row--active:hover::before {
   height: calc(100% - 12px);
   opacity: 1;
+  transform: translateY(-50%) scaleY(1);
 }
 
 .room-row__icon {
@@ -1270,6 +1279,12 @@
 }
 
 
+/* No backdrop-filter here: the pill sits over live video, where a backdrop
+   blur re-rasterizes every video frame. A near-opaque card surface reads as
+   an overlay without it. The expand/collapse is likewise NOT a width
+   animation — the max-width change is discrete (0s), timed so it snaps open
+   before the children fade in and snaps shut only after they've faded out;
+   the perceived motion is the children's compositor-only fade/slide. */
 .tile__volume {
   position: absolute;
   bottom: 10px;
@@ -1281,23 +1296,41 @@
   max-width: 32px;
 
   padding: var(--s-1);
-  background: color-mix(in srgb, var(--card) 90%, transparent);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: color-mix(in srgb, var(--card) 94%, transparent);
   border: 1px solid var(--border);
   border-radius: var(--r-1);
   overflow: hidden;
   opacity: 0.5;
-  transition: max-width var(--dur-2) ease, opacity var(--dur-2) ease;
+  transition: max-width 0s linear var(--dur-2), opacity var(--dur-2) var(--ease);
 }
 
 .tile:hover .tile__volume {
   opacity: 0.85;
 }
 
-.tile__volume:hover {
+.tile__volume:hover,
+.tile__volume:focus-within {
   max-width: 194px;
   opacity: 1;
+  transition: max-width 0s linear 0s, opacity var(--dur-2) var(--ease);
+}
+
+/* The revealed children: the slider (SettingsSlider's unclassed root div —
+   see TileVolumeControl.tsx) and the percentage readout. `:focus-within`
+   mirrors `:hover` so the slider is reachable by keyboard. */
+.tile__volume > div,
+.tile__volume > .tile__volume-pct {
+  opacity: 0;
+  transform: translateX(-6px);
+  transition: opacity var(--dur-2) var(--ease), transform var(--dur-2) var(--ease);
+}
+
+.tile__volume:hover > div,
+.tile__volume:hover > .tile__volume-pct,
+.tile__volume:focus-within > div,
+.tile__volume:focus-within > .tile__volume-pct {
+  opacity: 1;
+  transform: translateX(0);
 }
 
 .tile__volume-icon-btn {
@@ -1469,7 +1502,9 @@
 
 /* The stage tile is the room's one "live" moment — a restrained violet ambient
    glow (soft, outward only; no hard ring across the video content) marks it as
-   such, whether it's an active ScreenView or the unwatched placeholder below. */
+   such, whether it's an active ScreenView or the unwatched placeholder below.
+   Perf-audited: the shadow is static (never transitioned), so it paints once —
+   the playing video inside repaints independently of it. */
 .screen {
   position: relative;
   min-height: 0;
@@ -2290,11 +2325,12 @@
   height: 16px;
   border-radius: 50%;
   background: var(--dim);
-  transition: all var(--dur-1) ease;
+  /* Slides via transform, not `left` — the toggle animates on the compositor. */
+  transition: transform var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
 }
 
 .switch--on .switch__knob {
-  left: 18px;
+  transform: translateX(16px);
   background: var(--orange);
 }
 
@@ -2632,7 +2668,9 @@
    pixel-identical. That's the faint flash on the space name: confirmed via
    Chrome DevTools paint-flashing + pixel diffing (it reproduced on every
    input event and vanished once this element got its own layer). Pinning the
-   layer here stops unrelated clicks from ever re-rasterizing it. */
+   layer here stops unrelated clicks from ever re-rasterizing it.
+   Perf-audited: static content on a pinned layer — the blur rasters once,
+   never per frame (unlike a backdrop-filter). Do not "optimize" this away. */
 .sidebar__space-header--banner .space-switcher-btn__name::before {
   content: '';
   position: absolute;
@@ -2800,18 +2838,19 @@
   transform: translateX(-50%);
 }
 
+/* No glow shadows here: the fill's width is rewritten every rAF frame while
+   the mic is live, so a box-shadow would re-rasterize well beyond the 6px
+   track on every frame. Level is carried by fill length + the red swap. */
 .mic-meter__fill {
   height: 100%;
   width: 0%;
   background: var(--online);
   border-radius: var(--r-1);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--green) 40%, transparent);
-  transition: width var(--dur-1) linear, background-color var(--dur-1) ease, box-shadow var(--dur-1) ease;
+  transition: width var(--dur-1) linear, background-color var(--dur-1) var(--ease);
 }
 
 .mic-meter__fill--clipping {
   background: var(--red);
-  box-shadow: 0 0 12px var(--red), 0 0 20px color-mix(in srgb, var(--red) 40%, transparent);
 }
 
 .mic-meter__label {

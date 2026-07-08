@@ -58,7 +58,9 @@
   --block-fg: #e9e9e9;
   --on-accent: #000000;
   --badge-fg: #e9e9e9;
-  --scrim: rgba(0, 0, 0, 0.5);
+  /* Tuned to carry modal focus on opacity alone — the backdrop deliberately
+     has no blur (a full-window backdrop-filter re-rasterizes live video). */
+  --scrim: rgba(0, 0, 0, 0.55);
   --shadow-color: rgba(0, 0, 0, 0.5);
 
   /* ── Ultra-Lean primitives ────────────────────────────────── */
@@ -170,7 +172,7 @@
   --tint: #ffffff;
   --block-bg: #1d2231;
   --block-fg: #edeef2;
-  --scrim: rgba(0, 0, 0, 0.6);
+  --scrim: rgba(0, 0, 0, 0.68);
   --shadow-color: rgba(0, 0, 0, 0.6);
 }
 
