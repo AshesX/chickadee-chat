@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { enableOpusDtx, tuneOpusSdp } from './peerLink';
+import { enableOpusDtx, tuneOpusSdp } from './sdp';
 
 describe('enableOpusDtx', () => {
   it('appends usedtx=1 to an existing Opus fmtp line', () => {

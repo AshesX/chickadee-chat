@@ -3,7 +3,12 @@ import type { AudioQuality, PeerId, VideoQuality } from '@chickadee/shared';
 import { createPeerLink, type PeerLink } from '../webrtc/peerLink';
 import type { MessageListener, Signaling } from './useSignaling';
 import { getSharedAudioContext } from '../lib/audioContext';
-import { RESOLUTION_MAP, createMicProcessingGraph, type ScreenAudioConstraints } from '../webrtc/mediaConstraints';
+import {
+  buildMicAudioConstraints,
+  buildVideoCaptureConstraints,
+  createMicProcessingGraph,
+  type ScreenAudioConstraints,
+} from '../webrtc/mediaConstraints';
 import { deriveWants, classifyPeerStreams } from '../webrtc/meshLogic';
 import { computeMeshEncoding, type MeshEncoding } from '../webrtc/encodingParams';
 import { useAutoClearError } from './useAutoClearError';
@@ -195,12 +200,7 @@ export function usePeerMesh(
 
     const promise = navigator.mediaDevices
       .getUserMedia({
-        audio: {
-          deviceId: inputDeviceIdRef.current ? { exact: inputDeviceIdRef.current } : undefined,
-          echoCancellation: ecRef.current,
-          autoGainControl: agcRef.current,
-          noiseSuppression: nsRef.current,
-        },
+        audio: buildMicAudioConstraints(inputDeviceIdRef.current, ecRef.current, agcRef.current, nsRef.current),
         video: false,
       })
       .then((stream) => {
@@ -502,12 +502,7 @@ export function usePeerMesh(
     void (async () => {
       try {
         const newRaw = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            deviceId: deviceId ? { exact: deviceId } : undefined,
-            echoCancellation: ecRef.current,
-            autoGainControl: agcRef.current,
-            noiseSuppression: nsRef.current,
-          },
+          audio: buildMicAudioConstraints(deviceId, ecRef.current, agcRef.current, nsRef.current),
           video: false,
         });
         if (disposedRef.current) {
@@ -585,14 +580,8 @@ export function usePeerMesh(
     setCameraError(null);
     void (async () => {
       try {
-        const res = RESOLUTION_MAP[cameraResolution] || RESOLUTION_MAP['720p'];
-        const fps = parseInt(cameraFramerate, 10) || 30;
-        const camStream = await navigator.mediaDevices.getUserMedia({ 
-          video: { 
-            width: { ideal: res.width }, 
-            height: { ideal: res.height }, 
-            frameRate: { ideal: fps } 
-          } 
+        const camStream = await navigator.mediaDevices.getUserMedia({
+          video: buildVideoCaptureConstraints(cameraResolution, cameraFramerate, '720p'),
         });
         const videoTrack = camStream.getVideoTracks()[0];
         if (!videoTrack) return;
@@ -667,15 +656,9 @@ export function usePeerMesh(
               : true
             : false;
 
+          const videoConstraints = buildVideoCaptureConstraints(screenResolution, screenFramerate, '1080p');
           let screen: MediaStream;
           try {
-            const res = RESOLUTION_MAP[screenResolution] || RESOLUTION_MAP['1080p'];
-            const fps = parseInt(screenFramerate, 10) || 30;
-            const videoConstraints = {
-              width: { ideal: res.width },
-              height: { ideal: res.height },
-              frameRate: { ideal: fps }
-            };
             screen = await navigator.mediaDevices.getDisplayMedia({
               video: videoConstraints,
               audio: audioConstraints,
@@ -685,15 +668,9 @@ export function usePeerMesh(
             // System-audio capture can fail (e.g. some window shares); retry video-only.
             console.warn('screen audio capture failed, retrying video-only', audioErr);
             await window.chickadee.setShareSource(sourceId, false);
-            const res = RESOLUTION_MAP[screenResolution] || RESOLUTION_MAP['1080p'];
-            const fps = parseInt(screenFramerate, 10) || 30;
-            screen = await navigator.mediaDevices.getDisplayMedia({ 
-              video: {
-                width: { ideal: res.width },
-                height: { ideal: res.height },
-                frameRate: { ideal: fps }
-              }, 
-              audio: false 
+            screen = await navigator.mediaDevices.getDisplayMedia({
+              video: videoConstraints,
+              audio: false,
             });
           }
 

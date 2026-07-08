@@ -8,6 +8,13 @@ import {
   type ServerMessage,
   type SpacePresence,
 } from '@chickadee/shared';
+import {
+  PING_INTERVAL_MS,
+  heartbeatExpired,
+  reconnectDelayMs,
+  reconnectExhausted,
+} from '../lib/reconnectPolicy';
+import { verifySpace, type SpaceVerifyResult } from '../lib/verifySpace';
 
 /** A listener invoked for every inbound server message (used by the WebRTC layer). */
 export type MessageListener = (message: ServerMessage) => void;
@@ -46,10 +53,9 @@ export interface Signaling extends SignalingState {
   send: (message: ClientMessage) => void;
   /**
    * Non-mutating existence probe over a throwaway socket (independent of the
-   * persistent connection). Resolves 'exists'/'not-found' from the server, or
-   * 'unreachable' if the server can't be reached within the timeout.
+   * persistent connection) — see lib/verifySpace.ts.
    */
-  verifySpace: (spaceId: string, signalingUrl: string, secret?: string) => Promise<'exists' | 'not-found' | 'unreachable'>;
+  verifySpace: (spaceId: string, signalingUrl: string, secret?: string) => Promise<SpaceVerifyResult>;
   /** Subscribe to raw inbound server messages; returns an unsubscribe fn. */
   subscribe: (listener: MessageListener) => () => void;
   /** Claim the room's stage for a screen/camera; `force` takes it over from the current holder. */
@@ -195,13 +201,6 @@ export function applyPresenceUpdate(state: SignalingState, msg: ServerMessage): 
   }
 }
 
-// Reconnection + heartbeat tuning.
-const PING_INTERVAL_MS = 15_000;
-const PONG_TIMEOUT_MS = 35_000;
-const BASE_RECONNECT_MS = 1_000;
-const MAX_RECONNECT_MS = 10_000;
-const MAX_RECONNECT_ATTEMPTS = 10;
-
 /**
  * Manages the WebSocket connection to the signaling server and the room's
  * peer list. Auto-reconnects with backoff after an unexpected drop (re-joining
@@ -265,7 +264,7 @@ export function useSignaling(): Signaling {
 
   const scheduleReconnect = useCallback(() => {
     attemptsRef.current += 1;
-    if (attemptsRef.current > MAX_RECONNECT_ATTEMPTS) {
+    if (reconnectExhausted(attemptsRef.current)) {
       shouldReconnectRef.current = false;
       setState((prev) => ({
         ...INITIAL,
@@ -276,8 +275,10 @@ export function useSignaling(): Signaling {
       return;
     }
     setState((prev) => ({ ...prev, status: 'reconnecting' }));
-    const delay = Math.min(BASE_RECONNECT_MS * 2 ** (attemptsRef.current - 1), MAX_RECONNECT_MS);
-    reconnectTimerRef.current = setTimeout(() => connectRef.current(), delay);
+    reconnectTimerRef.current = setTimeout(
+      () => connectRef.current(),
+      reconnectDelayMs(attemptsRef.current),
+    );
   }, []);
 
   const connect = useCallback(() => {
@@ -305,7 +306,7 @@ export function useSignaling(): Signaling {
       // Heartbeat: ping periodically; if pongs stop, force-close → reconnect.
       lastPongRef.current = Date.now();
       pingTimerRef.current = setInterval(() => {
-        if (Date.now() - lastPongRef.current > PONG_TIMEOUT_MS) {
+        if (heartbeatExpired(lastPongRef.current, Date.now())) {
           socket.close();
           return;
         }
@@ -390,54 +391,6 @@ export function useSignaling(): Signaling {
       connect();
     },
     [closeSocket, clearTimers, connect],
-  );
-
-  const verifySpace = useCallback(
-    (spaceId: string, signalingUrl: string, secret?: string): Promise<'exists' | 'not-found' | 'unreachable'> => {
-      return new Promise((resolve) => {
-        let settled = false;
-        let probe: WebSocket;
-        const finish = (result: 'exists' | 'not-found' | 'unreachable'): void => {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timer);
-          // Detach handlers before closing so a late close/error can't re-resolve.
-          probe.onopen = null;
-          probe.onmessage = null;
-          probe.onerror = null;
-          probe.onclose = null;
-          try {
-            probe.close();
-          } catch {
-            /* already closing */
-          }
-          resolve(result);
-        };
-
-        const timer = setTimeout(() => finish('unreachable'), 8_000);
-
-        try {
-          probe = new WebSocket(signalingUrl);
-        } catch {
-          clearTimeout(timer);
-          resolve('unreachable');
-          return;
-        }
-
-        probe.onopen = () => {
-          probe.send(JSON.stringify({ type: 'check-space', spaceId, secret: secret || (window.chickadee?.joinSecret ?? '') }));
-        };
-        probe.onmessage = (event) => {
-          const msg = parseServerMessage(String(event.data));
-          if (msg && msg.type === 'space-status' && msg.spaceId === spaceId) {
-            finish(msg.exists ? 'exists' : 'not-found');
-          }
-        };
-        probe.onerror = () => finish('unreachable');
-        probe.onclose = () => finish('unreachable');
-      });
-    },
-    [],
   );
 
   const send = useCallback((message: ClientMessage) => {

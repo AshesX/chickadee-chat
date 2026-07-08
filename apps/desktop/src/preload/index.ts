@@ -33,6 +33,19 @@ function readConfig(): AppConfig {
 const config = readConfig();
 
 /**
+ * A parameterless main→renderer event subscription: invokes `cb` on every
+ * message on `channel`, returns an unsubscribe fn. All the hotkey/tray events
+ * share this shape.
+ */
+function subscription(channel: string): (cb: () => void) => () => void {
+  return (cb) => {
+    const listener = (): void => cb();
+    ipcRenderer.on(channel, listener);
+    return () => ipcRenderer.removeListener(channel, listener);
+  };
+}
+
+/**
  * Minimal, safe API surface exposed to the renderer over the context bridge.
  * `getScreenSources` proxies to the main process, where desktopCapturer lives.
  */
@@ -89,117 +102,50 @@ const api = {
   /** Register/unregister the global push-to-talk hotkey in main. */
   setPushToTalk: (opts: { enabled: boolean; key: string; mode: 'hold' | 'toggle' }): Promise<void> =>
     ipcRenderer.invoke('chickadee:set-ptt', opts),
-  /** Subscribe to PTT toggle events (toggle mode). Returns an unsubscribe fn. */
-  onPushToTalk: (cb: () => void): (() => void) => {
-    const listener = (): void => cb();
-    ipcRenderer.on('chickadee:ptt-toggle', listener);
-    return () => ipcRenderer.removeListener('chickadee:ptt-toggle', listener);
-  },
-  /** Subscribe to PTT key-down (hold mode: mic on). Returns an unsubscribe fn. */
-  onPttStart: (cb: () => void): (() => void) => {
-    const listener = (): void => cb();
-    ipcRenderer.on('chickadee:ptt-start', listener);
-    return () => ipcRenderer.removeListener('chickadee:ptt-start', listener);
-  },
-  /** Subscribe to PTT key-up (hold mode: mic off). Returns an unsubscribe fn. */
-  onPttStop: (cb: () => void): (() => void) => {
-    const listener = (): void => cb();
-    ipcRenderer.on('chickadee:ptt-stop', listener);
-    return () => ipcRenderer.removeListener('chickadee:ptt-stop', listener);
-  },
+  /** PTT toggle events (toggle mode). */
+  onPushToTalk: subscription('chickadee:ptt-toggle'),
+  /** PTT key-down (hold mode: mic on). */
+  onPttStart: subscription('chickadee:ptt-start'),
+  /** PTT key-up (hold mode: mic off). */
+  onPttStop: subscription('chickadee:ptt-stop'),
   /** Register/unregister the global mute mic hotkey in main. */
   setMuteKeybind: (opts: { enabled: boolean; key: string; mode: 'hold' | 'toggle' }): Promise<void> =>
     ipcRenderer.invoke('chickadee:set-mute-keybind', opts),
-  /** Subscribe to Mute toggle events. Returns an unsubscribe fn. */
-  onMuteToggle: (cb: () => void): (() => void) => {
-    const listener = (): void => cb();
-    ipcRenderer.on('chickadee:mute-toggle', listener);
-    return () => ipcRenderer.removeListener('chickadee:mute-toggle', listener);
-  },
-  /** Subscribe to Mute hold start. Returns an unsubscribe fn. */
-  onMuteStart: (cb: () => void): (() => void) => {
-    const listener = (): void => cb();
-    ipcRenderer.on('chickadee:mute-start', listener);
-    return () => ipcRenderer.removeListener('chickadee:mute-start', listener);
-  },
-  /** Subscribe to Mute hold stop. Returns an unsubscribe fn. */
-  onMuteStop: (cb: () => void): (() => void) => {
-    const listener = (): void => cb();
-    ipcRenderer.on('chickadee:mute-stop', listener);
-    return () => ipcRenderer.removeListener('chickadee:mute-stop', listener);
-  },
+  onMuteToggle: subscription('chickadee:mute-toggle'),
+  onMuteStart: subscription('chickadee:mute-start'),
+  onMuteStop: subscription('chickadee:mute-stop'),
   /** Register/unregister the global deafen hotkey in main. */
   setDeafenKeybind: (opts: { enabled: boolean; key: string; mode: 'hold' | 'toggle' }): Promise<void> =>
     ipcRenderer.invoke('chickadee:set-deafen-keybind', opts),
-  onDeafenToggle: (cb: () => void): (() => void) => {
-    const listener = (): void => cb();
-    ipcRenderer.on('chickadee:deafen-toggle', listener);
-    return () => ipcRenderer.removeListener('chickadee:deafen-toggle', listener);
-  },
-  onDeafenStart: (cb: () => void): (() => void) => {
-    const listener = (): void => cb();
-    ipcRenderer.on('chickadee:deafen-start', listener);
-    return () => ipcRenderer.removeListener('chickadee:deafen-start', listener);
-  },
-  onDeafenStop: (cb: () => void): (() => void) => {
-    const listener = (): void => cb();
-    ipcRenderer.on('chickadee:deafen-stop', listener);
-    return () => ipcRenderer.removeListener('chickadee:deafen-stop', listener);
-  },
+  onDeafenToggle: subscription('chickadee:deafen-toggle'),
+  onDeafenStart: subscription('chickadee:deafen-start'),
+  onDeafenStop: subscription('chickadee:deafen-stop'),
   /** Register/unregister the camera toggle hotkey in main. */
   setCameraKeybind: (opts: { enabled: boolean; key: string; mode: 'toggle' }): Promise<void> =>
     ipcRenderer.invoke('chickadee:set-camera-keybind', opts),
-  onCameraToggle: (cb: () => void): (() => void) => {
-    const listener = (): void => cb();
-    ipcRenderer.on('chickadee:camera-toggle', listener);
-    return () => ipcRenderer.removeListener('chickadee:camera-toggle', listener);
-  },
+  onCameraToggle: subscription('chickadee:camera-toggle'),
   /** Register/unregister the screen share toggle hotkey in main. */
   setScreenShareKeybind: (opts: { enabled: boolean; key: string; mode: 'toggle' }): Promise<void> =>
     ipcRenderer.invoke('chickadee:set-screen-share-keybind', opts),
-  onScreenShareToggle: (cb: () => void): (() => void) => {
-    const listener = (): void => cb();
-    ipcRenderer.on('chickadee:screen-share-toggle', listener);
-    return () => ipcRenderer.removeListener('chickadee:screen-share-toggle', listener);
-  },
+  onScreenShareToggle: subscription('chickadee:screen-share-toggle'),
   /** Register/unregister the chat panel toggle hotkey in main. */
   setChatPanelKeybind: (opts: { enabled: boolean; key: string; mode: 'toggle' }): Promise<void> =>
     ipcRenderer.invoke('chickadee:set-chat-panel-keybind', opts),
-  onChatPanelToggle: (cb: () => void): (() => void) => {
-    const listener = (): void => cb();
-    ipcRenderer.on('chickadee:chat-panel-toggle', listener);
-    return () => ipcRenderer.removeListener('chickadee:chat-panel-toggle', listener);
-  },
+  onChatPanelToggle: subscription('chickadee:chat-panel-toggle'),
   /** Register/unregister the TTS toggle hotkey in main. */
   setTtsToggleKeybind: (opts: { enabled: boolean; key: string; mode: 'toggle' }): Promise<void> =>
     ipcRenderer.invoke('chickadee:set-tts-toggle-keybind', opts),
-  onTtsToggle: (cb: () => void): (() => void) => {
-    const listener = (): void => cb();
-    ipcRenderer.on('chickadee:tts-toggle', listener);
-    return () => ipcRenderer.removeListener('chickadee:tts-toggle', listener);
-  },
+  onTtsToggle: subscription('chickadee:tts-toggle'),
   /** Register/unregister the TTS stop hotkey in main. */
   setTtsStopKeybind: (opts: { enabled: boolean; key: string; mode: 'toggle' }): Promise<void> =>
     ipcRenderer.invoke('chickadee:set-tts-stop-keybind', opts),
-  onTtsStop: (cb: () => void): (() => void) => {
-    const listener = (): void => cb();
-    ipcRenderer.on('chickadee:tts-stop', listener);
-    return () => ipcRenderer.removeListener('chickadee:tts-stop', listener);
-  },
+  onTtsStop: subscription('chickadee:tts-stop'),
   /** Tray: set its icon (data URL), current room label, and mute-from-tray. */
   setTrayIcon: (dataUrl: string): Promise<void> => ipcRenderer.invoke('chickadee:set-tray-icon', dataUrl),
   setTrayRoom: (label: string | null): Promise<void> =>
     ipcRenderer.invoke('chickadee:set-tray-room', label),
-  onTrayMute: (cb: () => void): (() => void) => {
-    const listener = (): void => cb();
-    ipcRenderer.on('chickadee:tray-mute', listener);
-    return () => ipcRenderer.removeListener('chickadee:tray-mute', listener);
-  },
-  onTrayDeafen: (cb: () => void): (() => void) => {
-    const listener = (): void => cb();
-    ipcRenderer.on('chickadee:tray-deafen', listener);
-    return () => ipcRenderer.removeListener('chickadee:tray-deafen', listener);
-  },
+  onTrayMute: subscription('chickadee:tray-mute'),
+  onTrayDeafen: subscription('chickadee:tray-deafen'),
   setBadge: (count: number, dataUrl: string | null): Promise<void> =>
     ipcRenderer.invoke('chickadee:set-badge', count, dataUrl),
   /** Adjust the UI zoom factor */

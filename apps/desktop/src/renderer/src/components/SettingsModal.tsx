@@ -1,8 +1,26 @@
-import { useState, useEffect, useRef } from 'react';
+import { Fragment, useState, useEffect, useRef } from 'react';
 import { User, Mic, Volume2, Sliders, X, Video, Monitor, MessageSquare, Search, Keyboard } from 'lucide-react';
 import { defaultSettings } from '@chickadee/shared';
 import type { SettingsModalProps, TabId } from './settings/types';
 import { SUBSECTIONS, TAB_LABELS, getSearchResults } from './settings/searchIndex';
+
+// Sidebar nav structure: two titled groups of tabs. Labels come from TAB_LABELS
+// (also used by the search breadcrumbs) so the two can't drift apart.
+const NAV_SECTIONS: { title: string; tabs: { id: TabId; icon: typeof User }[] }[] = [
+  { title: 'User Settings', tabs: [{ id: 'profile', icon: User }] },
+  {
+    title: 'App Settings',
+    tabs: [
+      { id: 'audio', icon: Mic },
+      { id: 'video', icon: Video },
+      { id: 'sfx', icon: Volume2 },
+      { id: 'chat', icon: MessageSquare },
+      { id: 'keybindings', icon: Keyboard },
+      { id: 'ui', icon: Monitor },
+      { id: 'app', icon: Sliders },
+    ],
+  },
+];
 import { useSharedMicMeter } from './settings/MicMeter';
 import { ProfileTab } from './settings/ProfileTab';
 import { AudioTab } from './settings/AudioTab';
@@ -200,100 +218,29 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
             )}
           </div>
           <div className="settings-sidebar__nav">
-          <div className="settings-sidebar__title">User Settings</div>
-          <button
-            className={`settings-sidebar__item${activeTab === 'profile' ? ' settings-sidebar__item--active' : ''}`}
-            onClick={() => setActiveTab('profile')}
-          >
-            <User size={15} />
-            <span>My Profile</span>
-          </button>
-          {activeTab === 'profile' && (
-            <div className="settings-sidebar__sub-items">
-              {SUBSECTIONS.profile!.map((s) => (
-                <button key={s.id} className="settings-sidebar__sub-item" onClick={() => scrollToSection(s.id)}>{s.label}</button>
+          {NAV_SECTIONS.map((group) => (
+            <Fragment key={group.title}>
+              <div className="settings-sidebar__title">{group.title}</div>
+              {group.tabs.map(({ id, icon: Icon }) => (
+                <Fragment key={id}>
+                  <button
+                    className={`settings-sidebar__item${activeTab === id ? ' settings-sidebar__item--active' : ''}`}
+                    onClick={() => setActiveTab(id)}
+                  >
+                    <Icon size={15} />
+                    <span>{TAB_LABELS[id]}</span>
+                  </button>
+                  {activeTab === id && SUBSECTIONS[id] && (
+                    <div className="settings-sidebar__sub-items">
+                      {SUBSECTIONS[id]!.map((s) => (
+                        <button key={s.id} className="settings-sidebar__sub-item" onClick={() => scrollToSection(s.id)}>{s.label}</button>
+                      ))}
+                    </div>
+                  )}
+                </Fragment>
               ))}
-            </div>
-          )}
-
-          <div className="settings-sidebar__title">App Settings</div>
-          <button
-            className={`settings-sidebar__item${activeTab === 'audio' ? ' settings-sidebar__item--active' : ''}`}
-            onClick={() => setActiveTab('audio')}
-          >
-            <Mic size={15} />
-            <span>Voice & Audio</span>
-          </button>
-          {activeTab === 'audio' && (
-            <div className="settings-sidebar__sub-items">
-              {SUBSECTIONS.audio!.map((s) => (
-                <button key={s.id} className="settings-sidebar__sub-item" onClick={() => scrollToSection(s.id)}>{s.label}</button>
-              ))}
-            </div>
-          )}
-          <button
-            className={`settings-sidebar__item${activeTab === 'video' ? ' settings-sidebar__item--active' : ''}`}
-            onClick={() => setActiveTab('video')}
-          >
-            <Video size={15} />
-            <span>Video</span>
-          </button>
-          {activeTab === 'video' && (
-            <div className="settings-sidebar__sub-items">
-              {SUBSECTIONS.video!.map((s) => (
-                <button key={s.id} className="settings-sidebar__sub-item" onClick={() => scrollToSection(s.id)}>{s.label}</button>
-              ))}
-            </div>
-          )}
-          <button
-            className={`settings-sidebar__item${activeTab === 'sfx' ? ' settings-sidebar__item--active' : ''}`}
-            onClick={() => setActiveTab('sfx')}
-          >
-            <Volume2 size={15} />
-            <span>Sound Effects</span>
-          </button>
-          <button
-            className={`settings-sidebar__item${activeTab === 'chat' ? ' settings-sidebar__item--active' : ''}`}
-            onClick={() => setActiveTab('chat')}
-          >
-            <MessageSquare size={15} />
-            <span>Chat Settings</span>
-          </button>
-          {activeTab === 'chat' && (
-            <div className="settings-sidebar__sub-items">
-              {SUBSECTIONS.chat!.map((s) => (
-                <button key={s.id} className="settings-sidebar__sub-item" onClick={() => scrollToSection(s.id)}>{s.label}</button>
-              ))}
-            </div>
-          )}
-          <button
-            className={`settings-sidebar__item${activeTab === 'keybindings' ? ' settings-sidebar__item--active' : ''}`}
-            onClick={() => setActiveTab('keybindings')}
-          >
-            <Keyboard size={15} />
-            <span>Keybindings</span>
-          </button>
-          {activeTab === 'keybindings' && (
-            <div className="settings-sidebar__sub-items">
-              {SUBSECTIONS.keybindings!.map((s) => (
-                <button key={s.id} className="settings-sidebar__sub-item" onClick={() => scrollToSection(s.id)}>{s.label}</button>
-              ))}
-            </div>
-          )}
-          <button
-            className={`settings-sidebar__item${activeTab === 'ui' ? ' settings-sidebar__item--active' : ''}`}
-            onClick={() => setActiveTab('ui')}
-          >
-            <Monitor size={15} />
-            <span>User Interface</span>
-          </button>
-          <button
-            className={`settings-sidebar__item${activeTab === 'app' ? ' settings-sidebar__item--active' : ''}`}
-            onClick={() => setActiveTab('app')}
-          >
-            <Sliders size={15} />
-            <span>App Settings</span>
-          </button>
+            </Fragment>
+          ))}
           </div>
 
           <div className="settings-sidebar__footer">
@@ -310,16 +257,7 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
         {/* Right Content Panel */}
         <div className="settings-content">
           <div className="settings-content__head">
-            <h2 className="settings-content__title">
-              {activeTab === 'profile' && 'My Profile'}
-              {activeTab === 'audio' && 'Voice & Audio'}
-              {activeTab === 'video' && 'Video'}
-              {activeTab === 'sfx' && 'Sound Effects'}
-              {activeTab === 'chat' && 'Chat Settings'}
-              {activeTab === 'keybindings' && 'Keybindings'}
-              {activeTab === 'ui' && 'User Interface'}
-              {activeTab === 'app' && 'App Settings'}
-            </h2>
+            <h2 className="settings-content__title">{TAB_LABELS[activeTab]}</h2>
             <button className="icon-btn" onClick={onClose} aria-label="Close settings">
               <X size={18} />
             </button>

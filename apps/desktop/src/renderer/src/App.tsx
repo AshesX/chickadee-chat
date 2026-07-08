@@ -13,7 +13,13 @@ import { useKeybindSync } from './hooks/useKeybindSync';
 import { useVoiceActivation } from './hooks/useVoiceActivation';
 import { useMediaDevices } from './hooks/useMediaDevices';
 import { useSfxEvents } from './hooks/useSfxEvents';
+import { useSfxSettings } from './hooks/useSfxSettings';
 import { useTraySync } from './hooks/useTraySync';
+import { usePeerVolumes } from './hooks/usePeerVolumes';
+import { useStageSpotlight } from './hooks/useStageSpotlight';
+import { useWindowFocus } from './hooks/useWindowFocus';
+import { selectStage } from './lib/stageSelection';
+import { generateSpaceId } from './lib/spaceOps';
 import { SELF_COLOR, useUserColors } from './lib/userColors';
 import { setOutputSink } from './lib/audioContext';
 import { store } from './lib/settings';
@@ -125,11 +131,6 @@ export function App(): React.JSX.Element {
   const [chatOpen, setChatOpen] = useState(() => store.getChatVisible());
   const [compactMode, setCompactMode] = useState(() => store.getCompactMode());
   const [roomsSectionCollapsed, setRoomsSectionCollapsed] = useState(() => store.getRoomsSectionCollapsed());
-  // Spotlight (stage) take-over prompt: set when our claim lost to the current holder.
-  const [pendingTakeover, setPendingTakeover] = useState<{ kind: 'screen' | 'camera'; holderName: string } | null>(null);
-  // Our intent to hold the stage (survives a reconnect/room-switch, which clears the
-  // server-side slot). Separate from the authoritative `myStageKind` above.
-  const desiredStageKindRef = useRef<'screen' | 'camera' | null>(null);
   // Opt-in video: stable userIds whose video/screen we've joined ("Watch").
   // Session-only (cleared on room change); broadcast to the room via sink-state.
   const [videoSubscriptions, setVideoSubscriptions] = useState<string[]>([]);
@@ -164,86 +165,30 @@ export function App(): React.JSX.Element {
   const [chatPanelKey, applyChatPanelKey] = usePersistedState(store.getChatPanelKey, store.setChatPanelKey);
   const [ttsToggleKey, applyTtsToggleKey] = usePersistedState(store.getTtsToggleKey, store.setTtsToggleKey);
   const [ttsStopKey, applyTtsStopKey] = usePersistedState(store.getTtsStopKey, store.setTtsStopKey);
-  const [windowFocused, setWindowFocused] = useState(() => document.hasFocus());
-  // Distinct from focus: false only while minimized/hidden (signalled from main).
-  // Gates incoming video decode so frames nobody can see aren't decoded.
-  const [windowVisible, setWindowVisible] = useState(true);
-  const [volumes, setVolumes] = useState<Record<string, number>>({});
+  // SFX toggles/volume + the "mute other" cue (also threaded into usePeerVolumes).
+  const {
+    sfxEnabled,
+    applySfxEnabled,
+    sfxVolume,
+    applySfxVolume,
+    sfxJoinLeaveEnabled,
+    applySfxJoinLeaveEnabled,
+    sfxMuteEnabled,
+    applySfxMuteEnabled,
+    sfxMuteOtherEnabled,
+    applySfxMuteOtherEnabled,
+    sfxTransmitEnabled,
+    applySfxTransmitEnabled,
+    sfxChatEnabled,
+    applySfxChatEnabled,
+    sfxDeafenEnabled,
+    applySfxDeafenEnabled,
+    playMuteOtherCue,
+  } = useSfxSettings();
 
-  // Mirror peers + volumes into refs so the per-tile callbacks below can stay
-  // identity-stable (deps []). signaling.peers gets a fresh array reference on
-  // every presence update (including each peer's speaking edge), so a callback
-  // depending on it would change identity ~constantly and defeat ParticipantTile's
-  // React.memo — exactly the high-frequency churn the memo exists to skip.
-  const peersRef = useRef(signaling.peers);
-  peersRef.current = signaling.peers;
-  const volumesRef = useRef(volumes);
-  volumesRef.current = volumes;
-
-  // Manual per-peer volume: update the live (peerId-keyed) map and persist by stable userId
-  // so a boost sticks across restarts/reconnects (a new peer.id is re-seeded on join below).
-  const handleVolumeChange = useCallback(
-    (peerId: string, volume: number) => {
-      setVolumes((prev) => ({ ...prev, [peerId]: volume }));
-      const uid = peersRef.current.find((p) => p.id === peerId)?.userId;
-      if (uid) store.setPeerVolume(uid, volume);
-    },
-    [],
-  );
-
-  // Click-to-silence: mute = volume 0, remembering the pre-mute level (by peer.id,
-  // session-only) so a later un-silence restores it. Reuses the volume persistence path.
-  const lastNonZeroVolumeRef = useRef<Record<string, number>>({});
-  // Live SFX config read by togglePeerMute (defined above the sfx state), so the
-  // "mute other" cue plays for both compact avatars and full-view tiles.
-  const muteOtherSfxRef = useRef({ enabled: false, on: true, volume: 0.25 });
-  const togglePeerMute = useCallback(
-    (peerId: string) => {
-      const cur = volumesRef.current[peerId] ?? 1;
-      if (cur > 0) {
-        lastNonZeroVolumeRef.current[peerId] = cur;
-        handleVolumeChange(peerId, 0);
-      } else {
-        handleVolumeChange(peerId, lastNonZeroVolumeRef.current[peerId] ?? 1);
-      }
-      const sfx = muteOtherSfxRef.current;
-      if (sfx.enabled && sfx.on) playSfx('mute-other', sfx.volume);
-    },
-    [handleVolumeChange],
-  );
-
-  // Stable userIds of peers we've silenced (volume 0) — drives the compact avatar
-  // mute overlay; plus a userId→session-id bridge so the sidebar can mute by userId.
-  const mutedUserIds = useMemo(
-    () => new Set(signaling.peers.filter((p) => (volumes[p.id] ?? 1) <= 0).map((p) => p.userId)),
-    [signaling.peers, volumes],
-  );
-  const togglePeerMuteByUserId = useCallback(
-    (uid: string) => {
-      const pid = signaling.peers.find((p) => p.userId === uid)?.id;
-      if (pid) togglePeerMute(pid);
-    },
-    [signaling.peers, togglePeerMute],
-  );
-
-  // Hydrate per-peer volume from persisted (userId-keyed) values when peers appear.
-  // Fill-missing-only so an in-session edit is never clobbered.
-  useEffect(() => {
-    const saved = store.getPeerVolumes();
-    setVolumes((prev) => {
-      let changed = false;
-      const next = { ...prev };
-      for (const p of signaling.peers) {
-        if (p.id in next) continue;
-        const v = p.userId ? saved[p.userId] : undefined;
-        if (v !== undefined) {
-          next[p.id] = v;
-          changed = true;
-        }
-      }
-      return changed ? next : prev;
-    });
-  }, [signaling.peers]);
+  // Per-peer volume + click-to-silence (silence = volume 0, persisted by userId).
+  const { volumes, handleVolumeChange, togglePeerMute, togglePeerMuteByUserId, mutedUserIds } =
+    usePeerVolumes(signaling.peers, playMuteOtherCue);
 
   // Output device is a single global property of the shared audio context (all
   // playback funnels through it), so set the sink once here — not per-peer tile.
@@ -255,20 +200,19 @@ export function App(): React.JSX.Element {
   const menus = useControlBarMenus();
 
   const [settingsInitialTab, setSettingsInitialTab] = useState('profile');
-  const [sfxEnabled, applySfxEnabled] = usePersistedState(store.getSfxEnabled, store.setSfxEnabled);
-  const [sfxVolume, applySfxVolume] = usePersistedState(store.getSfxVolume, store.setSfxVolume);
-  const [sfxJoinLeaveEnabled, applySfxJoinLeaveEnabled] = usePersistedState(store.getSfxJoinLeaveEnabled, store.setSfxJoinLeaveEnabled);
-  const [sfxMuteEnabled, applySfxMuteEnabled] = usePersistedState(store.getSfxMuteEnabled, store.setSfxMuteEnabled);
-  const [sfxMuteOtherEnabled, applySfxMuteOtherEnabled] = usePersistedState(store.getSfxMuteOtherEnabled, store.setSfxMuteOtherEnabled);
-  const [sfxTransmitEnabled, applySfxTransmitEnabled] = usePersistedState(store.getSfxTransmitEnabled, store.setSfxTransmitEnabled);
-  const [sfxChatEnabled, applySfxChatEnabled] = usePersistedState(store.getSfxChatEnabled, store.setSfxChatEnabled);
-  const [sfxDeafenEnabled, applySfxDeafenEnabled] = usePersistedState(store.getSfxDeafenEnabled, store.setSfxDeafenEnabled);
-  muteOtherSfxRef.current = { enabled: sfxEnabled, on: sfxMuteOtherEnabled, volume: sfxVolume };
   const [deafened, setDeafened] = useState(false);
   const lastJoinTimeRef = useRef<number>(0);
 
   const [badgeNotificationsEnabled, applyBadgeNotificationsEnabled] = usePersistedState(store.getBadgeNotificationsEnabled, store.setBadgeNotificationsEnabled);
   const [unreadCount, setUnreadCount] = useState(0);
+
+  // Focus/visibility (gates animations + video decode). On focus gain: clear the
+  // unread badge and stop any queued TTS backlog.
+  const handleWindowFocus = useCallback(() => {
+    setUnreadCount(0);
+    cancelSpeech();
+  }, []);
+  const { windowFocused, windowVisible } = useWindowFocus(handleWindowFocus);
   const [selfStatus, setSelfStatus] = useState<'online' | 'idle' | 'dnd'>(() => store.getStatus());
   const [uiScale, applyUiScale] = usePersistedState(store.getUiScale, store.setUiScale);
   const [chatFontScale, applyChatFontScale] = usePersistedState(store.getChatFontScale, store.setChatFontScale);
@@ -632,26 +576,21 @@ export function App(): React.JSX.Element {
     });
   }, []);
 
-  // --- Spotlight (stage) actions ---
-  const spotlightCamera = useCallback(() => {
-    desiredStageKindRef.current = 'camera';
-    signaling.claimSpotlight('camera');
-  }, [signaling.claimSpotlight]);
-
-  const unspotlight = useCallback(() => {
-    desiredStageKindRef.current = null;
-    signaling.releaseSpotlight();
-  }, [signaling.releaseSpotlight]);
-
-  const confirmTakeover = useCallback(() => {
-    setPendingTakeover((p) => {
-      if (p) {
-        desiredStageKindRef.current = p.kind;
-        signaling.claimSpotlight(p.kind, true);
-      }
-      return null;
+  // Stage (spotlight) slot: claim/release intent, screen-share auto-claim,
+  // take-over prompt, and the reconnect re-claim.
+  const { pendingTakeover, cancelTakeover, confirmTakeover, spotlightCamera, unspotlight } =
+    useStageSpotlight({
+      status: signaling.status,
+      selfId: signaling.selfId,
+      spotlightHolderId: signaling.spotlightHolderId,
+      claimSpotlight: signaling.claimSpotlight,
+      releaseSpotlight: signaling.releaseSpotlight,
+      subscribe: signaling.subscribe,
+      sharingScreen: mesh.sharingScreen,
+      cameraEnabled: mesh.cameraEnabled,
+      currentRoomId,
+      peers: signaling.peers,
     });
-  }, [signaling.claimSpotlight]);
 
   // Sidebar actions that open a real modal (Settings, Create/Rename Room, Space
   // Settings, Create/Join Space) need real screen space, so expand the window
@@ -694,29 +633,6 @@ export function App(): React.JSX.Element {
     store.setAlwaysOnTop(on);
     void window.chickadee?.setAlwaysOnTop?.(on);
   }
-
-  // Reset unread count when window gets focus; also stop any queued TTS backlog.
-  // Track focus state too: when the window is unfocused (e.g. on a 2nd monitor
-  // while a game has focus) we freeze the per-frame CSS animations via .app--unfocused.
-  useEffect(() => {
-    const handleFocus = (): void => {
-      setWindowFocused(true);
-      setUnreadCount(0);
-      cancelSpeech();
-    };
-    const handleBlur = (): void => setWindowFocused(false);
-    window.addEventListener('focus', handleFocus);
-    window.addEventListener('blur', handleBlur);
-    return () => {
-      window.removeEventListener('focus', handleFocus);
-      window.removeEventListener('blur', handleBlur);
-    };
-  }, []);
-
-  // Track minimized/hidden state from main so we can pause incoming video decode.
-  useEffect(() => {
-    return window.chickadee?.onWindowVisibilityChange?.(setWindowVisible);
-  }, []);
 
   // Warm the TTS voice list only when read-aloud is on, so the first spoken message resolves
   // the right voice. When off, skip the getVoices() call + voiceschanged listener; re-runs
@@ -825,60 +741,6 @@ export function App(): React.JSX.Element {
       return next.length === prev.length ? prev : next;
     });
   }, [signaling.peers]);
-
-  // Auto-claim the single room stage when a screen share starts (a thumbnail-sized
-  // screen is unreadable); release it when the share stops if we still held it.
-  const prevSharingRef = useRef(false);
-  useEffect(() => {
-    const was = prevSharingRef.current;
-    prevSharingRef.current = mesh.sharingScreen;
-    if (mesh.sharingScreen && !was) {
-      desiredStageKindRef.current = 'screen';
-      signaling.claimSpotlight('screen');
-    } else if (!mesh.sharingScreen && was && desiredStageKindRef.current === 'screen') {
-      desiredStageKindRef.current = null;
-      signaling.releaseSpotlight();
-    }
-  }, [mesh.sharingScreen, signaling.claimSpotlight, signaling.releaseSpotlight]);
-
-  // Turning the camera off while it holds the stage frees the stage.
-  const prevCamStageRef = useRef(false);
-  useEffect(() => {
-    const was = prevCamStageRef.current;
-    prevCamStageRef.current = mesh.cameraEnabled;
-    if (!mesh.cameraEnabled && was && desiredStageKindRef.current === 'camera') {
-      desiredStageKindRef.current = null;
-      signaling.releaseSpotlight();
-    }
-  }, [mesh.cameraEnabled, signaling.releaseSpotlight]);
-
-  // If someone else holds/took the stage, drop our own desire to hold it.
-  useEffect(() => {
-    if (signaling.spotlightHolderId != null && signaling.spotlightHolderId !== signaling.selfId) {
-      desiredStageKindRef.current = null;
-    }
-  }, [signaling.spotlightHolderId, signaling.selfId]);
-
-  // A blocked (non-force) claim replies `spotlight-busy` → offer to take over.
-  useEffect(() => {
-    return signaling.subscribe((msg) => {
-      if (msg.type === 'spotlight-busy') {
-        const holder = peersRef.current.find((p) => p.id === msg.holderId);
-        setPendingTakeover({
-          kind: desiredStageKindRef.current ?? 'screen',
-          holderName: holder?.displayName ?? 'Someone',
-        });
-      }
-    });
-  }, [signaling.subscribe]);
-
-  // Re-claim the stage after a reconnect (new selfId) or room switch, which clears
-  // the server-side slot but not our local media. No-op unless we still intend to hold it.
-  useEffect(() => {
-    if (signaling.status === 'connected' && currentRoomId && desiredStageKindRef.current) {
-      signaling.claimSpotlight(desiredStageKindRef.current);
-    }
-  }, [signaling.selfId, currentRoomId, signaling.status, signaling.claimSpotlight]);
 
   // Keep local rooms in sync with the signaling server's room list for this Space.
   useEffect(() => {
@@ -1037,25 +899,32 @@ export function App(): React.JSX.Element {
   );
 
   // --- Stage (spotlight) derivation: at most ONE large tile per room ---
-  // 0 active videos → Voice Lounge; videos but no spotlight → Gallery (both `.grid`);
-  // someone spotlighted → Theater (`.presentation`: one stage tile + filmstrip).
-  const isSelfStage = myStageKind != null;
+  // The decision (who's on stage, whether we've opted in, which stream kind) is
+  // the pure, unit-tested selectStage; here we only resolve ids back to the live
+  // Peer/MediaStream objects. Null source → large "Watch" placeholder.
+  const stageSel = selectStage({
+    myStageKind,
+    spotlightHolderId: signaling.spotlightHolderId,
+    spotlightKind: signaling.spotlightKind,
+    peers: signaling.peers,
+    subscribedUserIds: videoSubscriptions,
+  });
+  const isSelfStage = stageSel.isSelfStage;
+  const theater = stageSel.theater;
   const stagePeer =
-    signaling.spotlightHolderId != null && !isSelfStage
-      ? signaling.peers.find((p) => p.id === signaling.spotlightHolderId) ?? null
+    stageSel.stagePeerId != null
+      ? signaling.peers.find((p) => p.id === stageSel.stagePeerId) ?? null
       : null;
-  const stageSubscribed = stagePeer ? videoSubscriptions.includes(stagePeer.userId) : true;
-  // The stage stream (null for a peer we haven't opted into → large "Watch" placeholder).
-  const stageStream: MediaStream | null = isSelfStage
-    ? signaling.spotlightKind === 'screen'
+  const stageStream: MediaStream | null =
+    stageSel.stageSource === 'local-screen'
       ? mesh.localScreenStream
-      : mesh.localStream
-    : stagePeer && stageSubscribed
-      ? signaling.spotlightKind === 'screen'
-        ? mesh.remote[stagePeer.id]?.screenStream ?? null
-        : mesh.remote[stagePeer.id]?.cameraStream ?? null
-      : null;
-  const theater = isSelfStage || stagePeer != null;
+      : stageSel.stageSource === 'local-camera'
+        ? mesh.localStream
+        : stageSel.stageSource === 'remote-screen'
+          ? (stagePeer ? mesh.remote[stagePeer.id]?.screenStream ?? null : null)
+          : stageSel.stageSource === 'remote-camera'
+            ? (stagePeer ? mesh.remote[stagePeer.id]?.cameraStream ?? null : null)
+            : null;
   const stageName = isSelfStage ? displayName : stagePeer?.displayName ?? '';
   const stageUserId = stagePeer?.userId;
   const stageAvatarUrl = isSelfStage ? localAvatarUrl : stagePeer?.avatarDataUrl ?? null;
@@ -1354,12 +1223,12 @@ export function App(): React.JSX.Element {
       )}
 
       {pendingTakeover && (
-        <Modal title="Stage in use" onClose={() => setPendingTakeover(null)}>
+        <Modal title="Stage in use" onClose={cancelTakeover}>
           <p style={{ marginBottom: 'var(--s-4)' }}>
             {pendingTakeover.holderName} is presenting on the stage. Take it over?
           </p>
           <div style={{ display: 'flex', gap: 'var(--s-2)', justifyContent: 'flex-end' }}>
-            <button className="btn btn--ghost" onClick={() => setPendingTakeover(null)}>Cancel</button>
+            <button className="btn btn--ghost" onClick={cancelTakeover}>Cancel</button>
             <button className="btn btn--primary" onClick={confirmTakeover}>Take over</button>
           </div>
         </Modal>
@@ -1601,9 +1470,7 @@ export function App(): React.JSX.Element {
               const isRename = space.name.trim().toLowerCase() !== name.trim().toLowerCase();
 
               if (isRename && signaling.status === 'connected' && oldSpaceId === currentSpaceId) {
-                const tempSlug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'space';
-                const suffix = Math.random().toString(36).substring(2, 7);
-                const newSpaceId = `${tempSlug}-${suffix}`;
+                const newSpaceId = generateSpaceId(name);
 
                 signaling.send({
                   type: 'rename-space',

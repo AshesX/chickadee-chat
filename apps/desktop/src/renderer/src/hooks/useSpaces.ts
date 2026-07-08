@@ -1,26 +1,7 @@
 import { useCallback, useState } from 'react';
-import { DEFAULT_ROOMS, normalizeRoomType, type SpaceInfo, type Room } from '@chickadee/shared';
+import { DEFAULT_ROOMS, type SpaceInfo, type Room } from '@chickadee/shared';
 import { store } from '../lib/settings';
-
-/** Normalize legacy 'voice'/'video' room types to the unified 'hybrid' on read. */
-function normalizeRooms(rooms: Room[]): Room[] {
-  return rooms.map((r) => ({ ...r, type: normalizeRoomType(r.type) }));
-}
-
-function generateSpaceId(name: string): string {
-  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'space';
-  const suffix = Math.random().toString(36).substring(2, 7);
-  return `${slug}-${suffix}`;
-}
-
-function parseSpaceName(code: string): string {
-  const parsed = code
-    .split('-')
-    .slice(0, -1)
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
-  return parsed || 'Joined Space';
-}
+import { generateSpaceId, normalizeRooms, parseSpaceName } from '../lib/spaceOps';
 
 /** Result of a create/join attempt. `'not-found'`/`'unreachable'` only occur for new-id joins. */
 export type AddSpaceResult = { ok: true } | { ok: false; reason: 'not-found' | 'unreachable' };

@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { MAX_AVATAR_DATA_URL_LEN } from '@chickadee/shared';
 import { compressToBudget } from '../lib/compressToBudget';
+import {
+  MAX_ZOOM_FACTOR,
+  clampOffset,
+  cropSourceRect,
+  cropWindowHalfExtents,
+  minCropScale,
+  type Offset,
+} from '../lib/cropMath';
 
 const CANVAS_SIZE = 288;
 /** Padding (px) between the on-screen crop window and the canvas edge. */
@@ -11,11 +19,6 @@ interface DragState {
   startY: number;
   startOffX: number;
   startOffY: number;
-}
-
-interface Offset {
-  x: number;
-  y: number;
 }
 
 export interface AvatarCropModalProps {
@@ -29,41 +32,6 @@ export interface AvatarCropModalProps {
   maxDataUrlLen?: number;
   onSave: (dataUrl: string) => void;
   onCancel: () => void;
-}
-
-/**
- * On-screen half-width/half-height of the crop window, fit ("contain") within
- * the square canvas while preserving the output's aspect ratio. For the
- * default 128x128 (1:1) output this resolves to 128/128 — identical to the
- * previous fixed circular-crop radius.
- */
-function cropWindowHalfExtents(outputWidth: number, outputHeight: number): { halfW: number; halfH: number } {
-  const maxHalf = CANVAS_SIZE / 2 - CROP_WINDOW_PADDING;
-  const aspect = outputWidth / outputHeight;
-  return aspect >= 1 ? { halfW: maxHalf, halfH: maxHalf / aspect } : { halfW: maxHalf * aspect, halfH: maxHalf };
-}
-
-/**
- * Clamp a pan offset so the crop window (half-extents `cropHalfW`/`cropHalfH`)
- * never shows past the image's edges at the given `scale`. Takes plain
- * width/height rather than a full HTMLImageElement so it's testable without a
- * DOM Image.
- */
-export function clampOffset(
-  off: Offset,
-  scale: number,
-  imgSize: { naturalWidth: number; naturalHeight: number },
-  cropHalfW: number,
-  cropHalfH: number,
-): Offset {
-  const halfImgW = (imgSize.naturalWidth * scale) / 2;
-  const halfImgH = (imgSize.naturalHeight * scale) / 2;
-  const maxX = Math.max(0, halfImgW - cropHalfW);
-  const maxY = Math.max(0, halfImgH - cropHalfH);
-  return {
-    x: Math.max(-maxX, Math.min(maxX, off.x)),
-    y: Math.max(-maxY, Math.min(maxY, off.y)),
-  };
 }
 
 export function AvatarCropModal({
@@ -83,7 +51,12 @@ export function AvatarCropModal({
   const minScaleRef = useRef(1);
   const isDraggingRef = useRef(false);
 
-  const { halfW: cropHalfW, halfH: cropHalfH } = cropWindowHalfExtents(outputWidth, outputHeight);
+  const { halfW: cropHalfW, halfH: cropHalfH } = cropWindowHalfExtents(
+    outputWidth,
+    outputHeight,
+    CANVAS_SIZE,
+    CROP_WINDOW_PADDING,
+  );
   const cropCornerRadius = Math.min(cropHalfW, cropHalfH) * 0.5;
 
   const [imageSrc, setImageSrc] = useState<string | null>(null);
@@ -145,10 +118,7 @@ export function AvatarCropModal({
       const img = new Image();
       img.onload = () => {
         imgRef.current = img;
-        const minSc = Math.max(
-          (cropHalfW * 2) / img.naturalWidth,
-          (cropHalfH * 2) / img.naturalHeight,
-        );
+        const minSc = minCropScale(img, cropHalfW, cropHalfH);
         minScaleRef.current = minSc;
         scaleRef.current = minSc;
         offsetRef.current = { x: 0, y: 0 };
@@ -198,7 +168,7 @@ export function AvatarCropModal({
     e.preventDefault();
     const factor = e.deltaY < 0 ? 1.08 : 1 / 1.08;
     const minSc = minScaleRef.current;
-    const newScale = Math.max(minSc, Math.min(scaleRef.current * factor, minSc * 6));
+    const newScale = Math.max(minSc, Math.min(scaleRef.current * factor, minSc * MAX_ZOOM_FACTOR));
     const newOff = clampOffset(offsetRef.current, newScale, imgRef.current, cropHalfW, cropHalfH);
     scaleRef.current = newScale;
     offsetRef.current = newOff;
@@ -226,14 +196,8 @@ export function AvatarCropModal({
     const outCtx = outputCanvas.getContext('2d');
     if (!outCtx) return;
 
-    const sc = scaleRef.current;
-    const off = offsetRef.current;
-    const cropCX = img.naturalWidth / 2 - off.x / sc;
-    const cropCY = img.naturalHeight / 2 - off.y / sc;
-    const cropRW = cropHalfW / sc;
-    const cropRH = cropHalfH / sc;
-
-    outCtx.drawImage(img, cropCX - cropRW, cropCY - cropRH, cropRW * 2, cropRH * 2, 0, 0, outputWidth, outputHeight);
+    const { sx, sy, sw, sh } = cropSourceRect(img, scaleRef.current, offsetRef.current, cropHalfW, cropHalfH);
+    outCtx.drawImage(img, sx, sy, sw, sh, 0, 0, outputWidth, outputHeight);
 
     const encodeCanvas = (canvas: HTMLCanvasElement, quality: number): string => {
       const dataUrl = canvas.toDataURL('image/webp', quality);
@@ -255,7 +219,7 @@ export function AvatarCropModal({
   };
 
   const minScale = minScaleRef.current;
-  const maxScale = minScale * 6;
+  const maxScale = minScale * MAX_ZOOM_FACTOR;
 
   return (
     <div
