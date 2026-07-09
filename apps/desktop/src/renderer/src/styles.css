@@ -507,14 +507,17 @@
 }
 
 
+/* Inset rounded "rail" rows: rows sit within the scroll padding while the
+   section headers above them stay full-bleed — the headers deliberately read
+   wider than the rows. The active gold bar (::before, left: 0) is clipped by
+   overflow: hidden and stays fully inside the straight-edge zone of the 4px
+   corner radius. */
 .room-row {
   position: relative;
   overflow: hidden;
-  margin-bottom: 0;
-  margin-left: calc(-1 * var(--s-2));
-  margin-right: calc(-1 * var(--s-2));
-  width: calc(100% + (var(--s-2) * 2));
-  border-radius: 0;
+  margin-bottom: 2px;
+  width: 100%;
+  border-radius: var(--r-1);
   color: var(--text);
   transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
   display: flex;
@@ -530,7 +533,9 @@
   display: flex;
   align-items: center;
   gap: var(--s-2);
-  padding: 0 var(--s-4) 0 var(--s-5);
+  /* Rows are inset by the scroll padding now (8px), so s-3 here lands the
+     content at the same optical 20px indent the full-bleed rows had. */
+  padding: 0 var(--s-3);
   font-size: var(--fs-3);
   text-align: left;
 }
@@ -771,7 +776,7 @@
 }
 
 .friend-row:hover {
-  background: color-mix(in srgb, var(--tint) 6%, transparent);
+  background: var(--veil-1);
 }
 
 .friend-row__avatar-wrap {
