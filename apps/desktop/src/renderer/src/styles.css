@@ -418,6 +418,7 @@
   gap: var(--s-1);
   margin-left: calc(-1 * var(--s-2));
   margin-right: calc(-1 * var(--s-2));
+  margin-bottom: var(--s-2);
   width: calc(100% + (var(--s-2) * 2));
   height: 32px;
   padding: 0 var(--s-4);
@@ -474,7 +475,7 @@
 
 
 .sidebar__section-header--spaced {
-  margin-top: var(--s-6);
+  margin-top: var(--s-2);
 }
 
 .sidebar__section-chevron {
@@ -515,7 +516,7 @@
 .room-row {
   position: relative;
   overflow: hidden;
-  margin-bottom: 2px;
+  margin-bottom: var(--s-2);
   width: 100%;
   border-radius: var(--r-1);
   color: var(--text);
@@ -704,7 +705,7 @@
 .room-row--create-inline {
   border: 1px dashed var(--border);
   padding: var(--s-2) var(--s-3);
-  margin: var(--s-1) 0;
+  margin: var(--s-2) 0;
   cursor: pointer;
   transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
   color: var(--dim);
@@ -770,7 +771,7 @@
   align-items: center;
   gap: var(--s-2);
   padding: var(--s-1) var(--s-3) var(--s-1) var(--s-3);
-  margin-bottom: var(--s-1);
+  margin-bottom: var(--s-2);
   border-radius: var(--r-1);
   transition: background var(--dur-1) var(--ease);
 }
