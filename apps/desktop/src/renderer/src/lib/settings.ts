@@ -188,8 +188,8 @@ export const store = {
   getAlwaysOnTop: getter('alwaysOnTop'),
   setAlwaysOnTop: setter('alwaysOnTop'),
   // Any legacy/unrecognized persisted value (midnight, oled, …) collapses to
-  // the 'light' default rather than widening ThemeName further.
-  getTheme: (): ThemeName => (cache.theme === 'dark' ? 'dark' : 'light'),
+  // the 'dark' default rather than widening ThemeName further.
+  getTheme: (): ThemeName => (cache.theme === 'light' ? 'light' : 'dark'),
   setTheme: setter('theme'),
   getChatFontScale: getter('chatFontScale'),
   setChatFontScale: setter('chatFontScale'),

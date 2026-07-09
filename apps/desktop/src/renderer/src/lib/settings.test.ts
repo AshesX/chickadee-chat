@@ -31,7 +31,7 @@ describe('settings store (bridge path)', () => {
 
   it('migrates legacy values on read', () => {
     expect(store.getInputMode()).toBe('voice'); // removed 'open' mode → 'voice'
-    expect(store.getTheme()).toBe('light'); // unknown theme collapses to 'light'
+    expect(store.getTheme()).toBe('dark'); // unknown theme collapses to 'dark'
     expect(store.getMicVolume()).toBe(2); // pre-cap boost clamped to 200%
   });
 

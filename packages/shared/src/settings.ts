@@ -198,7 +198,7 @@ export function defaultSettings(): PersistedSettings {
     launchOnStartup: false,
     closeBehavior: 'quit',
     alwaysOnTop: false,
-    theme: 'light',
+    theme: 'dark',
     chatFontScale: 1.0,
     chatPosition: 'right',
     chatWidthScale: 1.0,
