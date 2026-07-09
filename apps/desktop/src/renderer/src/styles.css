@@ -38,7 +38,7 @@
 
 
 .btn--primary {
-  background: var(--gradient);
+  background: var(--orange);
   color: var(--on-accent);
   font-weight: var(--fw-2);
 }
@@ -1034,6 +1034,7 @@
 .title-bar__logo {
   width: 20px;
   height: 20px;
+  --logo-fill: var(--dim);
 }
 
 .title-bar__wordmark {
@@ -1379,17 +1380,17 @@
 /* The revealed children: the slider (SettingsSlider's unclassed root div —
    see TileVolumeControl.tsx) and the percentage readout. `:focus-within`
    mirrors `:hover` so the slider is reachable by keyboard. */
-.tile__volume > div,
-.tile__volume > .tile__volume-pct {
+.tile__volume>div,
+.tile__volume>.tile__volume-pct {
   opacity: 0;
   transform: translateX(-6px);
   transition: opacity var(--dur-2) var(--ease), transform var(--dur-2) var(--ease);
 }
 
-.tile__volume:hover > div,
-.tile__volume:hover > .tile__volume-pct,
-.tile__volume:focus-within > div,
-.tile__volume:focus-within > .tile__volume-pct {
+.tile__volume:hover>div,
+.tile__volume:hover>.tile__volume-pct,
+.tile__volume:focus-within>div,
+.tile__volume:focus-within>.tile__volume-pct {
   opacity: 1;
   transform: translateX(0);
 }
@@ -1534,15 +1535,15 @@
 
 /* Mirror the reveal slide for the right-anchored pill (both rules needed:
    the resting one outranks the base, the hover/focus one outranks both). */
-.tile--video .tile__volume > div,
-.tile--video .tile__volume > .tile__volume-pct {
+.tile--video .tile__volume>div,
+.tile--video .tile__volume>.tile__volume-pct {
   transform: translateX(6px);
 }
 
-.tile--video .tile__volume:hover > div,
-.tile--video .tile__volume:hover > .tile__volume-pct,
-.tile--video .tile__volume:focus-within > div,
-.tile--video .tile__volume:focus-within > .tile__volume-pct {
+.tile--video .tile__volume:hover>div,
+.tile--video .tile__volume:hover>.tile__volume-pct,
+.tile--video .tile__volume:focus-within>div,
+.tile--video .tile__volume:focus-within>.tile__volume-pct {
   transform: translateX(0);
 }
 
@@ -2069,17 +2070,6 @@
   margin-bottom: var(--s-3);
 }
 
-/* A short gold accent stroke grounding the headline — static, brand-gradient. */
-.empty-lounge__card h2::after {
-  content: '';
-  display: block;
-  width: 32px;
-  height: 2px;
-  margin: var(--s-3) auto 0;
-  background: var(--gradient);
-  border-radius: 1px;
-}
-
 .empty-lounge__card p {
   font-size: var(--fs-2);
   color: var(--dim);
@@ -2311,7 +2301,7 @@
   display: grid;
   place-items: center;
   color: var(--on-accent);
-  background: var(--gradient);
+  background: var(--orange);
   transition: opacity var(--dur-1) var(--ease), transform var(--dur-1) var(--ease), filter var(--dur-1) var(--ease);
 }
 
