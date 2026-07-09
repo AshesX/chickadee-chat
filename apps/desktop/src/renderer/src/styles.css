@@ -3567,7 +3567,7 @@
   border: 1px solid var(--border);
   cursor: pointer;
   padding: 0;
-  transition: transform var(--dur-1), box-shadow var(--dur-1), border-color var(--dur-1);
+  transition: transform var(--dur-1) var(--ease), box-shadow var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
 }
 
 .accent-swatch:hover {
