@@ -1018,8 +1018,10 @@
   justify-content: space-between;
   padding: 0 var(--s-4);
   height: 36px;
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
+  /* A half-step toward --panel + a softened hairline: recessed chrome above
+     the lifted stage top (see the .app canvas fade). */
+  background: color-mix(in srgb, var(--panel) 40%, var(--bg));
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
   -webkit-app-region: drag;
 }
 
@@ -2066,9 +2068,20 @@
 }
 
 .empty-lounge__card h2 {
-  font-size: var(--fs-4);
+  font-size: var(--fs-5);
   font-weight: var(--fw-2);
-  margin-bottom: var(--s-2);
+  margin-bottom: var(--s-3);
+}
+
+/* A short gold accent stroke grounding the headline — static, brand-gradient. */
+.empty-lounge__card h2::after {
+  content: '';
+  display: block;
+  width: 32px;
+  height: 2px;
+  margin: var(--s-3) auto 0;
+  background: var(--gradient);
+  border-radius: 1px;
 }
 
 .empty-lounge__card p {
@@ -2289,6 +2302,8 @@
 
 .chat-panel__input-row input:focus {
   border-color: var(--orange);
+  /* Surface lift on focus (background is already in the transition list). */
+  background: color-mix(in srgb, var(--card) 75%, transparent);
   outline: none;
 }
 
@@ -2342,13 +2357,16 @@
   align-items: center;
 }
 
+/* Danger-soft language, but OPAQUE (mixed over --card, not transparent) —
+   toasts float over live video where a see-through tint would be illegible. */
 .toast {
-  background: var(--red);
-  border: 1px solid var(--red);
-  color: #fff;
+  background: color-mix(in srgb, var(--red) 12%, var(--card));
+  border: 1px solid color-mix(in srgb, var(--red) 45%, var(--border));
+  color: var(--danger-fg);
   font-size: var(--fs-1);
   padding: var(--s-2) var(--s-4);
   border-radius: var(--r-1);
+  box-shadow: inset 0 1px 0 var(--gleam), var(--sh-1);
 }
 
 /* ── Modals ───────────────────────────────────────────────── */

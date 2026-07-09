@@ -242,6 +242,11 @@ body {
   border-radius: var(--r-1);
 }
 
+/* No transition — unreliable on scrollbar pseudo-elements. */
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--scrollbar) 65%, var(--text));
+}
+
 input::placeholder {
   color: var(--placeholder);
 }
