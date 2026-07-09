@@ -93,7 +93,7 @@
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--r-1);
-  box-shadow: none;
+  box-shadow: inset 0 1px 0 var(--gleam);
   animation: popIn var(--dur-1) var(--ease);
 }
 
@@ -103,7 +103,7 @@
    kept so the three call sites need no churn; --sh-1 carries the depth. */
 .menu-surface--frosted {
   background: color-mix(in srgb, var(--card) 98%, transparent);
-  box-shadow: var(--sh-1);
+  box-shadow: inset 0 1px 0 var(--gleam), var(--sh-1);
 }
 
 /* ── Menu item primitive (.menu-item) ──────────────────────── */
@@ -324,7 +324,13 @@
   flex-direction: column;
   height: 100vh;
   overflow: hidden;
-  background: var(--bg);
+  /* Canvas depth: a static "lit from above" vertical fade composed from the
+     theme's own panel/bg pair (lifted top in dark, faint warm top in light).
+     Paints once; shows through the empty lounge, grid gaps, and the
+     translucent bottom-deck tints. */
+  background: linear-gradient(180deg,
+      color-mix(in srgb, var(--panel) 55%, var(--bg)) 0%,
+      var(--bg) 42%);
 }
 
 .app-body {
@@ -1312,6 +1318,7 @@
   border-radius: var(--r-1);
   overflow: hidden;
   opacity: 0.5;
+  box-shadow: inset 0 1px 0 var(--gleam);
   transition: max-width 0s linear var(--dur-2), opacity var(--dur-2) var(--ease);
 }
 
@@ -2199,7 +2206,7 @@
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--r-2);
-  box-shadow: var(--sh-2);
+  box-shadow: inset 0 1px 0 var(--gleam), var(--sh-2);
   animation: modalIn var(--dur-2) var(--ease);
 }
 
@@ -2323,6 +2330,7 @@
   background: var(--border);
   border: 1px solid var(--border);
   position: relative;
+  box-shadow: inset 0 1px 0 var(--gleam);
   transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
 }
 
@@ -2889,7 +2897,7 @@
   border: 1px solid var(--border);
   border-radius: var(--r-2);
   overflow: hidden;
-  box-shadow: var(--sh-1);
+  box-shadow: inset 0 1px 0 var(--gleam), var(--sh-1);
   animation: modalIn var(--dur-2) var(--ease);
   /* No transition: the panel has no interactive state changes — a blanket
      one would only catch the responsive width/height snaps (layout). */
@@ -3433,7 +3441,7 @@
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--r-2);
-  box-shadow: var(--sh-2);
+  box-shadow: inset 0 1px 0 var(--gleam), var(--sh-2);
   padding: var(--s-6);
   width: 340px;
   display: flex;
