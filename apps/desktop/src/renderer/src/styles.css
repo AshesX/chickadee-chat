@@ -2794,6 +2794,7 @@
 }
 
 .space-switcher-btn {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2801,6 +2802,12 @@
   cursor: pointer;
   text-align: center;
   width: 100%;
+}
+
+.space-switcher-btn .sidebar__section-chevron {
+  position: absolute;
+  left: var(--s-4);
+  margin-top: 2px;
 }
 
 .space-switcher-btn__meta {
@@ -2822,10 +2829,10 @@
   line-height: var(--lh-1);
 }
 
-/* Banner-only override: white text for legibility over an arbitrary
-   photo (the plain --panel background needs neither). */
+/* Banner-only override: light text for legibility over an arbitrary photo.
+   Uses --block-fg so it resolves to an off-white in both themes. */
 .sidebar__space-header--banner .space-switcher-btn__name {
-  color: #fff;
+  color: var(--block-fg);
 }
 
 /* Legibility vignette sized off the name's own shrink-to-fit box (via inset,
@@ -2855,7 +2862,7 @@
   content: '';
   position: absolute;
   z-index: -1;
-  inset: 2px -24px;
+  inset: 2px -24px 2px -8px;
   border-radius: 100px;
   background: var(--scrim-legibility);
   filter: blur(16px);
