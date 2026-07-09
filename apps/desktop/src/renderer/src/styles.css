@@ -1255,7 +1255,7 @@
   padding: 0 var(--s-1);
   border-radius: var(--r-1);
   background: var(--red);
-  outline: 3px solid var(--bg);
+  outline: 2px solid var(--bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1263,27 +1263,60 @@
   color: #fff;
 }
 
+/* Base badge = the VOICE-tile name: plain centered text beneath the grid-
+   centered avatar (no floating tag). The offset is avatar--lg half (48px)
+   + s-3, so it tracks the avatar at every tile size and clears the speaking
+   ring + mute chip. Video tiles override this into the bottom gradient bar. */
 .tile__badge {
   position: absolute;
-  top: 10px;
-  left: 10px;
+  top: calc(50% + 48px + var(--s-3));
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 2;
   display: flex;
   align-items: center;
   gap: var(--s-1);
-  background: rgba(0, 0, 0, 0.83);
-  border-radius: var(--r-1);
-  padding: var(--s-1) var(--s-2);
+  max-width: calc(100% - var(--s-6));
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
 }
 
 .tile__badge-name {
-  font-size: var(--fs-1);
+  font-size: var(--fs-2);
   font-weight: var(--fw-2);
+  color: var(--text-sub);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Video tiles: the name sits on a bottom fade-up scrim (raw black is the
+   established on-media overlay convention). The tall top padding keeps the
+   text inside the ≥0.6-alpha band; right padding clears the volume pill. */
+.tile--video .tile__badge {
+  top: auto;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  transform: none;
+  max-width: none;
+  gap: var(--s-2);
+  padding: var(--s-5) 48px var(--s-2) var(--s-3);
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.78), rgba(0, 0, 0, 0.6) 55%, transparent);
+  border-radius: 0;
+}
+
+.tile--video .tile__badge-name {
+  font-size: var(--fs-1);
   color: var(--badge-fg);
 }
 
 .tile__badge-mute {
-  color: var(--red);
+  /* Rose, not raw --red: clears the ≥3:1 graphics threshold even over a
+     bright video frame behind the scrim. Only renders on video tiles. */
+  color: color-mix(in srgb, var(--red) 45%, white);
 }
 
 .tile__conn {
@@ -1482,6 +1515,43 @@
   opacity: 0.9;
 }
 
+/* On video tiles the bottom edge belongs to the name bar: the volume pill
+   moves to the bar's right end (z3 over the z2 scrim) and leave/spotlight
+   take the vacated top-left. row-reverse pins the volume trigger icon at
+   the right edge so the pill's discrete expansion grows leftward. */
+.tile--video .tile__volume {
+  left: auto;
+  right: var(--s-2);
+  bottom: var(--s-2);
+  flex-direction: row-reverse;
+}
+
+/* Mirror the reveal slide for the right-anchored pill (both rules needed:
+   the resting one outranks the base, the hover/focus one outranks both). */
+.tile--video .tile__volume > div,
+.tile--video .tile__volume > .tile__volume-pct {
+  transform: translateX(6px);
+}
+
+.tile--video .tile__volume:hover > div,
+.tile--video .tile__volume:hover > .tile__volume-pct,
+.tile--video .tile__volume:focus-within > div,
+.tile--video .tile__volume:focus-within > .tile__volume-pct {
+  transform: translateX(0);
+}
+
+.tile--video .tile__leave {
+  bottom: auto;
+  right: auto;
+  top: 10px;
+  left: 10px;
+}
+
+.tile--video .tile__spotlight {
+  bottom: auto;
+  top: 10px;
+}
+
 .tile__leave:hover {
   opacity: 1;
   background: var(--red);
@@ -1571,16 +1641,19 @@
   font-weight: var(--fw-1);
 }
 
+/* Aligned with the video-tile name bar: a bottom fade-up scrim spanning the
+   stage width, still hover-revealed (opacity only). */
 .screen__label {
   position: absolute;
-  left: 10px;
-  bottom: 10px;
-  padding: var(--s-1) var(--s-3);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: var(--s-5) var(--s-3) var(--s-2);
   font-size: var(--fs-1);
   font-weight: var(--fw-1);
   color: #fff;
-  background: rgba(0, 0, 0, 0.6);
-  border-radius: var(--r-1);
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.78), rgba(0, 0, 0, 0.6) 55%, transparent);
+  border-radius: 0;
   opacity: 0;
   transition: opacity var(--dur-2) var(--ease);
 }
@@ -1659,6 +1732,34 @@
   flex: 0 0 auto;
   height: 100%;
   aspect-ratio: 16 / 9;
+}
+
+/* Filmstrip compacts (124px-tall tiles). */
+.filmstrip .tile--video .tile__badge {
+  padding: var(--s-3) 44px var(--s-1) var(--s-2);
+  gap: var(--s-1);
+}
+
+.filmstrip .tile--video .tile__volume {
+  right: var(--s-1);
+  bottom: var(--s-1);
+}
+
+/* Voice tiles in the filmstrip: the 96px avatar leaves no room below the
+   center, so the name becomes a compact scrim pill over the avatar's
+   bottom edge instead of free-floating text. */
+.filmstrip .tile:not(.tile--video) .tile__badge {
+  top: auto;
+  bottom: var(--s-1);
+  padding: 2px var(--s-2);
+  background: rgba(0, 0, 0, 0.72);
+  border-radius: var(--r-1);
+  max-width: calc(100% - (var(--s-2) * 2));
+}
+
+.filmstrip .tile:not(.tile--video) .tile__badge-name {
+  font-size: var(--fs-1);
+  color: var(--badge-fg);
 }
 
 /* ── Control bar ──────────────────────────────────────────── */

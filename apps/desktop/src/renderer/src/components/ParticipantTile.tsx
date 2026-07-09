@@ -162,7 +162,7 @@ function ParticipantTileImpl({
 
   return (
     <li
-      className={`tile${isSelf ? ' tile--self' : ''}`}
+      className={`tile${isSelf ? ' tile--self' : ''}${showVideo ? ' tile--video' : ''}`}
       style={{ '--accent': color, '--accent-glow': withAlpha(color, 44) } as React.CSSProperties}
     >
 
