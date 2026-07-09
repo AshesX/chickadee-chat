@@ -132,11 +132,6 @@
      deepens it toward ink, dark roses it toward white. */
   --danger-fg: color-mix(in srgb, var(--red) 85%, black);
 
-  /* Gleam — the 1px inset top-edge highlight that marks a raised surface
-     (menus, modals, control deck). Static, paints once. Near-invisible on
-     light's white cards (accepted); dark is where the machined edge reads. */
-  --gleam: color-mix(in srgb, white 60%, transparent);
-
   /* Glow — restrained halos for "live" moments (spotlight/stage, empty-lounge
      warmth). Resolve from --orange/--secondary, so they auto-follow whichever
      theme is active without redefinition. NOT used inside .tile* — `--accent`/
@@ -201,7 +196,6 @@
   --shadow-color: rgba(0, 0, 0, 0.6);
 
   --danger-fg: color-mix(in srgb, var(--red) 45%, white);
-  --gleam: color-mix(in srgb, white 6%, transparent);
 }
 
 /* ════════════ ② GENERIC — reset & normalize ════════════ */
