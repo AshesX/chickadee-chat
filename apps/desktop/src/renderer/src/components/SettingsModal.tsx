@@ -116,6 +116,7 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
     props.onChangeVadThreshold(defaults.vadThreshold);
     props.onChangeVadReleaseMs(defaults.vadReleaseMs);
     props.onChangeTheme(defaults.theme);
+    props.onChangeHideSpaceBanner(defaults.hideSpaceBanner);
     props.onChangeLaunchOnStartup(defaults.launchOnStartup);
     props.onChangeCloseBehavior(defaults.closeBehavior);
     props.onChangeAlwaysOnTop(defaults.alwaysOnTop);

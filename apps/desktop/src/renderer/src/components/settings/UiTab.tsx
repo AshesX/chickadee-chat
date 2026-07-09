@@ -1,10 +1,12 @@
 import { SegmentedRow } from './SegmentedRow';
 import { SliderRow } from './SliderRow';
+import { ToggleRow } from './ToggleRow';
 import type { SettingsModalProps } from './types';
 
 type UiTabProps = Pick<
   SettingsModalProps,
   | 'theme' | 'onChangeTheme'
+  | 'hideSpaceBanner' | 'onChangeHideSpaceBanner'
   | 'uiScale' | 'onChangeUiScale'
   | 'chatWidthScale' | 'onChangeChatWidthScale'
   | 'sidebarWidthScale' | 'onChangeSidebarWidthScale'
@@ -13,6 +15,8 @@ type UiTabProps = Pick<
 export function UiTab({
   theme,
   onChangeTheme,
+  hideSpaceBanner,
+  onChangeHideSpaceBanner,
   uiScale,
   onChangeUiScale,
   chatWidthScale,
@@ -31,6 +35,13 @@ export function UiTab({
           { value: 'light', label: 'Light' },
           { value: 'dark', label: 'Dark' },
         ]}
+      />
+
+      <ToggleRow
+        label="Hide space banner image"
+        hint="Show a compact, text-only space header instead of the banner photo."
+        value={hideSpaceBanner}
+        onChange={onChangeHideSpaceBanner}
       />
 
       <SliderRow

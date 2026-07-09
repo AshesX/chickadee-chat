@@ -215,6 +215,8 @@ export const store = {
   setCompactMode: setter('compactMode'),
   getRoomsSectionCollapsed: getter('roomsSectionCollapsed'),
   setRoomsSectionCollapsed: setter('roomsSectionCollapsed'),
+  getHideSpaceBanner: getter('hideSpaceBanner'),
+  setHideSpaceBanner: setter('hideSpaceBanner'),
 };
 
 const FRIEND_PALETTE = [

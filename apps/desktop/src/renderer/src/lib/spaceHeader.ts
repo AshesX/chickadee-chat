@@ -8,5 +8,12 @@
  */
 export const SIDEBAR_HEADER_HEIGHT_PX = 96;
 
+/**
+ * Reduced-height header strip used when the "Hide space banner image" setting
+ * is on — a typographic-only title instead of the full banner hero. Keep in
+ * sync with `.sidebar__space-header--minimal`'s `height` in styles.css.
+ */
+export const SIDEBAR_HEADER_MINIMAL_HEIGHT_PX = 40;
+
 /** Sidebar's widest resizable width (base 280px * max 2.0x scale, see useSidebarResize.ts). */
 export const SIDEBAR_MAX_WIDTH_PX = 560;

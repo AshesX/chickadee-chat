@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Plus, ChevronDown } from 'lucide-react';
 import { sanitizeBannerDataUrl, type SpaceInfo } from '@chickadee/shared';
 import { useDismissTimeout } from '../../hooks/useDismissTimeout';
-import { SIDEBAR_HEADER_HEIGHT_PX } from '../../lib/spaceHeader';
+import { SIDEBAR_HEADER_HEIGHT_PX, SIDEBAR_HEADER_MINIMAL_HEIGHT_PX } from '../../lib/spaceHeader';
 import { SpaceContextMenu } from './SpaceContextMenu';
 import { SpaceRow } from './SpaceRow';
 
@@ -15,6 +15,8 @@ interface SpaceSwitcherProps {
   onJoinSpace: () => void;
   onDeleteSpace: (id: string, name: string) => void;
   onSpaceSettings: (id: string) => void;
+  /** Hide the space banner image and show a shorter, text-only header instead. */
+  hideSpaceBanner: boolean;
 }
 
 /**
@@ -30,6 +32,7 @@ export function SpaceSwitcher({
   onJoinSpace,
   onDeleteSpace,
   onSpaceSettings,
+  hideSpaceBanner,
 }: SpaceSwitcherProps): React.JSX.Element {
   const [switcherOpen, setSwitcherOpen] = useState(false);
   // Per-space so the "copied" indicator can't appear on a different hovered space.
@@ -38,7 +41,8 @@ export function SpaceSwitcher({
   const [typedCode, setTypedCode] = useState('');
   const [ctxMenu, setCtxMenu] = useState<{ space: SpaceInfo; x: number; y: number } | null>(null);
   const activeSpace = spaces.find((s) => s.id === activeSpaceId);
-  const safeBanner = activeSpace ? sanitizeBannerDataUrl(activeSpace.bannerDataUrl) : null;
+  const safeBanner = !hideSpaceBanner && activeSpace ? sanitizeBannerDataUrl(activeSpace.bannerDataUrl) : null;
+  const headerHeight = hideSpaceBanner ? SIDEBAR_HEADER_MINIMAL_HEIGHT_PX : SIDEBAR_HEADER_HEIGHT_PX;
   const [bannerLoaded, setBannerLoaded] = useState(false);
   // Reset the fade-in whenever the banner value changes (switching spaces, or the
   // banner being set/changed/cleared) so a stale "already loaded" state can't skip it.
@@ -103,7 +107,7 @@ export function SpaceSwitcher({
       onMouseLeave={() => armClose(1000)}
       onMouseEnter={cancelCloseTimeout}
     >
-      <div className={`sidebar__space-header${safeBanner ? ' sidebar__space-header--banner' : ''}`}>
+      <div className={`sidebar__space-header${safeBanner ? ' sidebar__space-header--banner' : ''}${hideSpaceBanner ? ' sidebar__space-header--minimal' : ''}`}>
         {safeBanner && (
           <>
             <img
@@ -151,7 +155,7 @@ export function SpaceSwitcher({
       {switcherOpen && (
         <div
           className="menu-surface"
-          style={{ position: 'absolute', top: `${SIDEBAR_HEADER_HEIGHT_PX + 1}px`, left: 0, width: '100%', zIndex: 'var(--z-dropdown)', display: 'flex', flexDirection: 'column', border: 'none', borderRadius: 0, boxShadow: 'var(--sh-1)', clipPath: 'inset(0px 0px -40px 0px)' }}
+          style={{ position: 'absolute', top: `${headerHeight + 1}px`, left: 0, width: '100%', zIndex: 'var(--z-dropdown)', display: 'flex', flexDirection: 'column', border: 'none', borderRadius: 0, boxShadow: 'var(--sh-1)', clipPath: 'inset(0px 0px -40px 0px)' }}
           onClick={(e) => e.stopPropagation()}
         >
           {spaces.length > 0 && (

@@ -36,6 +36,9 @@ export interface SettingsModalProps {
   onChangeVadReleaseMs: (v: number) => void;
   theme: ThemeName;
   onChangeTheme: (t: ThemeName) => void;
+  /** Hide the space banner image and show a shorter, text-only header instead. */
+  hideSpaceBanner: boolean;
+  onChangeHideSpaceBanner: (on: boolean) => void;
   launchOnStartup: boolean;
   onChangeLaunchOnStartup: (on: boolean) => void;
   closeBehavior: 'quit' | 'tray';

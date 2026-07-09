@@ -222,6 +222,7 @@ export function App(): React.JSX.Element {
   const [chatTtsEnabled, setChatTtsEnabled] = useState(() => store.getChatTtsEnabled());
   const [chatTtsSpeakName, applyChatTtsSpeakName] = usePersistedState(store.getChatTtsSpeakName, store.setChatTtsSpeakName);
   const [theme, applyTheme] = usePersistedState<ThemeName>(store.getTheme, store.setTheme);
+  const [hideSpaceBanner, applyHideSpaceBanner] = usePersistedState(store.getHideSpaceBanner, store.setHideSpaceBanner);
   const [launchOnStartup, setLaunchOnStartup] = useState(() => store.getLaunchOnStartup());
   const [closeBehavior, applyCloseBehavior] = usePersistedState<'quit' | 'tray'>(store.getCloseBehavior, store.setCloseBehavior);
   const [alwaysOnTop, setAlwaysOnTop] = useState(() => store.getAlwaysOnTop());
@@ -988,6 +989,7 @@ export function App(): React.JSX.Element {
           onChangeStatus={applyStatus}
           roomsCollapsed={roomsSectionCollapsed}
           onToggleRoomsSection={toggleRoomsSection}
+          hideSpaceBanner={hideSpaceBanner}
           compact={compactMode}
           widthScale={sidebarWidthScale}
           onResize={handleSidebarResize}
@@ -1443,6 +1445,8 @@ export function App(): React.JSX.Element {
           onChangeAudioQuality={applyAudioQuality}
           uiScale={uiScale}
           onChangeUiScale={applyUiScale}
+          hideSpaceBanner={hideSpaceBanner}
+          onChangeHideSpaceBanner={applyHideSpaceBanner}
           chatFontScale={chatFontScale}
           onChangeChatFontScale={applyChatFontScale}
           chatPosition={chatPosition}

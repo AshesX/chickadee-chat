@@ -26,6 +26,7 @@ export const SETTINGS_SEARCH_INDEX: SearchEntry[] = [
   { label: 'Chat Width', description: 'Room chat panel width', tab: 'chat', sectionId: 'section-chat-settings', keywords: ['width', 'panel', 'chat', 'size', 'scale'] },
   { label: 'Chat Position', description: 'Dock chat to the left or right', tab: 'chat', sectionId: 'section-chat-settings', keywords: ['chat', 'position', 'left', 'right', 'layout', 'side'] },
   { label: 'Theme', description: 'Application color theme', tab: 'ui', keywords: ['theme', 'color', 'light', 'dark', 'midnight', 'swiss', 'alabaster', 'appearance', 'colours'] },
+  { label: 'Hide Space Banner', description: 'Show a compact, text-only header instead of the banner photo', tab: 'ui', keywords: ['banner', 'space', 'header', 'image', 'photo', 'minimal', 'compact'] },
   { label: 'UI Scale', description: 'Adjust overall application size', tab: 'ui', keywords: ['scale', 'zoom', 'size', 'ui', 'interface', 'accessibility', 'dpi'] },
   { label: 'Launch on Startup', description: 'Start app when Windows boots', tab: 'app', keywords: ['startup', 'autostart', 'boot', 'launch', 'windows', 'login'] },
   { label: 'Minimize to Tray', description: 'Minimize to tray keeps voice connected', tab: 'app', keywords: ['tray', 'close', 'minimize', 'background', 'quit', 'system tray'] },

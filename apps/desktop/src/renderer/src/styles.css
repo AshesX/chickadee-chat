@@ -2758,6 +2758,17 @@
   border-bottom: none;
 }
 
+/* "Hide space banner image" setting: a shorter, typographic-only strip in
+   place of the 96px hero. Keep in sync with SIDEBAR_HEADER_MINIMAL_HEIGHT_PX
+   in lib/spaceHeader.ts. */
+.sidebar__space-header--minimal {
+  height: 40px;
+}
+
+.sidebar__space-header--minimal .space-switcher-btn__name {
+  font-size: var(--fs-3);
+}
+
 .sidebar__space-header-banner-img {
   position: absolute;
   inset: 0;

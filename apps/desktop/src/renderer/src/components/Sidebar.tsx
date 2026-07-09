@@ -39,6 +39,9 @@ interface SidebarProps {
   roomsCollapsed: boolean;
   onToggleRoomsSection: () => void;
 
+  /** Hide the space banner image and show a shorter, text-only header instead. */
+  hideSpaceBanner: boolean;
+
   // Compact (sidebar-only dock) mode
   compact: boolean;
   /** Current sidebar width scale (1.0–2.0), shared between compact + full view. */
@@ -90,6 +93,8 @@ export function Sidebar({
 
   roomsCollapsed,
   onToggleRoomsSection,
+
+  hideSpaceBanner,
 
   compact,
   widthScale,
@@ -147,6 +152,7 @@ export function Sidebar({
         onJoinSpace={onJoinSpace}
         onDeleteSpace={onDeleteSpace}
         onSpaceSettings={onSpaceSettings}
+        hideSpaceBanner={hideSpaceBanner}
       />
 
       <div className="sidebar__scroll">

@@ -144,6 +144,8 @@ export interface PersistedSettings {
   compactMode: boolean;
   /** Whether the sidebar ROOMS section is collapsed. */
   roomsSectionCollapsed: boolean;
+  /** Hide the space banner image and show a shorter, text-only header instead. */
+  hideSpaceBanner: boolean;
 }
 
 export const DEFAULT_ROOMS: Room[] = [
@@ -218,5 +220,6 @@ export function defaultSettings(): PersistedSettings {
     ttsStopKey: '',
     compactMode: false,
     roomsSectionCollapsed: false,
+    hideSpaceBanner: false,
   };
 }
