@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useId, useRef } from 'react';
 
 interface LogoProps {
   size?: number;
@@ -15,14 +15,20 @@ const ROTATION_RADIUS = 25.107053; // Math.sqrt(18.29^2 + 17.2^2)
 
 // Original angle (top left: dx = -18.29, dy = -17.2)
 const BASE_ANGLE = Math.atan2(-17.2, -18.29);
+const BASE_COS = Math.cos(BASE_ANGLE);
+const BASE_SIN = Math.sin(BASE_ANGLE);
 
 /** The Chickadee Chat brand logo. */
 export function Logo({ size = 24, className, staticLogo = false }: LogoProps): React.JSX.Element {
+  // Unique per instance: url(#id) resolves against the whole document, so a shared id would
+  // make every logo use the FIRST mounted instance's mask (the static title-bar one),
+  // freezing everyone else's pupils.
+  const maskId = `chickadee-pupils-mask-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
+
   // Refs to determine screen positioning and manipulate pupils directly
   const svgRef = useRef<SVGSVGElement>(null);
   const pupilLeftRef = useRef<SVGCircleElement>(null);
   const pupilRightRef = useRef<SVGCircleElement>(null);
-  const maskedGroupRef = useRef<SVGGElement>(null);
 
   // Refs to store mutable values for the animation loop
   const stateRef = useRef({
@@ -45,26 +51,20 @@ export function Logo({ size = 24, className, staticLogo = false }: LogoProps): R
     const state = stateRef.current;
     let lastTime = performance.now();
 
-    // Helper to update pupil coordinates in the DOM directly (no React state re-renders)
+    // Helper to update pupil positions in the DOM directly (no React state re-renders).
+    // Pupils are punched out as holes in the SVG <mask> (so they always show whatever is
+    // truly behind the logo, matching any background/theme); movement is a `transform`
+    // delta from the circles' fixed rest cx/cy.
     const updatePupilAttributes = (leftAngle: number, rightAngle: number) => {
       if (pupilLeftRef.current) {
-        const cx = EYE_LEFT.cx + ROTATION_RADIUS * Math.cos(leftAngle);
-        const cy = EYE_LEFT.cy + ROTATION_RADIUS * Math.sin(leftAngle);
-        pupilLeftRef.current.setAttribute('cx', String(cx));
-        pupilLeftRef.current.setAttribute('cy', String(cy));
+        const dx = ROTATION_RADIUS * (Math.cos(leftAngle) - BASE_COS);
+        const dy = ROTATION_RADIUS * (Math.sin(leftAngle) - BASE_SIN);
+        pupilLeftRef.current.setAttribute('transform', `translate(${dx} ${dy})`);
       }
       if (pupilRightRef.current) {
-        const cx = EYE_RIGHT.cx + ROTATION_RADIUS * Math.cos(rightAngle);
-        const cy = EYE_RIGHT.cy + ROTATION_RADIUS * Math.sin(rightAngle);
-        pupilRightRef.current.setAttribute('cx', String(cx));
-        pupilRightRef.current.setAttribute('cy', String(cy));
-      }
-
-      // Hack to force Chromium to repaint the mask
-      if (maskedGroupRef.current) {
-        const currentMask = maskedGroupRef.current.getAttribute('mask') || '';
-        const nextMask = currentMask.endsWith(' ') ? 'url(#chickadee-pupils-mask)' : 'url(#chickadee-pupils-mask) ';
-        maskedGroupRef.current.setAttribute('mask', nextMask);
+        const dx = ROTATION_RADIUS * (Math.cos(rightAngle) - BASE_COS);
+        const dy = ROTATION_RADIUS * (Math.sin(rightAngle) - BASE_SIN);
+        pupilRightRef.current.setAttribute('transform', `translate(${dx} ${dy})`);
       }
     };
 
@@ -226,7 +226,6 @@ export function Logo({ size = 24, className, staticLogo = false }: LogoProps): R
 
   return (
     <svg
-      id="chickadee-chat-logo"
       ref={svgRef}
       xmlns="http://www.w3.org/2000/svg"
       width={size}
@@ -236,31 +235,30 @@ export function Logo({ size = 24, className, staticLogo = false }: LogoProps): R
       style={{ display: 'inline-block' }}
     >
       <defs>
-        <mask id="chickadee-pupils-mask">
+        <mask id={maskId}>
           <rect x="-30" y="-10" width="420" height="420" fill="white" />
           <circle
-            id="pupil-left"
             ref={pupilLeftRef}
             fill="black"
             cx={initialLeftCx}
             cy={initialLeftCy}
             r="17.2"
+            transform="translate(0 0)"
           />
           <circle
-            id="pupil-right"
             ref={pupilRightRef}
             fill="black"
             cx={initialRightCx}
             cy={initialRightCy}
             r="17.2"
+            transform="translate(0 0)"
           />
         </mask>
       </defs>
-      <g ref={maskedGroupRef} mask="url(#chickadee-pupils-mask)">
-        <circle id="eye-left" fill="var(--logo-fill, #e9e9e9)" cx={EYE_LEFT.cx} cy={EYE_LEFT.cy} r="34.4" />
-        <circle id="eye-right" fill="var(--logo-fill, #e9e9e9)" cx={EYE_RIGHT.cx} cy={EYE_RIGHT.cy} r="34.4" />
+      <g mask={`url(#${maskId})`}>
+        <circle fill="var(--logo-fill, #e9e9e9)" cx={EYE_LEFT.cx} cy={EYE_LEFT.cy} r="34.4" />
+        <circle fill="var(--logo-fill, #e9e9e9)" cx={EYE_RIGHT.cx} cy={EYE_RIGHT.cy} r="34.4" />
         <path
-          id="chickadee-body"
           fill="var(--logo-fill, #e9e9e9)"
           d="M347.08,185c-8.2-50.24-38.39-98.08-94.31-127.85-18.94-10.24-21.4-25.94,7.47-33.48-20.43-5.57-41.2,1.87-58.98,17.8C199.47,23.87,231.86.23,231.86.23,149.23-5.08,32.33,83.93,8.16,163.1c-47.18,153.9,125.64,223.16,125.64,223.16-.43-13.21,13.74-28.15,13.74-28.15-22.39-2.33-38.22-13.33-38.22-13.33,6.22-25.22,32.06-37.72,32.06-37.72-89.11.44-110.13-83.72-110.13-83.72-8.79-37.19,4.68-82.48,38.34-102.06,43.14-27.13,90.76,14.61,91.65,68.97l-12.45,12.75c-12.49,12.79-13.6,32.84-2.61,46.93,0,0,8.76,11.32,16.82,21.66,6.34,8.13,18.64,8.1,24.94-.06,8.05-10.43,16.81-21.86,16.81-21.86,10.87-14.07,9.74-34-2.66-46.74-4.55-4.67-9.04-9.22-12.58-12.68,0,0,0,0,0,0,.46-53.65,45.55-95.9,90.24-69.35,33.66,19.58,47.5,63.7,38.71,100.89,0,0-18.49,87.87-133.48,85.38-24.85-.54-50.72,9.42-62.89,32.14,18.51,10.32,47.87,12.39,68.67,7.47-20.81,4.92-43.39,17.67-47.3,41.09,41.72,8.98,85.43-21.32,108.51-53.47-10.36,15.87-24.14,37.52-19.62,53.57,55.33-1.33,130.31-119.62,114.73-202.96ZM192.9,238.25c2.76-.56,4.73,2.6,3.04,4.85-21.64,28.78-19.5,28.65-41.25.03-1.71-2.25.27-5.43,3.03-4.86l17.59,9.93,17.59-9.95Z"
         />
