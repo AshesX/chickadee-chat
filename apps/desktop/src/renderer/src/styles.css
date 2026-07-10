@@ -1016,7 +1016,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 var(--s-4);
+  padding: 0 var(--s-4) 0 var(--s-2);
   height: 36px;
   /* A half-step toward --panel + a softened hairline: recessed chrome above
      the lifted stage top (see the .app canvas fade). */
@@ -1042,6 +1042,10 @@
   font-size: var(--fs-1);
   letter-spacing: 0.05em;
   color: var(--dim);
+}
+
+.app--compact .title-bar__wordmark {
+  display: none;
 }
 
 .title-bar__spacer {
