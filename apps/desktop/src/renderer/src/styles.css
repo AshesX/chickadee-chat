@@ -2894,7 +2894,7 @@
 
 .space-switcher-btn__name--code {
   font-family: var(--font-mono);
-  color: inherit;
+  color: var(--orange);
   font-weight: var(--fw-2);
   letter-spacing: 0.02em;
 }
