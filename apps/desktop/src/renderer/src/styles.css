@@ -310,7 +310,7 @@
 
 .resize-handle:hover::after,
 .resize-handle:active::after {
-  background: var(--orange);
+  background: var(--fade);
 }
 
 
@@ -2272,9 +2272,10 @@
   display: flex;
   gap: var(--s-1);
   padding: var(--s-2) var(--s-3);
+  align-items: flex-end;
 }
 
-.chat-panel__input-row input {
+.chat-panel__input-row textarea {
   flex: 1;
   min-width: 0;
   background: var(--veil-1);
@@ -2283,10 +2284,15 @@
   padding: var(--s-1) var(--s-2);
   color: var(--text);
   font-size: calc(14px * var(--chat-font-scale, 1));
+  font-family: inherit;
+  line-height: 1.4;
+  resize: none;
+  overflow-y: auto;
+  min-height: 38px; /* Approx height of the single line input */
   transition: border-color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
 }
 
-.chat-panel__input-row input:focus {
+.chat-panel__input-row textarea:focus {
   border-color: var(--orange);
   /* Surface lift on focus (background is already in the transition list). */
   background: color-mix(in srgb, var(--card) 75%, transparent);

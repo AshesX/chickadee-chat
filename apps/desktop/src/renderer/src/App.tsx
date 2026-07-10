@@ -57,6 +57,7 @@ const SpaceSettingsModal = lazy(() =>
   import('./components/SpaceSettingsModal').then((m) => ({ default: m.SpaceSettingsModal })),
 );
 import { speakChatMessage, cancelSpeech } from './lib/tts';
+import { shouldSpeakChatMessage } from './lib/ttsTriggers';
 import { initVoices } from './lib/voices';
 
 function slugify(label: string): string {
@@ -221,6 +222,8 @@ export function App(): React.JSX.Element {
   const [sidebarWidthScale, setSidebarWidthScale] = useState(() => store.getSidebarWidthScale());
   const [chatTtsEnabled, setChatTtsEnabled] = useState(() => store.getChatTtsEnabled());
   const [chatTtsSpeakName, applyChatTtsSpeakName] = usePersistedState(store.getChatTtsSpeakName, store.setChatTtsSpeakName);
+  const [chatTtsSpeakOwnMessages, applyChatTtsSpeakOwnMessages] = usePersistedState(store.getChatTtsSpeakOwnMessages, store.setChatTtsSpeakOwnMessages);
+  const [chatTtsSpeakWhenFocused, applyChatTtsSpeakWhenFocused] = usePersistedState(store.getChatTtsSpeakWhenFocused, store.setChatTtsSpeakWhenFocused);
   const [theme, applyTheme] = usePersistedState<ThemeName>(store.getTheme, store.setTheme);
   const [hideSpaceBanner, applyHideSpaceBanner] = usePersistedState(store.getHideSpaceBanner, store.setHideSpaceBanner);
   const [launchOnStartup, setLaunchOnStartup] = useState(() => store.getLaunchOnStartup());
@@ -243,12 +246,37 @@ export function App(): React.JSX.Element {
     void window.chickadee?.setAlwaysOnTop?.(alwaysOnTop);
   }, [alwaysOnTop]);
 
+  // Read flags from the store (not React state) so these empty-deps callbacks stay stable.
   const handleNewMessage = useCallback((msg: ChatMessage) => {
-    if (document.hasFocus()) return;
-    setUnreadCount((c) => c + 1);
-    // Read the flag from the store (not React state) so this empty-deps callback stays stable.
-    if (store.getChatTtsEnabled() && !msg.isReaction) {
+    const focused = document.hasFocus();
+    if (!focused) setUnreadCount((c) => c + 1);
+    if (
+      shouldSpeakChatMessage({
+        chatTtsEnabled: store.getChatTtsEnabled(),
+        isReaction: !!msg.isReaction,
+        isSelf: false,
+        windowFocused: focused,
+        speakOwnMessages: store.getChatTtsSpeakOwnMessages(),
+        speakWhenFocused: store.getChatTtsSpeakWhenFocused(),
+      })
+    ) {
       speakChatMessage(msg.senderName, msg.text, msg.voicePreference, store.getChatTtsSpeakName());
+    }
+  }, []);
+
+  const handleSelfMessage = useCallback((msg: ChatMessage) => {
+    if (
+      shouldSpeakChatMessage({
+        chatTtsEnabled: store.getChatTtsEnabled(),
+        isReaction: false,
+        isSelf: true,
+        windowFocused: document.hasFocus(),
+        speakOwnMessages: store.getChatTtsSpeakOwnMessages(),
+        speakWhenFocused: store.getChatTtsSpeakWhenFocused(),
+      })
+    ) {
+      // Own voice preference (not msg.voicePreference, which is only populated for peers).
+      speakChatMessage(msg.senderName, msg.text, store.getVoicePreference(), store.getChatTtsSpeakName());
     }
   }, []);
 
@@ -258,6 +286,7 @@ export function App(): React.JSX.Element {
     colors,
     roomId: currentRoomId,
     onNewMessage: handleNewMessage,
+    onSelfMessage: handleSelfMessage,
   });
   // Both modes (PTT / voice activation) gate the mic, so a live mic means we're
   // transmitting — which is also exactly the local "speaking" signal driving the
@@ -1459,6 +1488,10 @@ export function App(): React.JSX.Element {
           onChangeChatTtsEnabled={applyChatTtsEnabled}
           chatTtsSpeakName={chatTtsSpeakName}
           onChangeChatTtsSpeakName={applyChatTtsSpeakName}
+          chatTtsSpeakOwnMessages={chatTtsSpeakOwnMessages}
+          onChangeChatTtsSpeakOwnMessages={applyChatTtsSpeakOwnMessages}
+          chatTtsSpeakWhenFocused={chatTtsSpeakWhenFocused}
+          onChangeChatTtsSpeakWhenFocused={applyChatTtsSpeakWhenFocused}
           voicePreference={localVoicePreference}
           onChangeVoicePreference={applyVoicePreference}
           analyserNode={mesh.analyserNode}

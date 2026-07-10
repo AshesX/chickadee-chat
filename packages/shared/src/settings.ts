@@ -126,6 +126,10 @@ export interface PersistedSettings {
   chatTtsEnabled: boolean;
   /** Speak the "[name] says:" prefix before each read-aloud message; false = message text only. */
   chatTtsSpeakName: boolean;
+  /** Also read your own sent chat messages aloud, not just incoming ones. */
+  chatTtsSpeakOwnMessages: boolean;
+  /** Read chat messages aloud even while the app window is focused (not just unfocused). */
+  chatTtsSpeakWhenFocused: boolean;
   /** Generic TTS voice-category id peers use to read this user's chat aloud (e.g. 'uk-female'); '' = system default. */
   voicePreference: string;
   /** User's custom avatar as a base64 data URL (128×128 WebP/JPEG), or null. */
@@ -207,6 +211,8 @@ export function defaultSettings(): PersistedSettings {
     sidebarWidthScale: 1.0,
     chatTtsEnabled: false,
     chatTtsSpeakName: true,
+    chatTtsSpeakOwnMessages: true,
+    chatTtsSpeakWhenFocused: true,
     voicePreference: '',
     avatarDataUrl: null,
     accentColor: '',

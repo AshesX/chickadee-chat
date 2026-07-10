@@ -19,6 +19,7 @@ interface UseRoomChatArgs {
   /** Current room id; chat is ephemeral and clears when it changes. */
   roomId: string | null;
   onNewMessage?: (msg: ChatMessage) => void;
+  onSelfMessage?: (msg: ChatMessage) => void;
 }
 
 export interface RoomChat {
@@ -41,7 +42,7 @@ function nowTime(): string {
  * sender's name + accent color, and reactions also spawn a floating emoji.
  * Chat is ephemeral — cleared whenever the room changes.
  */
-export function useRoomChat({ signaling, displayName, colors, roomId, onNewMessage }: UseRoomChatArgs): RoomChat {
+export function useRoomChat({ signaling, displayName, colors, roomId, onNewMessage, onSelfMessage }: UseRoomChatArgs): RoomChat {
   const { subscribe, send } = signaling;
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -56,6 +57,8 @@ export function useRoomChat({ signaling, displayName, colors, roomId, onNewMessa
   nameRef.current = displayName;
   const onNewMessageRef = useRef(onNewMessage);
   onNewMessageRef.current = onNewMessage;
+  const onSelfMessageRef = useRef(onSelfMessage);
+  onSelfMessageRef.current = onSelfMessage;
   const idRef = useRef(0);
 
   const nextId = (): number => (idRef.current += 1);
@@ -105,12 +108,9 @@ export function useRoomChat({ signaling, displayName, colors, roomId, onNewMessa
     (text: string) => {
       const trimmed = text.trim();
       if (!trimmed) return;
-      setMessages((m) =>
-        [
-          ...m,
-          { id: nextId(), senderName: nameRef.current, color: SELF_COLOR, text: trimmed, time: nowTime() },
-        ].slice(-MAX_MESSAGES),
-      );
+      const message: ChatMessage = { id: nextId(), senderName: nameRef.current, color: SELF_COLOR, text: trimmed, time: nowTime() };
+      setMessages((m) => [...m, message].slice(-MAX_MESSAGES));
+      onSelfMessageRef.current?.(message);
       send({ type: 'chat', text: trimmed });
     },
     [send],

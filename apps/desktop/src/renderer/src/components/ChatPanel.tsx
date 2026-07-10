@@ -34,7 +34,7 @@ export function ChatPanel({
 }: ChatPanelProps): React.JSX.Element {
   const [input, setInput] = useState('');
   const endRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerAnchor, setPickerAnchor] = useState<DOMRect | null>(null);
@@ -58,6 +58,25 @@ export function ChatPanel({
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  useEffect(() => {
+    textareaRef.current?.focus();
+  }, []);
+
+  const prevHeightRef = useRef<number>(0);
+
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    const newHeight = Math.min(el.scrollHeight, 120);
+    el.style.height = `${newHeight}px`;
+
+    if (prevHeightRef.current && prevHeightRef.current !== newHeight) {
+      endRef.current?.scrollIntoView({ block: 'end' });
+    }
+    prevHeightRef.current = newHeight;
+  }, [input]);
+
   function submit(): void {
     const text = input.trim();
     if (!text) return;
@@ -66,7 +85,7 @@ export function ChatPanel({
   }
 
   function insertEmoji(emoji: string): void {
-    const el = inputRef.current;
+    const el = textareaRef.current;
     if (!el) {
       setInput((prev) => prev + emoji);
       return;
@@ -159,13 +178,19 @@ export function ChatPanel({
         >
           😊
         </button>
-        <input
-          ref={inputRef}
+        <textarea
+          ref={textareaRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && submit()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              submit();
+            }
+          }}
           placeholder="Message…"
           maxLength={500}
+          rows={1}
         />
         <button
           className="send-btn"

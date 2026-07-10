@@ -20,8 +20,11 @@ export const SETTINGS_SEARCH_INDEX: SearchEntry[] = [
 
   { label: 'Sound Effects', description: 'Enable or disable all audio cues', tab: 'sfx', keywords: ['sfx', 'sounds', 'audio cues', 'join', 'leave', 'beep', 'chime', 'notification'] },
   { label: 'SFX Volume', description: 'Sound effects volume', tab: 'sfx', keywords: ['sfx volume', 'sound effects volume', 'sounds'] },
-  { label: 'Text-to-Speech', description: 'Speaks new messages when app is unfocused', tab: 'chat', sectionId: 'section-chat-settings', keywords: ['tts', 'text to speech', 'read aloud', 'voice', 'speak', 'speech'] },
-  { label: 'Chat Voice', description: 'Your voice for others using TTS', tab: 'chat', sectionId: 'section-chat-settings', keywords: ['tts', 'voice', 'text to speech', 'preference', 'uk', 'female', 'male'] },
+  { label: 'Text-to-Speech', description: 'Speaks new chat messages aloud', tab: 'chat', sectionId: 'section-chat-tts', keywords: ['tts', 'text to speech', 'read aloud', 'voice', 'speak', 'speech'] },
+  { label: 'Speak Own Messages', description: 'Also reads your own sent messages', tab: 'chat', sectionId: 'section-chat-tts', keywords: ['tts', 'own', 'self', 'sent', 'my messages'] },
+  { label: 'Speak While Focused', description: 'Reads messages even while the app is focused', tab: 'chat', sectionId: 'section-chat-tts', keywords: ['tts', 'focus', 'focused', 'unfocused', 'background'] },
+  { label: 'Speak Sender Name', description: 'Reads the sender\'s name before messages', tab: 'chat', sectionId: 'section-chat-tts', keywords: ['tts', 'name', 'sender', 'speak', 'announce'] },
+  { label: 'Chat Voice', description: 'Your voice for others using TTS', tab: 'chat', sectionId: 'section-chat-tts', keywords: ['tts', 'voice', 'text to speech', 'preference', 'uk', 'female', 'male'] },
   { label: 'Chat Font Size', description: 'Chat message text size', tab: 'chat', sectionId: 'section-chat-settings', keywords: ['font', 'size', 'scale', 'text', 'chat', 'zoom'] },
   { label: 'Chat Width', description: 'Room chat panel width', tab: 'chat', sectionId: 'section-chat-settings', keywords: ['width', 'panel', 'chat', 'size', 'scale'] },
   { label: 'Chat Position', description: 'Dock chat to the left or right', tab: 'chat', sectionId: 'section-chat-settings', keywords: ['chat', 'position', 'left', 'right', 'layout', 'side'] },
@@ -60,6 +63,7 @@ export const SUBSECTIONS: Partial<Record<string, { label: string; id: string }[]
   ],
   chat: [
     { label: 'Chat Settings', id: 'section-chat-settings' },
+    { label: 'Text-to-Speech', id: 'section-chat-tts' },
     { label: 'Keybindings', id: 'section-chat-keybindings' },
   ],
   keybindings: [
