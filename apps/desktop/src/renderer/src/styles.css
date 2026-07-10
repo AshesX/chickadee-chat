@@ -2169,6 +2169,7 @@
   padding: 0 var(--s-1);
   transition: transform var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
   color: var(--dim);
+  margin-bottom: 7px;
 }
 
 .emoji-trigger-btn:hover {
@@ -2309,6 +2310,7 @@
   color: var(--on-accent);
   background: var(--orange);
   transition: opacity var(--dur-1) var(--ease), transform var(--dur-1) var(--ease), filter var(--dur-1) var(--ease);
+  margin-bottom: 7px;
 }
 
 .send-btn:hover:not(:disabled) {
