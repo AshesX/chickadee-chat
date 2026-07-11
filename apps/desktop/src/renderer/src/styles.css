@@ -1078,10 +1078,16 @@
   font-size: var(--fs-1);
   letter-spacing: 0.05em;
   color: var(--dim);
+  white-space: nowrap;
+  overflow: hidden;
+  max-width: 200px;
+  opacity: 1;
+  transition: opacity var(--dur-1) var(--ease), max-width var(--dur-1) var(--ease);
 }
 
 .app--compact .title-bar__wordmark {
-  display: none;
+  opacity: 0;
+  max-width: 0;
 }
 
 .title-bar__spacer {
