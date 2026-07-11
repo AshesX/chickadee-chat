@@ -24,7 +24,6 @@ export function Logo({ size = 24, className, staticLogo = false }: LogoProps): R
   // make every logo use the FIRST mounted instance's mask (the static title-bar one),
   // freezing everyone else's pupils.
   const maskId = `chickadee-pupils-mask-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
-  const gradientId = `chickadee-logo-gradient-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`;
 
   // Refs to determine screen positioning and manipulate pupils directly
   const svgRef = useRef<SVGSVGElement>(null);
@@ -122,11 +121,11 @@ export function Logo({ size = 24, className, staticLogo = false }: LogoProps): R
       // Smoothly interpolate towards target (mouse location or resting BASE_ANGLE)
       const diffLeft =
         (((targetLeft - state.leftAngle + Math.PI) % (2 * Math.PI)) + 2 * Math.PI) %
-        (2 * Math.PI) -
+          (2 * Math.PI) -
         Math.PI;
       const diffRight =
         (((targetRight - state.rightAngle + Math.PI) % (2 * Math.PI)) + 2 * Math.PI) %
-        (2 * Math.PI) -
+          (2 * Math.PI) -
         Math.PI;
 
       const lerpSpeed = 6.0; // exponential decay factor (~0.2s response time)
@@ -142,12 +141,12 @@ export function Logo({ size = 24, className, staticLogo = false }: LogoProps): R
       // Check if both eyes are close enough to their target angles to suspend the loop
       const diffLeftRemaining = Math.abs(
         (((targetLeft - state.leftAngle + Math.PI) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI) -
-        Math.PI
+          Math.PI
       );
       const diffRightRemaining = Math.abs(
         (((targetRight - state.rightAngle + Math.PI) % (2 * Math.PI)) + 2 * Math.PI) %
-        (2 * Math.PI) -
-        Math.PI
+          (2 * Math.PI) -
+          Math.PI
       );
 
       if (diffLeftRemaining < 0.001 && diffRightRemaining < 0.001) {
@@ -236,18 +235,6 @@ export function Logo({ size = 24, className, staticLogo = false }: LogoProps): R
       style={{ display: 'inline-block' }}
     >
       <defs>
-        <linearGradient
-          id={gradientId}
-          gradientUnits="userSpaceOnUse"
-          x1={-20.42 + 390 * 0.15}
-          y1={-0.27}
-          x2={-20.42 + 390 * 0.85}
-          y2={389.73}
-        >
-          <stop offset="0%" stopColor="#83aeffff" />
-          <stop offset="35%" stopColor="#8378bbff" />
-          <stop offset="100%" stopColor="#476acacb" />
-        </linearGradient>
         <mask id={maskId}>
           <rect x="-30" y="-10" width="420" height="420" fill="white" />
           <circle
@@ -269,10 +256,10 @@ export function Logo({ size = 24, className, staticLogo = false }: LogoProps): R
         </mask>
       </defs>
       <g mask={`url(#${maskId})`}>
-        <circle fill={`url(#${gradientId})`} cx={EYE_LEFT.cx} cy={EYE_LEFT.cy} r="34.4" />
-        <circle fill={`url(#${gradientId})`} cx={EYE_RIGHT.cx} cy={EYE_RIGHT.cy} r="34.4" />
+        <circle fill="var(--logo-fill, #e9e9e9)" cx={EYE_LEFT.cx} cy={EYE_LEFT.cy} r="34.4" />
+        <circle fill="var(--logo-fill, #e9e9e9)" cx={EYE_RIGHT.cx} cy={EYE_RIGHT.cy} r="34.4" />
         <path
-          fill={`url(#${gradientId})`}
+          fill="var(--logo-fill, #e9e9e9)"
           d="M347.08,185c-8.2-50.24-38.39-98.08-94.31-127.85-18.94-10.24-21.4-25.94,7.47-33.48-20.43-5.57-41.2,1.87-58.98,17.8C199.47,23.87,231.86.23,231.86.23,149.23-5.08,32.33,83.93,8.16,163.1c-47.18,153.9,125.64,223.16,125.64,223.16-.43-13.21,13.74-28.15,13.74-28.15-22.39-2.33-38.22-13.33-38.22-13.33,6.22-25.22,32.06-37.72,32.06-37.72-89.11.44-110.13-83.72-110.13-83.72-8.79-37.19,4.68-82.48,38.34-102.06,43.14-27.13,90.76,14.61,91.65,68.97l-12.45,12.75c-12.49,12.79-13.6,32.84-2.61,46.93,0,0,8.76,11.32,16.82,21.66,6.34,8.13,18.64,8.1,24.94-.06,8.05-10.43,16.81-21.86,16.81-21.86,10.87-14.07,9.74-34-2.66-46.74-4.55-4.67-9.04-9.22-12.58-12.68,0,0,0,0,0,0,.46-53.65,45.55-95.9,90.24-69.35,33.66,19.58,47.5,63.7,38.71,100.89,0,0-18.49,87.87-133.48,85.38-24.85-.54-50.72,9.42-62.89,32.14,18.51,10.32,47.87,12.39,68.67,7.47-20.81,4.92-43.39,17.67-47.3,41.09,41.72,8.98,85.43-21.32,108.51-53.47-10.36,15.87-24.14,37.52-19.62,53.57,55.33-1.33,130.31-119.62,114.73-202.96ZM192.9,238.25c2.76-.56,4.73,2.6,3.04,4.85-21.64,28.78-19.5,28.65-41.25.03-1.71-2.25.27-5.43,3.03-4.86l17.59,9.93,17.59-9.95Z"
         />
       </g>
