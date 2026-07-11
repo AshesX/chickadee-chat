@@ -22,7 +22,17 @@ export async function generateTrayIcon(size = 32): Promise<string> {
   try {
     const img = await loadImage(logoUrl);
     ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(img, 0, 0, size, size);
+    
+    // Calculate aspect ratio preserving dimensions
+    const scale = Math.min(size / img.width, size / img.height);
+    const scaledWidth = img.width * scale;
+    const scaledHeight = img.height * scale;
+    
+    // Center it
+    const x = (size - scaledWidth) / 2;
+    const y = (size - scaledHeight) / 2;
+    
+    ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
   } catch {
     return '';
   }
