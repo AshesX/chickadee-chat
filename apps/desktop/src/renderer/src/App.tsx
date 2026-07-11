@@ -584,18 +584,27 @@ export function App(): React.JSX.Element {
     store.setChatWidthScale(scale);
   }, []);
 
-  // Unified sidebar width: drives the CSS var in full view and the OS dock width
-  // (via IPC) in compact view. Persist on commit only.
+  // Compact + chat: docked width, but the room chat panel stays visible (video
+  // grid/stage/control-bar hidden). Fully derived from existing state — no new
+  // persisted flag — so collapsing while chat is open, toggling chat while
+  // compact, and leaving the room all just fall out of this expression.
+  const showCompactChat = compactMode && chatOpen && inRoom;
+
+  // Unified sidebar width: drives the CSS var everywhere. In full view and
+  // compact+chat it's a pure splitter (the sidebar/chat flex split absorbs the
+  // change, window width untouched); in plain compact — where the sidebar IS
+  // the whole window — it also drives the OS dock width via IPC. Persist on
+  // commit only.
   const handleSidebarResize = useCallback(
     (scale: number, commit: boolean) => {
       const clamped = Math.max(1.0, Math.min(2.0, scale));
       setSidebarWidthScale(clamped);
-      if (compactMode) {
+      if (compactMode && !showCompactChat) {
         window.chickadee?.windowControls?.setWindowWidth?.(Math.round(280 * clamped));
       }
       if (commit) store.setSidebarWidthScale(clamped);
     },
-    [compactMode],
+    [compactMode, showCompactChat],
   );
 
   const cycleInputMode = useCallback(() => {
@@ -653,11 +662,13 @@ export function App(): React.JSX.Element {
     window.chickadee?.windowControls?.setCompact?.(
       compactMode,
       Math.round(280 * sidebarWidthScale),
+      showCompactChat ? Math.round(280 * chatWidthScale) : undefined,
     );
-    // sidebarWidthScale intentionally omitted: the dock width is set on toggle and
-    // updated live via setWindowWidth in handleSidebarResize while already compact.
+    // sidebarWidthScale/chatWidthScale intentionally omitted: the dock width is
+    // set on toggle and updated live via setWindowWidth in handleSidebarResize
+    // while already compact.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [compactMode]);
+  }, [compactMode, showCompactChat]);
 
   function applyChatTtsEnabled(on: boolean): void {
     setChatTtsEnabled(on);
@@ -976,7 +987,7 @@ export function App(): React.JSX.Element {
 
   return (
     <div
-      className={`app${windowFocused ? '' : ' app--unfocused'}${compactMode ? ' app--compact' : ''}`}
+      className={`app${windowFocused ? '' : ' app--unfocused'}${compactMode ? ' app--compact' : ''}${showCompactChat ? ' app--compact-chat' : ''}`}
       style={{ '--sidebar-width-scale': sidebarWidthScale } as React.CSSProperties}
     >
       <TitleBar
@@ -1020,6 +1031,7 @@ export function App(): React.JSX.Element {
           onToggleRoomsSection={toggleRoomsSection}
           hideSpaceBanner={hideSpaceBanner}
           compact={compactMode}
+          compactChat={showCompactChat}
           widthScale={sidebarWidthScale}
           onResize={handleSidebarResize}
           micEnabled={micButtonOn}
@@ -1042,7 +1054,7 @@ export function App(): React.JSX.Element {
           <>
             <div className="content-area">
               {chatOpen && chatPosition === 'left' && (
-                <ChatPanel messages={chat.messages} onSend={chat.sendChat} chatFontScale={chatFontScale} chatPosition={chatPosition} chatWidthScale={chatWidthScale} onResize={handleChatResize} />
+                <ChatPanel messages={chat.messages} onSend={chat.sendChat} chatFontScale={chatFontScale} chatPosition={chatPosition} chatWidthScale={chatWidthScale} onResize={compactMode ? undefined : handleChatResize} />
               )}
 
               {theater ? (
@@ -1092,7 +1104,7 @@ export function App(): React.JSX.Element {
               )}
 
               {chatOpen && chatPosition === 'right' && (
-                <ChatPanel messages={chat.messages} onSend={chat.sendChat} chatFontScale={chatFontScale} chatPosition={chatPosition} chatWidthScale={chatWidthScale} onResize={handleChatResize} />
+                <ChatPanel messages={chat.messages} onSend={chat.sendChat} chatFontScale={chatFontScale} chatPosition={chatPosition} chatWidthScale={chatWidthScale} onResize={compactMode ? undefined : handleChatResize} />
               )}
             </div>
 

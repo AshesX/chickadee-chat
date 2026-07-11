@@ -44,6 +44,9 @@ interface SidebarProps {
 
   // Compact (sidebar-only dock) mode
   compact: boolean;
+  /** Compact + chat sub-mode (dock also showing the room chat panel): shows the
+   *  sidebar/chat splitter handle instead of the (redundant, window-edge-only) plain-compact resize. */
+  compactChat: boolean;
   /** Current sidebar width scale (1.0–2.0), shared between compact + full view. */
   widthScale: number;
   /** Live sidebar resize from the drag handle; commit=true on pointer release. */
@@ -97,6 +100,7 @@ export function Sidebar({
   hideSpaceBanner,
 
   compact,
+  compactChat,
   widthScale,
   onResize,
   micEnabled,
@@ -231,7 +235,7 @@ export function Sidebar({
         />
       )}
 
-      {!compact && (
+      {(!compact || compactChat) && (
         <div
           className="resize-handle sidebar__resize-handle"
           onPointerDown={handleResizeStart}

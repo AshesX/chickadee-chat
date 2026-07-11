@@ -84,8 +84,8 @@ const api = {
     minimize: (): void => ipcRenderer.send('chickadee:window-minimize'),
     toggleMaximize: (): void => ipcRenderer.send('chickadee:window-maximize-toggle'),
     close: (): void => ipcRenderer.send('chickadee:window-close'),
-    setCompact: (compact: boolean, compactWidth?: number): void =>
-      ipcRenderer.send('chickadee:window-set-compact', compact, compactWidth),
+    setCompact: (compact: boolean, compactWidth?: number, chatWidth?: number): void =>
+      ipcRenderer.send('chickadee:window-set-compact', compact, compactWidth, chatWidth),
     /** Live width-only resize of the docked compact window (no-op when not compact). */
     setWindowWidth: (px: number): void => ipcRenderer.send('chickadee:window-set-width', px),
   },

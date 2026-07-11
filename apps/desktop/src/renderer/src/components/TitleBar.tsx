@@ -31,6 +31,16 @@ export function TitleBar({ chatOpen, onToggleChat, inRoom, compact, onToggleComp
             Chat
           </button>
         )}
+        {inRoom && compact && (
+          <button
+            className={`icon-btn title-bar__chat-btn${chatOpen ? ' title-bar__chat-btn--active' : ''}`}
+            onClick={onToggleChat}
+            title={chatOpen ? 'Hide chat' : 'Show chat'}
+            aria-label={chatOpen ? 'Hide chat' : 'Show chat'}
+          >
+            <MessageSquare size={14} />
+          </button>
+        )}
         <button
           className="icon-btn title-bar__collapse-btn"
           onClick={onToggleCompact}

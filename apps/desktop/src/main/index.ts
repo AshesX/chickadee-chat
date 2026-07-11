@@ -17,6 +17,8 @@ import {
   COMPACT_MIN_HEIGHT,
   COMPACT_MIN_WIDTH,
   COMPACT_WIDTH,
+  COMPACT_CHAT_MAX_WIDTH,
+  COMPACT_CHAT_MIN_WIDTH,
   DEFAULT_FULL_WIDTH,
   DEFAULT_HEIGHT,
   NORMAL_MIN_HEIGHT,
@@ -52,6 +54,9 @@ function configureMediaPermissions(): void {
 // Sidebar-only "compact mode" (dock-style window): tracked here so the resize
 // handler and createWindow()'s initial sizing branch agree on the current state.
 let isCompact = false;
+// Compact + chat: dock widened to also show the room chat panel (see
+// App.tsx showCompactChat). Widens the dock's min/max width bounds.
+let isCompactChat = false;
 // Full-view width remembered on entering compact, so expanding restores the
 // wide layout. Height is intentionally NOT saved — it stays continuous across
 // the compact↔full transition (full view adopts whatever height the user left
@@ -68,52 +73,72 @@ function registerWindowControls(): void {
     else win.maximize();
   });
   ipcMain.on('chickadee:window-close', (e) => BrowserWindow.fromWebContents(e.sender)?.close());
-  ipcMain.on('chickadee:window-set-compact', (e, compact: boolean, compactWidth?: number) => {
-    const win = BrowserWindow.fromWebContents(e.sender);
-    if (!win || compact === isCompact) return;
-    isCompact = compact;
-    if (compact) {
-      wasMaximized = win.isMaximized();
-      if (wasMaximized) win.unmaximize();
-      const bounds = win.getBounds();
-      savedFullWidth = bounds.width;
-      // Dock is resizable (height + width), but width is capped at 200%.
-      // NOTE: the window is already resizable (constructor) and we never toggle
-      // it — calling setResizable() here would silently reset the min/max size on
-      // Windows, leaving OS-edge drag unconstrained (infinite horizontal stretch).
-      // So apply the size constraints and do NOT call setResizable.
-      win.setMaximizable(false);
-      win.setMinimumSize(COMPACT_MIN_WIDTH, COMPACT_MIN_HEIGHT);
-      win.setMaximumSize(COMPACT_MAX_WIDTH, 0);
-      win.setBounds({
-        x: bounds.x,
-        y: bounds.y,
-        width: clampCompactWidth(compactWidth ?? COMPACT_WIDTH),
-        height: bounds.height, // keep current height — continuous across the transition
-      });
-    } else {
-      // Lift the dock's width cap, restore the wide layout, but keep the height.
-      // (No setResizable here either — see the note above; it would reset min/max.)
-      win.setMaximizable(true);
-      win.setMaximumSize(0, 0);
-      win.setMinimumSize(NORMAL_MIN_WIDTH, NORMAL_MIN_HEIGHT);
-      const bounds = win.getBounds();
-      win.setBounds({
-        x: bounds.x,
-        y: bounds.y,
-        width: savedFullWidth ?? DEFAULT_FULL_WIDTH,
-        height: bounds.height,
-      });
-      if (wasMaximized) win.maximize();
-      savedFullWidth = null;
-    }
-  });
+  ipcMain.on(
+    'chickadee:window-set-compact',
+    (e, compact: boolean, compactWidth?: number, chatWidth?: number) => {
+      const win = BrowserWindow.fromWebContents(e.sender);
+      if (!win) return;
+      // Skip only when neither the compact flag nor the chat sub-mode changed —
+      // a chat toggle while already compact still needs to re-apply the wider
+      // bounds below, so it can't share the old "compact === isCompact" bail-out.
+      const hasChat = chatWidth != null;
+      if (compact === isCompact && (!compact || hasChat === isCompactChat)) return;
+      if (compact) {
+        if (!isCompact) {
+          wasMaximized = win.isMaximized();
+          if (wasMaximized) win.unmaximize();
+          savedFullWidth = win.getBounds().width;
+        }
+        isCompact = true;
+        isCompactChat = hasChat;
+        const minWidth = hasChat ? COMPACT_CHAT_MIN_WIDTH : COMPACT_MIN_WIDTH;
+        const maxWidth = hasChat ? COMPACT_CHAT_MAX_WIDTH : COMPACT_MAX_WIDTH;
+        // Dock is resizable (height + width), but width is capped.
+        // NOTE: the window is already resizable (constructor) and we never toggle
+        // it — calling setResizable() here would silently reset the min/max size on
+        // Windows, leaving OS-edge drag unconstrained (infinite horizontal stretch).
+        // So apply the size constraints and do NOT call setResizable.
+        win.setMaximizable(false);
+        win.setMinimumSize(minWidth, COMPACT_MIN_HEIGHT);
+        win.setMaximumSize(maxWidth, 0);
+        const bounds = win.getBounds();
+        win.setBounds({
+          x: bounds.x,
+          y: bounds.y,
+          width: clampCompactWidth((compactWidth ?? COMPACT_WIDTH) + (chatWidth ?? 0), hasChat),
+          height: bounds.height, // keep current height — continuous across the transition
+        });
+      } else {
+        // Lift the dock's width cap, restore the wide layout, but keep the height.
+        // (No setResizable here either — see the note above; it would reset min/max.)
+        win.setMaximizable(true);
+        win.setMaximumSize(0, 0);
+        win.setMinimumSize(NORMAL_MIN_WIDTH, NORMAL_MIN_HEIGHT);
+        const bounds = win.getBounds();
+        win.setBounds({
+          x: bounds.x,
+          y: bounds.y,
+          width: savedFullWidth ?? DEFAULT_FULL_WIDTH,
+          height: bounds.height,
+        });
+        if (wasMaximized) win.maximize();
+        savedFullWidth = null;
+        isCompact = false;
+        isCompactChat = false;
+      }
+    },
+  );
   // Live width-only resize while docked (in-app sidebar drag handle + slider).
   ipcMain.on('chickadee:window-set-width', (e, px: number) => {
     const win = BrowserWindow.fromWebContents(e.sender);
     if (!win || !isCompact) return;
     const bounds = win.getBounds();
-    win.setBounds({ x: bounds.x, y: bounds.y, width: clampCompactWidth(px), height: bounds.height });
+    win.setBounds({
+      x: bounds.x,
+      y: bounds.y,
+      width: clampCompactWidth(px, isCompactChat),
+      height: bounds.height,
+    });
   });
 }
 
@@ -180,7 +205,7 @@ function createWindow(): void {
   // edge drags, but snap/maximize can bypass it; clamp the requested bounds here.
   window.on('will-resize', (e, newBounds) => {
     if (!isCompact) return;
-    const clamped = clampCompactWidth(newBounds.width);
+    const clamped = clampCompactWidth(newBounds.width, isCompactChat);
     if (clamped !== newBounds.width) {
       e.preventDefault();
     }

@@ -359,6 +359,30 @@
   width: 100%;
 }
 
+/* Compact + chat: dock widened to also show the room chat panel. Both
+   .app--compact and .app--compact-chat are on the root at once, so these
+   overrides win by source order (equal specificity). */
+.app--compact-chat .sidebar {
+  width: calc(280px * var(--sidebar-width-scale, 1));
+}
+
+.app--compact-chat .main {
+  display: flex;
+  flex: 1;
+}
+
+.app--compact-chat .content-area > .grid,
+.app--compact-chat .content-area > .presentation,
+.app--compact-chat .control-bar {
+  display: none;
+}
+
+.app--compact-chat .chat-panel {
+  width: auto;
+  flex: 1;
+  min-width: 220px;
+}
+
 /* ── Sidebar ──────────────────────────────────────────────── */
 .sidebar {
   position: relative;
@@ -1062,6 +1086,15 @@
 .title-bar__collapse-btn {
   width: 28px;
   height: 28px;
+}
+
+.title-bar__chat-btn {
+  width: 28px;
+  height: 28px;
+}
+
+.title-bar__chat-btn--active {
+  color: var(--orange);
 }
 
 .title-bar__collapse-icon {

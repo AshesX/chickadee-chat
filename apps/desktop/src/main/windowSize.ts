@@ -12,7 +12,15 @@ export const COMPACT_MIN_HEIGHT = 360;
 export const DEFAULT_FULL_WIDTH = 1143;
 export const DEFAULT_HEIGHT = 720;
 
-/** Clamp a requested compact-dock width to the allowed range. */
-export function clampCompactWidth(px: number): number {
-  return Math.max(COMPACT_MIN_WIDTH, Math.min(COMPACT_MAX_WIDTH, Math.round(px)));
+// Compact + chat: the dock widened to also show the room chat panel (sidebar
+// keeps its own width; chat flexes into the rest — see App.tsx showCompactChat).
+export const COMPACT_CHAT_MIN_WIDTH = 520; // COMPACT_MIN_WIDTH + a usable chat minimum
+export const COMPACT_CHAT_MAX_WIDTH = 960; // generous but still a "dock", not full view
+
+/** Clamp a requested compact-dock width to the allowed range. `hasChat` widens
+ *  the range to the compact+chat bounds. */
+export function clampCompactWidth(px: number, hasChat = false): number {
+  const min = hasChat ? COMPACT_CHAT_MIN_WIDTH : COMPACT_MIN_WIDTH;
+  const max = hasChat ? COMPACT_CHAT_MAX_WIDTH : COMPACT_MAX_WIDTH;
+  return Math.max(min, Math.min(max, Math.round(px)));
 }
