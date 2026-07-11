@@ -3,7 +3,8 @@
  *
  * Shared by the desktop client and the signaling server so the two can never
  * drift out of sync. The server relays the WebRTC messages (`offer`/`answer`/
- * `ice-candidate`) verbatim and never inspects their payloads.
+ * `ice-candidate`, and `file-signal` for file-transfer connections) verbatim
+ * and never inspects their payloads.
  */
 import type { RoomType } from './capacity';
 
@@ -84,6 +85,15 @@ export type ClientMessage =
   | { type: 'offer'; to: PeerId; sdp: RTCSessionDescriptionInit }
   | { type: 'answer'; to: PeerId; sdp: RTCSessionDescriptionInit }
   | { type: 'ice-candidate'; to: PeerId; candidate: RTCIceCandidateInit }
+  // Directed file-transfer handshake, relayed SPACE-wide (unlike the room-scoped
+  // offer/answer/ice-candidate above) so a transfer can cross rooms. File BYTES
+  // never touch the signaling socket — they flow over a dedicated RTCDataChannel.
+  | { type: 'file-offer'; to: PeerId; transferId: string; name: string; size: number }
+  | { type: 'file-answer'; to: PeerId; transferId: string; accept: boolean }
+  // SDP/ICE for the dedicated file-transfer RTCPeerConnection (sender = offerer,
+  // fixed roles — no perfect negotiation). Relayed verbatim, never inspected.
+  | { type: 'file-signal'; to: PeerId; transferId: string; sdp?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit }
+  | { type: 'file-cancel'; to: PeerId; transferId: string; reason?: string }
   // Broadcast to the whole room (no `to`); server relays with `from` stamped.
   | { type: 'mic-state'; muted: boolean }
   | { type: 'speaking-state'; speaking: boolean }
@@ -144,6 +154,11 @@ export type ServerMessage =
   | { type: 'offer'; from: PeerId; sdp: RTCSessionDescriptionInit }
   | { type: 'answer'; from: PeerId; sdp: RTCSessionDescriptionInit }
   | { type: 'ice-candidate'; from: PeerId; candidate: RTCIceCandidateInit }
+  // Relayed file-transfer handshake (space-wide, directed), `from` stamped.
+  | { type: 'file-offer'; from: PeerId; transferId: string; name: string; size: number }
+  | { type: 'file-answer'; from: PeerId; transferId: string; accept: boolean }
+  | { type: 'file-signal'; from: PeerId; transferId: string; sdp?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit }
+  | { type: 'file-cancel'; from: PeerId; transferId: string; reason?: string }
   // A peer toggled their mic; broadcast to everyone else in the room.
   | { type: 'mic-state'; from: PeerId; muted: boolean }
   // A peer started/stopped speaking; broadcast to everyone else in the room.

@@ -79,6 +79,28 @@ const api = {
   /** Record the chosen source just before calling getDisplayMedia(). */
   setShareSource: (sourceId: string, audio: boolean): Promise<void> =>
     ipcRenderer.invoke('chickadee:set-share-source', sourceId, audio),
+  /**
+   * Receiver-side file-transfer disk IO. Write streams, the Save dialog, and
+   * all filesystem paths live in main; the renderer only moves opaque transfer
+   * ids and chunk bytes. Each writeChunk resolves once the chunk is flushed —
+   * awaiting it is the receive loop's backpressure.
+   */
+  fileTransfer: {
+    /** Show "Save As" and open a .part write stream. Resolves the chosen path, or null = declined. */
+    beginSave: (transferId: string, suggestedName: string): Promise<string | null> =>
+      ipcRenderer.invoke('chickadee:begin-file-save', transferId, suggestedName),
+    writeChunk: (transferId: string, chunk: Uint8Array): Promise<void> =>
+      ipcRenderer.invoke('chickadee:write-file-chunk', transferId, chunk),
+    /** Finish the stream and rename .part to the real filename. */
+    endSave: (transferId: string): Promise<string> =>
+      ipcRenderer.invoke('chickadee:end-file-save', transferId),
+    /** Destroy the stream and delete the .part file. */
+    abortSave: (transferId: string): Promise<void> =>
+      ipcRenderer.invoke('chickadee:abort-file-save', transferId),
+    /** Reveal a completed transfer's file in Explorer. */
+    showInFolder: (transferId: string): Promise<void> =>
+      ipcRenderer.invoke('chickadee:show-file-in-folder', transferId),
+  },
   /** Frameless-window title-bar controls. */
   windowControls: {
     minimize: (): void => ipcRenderer.send('chickadee:window-minimize'),

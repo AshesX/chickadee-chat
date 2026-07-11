@@ -4,6 +4,7 @@ import { ALLOWED_ORIGINS, JOIN_SECRET, MAX_WS_PAYLOAD, MSG_RATE_LIMIT, MSG_RATE_
 import { send, spaceConnections, type Connection } from './state';
 import { bumpRateWindow, type RateWindow } from './logic';
 import { handleDisconnect, handleJoin, handleJoinRoom, relay } from './handlers/room';
+import { relayFileMessage } from './handlers/fileTransfer';
 import {
   handleAccentState,
   handleAvatarState,
@@ -101,6 +102,13 @@ wss.on('connection', (socket) => {
 
     if (msg.type === 'offer' || msg.type === 'answer' || msg.type === 'ice-candidate') {
       relay(conn, msg);
+    } else if (
+      msg.type === 'file-offer' ||
+      msg.type === 'file-answer' ||
+      msg.type === 'file-signal' ||
+      msg.type === 'file-cancel'
+    ) {
+      relayFileMessage(conn, msg);
     } else if (msg.type === 'mic-state') {
       handleMicState(conn, msg.muted);
     } else if (msg.type === 'speaking-state') {

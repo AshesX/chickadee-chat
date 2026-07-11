@@ -65,6 +65,48 @@ export function sanitizeAccentColor(value: unknown): string {
   return ACCENT_COLOR_RE.test(value) ? value.toLowerCase() : '';
 }
 
+/** Max length of a transferred file's display name (relayed space-wide). */
+export const MAX_FILE_NAME_LEN = 160;
+/** Ceiling on a declared file-transfer size — an anti-nonsense bound far above real use (64 GiB). */
+export const MAX_FILE_SIZE_BYTES = 64 * 1024 ** 3;
+/** Max length of a file-cancel reason string. */
+export const MAX_FILE_REASON_LEN = 120;
+
+/**
+ * Validate a file-offer's untrusted name + size. Returns clamped values, or
+ * null to reject the whole message (empty name, or a size that isn't a safe
+ * non-negative integer within the cap). Used by the signaling server on intake
+ * and by the receiving client for defense in depth.
+ */
+export function sanitizeFileOfferMeta(name: unknown, size: unknown): { name: string; size: number } | null {
+  const safeName = clampString(name, MAX_FILE_NAME_LEN);
+  if (!safeName) return null;
+  if (typeof size !== 'number' || !Number.isSafeInteger(size) || size < 0 || size > MAX_FILE_SIZE_BYTES) {
+    return null;
+  }
+  return { name: safeName, size };
+}
+
+// Reserved punctuation + control chars Windows filenames can't contain.
+// eslint-disable-next-line no-control-regex -- stripping control chars is the point
+const UNSAFE_FILENAME_CHARS_RE = /[\\/:*?"<>|\u0000-\u001f]/g;
+const WINDOWS_RESERVED_BASENAME_RE = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
+
+/**
+ * Make an untrusted filename safe to use as a Save-dialog defaultPath basename
+ * on Windows: strip path separators, reserved punctuation, and control chars;
+ * trim leading/trailing dots and spaces; prefix reserved device names
+ * (CON, PRN, AUX, NUL, COM1-9, LPT1-9). '' collapses to 'download'. The native
+ * Save dialog remains the final guard — this only shapes the suggestion.
+ */
+export function sanitizeSaveFileName(value: unknown): string {
+  let name = clampString(value, MAX_FILE_NAME_LEN).replace(UNSAFE_FILENAME_CHARS_RE, '_');
+  name = name.replace(/^[. ]+/, '').replace(/[. ]+$/, '');
+  if (!name) return 'download';
+  const base = name.split('.')[0] ?? '';
+  return WINDOWS_RESERVED_BASENAME_RE.test(base) ? `_${name}` : name;
+}
+
 /** The valid presence statuses. */
 export const PRESENCE_STATUSES = ['online', 'idle', 'dnd'] as const;
 export type PresenceStatus = (typeof PRESENCE_STATUSES)[number];

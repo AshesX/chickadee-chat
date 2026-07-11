@@ -28,6 +28,7 @@ import {
 import { registerPushToTalk, handleBeforeInput, setHotkeyMainWindow, stopHotkeys } from './hotkeys';
 import { configureTray, setTrayMainWindow, destroyTray } from './tray';
 import { configureScreenShare } from './screenShare';
+import { configureFileTransfer, setFileTransferMainWindow } from './fileTransfer';
 
 // In dev, override userData per "instance slot" (default 0) so settings persist
 // across restarts (a fixed dir) while two instances stay isolated — run a second
@@ -265,10 +266,12 @@ function createWindow(): void {
     if (mainWindow === window) mainWindow = null;
     setHotkeyMainWindow(null);
     setTrayMainWindow(null);
+    setFileTransferMainWindow(null);
   });
 
   setHotkeyMainWindow(window);
   setTrayMainWindow(window);
+  setFileTransferMainWindow(window);
 }
 
 app.on('render-process-gone', (_e, _wc, details) => {
@@ -322,6 +325,7 @@ app.whenReady().then(() => {
 
   configureMediaPermissions();
   configureScreenShare();
+  configureFileTransfer();
   registerWindowControls();
   registerPushToTalk();
   configureTray();

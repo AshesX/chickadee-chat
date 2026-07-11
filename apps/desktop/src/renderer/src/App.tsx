@@ -17,6 +17,7 @@ import { useSfxSettings } from './hooks/useSfxSettings';
 import { useTraySync } from './hooks/useTraySync';
 import { usePeerVolumes } from './hooks/usePeerVolumes';
 import { useStageSpotlight } from './hooks/useStageSpotlight';
+import { useFileTransfers } from './hooks/useFileTransfers';
 import { useWindowFocus } from './hooks/useWindowFocus';
 import { selectStage } from './lib/stageSelection';
 import { generateSpaceId } from './lib/spaceOps';
@@ -29,6 +30,8 @@ import { ControlBar } from './components/ControlBar';
 import { ParticipantTile } from './components/ParticipantTile';
 import { ScreenView } from './components/ScreenView';
 import { ChatPanel, type ChatMessage } from './components/ChatPanel';
+import { TransferTray } from './components/TransferTray';
+import { formatBytes } from './webrtc/fileTransferPolicy';
 import { ReactionPopover } from './components/ReactionPopover';
 import { AudioDeviceMenu } from './components/AudioDeviceMenu';
 import { InputModeMenu } from './components/InputModeMenu';
@@ -644,6 +647,31 @@ export function App(): React.JSX.Element {
       peers: signaling.peers,
     });
 
+  // P2P file transfers to space members (USERS-row send button + accept modal
+  // + the floating transfer tray).
+  const fileTransfers = useFileTransfers({
+    spacePresence: signaling.spacePresence,
+    send: signaling.send,
+    subscribe: signaling.subscribe,
+    iceServers,
+  });
+  const { sendFileTo } = fileTransfers;
+
+  // Transient picker per gesture: input.click() must run synchronously inside
+  // the user's click for Chromium to open the dialog; no persistent DOM node.
+  const handleSendFileTo = useCallback(
+    (userId: string) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.onchange = () => {
+        const file = input.files?.[0];
+        if (file) sendFileTo(userId, file);
+      };
+      input.click();
+    },
+    [sendFileTo],
+  );
+
   // Sidebar actions that open a real modal (Settings, Create/Rename Room, Space
   // Settings, Create/Join Space) need real screen space, so expand the window
   // first if it's currently docked to the compact sidebar-only strip.
@@ -1046,6 +1074,7 @@ export function App(): React.JSX.Element {
           mutedUserIds={mutedUserIds}
           onTogglePeerMute={togglePeerMuteByUserId}
           onLeaveRoom={leaveRoom}
+          onSendFile={handleSendFileTo}
         />
 
         <div className="main">
@@ -1289,6 +1318,26 @@ export function App(): React.JSX.Element {
           </div>
         </Modal>
       )}
+
+      {fileTransfers.incomingOffer && (
+        <Modal title="Incoming file" onClose={fileTransfers.declineIncoming}>
+          <p style={{ marginBottom: 'var(--s-4)' }}>
+            {fileTransfers.incomingOffer.fromName} wants to send you{' '}
+            <strong>{fileTransfers.incomingOffer.name}</strong> ({formatBytes(fileTransfers.incomingOffer.size)}).
+          </p>
+          <div style={{ display: 'flex', gap: 'var(--s-2)', justifyContent: 'flex-end' }}>
+            <button className="btn btn--ghost" onClick={fileTransfers.declineIncoming}>Decline</button>
+            <button className="btn btn--primary" onClick={fileTransfers.acceptIncoming}>Accept</button>
+          </div>
+        </Modal>
+      )}
+
+      <TransferTray
+        transfers={fileTransfers.transfers}
+        onCancel={fileTransfers.cancel}
+        onDismiss={fileTransfers.dismiss}
+        onShowInFolder={fileTransfers.showInFolder}
+      />
 
       {onboardingNeeded && (
         <Suspense fallback={null}>

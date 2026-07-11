@@ -852,6 +852,18 @@
   margin-left: var(--s-2);
 }
 
+/* Hover-revealed "send file" action; also surfaces on keyboard focus. */
+.friend-row__send {
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity var(--dur-1) var(--ease);
+}
+
+.friend-row:hover .friend-row__send,
+.friend-row__send:focus-visible {
+  opacity: 1;
+}
+
 .presence-dot {
   display: inline-block;
   width: 12px;
@@ -2398,6 +2410,107 @@
   padding: var(--s-2) var(--s-4);
   border-radius: var(--r-1);
   box-shadow: var(--sh-1);
+}
+
+/* ── File-transfer tray ───────────────────────────────────── */
+/* Bottom-RIGHT stack (toasts own bottom-center at the same baseline). */
+.transfer-tray {
+  position: fixed;
+  right: var(--s-4);
+  bottom: 86px;
+  z-index: var(--z-tooltip);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.transfer-card {
+  width: 280px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  box-shadow: var(--sh-1);
+  padding: var(--s-3);
+  animation: popIn var(--dur-2) var(--ease);
+}
+
+.transfer-card__head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.transfer-card__dir {
+  display: inline-flex;
+  color: var(--dim);
+  flex-shrink: 0;
+}
+
+.transfer-card__name {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-2);
+  font-weight: var(--fw-2);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.transfer-card__peer {
+  font-size: var(--fs-1);
+  color: var(--dim);
+  margin: var(--s-1) 0 var(--s-2);
+}
+
+/* Same bar recipe as .mic-meter__track/__fill; width updates arrive throttled
+   (~4/s), so the linear width transition is a cheap catch-up, not a spring. */
+.transfer-card__track {
+  height: 4px;
+  background: var(--border);
+  border-radius: var(--r-1);
+  overflow: hidden;
+}
+
+.transfer-card__fill {
+  height: 100%;
+  width: 0%;
+  background: var(--online);
+  border-radius: var(--r-1);
+  transition: width var(--dur-1) linear, background-color var(--dur-1) var(--ease);
+}
+
+.transfer-card__fill--error {
+  background: var(--red);
+}
+
+.transfer-card__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  margin-top: var(--s-2);
+  font-size: var(--fs-1);
+  color: var(--dim);
+  min-height: 20px;
+}
+
+.transfer-card__reveal {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: var(--fs-1);
+  font-weight: var(--fw-2);
+  color: var(--text-sub);
+  cursor: pointer;
+  transition: color var(--dur-1) var(--ease);
+}
+
+.transfer-card__reveal:hover {
+  color: var(--text);
 }
 
 /* ── Modals ───────────────────────────────────────────────── */

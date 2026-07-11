@@ -68,6 +68,8 @@ interface SidebarProps {
   onTogglePeerMute: (userId: string) => void;
   /** Leave the current room (compact Leave mini-button). */
   onLeaveRoom: () => void;
+  /** Start a P2P file transfer to a space member (USERS-row hover button). */
+  onSendFile?: (userId: string) => void;
 }
 
 export function Sidebar({
@@ -115,6 +117,7 @@ export function Sidebar({
   mutedUserIds,
   onTogglePeerMute,
   onLeaveRoom,
+  onSendFile,
 }: SidebarProps): React.JSX.Element {
   const selfInitial = selfName.trim().charAt(0).toUpperCase() || 'Y';
   const [menu, setMenu] = useState<{ room: Room; x: number; y: number } | null>(null);
@@ -201,7 +204,7 @@ export function Sidebar({
               />
               <span>USERS</span>
             </div>
-            {!usersCollapsed && users.map((u) => <FriendRow key={u.id} user={u} />)}
+            {!usersCollapsed && users.map((u) => <FriendRow key={u.id} user={u} onSendFile={onSendFile} />)}
           </>
         )}
       </div>

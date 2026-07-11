@@ -2,10 +2,14 @@ import { describe, expect, it } from 'vitest';
 import {
   MAX_AVATAR_DATA_URL_LEN,
   MAX_BANNER_DATA_URL_LEN,
+  MAX_FILE_NAME_LEN,
+  MAX_FILE_SIZE_BYTES,
   clampString,
   sanitizeAccentColor,
   sanitizeAvatarDataUrl,
   sanitizeBannerDataUrl,
+  sanitizeFileOfferMeta,
+  sanitizeSaveFileName,
   sanitizeStatus,
 } from './sanitize';
 
@@ -89,5 +93,77 @@ describe('sanitizeStatus', () => {
     expect(sanitizeStatus('online')).toBe('online');
     expect(sanitizeStatus('away')).toBe('online');
     expect(sanitizeStatus(undefined)).toBe('online');
+  });
+});
+
+describe('sanitizeFileOfferMeta', () => {
+  it('passes a normal name + size through', () => {
+    expect(sanitizeFileOfferMeta('video.mp4', 2_147_483_648)).toEqual({
+      name: 'video.mp4',
+      size: 2_147_483_648,
+    });
+  });
+
+  it('clamps over-long names to MAX_FILE_NAME_LEN', () => {
+    const meta = sanitizeFileOfferMeta('a'.repeat(300), 10);
+    expect(meta?.name).toHaveLength(MAX_FILE_NAME_LEN);
+  });
+
+  it('allows size 0 (empty files are valid transfers)', () => {
+    expect(sanitizeFileOfferMeta('empty.txt', 0)).toEqual({ name: 'empty.txt', size: 0 });
+  });
+
+  it('rejects empty / non-string names', () => {
+    expect(sanitizeFileOfferMeta('', 10)).toBeNull();
+    expect(sanitizeFileOfferMeta('   ', 10)).toBeNull();
+    expect(sanitizeFileOfferMeta(null, 10)).toBeNull();
+    expect(sanitizeFileOfferMeta(42, 10)).toBeNull();
+  });
+
+  it('rejects invalid sizes', () => {
+    expect(sanitizeFileOfferMeta('a.txt', -1)).toBeNull();
+    expect(sanitizeFileOfferMeta('a.txt', 1.5)).toBeNull();
+    expect(sanitizeFileOfferMeta('a.txt', Number.NaN)).toBeNull();
+    expect(sanitizeFileOfferMeta('a.txt', Number.POSITIVE_INFINITY)).toBeNull();
+    expect(sanitizeFileOfferMeta('a.txt', MAX_FILE_SIZE_BYTES + 1)).toBeNull();
+    expect(sanitizeFileOfferMeta('a.txt', '10' as unknown as number)).toBeNull();
+    expect(sanitizeFileOfferMeta('a.txt', undefined)).toBeNull();
+  });
+});
+
+describe('sanitizeSaveFileName', () => {
+  it('passes ordinary filenames through untouched', () => {
+    expect(sanitizeSaveFileName('My Vacation video.mp4')).toBe('My Vacation video.mp4');
+    expect(sanitizeSaveFileName('report-v2_final (1).pdf')).toBe('report-v2_final (1).pdf');
+  });
+
+  it('replaces path separators and reserved punctuation', () => {
+    expect(sanitizeSaveFileName('..\\..\\evil.exe')).toBe('_.._evil.exe');
+    expect(sanitizeSaveFileName('a/b/c.txt')).toBe('a_b_c.txt');
+    expect(sanitizeSaveFileName('a?:*.mp4')).toBe('a___.mp4');
+    expect(sanitizeSaveFileName('quote"less<file>.txt')).toBe('quote_less_file_.txt');
+  });
+
+  it('strips control characters', () => {
+    const bell = String.fromCharCode(7);
+    expect(sanitizeSaveFileName(`a${bell}b.txt`)).toBe('a_b.txt');
+  });
+
+  it('trims leading/trailing dots and spaces', () => {
+    expect(sanitizeSaveFileName('...hidden.txt')).toBe('hidden.txt');
+    expect(sanitizeSaveFileName('name.txt. . ')).toBe('name.txt');
+  });
+
+  it('escapes Windows reserved device names', () => {
+    expect(sanitizeSaveFileName('con.txt')).toBe('_con.txt');
+    expect(sanitizeSaveFileName('COM1')).toBe('_COM1');
+    expect(sanitizeSaveFileName('nul')).toBe('_nul');
+    expect(sanitizeSaveFileName('console.txt')).toBe('console.txt');
+  });
+
+  it('falls back to "download" when nothing survives', () => {
+    expect(sanitizeSaveFileName('')).toBe('download');
+    expect(sanitizeSaveFileName('. . .')).toBe('download');
+    expect(sanitizeSaveFileName(null)).toBe('download');
   });
 });

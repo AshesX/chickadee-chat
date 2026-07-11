@@ -415,6 +415,82 @@ bystander.ws.close();
 raceOwner.ws.close();
 await wait(100);
 
+// File-transfer relay: directed, SPACE-scoped (crosses rooms — the whole point,
+// since the sidebar USERS list is space-wide), sanitized, never cross-space.
+const FT_SPACE = 'ft-space';
+const ftA = client('FtSender', { room: 'ft-room-a', spaceId: FT_SPACE, userId: 'uid-ft-a' });
+const wFtA = await ftA.ready;
+const ftB = client('FtReceiver', { room: 'ft-room-b', spaceId: FT_SPACE, userId: 'uid-ft-b' });
+const wFtB = await ftB.ready;
+const ftX = client('FtStranger', { room: 'ft-room-x', spaceId: 'ft-other-space', userId: 'uid-ft-x' });
+await ftX.ready;
+
+// The key new capability: delivery across DIFFERENT rooms of the same space.
+ftA.ws.send(JSON.stringify({ type: 'file-offer', to: wFtB.selfId, transferId: 'tr-1', name: 'video.mp4', size: 1048576 }));
+await wait(200);
+check(
+  'file-offer relayed cross-room within the space with from stamped',
+  ftB.events.some(
+    (ev) => ev.type === 'file-offer' && ev.from === wFtA.selfId && ev.transferId === 'tr-1' && ev.name === 'video.mp4' && ev.size === 1048576,
+  ),
+);
+
+// Decline round-trip back to the sender.
+ftB.ws.send(JSON.stringify({ type: 'file-answer', to: wFtA.selfId, transferId: 'tr-1', accept: false }));
+await wait(200);
+check(
+  'file-answer(decline) relayed back to the sender',
+  ftA.events.some((ev) => ev.type === 'file-answer' && ev.from === wFtB.selfId && ev.transferId === 'tr-1' && ev.accept === false),
+);
+
+// file-signal payloads pass through verbatim (like offer/answer/ice-candidate).
+ftA.ws.send(JSON.stringify({ type: 'file-signal', to: wFtB.selfId, transferId: 'tr-1', sdp: { type: 'offer', sdp: 'v=0 fake' } }));
+await wait(200);
+check(
+  'file-signal sdp relayed verbatim',
+  ftB.events.some(
+    (ev) => ev.type === 'file-signal' && ev.from === wFtA.selfId && ev.transferId === 'tr-1' && ev.sdp && ev.sdp.type === 'offer' && ev.sdp.sdp === 'v=0 fake',
+  ),
+);
+
+// Over-long cancel reason arrives clamped to 120 chars.
+ftA.ws.send(JSON.stringify({ type: 'file-cancel', to: wFtB.selfId, transferId: 'tr-1', reason: 'r'.repeat(300) }));
+await wait(200);
+check(
+  'file-cancel reason clamped to 120',
+  ftB.events.some((ev) => ev.type === 'file-cancel' && ev.transferId === 'tr-1' && typeof ev.reason === 'string' && ev.reason.length === 120),
+);
+
+// Never relayed across spaces.
+ftX.ws.send(JSON.stringify({ type: 'file-offer', to: wFtA.selfId, transferId: 'tr-x', name: 'x.bin', size: 1 }));
+await wait(200);
+check('file-offer NOT relayed across spaces', !ftA.events.some((ev) => ev.type === 'file-offer'));
+
+// Invalid offers are dropped: bad size, empty name, missing transferId, self-send.
+const ftBOffersBefore = ftB.events.filter((ev) => ev.type === 'file-offer').length;
+ftA.ws.send(JSON.stringify({ type: 'file-offer', to: wFtB.selfId, transferId: 'tr-2', name: 'x.bin', size: -1 }));
+ftA.ws.send(JSON.stringify({ type: 'file-offer', to: wFtB.selfId, transferId: 'tr-3', name: '', size: 10 }));
+ftA.ws.send(JSON.stringify({ type: 'file-offer', to: wFtB.selfId, transferId: '', name: 'x.bin', size: 10 }));
+ftA.ws.send(JSON.stringify({ type: 'file-offer', to: wFtA.selfId, transferId: 'tr-4', name: 'x.bin', size: 10 }));
+await wait(200);
+check(
+  'invalid file-offers (bad size / empty name / missing id / self-send) are dropped',
+  ftB.events.filter((ev) => ev.type === 'file-offer').length === ftBOffersBefore && !ftA.events.some((ev) => ev.type === 'file-offer'),
+);
+
+// Over-long file name arrives clamped to 160.
+ftA.ws.send(JSON.stringify({ type: 'file-offer', to: wFtB.selfId, transferId: 'tr-5', name: 'n'.repeat(300), size: 10 }));
+await wait(200);
+check(
+  'file-offer name clamped to 160',
+  ftB.events.some((ev) => ev.type === 'file-offer' && ev.transferId === 'tr-5' && ev.name.length === 160),
+);
+
+ftA.ws.close();
+ftB.ws.close();
+ftX.ws.close();
+await wait(100);
+
 for (const cl of [a, c, d, e]) cl.ws.close();
 await wait(100);
 
