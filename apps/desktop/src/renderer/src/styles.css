@@ -457,10 +457,7 @@
   transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
 }
 
-/* Style deviation: a gold/silvery shimmer line framing each section header,
-   top and bottom — bright at center, fading to transparent at the edges.
-   Pairs --orange with the theme-varying --silver (graphite in light, bright
-   metal in dark) so the line reads on both canvases. */
+/* Subtle silver shimmer lines framing each section header, top and bottom. */
 .sidebar__section-header::before,
 .sidebar__section-header::after {
   content: '';
@@ -469,19 +466,7 @@
   right: 0;
   height: 1px;
   pointer-events: none;
-  /* Silver-dominant with gold as a subordinate accent, not two saturated
-     colors at equal strength — the gold stops are blended INTO the silver
-     (not just lowered in alpha) so they land as a faint warm tone close in
-     brightness to the silver center, rather than a fully-saturated orange
-     that still reads as "orange" even when faded. Silver also holds the
-     middle third of the line on its own before gold's warmth enters, so the
-     dominant impression is metallic silver, not gold. */
-  background: linear-gradient(90deg,
-      transparent 0%,
-      color-mix(in srgb, var(--silver) 70%, var(--orange) 30%) 35%,
-      var(--silver) 50%,
-      color-mix(in srgb, var(--silver) 70%, var(--orange) 30%) 65%,
-      transparent 100%);
+  background: var(--shimmer-gradient);
 }
 
 .sidebar__section-header::before {
@@ -2933,11 +2918,11 @@
 }
 
 /* The ROOMS section header directly below already gets its own top-edge
-   shimmer line (.sidebar__section-header::before) — over a banner photo,
-   this flat neutral hairline sitting immediately above that colored shimmer
-   reads as a stray mismatched-color seam. Drop it only for the banner state;
-   the plain-panel (no photo) header keeps it since there's no shimmer-vs-
-   photo clash to cause the seam there. */
+   divider line (.sidebar__section-header::before). Over a banner photo,
+   this flat hairline sitting immediately above that divider line
+   reads as a stray double-border seam. Drop it only for the banner state;
+   the plain-panel (no photo) header keeps it since there's no double-line
+   clash to cause the seam there. */
 .sidebar__space-header--banner {
   border-bottom: none;
 }

@@ -22,14 +22,10 @@
   --green: #5fb81f;
   --orange: #fbc224;
   --red: #c20114;
-  /* Metallic gray for the sidebar section-header shimmer line. The token's
-     intent is "readable metallic accent", which one literal can't satisfy on
-     both canvases: the dark theme's bright silver is near-invisible on the
-     light alabaster, so light gets a deeper graphite-silver and dark
-     re-brightens it below. The gold used alongside it is blended toward this
-     same tone (not left at full saturation) so the two stay close enough in
-     brightness to shimmer together instead of visually fighting each other. */
+
   --silver: color-mix(in srgb, white 62%, black 38%);
+  --shimmer-gradient: linear-gradient(90deg, transparent 0%, var(--silver) 50%, transparent 100%);
+
   /* Cool secondary — reserved for "live" moments (spotlight, screen-share).
      Deepened here vs. the dark-theme value so it holds contrast on paper. */
   --secondary: #7c3aed;
@@ -176,8 +172,6 @@
 
   --secondary: #a78bfa;
 
-  /* Bright silver — dimmed just enough below pure white to read as metal
-     rather than a blown-out hot spot (see the light-theme note above). */
   --silver: color-mix(in srgb, white 82%, black 18%);
 
   --active-bg: #232a3c;
