@@ -1,7 +1,8 @@
 // Signaling smoke test: verifies presence (welcome/peer-joined/peer-left), the
 // unified hybrid room cap (8), the stage spotlight (claim/busy/take-over/release/
-// leave-frees), and the per-peer state broadcasts against a running signaling
-// server on ws://localhost:8080.
+// leave-frees), the per-peer state broadcasts, and the moderation layer (room
+// moderator derivation, kick/ban, room/space locks, ownership transfer, seed)
+// against a running signaling server on ws://localhost:8080.
 import { WebSocket } from 'ws';
 
 const URL = 'ws://localhost:8080';
@@ -22,7 +23,7 @@ function client(displayName, { room = ROOM, userId = `uid-${displayName}`, space
     ws.on('message', (d) => {
       const msg = JSON.parse(d.toString());
       events.push(msg);
-      if (msg.type === 'welcome' || msg.type === 'room-full') resolve(msg);
+      if (msg.type === 'welcome' || msg.type === 'room-full' || msg.type === 'join-denied') resolve(msg);
     });
   });
   return { ws, events, ready, displayName };
@@ -489,6 +490,203 @@ check(
 ftA.ws.close();
 ftB.ws.close();
 ftX.ws.close();
+await wait(100);
+
+// Phase 8: Moderation — room-moderator derivation + handoff, room locks (mod +
+// authority checks), owner kick/ban/unban, space lock (newcomers only),
+// ownership transfer, and the post-restart seed. Uses fresh space ids — the
+// moderation maps are sticky by design (like spaceOwners), so this assumes a
+// freshly-started server, same as the rest of this file.
+const MOD_SPACE = 'mod-space';
+const MOD_ROOM = 'mod-room';
+
+// (1) Moderator = longest-present, passes on when the current mod leaves.
+const m1 = client('ModOne', { room: MOD_ROOM, spaceId: MOD_SPACE, userId: 'uid-m1' });
+const wm1 = await m1.ready;
+check('first joiner welcome names self as moderator', wm1.moderatorId === wm1.selfId);
+check('fresh space welcome carries spaceLocked:false', wm1.spaceLocked === false);
+check('fresh space welcome carries empty lockedRooms/bannedUsers',
+  Array.isArray(wm1.lockedRooms) && wm1.lockedRooms.length === 0 && Array.isArray(wm1.bannedUsers) && wm1.bannedUsers.length === 0);
+
+const m2 = client('ModTwo', { room: MOD_ROOM, spaceId: MOD_SPACE, userId: 'uid-m2' });
+const wm2 = await m2.ready;
+check('second joiner welcome names the longest-present peer as moderator', wm2.moderatorId === wm1.selfId);
+
+m1.ws.close();
+await wait(200);
+check('moderator passes to the next-longest-present on leave',
+  m2.events.some((ev) => ev.type === 'moderator-state' && ev.holderId === wm2.selfId));
+
+// (2) Room lock: the mod can lock; entry is denied; a plain member cannot lock.
+m2.ws.send(JSON.stringify({ type: 'set-room-lock', room: MOD_ROOM, locked: true }));
+await wait(150);
+check('mod lock-room broadcasts room-lock-state (space-wide, incl. self)',
+  m2.events.some((ev) => ev.type === 'room-lock-state' && ev.room === MOD_ROOM && ev.locked === true));
+
+const m3a = client('ModThreeA', { room: MOD_ROOM, spaceId: MOD_SPACE, userId: 'uid-m3' });
+const wm3a = await m3a.ready;
+check('join into a locked room -> join-denied room-locked', wm3a.type === 'join-denied' && wm3a.reason === 'room-locked');
+m3a.ws.close();
+
+const m3 = client('ModThree', { room: null, spaceId: MOD_SPACE, userId: 'uid-m3' });
+const wm3 = await m3.ready;
+check('lobby join of the space still works while a room is locked', wm3.type === 'welcome');
+check('lobby welcome lists the locked room', Array.isArray(wm3.lockedRooms) && wm3.lockedRooms.includes(MOD_ROOM));
+
+const beforeM3Lock = m2.events.length;
+m3.ws.send(JSON.stringify({ type: 'set-room-lock', room: MOD_ROOM, locked: false }));
+await wait(150);
+check('non-mod set-room-lock is silently ignored',
+  !m2.events.slice(beforeM3Lock).some((ev) => ev.type === 'room-lock-state'));
+
+m2.ws.send(JSON.stringify({ type: 'set-room-lock', room: MOD_ROOM, locked: false }));
+await wait(150);
+m3.ws.send(JSON.stringify({ type: 'join-room', room: MOD_ROOM }));
+await wait(150);
+check('room entry works again after the mod unlocks',
+  m3.events.filter((ev) => ev.type === 'welcome').length === 2);
+
+// (3) Owner authority: claim, then a cross-room kick-from-room.
+const modOwner = client('ModOwner', { room: null, spaceId: MOD_SPACE, userId: 'uid-mod-owner' });
+await modOwner.ready;
+modOwner.ws.send(JSON.stringify({ type: 'claim-ownership' }));
+await wait(150);
+
+// A mod's space-scoped actions are denied (m2 is mod but not owner).
+const beforeModBan = m2.events.length;
+m2.ws.send(JSON.stringify({ type: 'ban-user', userId: 'uid-m3' }));
+m2.ws.send(JSON.stringify({ type: 'kick-user', userId: 'uid-m3', scope: 'space' }));
+await wait(150);
+check('mod ban-user / kick-space are silently ignored',
+  !m2.events.slice(beforeModBan).some((ev) => ev.type === 'ban-state') &&
+  !m3.events.some((ev) => ev.type === 'kicked'));
+
+modOwner.ws.send(JSON.stringify({ type: 'kick-user', userId: 'uid-m3', scope: 'room' }));
+await wait(200);
+check('room-kick target receives kicked scope:room with the bare room id',
+  m3.events.some((ev) => ev.type === 'kicked' && ev.scope === 'room' && ev.room === MOD_ROOM));
+check('room-kick target gets an empty-peers lobby welcome (space connection survives)',
+  m3.events.filter((ev) => ev.type === 'welcome').length === 3 &&
+  m3.events.filter((ev) => ev.type === 'welcome')[2].peers.length === 0);
+check('room broadcasts peer-left for the kicked member',
+  m2.events.some((ev) => ev.type === 'peer-left' && ev.peerId === wm3.selfId));
+
+// (4) Ban: target is closed out, evicted from the roster, and denied on rejoin.
+modOwner.ws.send(JSON.stringify({ type: 'ban-user', userId: 'uid-m3' }));
+await wait(250);
+check('ban target receives kicked scope:space reason:banned',
+  m3.events.some((ev) => ev.type === 'kicked' && ev.scope === 'space' && ev.reason === 'banned'));
+check('ban target socket is closed by the server', m3.ws.readyState === WebSocket.CLOSED || m3.ws.readyState === WebSocket.CLOSING);
+check('bystanders receive ban-state listing the banned user',
+  m2.events.some((ev) => ev.type === 'ban-state' && ev.bannedUsers?.some((b) => b.userId === 'uid-m3' && b.displayName === 'ModThree')));
+check('bystanders receive space-peer-remove for the banned user',
+  m2.events.some((ev) => ev.type === 'space-peer-remove' && ev.userId === 'uid-m3'));
+
+const m3banned = client('ModThreeBanned', { room: null, spaceId: MOD_SPACE, userId: 'uid-m3' });
+const wm3banned = await m3banned.ready;
+check('banned userId rejoin -> join-denied banned', wm3banned.type === 'join-denied' && wm3banned.reason === 'banned');
+m3banned.ws.close();
+
+modOwner.ws.send(JSON.stringify({ type: 'unban-user', userId: 'uid-m3' }));
+await wait(150);
+check('unban broadcasts ban-state without the user',
+  m2.events.some((ev) => ev.type === 'ban-state' && Array.isArray(ev.bannedUsers) && !ev.bannedUsers.some((b) => b.userId === 'uid-m3')));
+
+const m3back = client('ModThreeBack', { room: null, spaceId: MOD_SPACE, userId: 'uid-m3' });
+const wm3back = await m3back.ready;
+check('unbanned userId can rejoin', wm3back.type === 'welcome');
+
+// (5) Space lock: newcomers denied; recently-present members and the owner get in.
+modOwner.ws.send(JSON.stringify({ type: 'set-space-lock', locked: true }));
+await wait(150);
+check('space-lock-state broadcast to members',
+  m2.events.some((ev) => ev.type === 'space-lock-state' && ev.spaceId === MOD_SPACE && ev.locked === true));
+
+const newcomer = client('Newcomer', { room: null, spaceId: MOD_SPACE, userId: 'uid-brand-new' });
+const wNewcomer = await newcomer.ready;
+check('locked space rejects a brand-new userId -> join-denied space-locked',
+  wNewcomer.type === 'join-denied' && wNewcomer.reason === 'space-locked');
+newcomer.ws.close();
+
+m3back.ws.close();
+await wait(150);
+const m3return = client('ModThreeReturn', { room: null, spaceId: MOD_SPACE, userId: 'uid-m3' });
+const wm3return = await m3return.ready;
+check('locked space admits a recently-present (<10 min) member', wm3return.type === 'welcome');
+check('locked space welcome carries spaceLocked:true', wm3return.spaceLocked === true);
+m3return.ws.close();
+
+modOwner.ws.send(JSON.stringify({ type: 'set-space-lock', locked: false }));
+await wait(150);
+
+// (6) Transfer of ownership: new owner gains set-banner, old owner loses it.
+modOwner.ws.send(JSON.stringify({ type: 'transfer-ownership', toUserId: 'uid-m2' }));
+await wait(150);
+const m2IsOwner = (ev) => ev.type === 'owner-state' && ev.spaceId === MOD_SPACE && ev.ownerId === 'uid-m2';
+check('transfer broadcasts owner-state naming the new owner (both ends)',
+  modOwner.events.some(m2IsOwner) && m2.events.some(m2IsOwner));
+
+const beforeOldOwnerBanner = m2.events.length;
+modOwner.ws.send(JSON.stringify({ type: 'set-banner', bannerDataUrl: VALID_BANNER }));
+await wait(150);
+check('old owner set-banner is a no-op after the transfer',
+  !m2.events.slice(beforeOldOwnerBanner).some((ev) => ev.type === 'banner-state'));
+
+m2.ws.send(JSON.stringify({ type: 'set-banner', bannerDataUrl: VALID_BANNER }));
+await wait(150);
+check('new owner set-banner broadcasts banner-state',
+  modOwner.events.some((ev) => ev.type === 'banner-state' && ev.updatedBy === 'uid-m2'));
+
+m2.ws.close();
+m3.ws.close();
+modOwner.ws.close();
+await wait(100);
+
+// (7) Seed: on a fresh space, the confirmed owner's persisted bans + lock are
+// adopted; a non-owner's seed is ignored.
+const SEED_SPACE = 'seed-space';
+const seedOwner = client('SeedOwner', { room: null, spaceId: SEED_SPACE, userId: 'uid-seed-owner' });
+await seedOwner.ready;
+seedOwner.ws.send(JSON.stringify({ type: 'claim-ownership' }));
+await wait(150);
+seedOwner.ws.send(JSON.stringify({
+  type: 'seed-moderation',
+  bannedUsers: [{ userId: 'uid-seed-banned', displayName: 'Banned Guy' }],
+  locked: true,
+}));
+await wait(150);
+
+const seedBanned = client('SeedBanned', { room: null, spaceId: SEED_SPACE, userId: 'uid-seed-banned' });
+const wSeedBanned = await seedBanned.ready;
+check('seeded ban denies the banned userId on join', wSeedBanned.type === 'join-denied' && wSeedBanned.reason === 'banned');
+seedBanned.ws.close();
+
+const seedNewcomer = client('SeedNewcomer', { room: null, spaceId: SEED_SPACE, userId: 'uid-seed-new' });
+const wSeedNewcomer = await seedNewcomer.ready;
+check('seeded space lock denies a newcomer', wSeedNewcomer.type === 'join-denied' && wSeedNewcomer.reason === 'space-locked');
+seedNewcomer.ws.close();
+seedOwner.ws.close();
+await wait(100);
+
+const SEED2_SPACE = 'seed-space-2';
+const s2Owner = client('Seed2Owner', { room: null, spaceId: SEED2_SPACE, userId: 'uid-s2-owner' });
+await s2Owner.ready;
+s2Owner.ws.send(JSON.stringify({ type: 'claim-ownership' }));
+await wait(150);
+const s2NonOwner = client('Seed2NonOwner', { room: null, spaceId: SEED2_SPACE, userId: 'uid-s2-other' });
+await s2NonOwner.ready;
+s2NonOwner.ws.send(JSON.stringify({
+  type: 'seed-moderation',
+  bannedUsers: [{ userId: 'uid-s2-victim', displayName: 'Victim' }],
+  locked: true,
+}));
+await wait(150);
+const s2Victim = client('Seed2Victim', { room: null, spaceId: SEED2_SPACE, userId: 'uid-s2-victim' });
+const wS2Victim = await s2Victim.ready;
+check("a non-owner's seed-moderation is ignored (victim joins fine)", wS2Victim.type === 'welcome');
+s2Owner.ws.close();
+s2NonOwner.ws.close();
+s2Victim.ws.close();
 await wait(100);
 
 for (const cl of [a, c, d, e]) cl.ws.close();

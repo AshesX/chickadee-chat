@@ -17,26 +17,48 @@ import {
 import {
   broadcast,
   broadcastSpace,
+  roomLocks,
+  roomModeratorId,
   rooms,
   scheduleSpaceCleanup,
   send,
   spaceBanners,
+  spaceBans,
   spaceConnections,
   spaceGraceTimers,
+  spaceLocks,
   spaceOwners,
   spacePresence,
   spaceTimeouts,
   spaces,
   spotlights,
+  syncRoomModerator,
   type Connection,
 } from '../state';
-import { resolveRoomCap, sanitizeJoinRequest } from '../logic';
+import { evaluateJoinGate, evaluateRoomEntry, resolveRoomCap, sanitizeJoinRequest } from '../logic';
 import { clearSpotlightIfHeld } from './spotlight';
 
 export function handleJoin(socket: WebSocket, msg: Extract<ClientMessage, { type: 'join' }>): Connection | null {
   const sanitized = sanitizeJoinRequest(msg);
   if (!sanitized) return null;
   const { spaceId, userId, room, joinRooms } = sanitized;
+
+  // Space-level moderation gate, decided BEFORE the ghost cleanup below so a
+  // rejected join can never tear down the target's live connection. Bans key
+  // on the client-asserted userId (honor-system); a locked space still admits
+  // the owner and anyone the presence roster knows (members + <10-min-offline
+  // reconnects — which is also what lets a locked-out-of-band member return).
+  const isOwner = !!userId && spaceOwners.get(spaceId) === userId;
+  const gate = evaluateJoinGate({
+    isBanned: !!userId && (spaceBans.get(spaceId)?.has(userId) ?? false),
+    spaceLocked: spaceLocks.get(spaceId) ?? false,
+    isOwner,
+    knownToPresence: !!userId && (spacePresence.get(spaceId)?.has(userId) ?? false),
+  });
+  if (gate !== 'ok') {
+    send(socket, { type: 'join-denied', spaceId, reason: gate });
+    return null;
+  }
 
   // If a connection with the same userId already exists in this space, clean it up first.
   if (userId) {
@@ -66,10 +88,22 @@ export function handleJoin(socket: WebSocket, msg: Extract<ClientMessage, { type
   const knownRooms = spaces.get(spaceId) ?? joinRooms;
   const roomCap = resolveRoomCap(knownRooms, room);
 
-  if (members && members.size >= roomCap) {
-    // members is non-null only when fullRoomId (and thus room) is non-null.
-    send(socket, { type: 'room-full', room: room! });
-    return null;
+  if (members && fullRoomId) {
+    const entry = evaluateRoomEntry({
+      locked: roomLocks.has(fullRoomId),
+      isOwner,
+      memberCount: members.size,
+      cap: roomCap,
+    });
+    if (entry === 'room-locked') {
+      send(socket, { type: 'join-denied', spaceId, reason: 'room-locked' });
+      return null;
+    }
+    if (entry === 'full') {
+      // members is non-null only when fullRoomId (and thus room) is non-null.
+      send(socket, { type: 'room-full', room: room! });
+      return null;
+    }
   }
 
   const id = randomUUID();
@@ -134,8 +168,12 @@ export function handleJoin(socket: WebSocket, msg: Extract<ClientMessage, { type
   }
 
   // Tell the newcomer who is already here (newcomer will initiate offers in Phase 2), the
-  // current room list, and who (if anyone) currently holds the room's stage.
+  // current room list, who (if anyone) currently holds the room's stage, and the
+  // Space's moderation snapshot (locks + bans; the joiner persists bans so a
+  // future owner can re-seed them after a server restart).
   const joinSpotlight = fullRoomId ? spotlights.get(fullRoomId) : undefined;
+  const spaceBanList = spaceBans.get(spaceId);
+  const spacePrefix = `${spaceId}:`;
   send(socket, {
     type: 'welcome',
     selfId: peer.id,
@@ -146,6 +184,11 @@ export function handleJoin(socket: WebSocket, msg: Extract<ClientMessage, { type
     spotlightKind: joinSpotlight?.kind ?? null,
     ownerId: spaceOwners.get(spaceId) ?? null,
     bannerDataUrl: spaceBanners.get(spaceId)?.dataUrl ?? null,
+    // Computed after members.set above, so a first joiner sees themselves as moderator.
+    moderatorId: roomModeratorId(fullRoomId),
+    lockedRooms: [...roomLocks].filter((id) => id.startsWith(spacePrefix)).map((id) => id.slice(spacePrefix.length)),
+    spaceLocked: spaceLocks.get(spaceId) ?? false,
+    bannedUsers: spaceBanList ? [...spaceBanList.entries()].map(([uid, displayName]) => ({ userId: uid, displayName })) : [],
   });
 
   // Update space presence
@@ -198,12 +241,18 @@ export function handleJoinRoom(conn: Connection, newRoom: RoomId | null): void {
     clearSpotlightIfHeld(oldFullRoomId, conn.peer.id);
     const members = rooms.get(oldFullRoomId);
     if (members) {
+      const prevMod = roomModeratorId(oldFullRoomId);
       members.delete(conn.peer.id);
       broadcast(oldFullRoomId, { type: 'peer-left', peerId: conn.peer.id });
       console.log(`[leave-room] ${conn.peer.displayName} (${conn.peer.id}) <- room "${oldFullRoomId}" (${members.size})`);
       if (members.size === 0) {
         rooms.delete(oldFullRoomId);
         spotlights.delete(oldFullRoomId);
+        // Room locks are session-scoped: the lock dies with the room.
+        roomLocks.delete(oldFullRoomId);
+      } else {
+        // Moderator = longest-present; announce if the departure passed it on.
+        syncRoomModerator(oldFullRoomId, prevMod);
       }
     }
   }
@@ -218,7 +267,16 @@ export function handleJoinRoom(conn: Connection, newRoom: RoomId | null): void {
   if (newRoom && newFullRoomId) {
     const members = rooms.get(newFullRoomId) ?? new Map<PeerId, Connection>();
     const roomCap = resolveRoomCap(spaceRooms, newRoom);
-    if (members.size >= roomCap) {
+    const entry = evaluateRoomEntry({
+      locked: roomLocks.has(newFullRoomId),
+      isOwner: spaceOwners.get(conn.space) === conn.peer.userId,
+      memberCount: members.size,
+      cap: roomCap,
+    });
+    if (entry === 'room-locked') {
+      send(conn.socket, { type: 'join-denied', spaceId: conn.space, reason: 'room-locked' });
+      conn.room = null;
+    } else if (entry === 'full') {
       send(conn.socket, { type: 'room-full', room: newRoom });
       conn.room = null;
     } else {
@@ -227,7 +285,8 @@ export function handleJoinRoom(conn: Connection, newRoom: RoomId | null): void {
       members.set(conn.peer.id, conn);
       rooms.set(newFullRoomId, members);
 
-      // Send welcome to newcomer, including who holds the new room's stage.
+      // Send welcome to newcomer, including who holds the new room's stage and
+      // who moderates it (computed post-insert, so a first joiner sees themselves).
       const roomSpotlight = spotlights.get(newFullRoomId);
       send(conn.socket, {
         type: 'welcome',
@@ -236,6 +295,7 @@ export function handleJoinRoom(conn: Connection, newRoom: RoomId | null): void {
         rooms: spaceRooms,
         spotlightHolderId: roomSpotlight?.holderId ?? null,
         spotlightKind: roomSpotlight?.kind ?? null,
+        moderatorId: roomModeratorId(newFullRoomId),
       });
 
       // Broadcast peer-joined to new room
@@ -287,12 +347,18 @@ export function handleDisconnect(conn: Connection): void {
     clearSpotlightIfHeld(conn.room, conn.peer.id);
     const members = rooms.get(conn.room);
     if (members) {
+      const prevMod = roomModeratorId(conn.room);
       members.delete(conn.peer.id);
       broadcast(conn.room, { type: 'peer-left', peerId: conn.peer.id });
       console.log(`[leave] ${conn.peer.displayName} (${conn.peer.id}) <- room "${conn.room}" (${members.size})`);
       if (members.size === 0) {
         rooms.delete(conn.room);
         spotlights.delete(conn.room);
+        // Room locks are session-scoped: the lock dies with the room.
+        roomLocks.delete(conn.room);
+      } else {
+        // Moderator = longest-present; announce if the departure passed it on.
+        syncRoomModerator(conn.room, prevMod);
       }
     }
   }

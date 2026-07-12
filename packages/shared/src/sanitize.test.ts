@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
   MAX_AVATAR_DATA_URL_LEN,
+  MAX_BANNED_USERS,
   MAX_BANNER_DATA_URL_LEN,
+  MAX_DISPLAY_NAME_LEN,
   MAX_FILE_NAME_LEN,
   MAX_FILE_SIZE_BYTES,
+  MAX_ID_LEN,
   clampString,
   sanitizeAccentColor,
   sanitizeAvatarDataUrl,
+  sanitizeBannedUsers,
   sanitizeBannerDataUrl,
   sanitizeFileOfferMeta,
   sanitizeSaveFileName,
@@ -128,6 +132,47 @@ describe('sanitizeFileOfferMeta', () => {
     expect(sanitizeFileOfferMeta('a.txt', MAX_FILE_SIZE_BYTES + 1)).toBeNull();
     expect(sanitizeFileOfferMeta('a.txt', '10' as unknown as number)).toBeNull();
     expect(sanitizeFileOfferMeta('a.txt', undefined)).toBeNull();
+  });
+});
+
+describe('sanitizeBannedUsers', () => {
+  it('passes a normal list through', () => {
+    expect(sanitizeBannedUsers([{ userId: 'u1', displayName: 'Alice' }])).toEqual([
+      { userId: 'u1', displayName: 'Alice' },
+    ]);
+  });
+
+  it('returns [] for non-arrays', () => {
+    expect(sanitizeBannedUsers(undefined)).toEqual([]);
+    expect(sanitizeBannedUsers('u1')).toEqual([]);
+    expect(sanitizeBannedUsers({ userId: 'u1' })).toEqual([]);
+  });
+
+  it('drops malformed entries and empty userIds, tolerates missing names', () => {
+    expect(
+      sanitizeBannedUsers([null, 42, {}, { userId: '' }, { userId: '  ' }, { userId: 'u2' }, { userId: 'u3', displayName: 7 }]),
+    ).toEqual([
+      { userId: 'u2', displayName: '' },
+      { userId: 'u3', displayName: '' },
+    ]);
+  });
+
+  it('clamps over-long ids/names', () => {
+    const [entry] = sanitizeBannedUsers([{ userId: 'x'.repeat(500), displayName: 'y'.repeat(500) }]);
+    expect(entry!.userId).toHaveLength(MAX_ID_LEN);
+    expect(entry!.displayName).toHaveLength(MAX_DISPLAY_NAME_LEN);
+  });
+
+  it('de-duplicates by userId (first wins) and caps the list length', () => {
+    expect(
+      sanitizeBannedUsers([
+        { userId: 'u1', displayName: 'first' },
+        { userId: 'u1', displayName: 'second' },
+      ]),
+    ).toEqual([{ userId: 'u1', displayName: 'first' }]);
+
+    const flood = Array.from({ length: MAX_BANNED_USERS + 50 }, (_, i) => ({ userId: `u${i}`, displayName: '' }));
+    expect(sanitizeBannedUsers(flood)).toHaveLength(MAX_BANNED_USERS);
   });
 });
 

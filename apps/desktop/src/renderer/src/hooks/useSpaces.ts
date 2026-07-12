@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { DEFAULT_ROOMS, type SpaceInfo, type Room } from '@chickadee/shared';
+import { DEFAULT_ROOMS, type BannedUser, type SpaceInfo, type Room } from '@chickadee/shared';
 import { store } from '../lib/settings';
 import { generateSpaceId, normalizeRooms, parseSpaceName } from '../lib/spaceOps';
 
@@ -24,6 +24,13 @@ export interface UseSpacesResult {
   updateSpaceBanner: (spaceId: string, bannerDataUrl: string | null) => void;
   /** Applies a Space owner update (from a live `owner-state`/`welcome`) to state + persisted store. */
   updateSpaceOwnerId: (spaceId: string, ownerId: string | null) => void;
+  /**
+   * Applies a Space moderation update (`ban-state`/`space-lock-state`/`welcome`
+   * fields) to state + persisted store. Every member persists these — that's
+   * what lets a (possibly newly transferred) owner re-seed the server after a
+   * restart via `seed-moderation`.
+   */
+  updateSpaceModeration: (spaceId: string, patch: { bannedUsers?: BannedUser[]; locked?: boolean }) => void;
   /** Set right after creating a brand-new space, so the app can auto-send `claim-ownership` once connected. */
   pendingOwnerClaimSpaceId: string | null;
   clearPendingOwnerClaim: () => void;
@@ -198,6 +205,14 @@ export function useSpaces(
     });
   }, []);
 
+  const updateSpaceModeration = useCallback((spaceId: string, patch: { bannedUsers?: BannedUser[]; locked?: boolean }): void => {
+    setSpaces((prev) => {
+      const next = prev.map((s) => (s.id === spaceId ? { ...s, ...patch } : s));
+      store.setSpaces(next);
+      return next;
+    });
+  }, []);
+
   return {
     spaces,
     currentSpaceId,
@@ -210,6 +225,7 @@ export function useSpaces(
     updateSpaceSettings,
     updateSpaceBanner,
     updateSpaceOwnerId,
+    updateSpaceModeration,
     pendingOwnerClaimSpaceId,
     clearPendingOwnerClaim,
   };

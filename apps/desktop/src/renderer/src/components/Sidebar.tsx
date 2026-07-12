@@ -70,6 +70,27 @@ interface SidebarProps {
   onLeaveRoom: () => void;
   /** Start a P2P file transfer to a space member (USERS-row hover button). */
   onSendFile?: (userId: string) => void;
+
+  // Moderation (Space Owner / Room Moderator)
+  /** Stable userId of the Space Owner (gold star), or null when unowned. */
+  ownerUserId?: string | null;
+  /** Stable userId of the current room's moderator (silver star), or null. Room-scoped —
+   *  the client only knows the moderator of its own room. */
+  moderatorUserId?: string | null;
+  /** Whether the local user owns the active Space. */
+  amOwner?: boolean;
+  /** Whether the local user is the current room's moderator. */
+  amModerator?: boolean;
+  /** Bare ids of rooms currently locked to new entrants. */
+  lockedRoomIds?: string[];
+  /** Lock/unlock a room (owner any active room; moderator their own). */
+  onToggleRoomLock?: (roomId: string, locked: boolean) => void;
+  /** Whether the active Space is locked to newcomers. */
+  spaceLocked?: boolean;
+  /** Owner-only: lock/unlock the active Space. */
+  onToggleSpaceLock?: (locked: boolean) => void;
+  /** Open the moderation context menu for a USERS-list entry (right-click). */
+  onUserContextMenu?: (userId: string, name: string, x: number, y: number) => void;
 }
 
 export function Sidebar({
@@ -118,6 +139,15 @@ export function Sidebar({
   onTogglePeerMute,
   onLeaveRoom,
   onSendFile,
+  ownerUserId,
+  moderatorUserId,
+  amOwner = false,
+  amModerator = false,
+  lockedRoomIds,
+  onToggleRoomLock,
+  spaceLocked = false,
+  onToggleSpaceLock,
+  onUserContextMenu,
 }: SidebarProps): React.JSX.Element {
   const selfInitial = selfName.trim().charAt(0).toUpperCase() || 'Y';
   const [menu, setMenu] = useState<{ room: Room; x: number; y: number } | null>(null);
@@ -146,6 +176,7 @@ export function Sidebar({
       onContextMenu={(room, x, y) => setMenu({ room, x, y })}
       compact={compact}
       onLeaveRoom={onLeaveRoom}
+      locked={lockedRoomIds?.includes(r.id) ?? false}
     />
   );
 
@@ -160,6 +191,9 @@ export function Sidebar({
         onDeleteSpace={onDeleteSpace}
         onSpaceSettings={onSpaceSettings}
         hideSpaceBanner={hideSpaceBanner}
+        canLockSpace={amOwner}
+        spaceLocked={spaceLocked}
+        onToggleSpaceLock={onToggleSpaceLock}
       />
 
       <div className="sidebar__scroll">
@@ -204,7 +238,16 @@ export function Sidebar({
               />
               <span>USERS</span>
             </div>
-            {!usersCollapsed && users.map((u) => <FriendRow key={u.id} user={u} onSendFile={onSendFile} />)}
+            {!usersCollapsed &&
+              users.map((u) => (
+                <FriendRow
+                  key={u.id}
+                  user={u}
+                  role={u.id === ownerUserId ? 'owner' : u.id === moderatorUserId ? 'moderator' : null}
+                  onSendFile={onSendFile}
+                  onContextMenu={onUserContextMenu}
+                />
+              ))}
           </>
         )}
       </div>
@@ -235,6 +278,16 @@ export function Sidebar({
           onClose={() => setMenu(null)}
           onRequestRename={onRequestRename}
           onRemoveRoom={onRemoveRoom}
+          // Owner may lock any ACTIVE room (the server no-ops empty ones — an
+          // ephemeral lock on an empty room would never clear); a mod only their own.
+          canLock={
+            onToggleRoomLock != null &&
+            (amOwner
+              ? menu.room.id === currentRoomId || users.some((u) => u.roomId === menu.room.id)
+              : amModerator && menu.room.id === currentRoomId)
+          }
+          locked={lockedRoomIds?.includes(menu.room.id) ?? false}
+          onToggleLock={onToggleRoomLock}
         />
       )}
 

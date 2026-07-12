@@ -17,6 +17,10 @@ interface SpaceSwitcherProps {
   onSpaceSettings: (id: string) => void;
   /** Hide the space banner image and show a shorter, text-only header instead. */
   hideSpaceBanner: boolean;
+  /** Owner-only Lock Space shortcut in the header context menu (active space only). */
+  canLockSpace?: boolean;
+  spaceLocked?: boolean;
+  onToggleSpaceLock?: (locked: boolean) => void;
 }
 
 /**
@@ -33,6 +37,9 @@ export function SpaceSwitcher({
   onDeleteSpace,
   onSpaceSettings,
   hideSpaceBanner,
+  canLockSpace = false,
+  spaceLocked = false,
+  onToggleSpaceLock,
 }: SpaceSwitcherProps): React.JSX.Element {
   const [switcherOpen, setSwitcherOpen] = useState(false);
   // Per-space so the "copied" indicator can't appear on a different hovered space.
@@ -215,6 +222,9 @@ export function SpaceSwitcher({
           onSpaceSettings={onSpaceSettings}
           onCopyCode={copySpaceCode}
           onDeleteSpace={onDeleteSpace}
+          canLockSpace={canLockSpace && ctxMenu.space.id === activeSpaceId}
+          spaceLocked={spaceLocked}
+          onToggleSpaceLock={onToggleSpaceLock}
         />
       )}
     </div>

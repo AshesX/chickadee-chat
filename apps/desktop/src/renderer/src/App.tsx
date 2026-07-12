@@ -7,6 +7,7 @@ import { useRoomChat } from './hooks/useRoomChat';
 import { useSpacePresence } from './hooks/useSpacePresence';
 import { useSpaces, type AddSpaceResult } from './hooks/useSpaces';
 import { useSpaceJoin } from './hooks/useSpaceJoin';
+import { useAutoClearError } from './hooks/useAutoClearError';
 import { useControlBarMenus } from './hooks/useControlBarMenus';
 import { usePersistedState } from './hooks/usePersistedState';
 import { useKeybindSync } from './hooks/useKeybindSync';
@@ -33,6 +34,7 @@ import { ChatPanel, type ChatMessage } from './components/ChatPanel';
 import { TransferTray } from './components/TransferTray';
 import { formatBytes } from './webrtc/fileTransferPolicy';
 import { ReactionPopover } from './components/ReactionPopover';
+import { UserContextMenu, type UserMenuTarget } from './components/UserContextMenu';
 import { AudioDeviceMenu } from './components/AudioDeviceMenu';
 import { InputModeMenu } from './components/InputModeMenu';
 import { VideoMenu } from './components/VideoMenu';
@@ -127,6 +129,7 @@ export function App(): React.JSX.Element {
     updateSpaceSettings,
     updateSpaceBanner,
     updateSpaceOwnerId,
+    updateSpaceModeration,
     pendingOwnerClaimSpaceId,
     clearPendingOwnerClaim,
   } = useSpaces(leaveRoom, signaling.verifySpace, userId);
@@ -389,6 +392,69 @@ export function App(): React.JSX.Element {
   const activeSpaceSignalingUrl = activeSpace?.customSignalingUrl || '';
   const activeSpaceJoinSecret = activeSpace?.joinSecret || '';
 
+  // --- Moderation: local authority + action senders ---
+  // Owner (gold) is space-wide and persisted; moderator (silver) is the current
+  // room's longest-present member, known only for the room we're in (the server
+  // broadcasts moderator-state room-scoped, like the spotlight).
+  const ownerUserId = activeSpace?.ownerId ?? null;
+  const amOwner = !!userId && ownerUserId === userId;
+  const amModerator = signaling.selfId != null && signaling.moderatorId === signaling.selfId;
+  const moderatorUserId = amModerator
+    ? userId
+    : signaling.peers.find((p) => p.id === signaling.moderatorId)?.userId ?? null;
+
+  // Transient moderation notice (room-kick received, locked-room pre-block).
+  const [modNotice, setModNotice] = useAutoClearError(4000);
+  // Right-click moderation menu target (from a USERS row or a participant tile).
+  // Inert for plain members, so unauthorized right-clicks never set state (the
+  // render site re-checks the full per-target authority matrix anyway).
+  const [userMenu, setUserMenu] = useState<UserMenuTarget | null>(null);
+  const openUserMenu = useCallback(
+    (targetUserId: string, name: string, x: number, y: number) => {
+      if (!amOwner && !amModerator) return;
+      setUserMenu({ userId: targetUserId, name, x, y });
+    },
+    [amOwner, amModerator],
+  );
+
+  // Thin senders — authority is enforced server-side (canModerate); the UI only
+  // hides what the local user isn't allowed to do.
+  const kickUser = useCallback(
+    (targetUserId: string, scope: 'room' | 'space') => signaling.send({ type: 'kick-user', userId: targetUserId, scope }),
+    [signaling.send],
+  );
+  const kickFromRoom = useCallback((targetUserId: string) => kickUser(targetUserId, 'room'), [kickUser]);
+  const kickFromSpace = useCallback((targetUserId: string) => kickUser(targetUserId, 'space'), [kickUser]);
+  const banUser = useCallback(
+    (targetUserId: string) => signaling.send({ type: 'ban-user', userId: targetUserId }),
+    [signaling.send],
+  );
+  const unbanUser = useCallback(
+    (targetUserId: string) => signaling.send({ type: 'unban-user', userId: targetUserId }),
+    [signaling.send],
+  );
+  const toggleRoomLock = useCallback(
+    (roomId: string, locked: boolean) => signaling.send({ type: 'set-room-lock', room: roomId, locked }),
+    [signaling.send],
+  );
+  const toggleSpaceLock = useCallback(
+    (locked: boolean) => signaling.send({ type: 'set-space-lock', locked }),
+    [signaling.send],
+  );
+  const transferOwnership = useCallback(
+    (toUserId: string) => signaling.send({ type: 'transfer-ownership', toUserId }),
+    [signaling.send],
+  );
+
+  // One seed per connection: once this connection confirms us as owner, restore
+  // the server's (possibly restart-emptied) ban list + space lock from our
+  // persisted copy. Idempotent server-side (apply-if-absent), so a duplicate or
+  // late send is a harmless no-op.
+  const seededModerationRef = useRef(false);
+  useEffect(() => {
+    if (signaling.status !== 'connected') seededModerationRef.current = false;
+  }, [signaling.status]);
+
   // Maintain a continuous space-level WebSocket connection to the signaling server
   useEffect(() => {
     if (currentSpaceId && displayName && userId) {
@@ -403,8 +469,21 @@ export function App(): React.JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentSpaceId, userId, displayName, activeSpaceSignalingUrl, activeSpaceJoinSecret]);
 
-  // Listen for space renames + owner/banner sync from other clients (and our own welcome).
+  // Listen for space renames + owner/banner/moderation sync from other clients (and our own welcome).
   useEffect(() => {
+    // Fires the one-shot moderation seed once a message confirms us as owner
+    // on this connection (welcome.ownerId or a subsequent owner-state).
+    const maybeSeedModeration = (confirmedOwnerId: string | null): void => {
+      if (!currentSpaceId || seededModerationRef.current || !userId || confirmedOwnerId !== userId) return;
+      const known = spaces.find((s) => s.id === currentSpaceId);
+      signaling.send({
+        type: 'seed-moderation',
+        bannedUsers: known?.bannedUsers ?? [],
+        locked: known?.locked ?? false,
+      });
+      seededModerationRef.current = true;
+    };
+
     const unsubscribe = signaling.subscribe((msg) => {
       if (msg.type === 'space-renamed') {
         const { spaceId, newSpaceId, newSpaceName } = msg;
@@ -423,8 +502,24 @@ export function App(): React.JSX.Element {
         }
       } else if (msg.type === 'owner-state') {
         updateSpaceOwnerId(msg.spaceId, msg.ownerId);
+        if (msg.spaceId === currentSpaceId) maybeSeedModeration(msg.ownerId);
       } else if (msg.type === 'banner-state') {
         updateSpaceBanner(msg.spaceId, msg.bannerDataUrl);
+      } else if (msg.type === 'kicked') {
+        // Space-scope is terminal and handled in the reducer; room-scope just
+        // returns us to the lobby with a notice (the space connection survives).
+        if (msg.scope === 'room') {
+          leaveRoom();
+          setModNotice('You were removed from the room.');
+        }
+      } else if (msg.type === 'ban-state') {
+        if (msg.spaceId === currentSpaceId) {
+          updateSpaceModeration(msg.spaceId, { bannedUsers: msg.bannedUsers });
+        }
+      } else if (msg.type === 'space-lock-state') {
+        if (msg.spaceId === currentSpaceId) {
+          updateSpaceModeration(msg.spaceId, { locked: msg.locked });
+        }
       } else if (msg.type === 'welcome' && currentSpaceId) {
         // Fresh space-join only — a same-space room-switch welcome omits these
         // fields entirely, so `!== undefined` (not `?? null`) avoids wiping known
@@ -441,13 +536,22 @@ export function App(): React.JSX.Element {
             signaling.send({ type: 'claim-ownership' });
           } else {
             updateSpaceOwnerId(currentSpaceId, msg.ownerId);
+            maybeSeedModeration(msg.ownerId);
           }
         }
         if (msg.bannerDataUrl !== undefined) updateSpaceBanner(currentSpaceId, msg.bannerDataUrl);
+        // Same fresh-space-join-only convention: persist the moderation mirror
+        // every member carries (what lets a future owner re-seed post-restart).
+        if (msg.bannedUsers !== undefined || msg.spaceLocked !== undefined) {
+          updateSpaceModeration(currentSpaceId, {
+            ...(msg.bannedUsers !== undefined ? { bannedUsers: msg.bannedUsers } : {}),
+            ...(msg.spaceLocked !== undefined ? { locked: msg.spaceLocked } : {}),
+          });
+        }
       }
     });
     return unsubscribe;
-  }, [signaling.subscribe, spaces, updateSpaceSettings, updateSpaceOwnerId, updateSpaceBanner, currentSpaceId, userId, signaling.send]);
+  }, [signaling.subscribe, spaces, updateSpaceSettings, updateSpaceOwnerId, updateSpaceBanner, updateSpaceModeration, currentSpaceId, userId, signaling.send, leaveRoom, setModNotice]);
 
   // One-shot: right after a brand-new space's first successful connection,
   // auto-claim ownership (guaranteed to win — the space is empty at this point).
@@ -477,6 +581,13 @@ export function App(): React.JSX.Element {
         return;
       }
       leaveRoom();
+      return;
+    }
+
+    // Block joining a locked room (server rejects too, as a backstop — and its
+    // reject is terminal like room-full, so the pre-block is the friendly path).
+    if (signaling.lockedRooms.includes(id) && !amOwner) {
+      setModNotice('That room is locked.');
       return;
     }
 
@@ -831,9 +942,9 @@ export function App(): React.JSX.Element {
     }
   }, [signaling.rooms, signaling.status, updateRooms]);
 
-  // Reset selected room if connection hits a terminal state (closed, room-full, or error)
+  // Reset selected room if connection hits a terminal state (closed, room-full, kicked, or error)
   useEffect(() => {
-    if (signaling.status === 'room-full' || signaling.status === 'error' || signaling.status === 'closed') {
+    if (signaling.status === 'room-full' || signaling.status === 'kicked' || signaling.status === 'error' || signaling.status === 'closed') {
       setCurrentRoomId(null);
     }
   }, [signaling.status]);
@@ -944,6 +1055,7 @@ export function App(): React.JSX.Element {
         windowVisible={mediaVisible}
         showSpotlightButton={mesh.cameraEnabled && myStageKind == null}
         onSpotlight={spotlightCamera}
+        role={amOwner ? 'owner' : amModerator ? 'moderator' : null}
       />
       {signaling.peers.map((peer) => {
         const media = mesh.remote[peer.id];
@@ -974,6 +1086,8 @@ export function App(): React.JSX.Element {
             subscribed={subscribed}
             onJoinVideo={joinVideo}
             onLeaveVideo={leaveVideo}
+            role={peer.userId === ownerUserId ? 'owner' : peer.id === signaling.moderatorId ? 'moderator' : null}
+            onUserContextMenu={openUserMenu}
           />
         );
       })}
@@ -1011,7 +1125,7 @@ export function App(): React.JSX.Element {
   const stageUserId = stagePeer?.userId;
   const stageAvatarUrl = isSelfStage ? localAvatarUrl : stagePeer?.avatarDataUrl ?? null;
 
-  const errors = [mesh.micError, mesh.cameraError, mesh.screenError, signaling.error].filter(Boolean);
+  const errors = [mesh.micError, mesh.cameraError, mesh.screenError, signaling.error, modNotice].filter(Boolean);
 
   return (
     <div
@@ -1075,6 +1189,15 @@ export function App(): React.JSX.Element {
           onTogglePeerMute={togglePeerMuteByUserId}
           onLeaveRoom={leaveRoom}
           onSendFile={handleSendFileTo}
+          ownerUserId={ownerUserId}
+          moderatorUserId={moderatorUserId}
+          amOwner={amOwner}
+          amModerator={amModerator}
+          lockedRoomIds={signaling.lockedRooms}
+          onToggleRoomLock={signaling.status === 'connected' ? toggleRoomLock : undefined}
+          spaceLocked={signaling.spaceLocked}
+          onToggleSpaceLock={signaling.status === 'connected' ? toggleSpaceLock : undefined}
+          onUserContextMenu={openUserMenu}
         />
 
         <div className="main">
@@ -1306,6 +1429,34 @@ export function App(): React.JSX.Element {
           />
         </Suspense>
       )}
+
+      {userMenu && signaling.status === 'connected' && (() => {
+        // Mirror the server's canModerate matrix so unauthorized users never
+        // see the menu (the server would silently no-op anyway).
+        const targetIsSelf = userMenu.userId === userId;
+        const targetIsOwner = ownerUserId != null && userMenu.userId === ownerUserId;
+        const targetPresence = signaling.spacePresence.find((p) => p.peer.userId === userMenu.userId);
+        const targetOnline = targetPresence != null && targetPresence.leftAt === undefined;
+        const targetInARoom = targetOnline && targetPresence.roomId != null;
+        const targetInMyRoom = inRoom && signaling.peers.some((p) => p.userId === userMenu.userId);
+        const showKickRoom =
+          !targetIsSelf && !targetIsOwner && (amOwner ? targetInARoom : amModerator && targetInMyRoom);
+        const showKickSpace = amOwner && !targetIsSelf && targetOnline;
+        const showBan = amOwner && !targetIsSelf;
+        if (!showKickRoom && !showKickSpace && !showBan) return null;
+        return (
+          <UserContextMenu
+            menu={userMenu}
+            showKickRoom={showKickRoom}
+            showKickSpace={showKickSpace}
+            showBan={showBan}
+            onKickFromRoom={kickFromRoom}
+            onKickFromSpace={kickFromSpace}
+            onBan={banUser}
+            onClose={() => setUserMenu(null)}
+          />
+        );
+      })()}
 
       {pendingTakeover && (
         <Modal title="Stage in use" onClose={cancelTakeover}>
@@ -1569,6 +1720,14 @@ export function App(): React.JSX.Element {
       {spaceSettingsTarget && (() => {
         const space = spaces.find((s) => s.id === spaceSettingsTarget);
         if (!space) return null;
+        // Moderation actions ride the live socket, so they're only actionable for
+        // the space we're currently connected to (same live-only rule as set-banner).
+        const isLive = spaceSettingsTarget === currentSpaceId && signaling.status === 'connected';
+        const onlineMembers = isLive
+          ? signaling.spacePresence
+              .filter((p) => p.leftAt === undefined && p.peer.userId !== userId)
+              .map((p) => ({ userId: p.peer.userId, name: p.peer.displayName }))
+          : [];
         return (
           <Suspense fallback={null}>
           <SpaceSettingsModal
@@ -1576,6 +1735,12 @@ export function App(): React.JSX.Element {
             myUserId={userId}
             onSaveBanner={handleSaveBanner}
             onClaimOwnership={handleClaimOwnership}
+            isLive={isLive}
+            spaceLocked={isLive ? signaling.spaceLocked : space.locked ?? false}
+            onToggleSpaceLock={toggleSpaceLock}
+            onlineMembers={onlineMembers}
+            onTransferOwnership={transferOwnership}
+            onUnban={unbanUser}
             onSave={(name, url, secret) => {
               const oldSpaceId = spaceSettingsTarget;
               const isRename = space.name.trim().toLowerCase() !== name.trim().toLowerCase();

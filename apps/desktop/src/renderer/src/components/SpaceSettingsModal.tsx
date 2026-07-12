@@ -6,6 +6,12 @@ import { userColor } from '../lib/settings';
 import { SIDEBAR_HEADER_HEIGHT_PX, SIDEBAR_MAX_WIDTH_PX } from '../lib/spaceHeader';
 import { MAX_BANNER_DATA_URL_LEN, sanitizeBannerDataUrl, type SpaceInfo } from '@chickadee/shared';
 
+/** An online space member offered as a transfer-of-ownership target. */
+export interface TransferCandidate {
+  userId: string;
+  name: string;
+}
+
 // The banner is authored for the sidebar's widest resizable state at its fixed
 // header height (see lib/spaceHeader.ts), so object-fit:cover never has to
 // guess an aspect ratio that doesn't match what's actually rendered. Cropped
@@ -24,16 +30,30 @@ interface SpaceSettingsModalProps {
   /** First-claim-wins ownership claim, shown when the Space has no recorded owner yet. */
   onClaimOwnership: (spaceId: string) => void;
   onClose: () => void;
+  /** Whether the app is live-connected to THIS space (moderation actions need the live socket). */
+  isLive: boolean;
+  /** Whether this Space is currently locked to newcomers (live value when connected, else persisted). */
+  spaceLocked: boolean;
+  /** Owner-only: lock/unlock the Space to newcomers. */
+  onToggleSpaceLock: (locked: boolean) => void;
+  /** Online space members (≠ self) offered as transfer targets. */
+  onlineMembers: TransferCandidate[];
+  /** Owner-only: hand ownership to an online member. */
+  onTransferOwnership: (toUserId: string) => void;
+  /** Owner-only: lift a ban. */
+  onUnban: (userId: string) => void;
 }
 
-export function SpaceSettingsModal({ space, myUserId, onSave, onSaveBanner, onClaimOwnership, onClose }: SpaceSettingsModalProps): React.JSX.Element {
+export function SpaceSettingsModal({ space, myUserId, onSave, onSaveBanner, onClaimOwnership, onClose, isLive, spaceLocked, onToggleSpaceLock, onlineMembers, onTransferOwnership, onUnban }: SpaceSettingsModalProps): React.JSX.Element {
   const [name, setName] = useState(space.name);
   const [customSignalingUrl, setCustomSignalingUrl] = useState(space.customSignalingUrl ?? '');
   const [joinSecret, setJoinSecret] = useState(space.joinSecret ?? '');
   const [bannerDataUrl, setBannerDataUrl] = useState<string | null>(sanitizeBannerDataUrl(space.bannerDataUrl));
   const [bannerCropOpen, setBannerCropOpen] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [transferTarget, setTransferTarget] = useState('');
   const isOwner = space.ownerId === myUserId;
+  const bannedUsers = space.bannedUsers ?? [];
 
   function handleSave(): void {
     onSave(name.trim(), customSignalingUrl.trim(), joinSecret.trim());
@@ -103,6 +123,75 @@ export function SpaceSettingsModal({ space, myUserId, onSave, onSaveBanner, onCl
           </span>
         )}
       </div>
+
+      {isOwner && (
+        <div className="field">
+          <label className="field-label">Moderation</label>
+          {!isLive && (
+            <span className="hint" style={{ display: 'block', marginBottom: 'var(--s-2)' }}>
+              Connect to this Space to change moderation settings.
+            </span>
+          )}
+
+          <div className="mod-row">
+            <span className="mod-row__label">
+              {spaceLocked ? 'Space is locked — newcomers can’t join.' : 'Space is open to anyone with the invite code.'}
+            </span>
+            <button className="seg-btn" disabled={!isLive} onClick={() => onToggleSpaceLock(!spaceLocked)}>
+              {spaceLocked ? 'Unlock Space' : 'Lock Space'}
+            </button>
+          </div>
+
+          <div className="mod-row">
+            <select
+              className="input mod-row__select"
+              value={transferTarget}
+              disabled={!isLive || onlineMembers.length === 0}
+              onChange={(e) => setTransferTarget(e.target.value)}
+            >
+              <option value="">
+                {onlineMembers.length === 0 ? 'No online members to transfer to' : 'Transfer ownership to…'}
+              </option>
+              {onlineMembers.map((m) => (
+                <option key={m.userId} value={m.userId}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+            <button
+              className="seg-btn"
+              disabled={!isLive || !transferTarget}
+              onClick={() => {
+                const target = onlineMembers.find((m) => m.userId === transferTarget);
+                if (
+                  target &&
+                  window.confirm(`Transfer ownership of "${space.name}" to ${target.name}? You will lose owner powers.`)
+                ) {
+                  onTransferOwnership(target.userId);
+                  setTransferTarget('');
+                }
+              }}
+            >
+              Transfer
+            </button>
+          </div>
+
+          {bannedUsers.length > 0 && (
+            <div className="mod-banlist">
+              {bannedUsers.map((b) => (
+                <div key={b.userId} className="mod-row">
+                  <span className="mod-row__label" title={b.userId}>
+                    {b.displayName || b.userId}
+                  </span>
+                  <button className="seg-btn" disabled={!isLive} onClick={() => onUnban(b.userId)}>
+                    Unban
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <AdvancedConnectionSettings
         customSignalingUrl={customSignalingUrl}

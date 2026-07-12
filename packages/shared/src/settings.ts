@@ -2,7 +2,7 @@
  * Client-persisted settings schema + defaults (written to Electron userData by
  * the desktop app; the server never sees these).
  */
-import type { Room } from './protocol';
+import type { BannedUser, Room } from './protocol';
 
 export interface SpaceInfo {
   id: string;
@@ -26,6 +26,19 @@ export interface SpaceInfo {
    * = no banner (flat compact header, name only).
    */
   bannerDataUrl?: string | null;
+  /**
+   * Mirror of the Space's ban list, persisted by EVERY member (it arrives on
+   * space-wide `ban-state` broadcasts). Only the owner's copy is authoritative
+   * enough to matter: after a signaling-server restart wipes the in-memory
+   * list, the (possibly newly transferred) owner re-seeds it via
+   * `seed-moderation`. undefined = never seen a ban-state (treat as []).
+   */
+  bannedUsers?: BannedUser[];
+  /**
+   * Mirror of the Space's lock-to-newcomers flag, persisted like `bannedUsers`
+   * and re-seeded by the owner the same way. undefined = never seen (false).
+   */
+  locked?: boolean;
 }
 
 /** Active color theme identifier. */

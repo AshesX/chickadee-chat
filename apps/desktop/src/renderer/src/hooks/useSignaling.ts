@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   parseServerMessage,
+  type BannedUser,
   type ClientMessage,
   type Peer,
   type PeerId,
@@ -25,6 +26,9 @@ export type ConnectionStatus =
   | 'connected'
   | 'reconnecting'
   | 'room-full'
+  // Terminal, like room-full: kicked/banned from the Space, or a join was
+  // denied by a moderation gate (banned / space-locked / room-locked).
+  | 'kicked'
   | 'error'
   | 'closed';
 
@@ -43,6 +47,14 @@ export interface SignalingState {
   spotlightHolderId: PeerId | null;
   /** What the stage holder is spotlighting ('screen' | 'camera'), or null if free. */
   spotlightKind: 'screen' | 'camera' | null;
+  /** Session id of the current room's moderator (longest-present member), or null outside a room. */
+  moderatorId: PeerId | null;
+  /** Bare ids of this Space's rooms currently locked to new entrants. */
+  lockedRooms: string[];
+  /** Whether this Space is locked to newcomers. */
+  spaceLocked: boolean;
+  /** The Space's ban list (mirrored to every member; persisted for owner re-seeding). */
+  bannedUsers: BannedUser[];
 }
 
 export interface Signaling extends SignalingState {
@@ -73,7 +85,23 @@ const INITIAL: SignalingState = {
   spacePresence: [],
   spotlightHolderId: null,
   spotlightKind: null,
+  moderatorId: null,
+  lockedRooms: [],
+  spaceLocked: false,
+  bannedUsers: [],
 };
+
+/** The user-facing message for each moderation join-denial reason. */
+function joinDeniedMessage(reason: 'banned' | 'space-locked' | 'room-locked'): string {
+  switch (reason) {
+    case 'banned':
+      return 'You are banned from this Space.';
+    case 'space-locked':
+      return 'This Space is locked.';
+    case 'room-locked':
+      return 'That room is locked.';
+  }
+}
 
 /** Pure reducer: maps an inbound server message to a new SignalingState. Exported for unit tests. */
 export function applyPresenceUpdate(state: SignalingState, msg: ServerMessage): SignalingState {
@@ -88,6 +116,12 @@ export function applyPresenceUpdate(state: SignalingState, msg: ServerMessage): 
         rooms: msg.rooms || state.rooms,
         spotlightHolderId: msg.spotlightHolderId ?? null,
         spotlightKind: msg.spotlightKind ?? null,
+        // Room-scoped like the spotlight: absent (lobby welcome) = no moderator.
+        moderatorId: msg.moderatorId ?? null,
+        // Space-scoped: omitted on a room-switch welcome, so omit-means-keep.
+        lockedRooms: msg.lockedRooms ?? state.lockedRooms,
+        spaceLocked: msg.spaceLocked ?? state.spaceLocked,
+        bannedUsers: msg.bannedUsers ?? state.bannedUsers,
       };
     case 'space-presence':
       return { ...state, spacePresence: msg.presence };
@@ -114,17 +148,50 @@ export function applyPresenceUpdate(state: SignalingState, msg: ServerMessage): 
     case 'peer-left': {
       // If the leaver held the stage, free it locally too (the server also
       // broadcasts spotlight-state null, but clearing here avoids a stuck theater
-      // if that message is missed).
+      // if that message is missed). Same belt-and-suspenders for the moderator —
+      // the server's moderator-state follow-up names the successor.
       const heldStage = state.spotlightHolderId === msg.peerId;
       return {
         ...state,
         peers: state.peers.filter((p) => p.id !== msg.peerId),
         spotlightHolderId: heldStage ? null : state.spotlightHolderId,
         spotlightKind: heldStage ? null : state.spotlightKind,
+        moderatorId: state.moderatorId === msg.peerId ? null : state.moderatorId,
       };
     }
     case 'spotlight-state':
       return { ...state, spotlightHolderId: msg.holderId, spotlightKind: msg.kind };
+    case 'moderator-state':
+      return { ...state, moderatorId: msg.holderId };
+    case 'room-lock-state': {
+      const others = state.lockedRooms.filter((id) => id !== msg.room);
+      return { ...state, lockedRooms: msg.locked ? [...others, msg.room] : others };
+    }
+    case 'space-lock-state':
+      return { ...state, spaceLocked: msg.locked };
+    case 'ban-state':
+      return { ...state, bannedUsers: msg.bannedUsers };
+    case 'kicked':
+      // Room-scope is handled by App (leaveRoom + notice); only a space-scope
+      // kick/ban ends the session (room-full shape — terminal).
+      return msg.scope === 'space'
+        ? {
+            ...INITIAL,
+            status: 'kicked',
+            error:
+              msg.reason === 'banned'
+                ? 'You were banned from this Space.'
+                : 'You were removed from this Space.',
+            rooms: state.rooms,
+          }
+        : state;
+    case 'join-denied':
+      return {
+        ...INITIAL,
+        status: 'kicked',
+        error: joinDeniedMessage(msg.reason),
+        rooms: state.rooms,
+      };
     case 'mic-state':
       return {
         ...state,
@@ -335,8 +402,13 @@ export function useSignaling(): Signaling {
       // 4. Apply the presence state update.
       setState((prev) => applyPresenceUpdate(prev, msg));
 
-      // 5. Side effects for terminal cases: room-full ends the session.
-      if (msg.type === 'room-full') {
+      // 5. Side effects for terminal cases: room-full, a moderation join
+      // denial, and a space-scope kick/ban all end the session (no reconnect).
+      if (
+        msg.type === 'room-full' ||
+        msg.type === 'join-denied' ||
+        (msg.type === 'kicked' && msg.scope === 'space')
+      ) {
         shouldReconnectRef.current = false;
         clearTimers();
         closeSocket();
@@ -356,7 +428,7 @@ export function useSignaling(): Signaling {
         scheduleReconnect();
       } else {
         setState((prev) =>
-          prev.status === 'room-full' || prev.status === 'error'
+          prev.status === 'room-full' || prev.status === 'kicked' || prev.status === 'error'
             ? prev
             : { ...INITIAL, status: 'closed' },
         );

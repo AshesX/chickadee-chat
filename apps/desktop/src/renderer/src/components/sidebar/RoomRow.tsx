@@ -1,4 +1,4 @@
-import { VolumeX, PhoneOff } from 'lucide-react';
+import { VolumeX, PhoneOff, Lock } from 'lucide-react';
 import { capacityForType, sanitizeAvatarDataUrl, type Room } from '@chickadee/shared';
 import type { SpaceUser } from '../../hooks/useSpacePresence';
 import { RoomIcon } from '../RoomIcon';
@@ -20,6 +20,8 @@ interface RoomRowProps {
   onContextMenu: (room: Room, x: number, y: number) => void;
   compact: boolean;
   onLeaveRoom: () => void;
+  /** Whether this room is currently locked to new entrants (moderation). */
+  locked?: boolean;
 }
 
 export function RoomRow({
@@ -39,6 +41,7 @@ export function RoomRow({
   onContextMenu,
   compact,
   onLeaveRoom,
+  locked = false,
 }: RoomRowProps): React.JSX.Element {
   const active = r.id === currentRoomId;
 
@@ -111,6 +114,7 @@ export function RoomRow({
       >
         <span className="room-row__icon"><RoomIcon name={r.icon} size={24} /></span>
         <span className="room-row__name">{r.label}</span>
+        {locked && <Lock size={12} className="room-row__lock" aria-label="Room locked" />}
         {occupancy > 0 && (
           <span className={`room-row__count${full ? ' room-row__count--full' : ''}`}>
             {occupancy}/{cap}

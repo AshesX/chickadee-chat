@@ -38,6 +38,59 @@ export const spaceOwners = new Map<string, string>();
  */
 export const spaceBanners = new Map<string, { dataUrl: string | null; setBy: string }>();
 
+/**
+ * space id -> banned userId -> displayName captured at ban time. Sticky like
+ * spaceOwners (NOT cleared by scheduleSpaceCleanup) — bans losing effect
+ * whenever a Space empties overnight would defeat them. Only a full server
+ * restart resets this map; the owner's client then re-seeds it from its
+ * persisted copy via `seed-moderation`.
+ */
+export const spaceBans = new Map<string, Map<string, string>>();
+
+/**
+ * space id -> locked-to-newcomers flag. Sticky like spaceOwners/spaceBans and
+ * re-seeded the same way. A Map (not a Set) on purpose: "no record" (post-
+ * restart) must stay distinguishable from "recorded unlocked" so the
+ * apply-if-absent seed rule can tell the two apart.
+ */
+export const spaceLocks = new Map<string, boolean>();
+
+/**
+ * Composite room ids currently locked to new entrants. Ephemeral room-session
+ * state (like `spotlights`, unlike the sticky space maps): cleared in the two
+ * room-empty paths, so a lock dies with the room session that created it.
+ */
+export const roomLocks = new Set<RoomId>();
+
+/**
+ * The room's moderator: the longest-present member, i.e. the first entry of
+ * the room's insertion-ordered members Map. Derived on demand — a join can
+ * never change it (inserts at the end), so only the leave paths need to
+ * re-check and broadcast.
+ */
+export function roomModeratorId(roomId: RoomId | null): PeerId | null {
+  if (!roomId) return null;
+  const members = rooms.get(roomId);
+  if (!members) return null;
+  const first = members.keys().next();
+  return first.done ? null : first.value;
+}
+
+/**
+ * Broadcast `moderator-state` to `roomId` if its derived moderator changed
+ * versus `prevModeratorId` (captured before a leave mutation). Skips emptied
+ * rooms — they're deleted, and their next first joiner learns the role from
+ * `welcome`. Lives here (not handlers/) so both room.ts leave paths and
+ * moderation.ts can call it without an import cycle.
+ */
+export function syncRoomModerator(roomId: RoomId | null, prevModeratorId: PeerId | null): void {
+  if (!roomId) return;
+  const current = roomModeratorId(roomId);
+  if (current !== null && current !== prevModeratorId) {
+    broadcast(roomId, { type: 'moderator-state', holderId: current });
+  }
+}
+
 /** space id -> Room[] list. In-memory only; cleared when no users remain in the space. */
 export const spaces = new Map<string, Room[]>();
 

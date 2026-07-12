@@ -107,6 +107,33 @@ export function sanitizeSaveFileName(value: unknown): string {
   return WINDOWS_RESERVED_BASENAME_RE.test(base) ? `_${name}` : name;
 }
 
+/** Cap on a Space's ban list — an anti-nonsense bound for an 8-person hangout app. */
+export const MAX_BANNED_USERS = 200;
+
+/**
+ * Validate an untrusted ban-list seed (`seed-moderation`): must be an array of
+ * `{userId, displayName}`-shaped entries. Clamps both fields, drops entries with
+ * an empty userId, de-duplicates by userId (first wins), and caps the list.
+ * Reject-only beyond that — never throws.
+ */
+export function sanitizeBannedUsers(value: unknown): { userId: string; displayName: string }[] {
+  if (!Array.isArray(value)) return [];
+  const out: { userId: string; displayName: string }[] = [];
+  const seen = new Set<string>();
+  for (const entry of value) {
+    if (out.length >= MAX_BANNED_USERS) break;
+    if (!entry || typeof entry !== 'object') continue;
+    const userId = clampString((entry as { userId?: unknown }).userId, MAX_ID_LEN);
+    if (!userId || seen.has(userId)) continue;
+    seen.add(userId);
+    out.push({
+      userId,
+      displayName: clampString((entry as { displayName?: unknown }).displayName, MAX_DISPLAY_NAME_LEN),
+    });
+  }
+  return out;
+}
+
 /** The valid presence statuses. */
 export const PRESENCE_STATUSES = ['online', 'idle', 'dnd'] as const;
 export type PresenceStatus = (typeof PRESENCE_STATUSES)[number];

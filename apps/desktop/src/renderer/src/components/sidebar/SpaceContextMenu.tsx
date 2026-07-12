@@ -1,4 +1,4 @@
-import { Settings, Copy, Trash2 } from 'lucide-react';
+import { Settings, Copy, Trash2, Lock, LockOpen } from 'lucide-react';
 import type { SpaceInfo } from '@chickadee/shared';
 
 interface SpaceContextMenuProps {
@@ -7,15 +7,22 @@ interface SpaceContextMenuProps {
   onSpaceSettings: (id: string) => void;
   onCopyCode: (id: string) => void;
   onDeleteSpace: (id: string, name: string) => void;
+  /** Owner-only Lock Space shortcut (shown when the local user owns this space and it's the active connection). */
+  canLockSpace?: boolean;
+  spaceLocked?: boolean;
+  onToggleSpaceLock?: (locked: boolean) => void;
 }
 
-/** Right-click context menu for the space header: Space Settings / Copy Space Code / Delete. */
+/** Right-click context menu for the space header: Space Settings / Copy Space Code / Lock (owner) / Delete. */
 export function SpaceContextMenu({
   menu,
   onClose,
   onSpaceSettings,
   onCopyCode,
   onDeleteSpace,
+  canLockSpace = false,
+  spaceLocked = false,
+  onToggleSpaceLock,
 }: SpaceContextMenuProps): React.JSX.Element {
   return (
     <div
@@ -51,6 +58,18 @@ export function SpaceContextMenu({
           <Copy size={13} />
           Copy Space Code
         </button>
+        {canLockSpace && onToggleSpaceLock && (
+          <button
+            className="menu-item"
+            onClick={() => {
+              onToggleSpaceLock(!spaceLocked);
+              onClose();
+            }}
+          >
+            {spaceLocked ? <LockOpen size={13} /> : <Lock size={13} />}
+            {spaceLocked ? 'Unlock Space' : 'Lock Space'}
+          </button>
+        )}
         <button
           className="menu-item menu-item--danger"
           onClick={() => {

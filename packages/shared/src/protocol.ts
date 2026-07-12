@@ -68,6 +68,17 @@ export interface SpacePresence {
   leftAt?: number;
 }
 
+/**
+ * A Space ban entry. Keyed on the stable (client-asserted) userId — an
+ * honor-system deterrent, not a security boundary. The display name is
+ * captured at ban time so the owner's unban UI stays readable after the
+ * banned user's presence record is long gone.
+ */
+export interface BannedUser {
+  userId: string;
+  displayName: string;
+}
+
 /** A capturable screen or window, enumerated by the main process for the picker. */
 export interface ScreenSource {
   id: string;
@@ -122,6 +133,25 @@ export type ClientMessage =
   // Owner-only: set/clear this connection's Space banner. Silently ignored
   // server-side if the sender isn't the recorded owner.
   | { type: 'set-banner'; bannerDataUrl: string | null }
+  // --- Moderation (server-authorized; silent no-op on deny, like set-banner) ---
+  // Remove a user (by stable userId) from their room (owner, or the room's
+  // moderator for their own room) or from the whole Space (owner only).
+  | { type: 'kick-user'; userId: string; scope: 'room' | 'space' }
+  // Owner-only: ban/unban a user (by stable userId) from this Space.
+  | { type: 'ban-user'; userId: string }
+  | { type: 'unban-user'; userId: string }
+  // Lock/unlock a room to new entrants (owner any room; moderator their own).
+  // `room` is the bare room id (the server composes the spaceId itself).
+  | { type: 'set-room-lock'; room: RoomId; locked: boolean }
+  // Owner-only: lock/unlock the Space to newcomers (presence-roster members
+  // and the owner still get in while locked).
+  | { type: 'set-space-lock'; locked: boolean }
+  // Owner-only: hand ownership to a currently-connected space member.
+  | { type: 'transfer-ownership'; toUserId: string }
+  // Owner-only, post-restart restore: re-seed the server's (empty) ban list +
+  // space-lock flag from the owner's locally persisted copy. The server adopts
+  // each part only if it has no record, so duplicate/late seeds are no-ops.
+  | { type: 'seed-moderation'; bannedUsers: BannedUser[]; locked: boolean }
   // Non-mutating existence probe — answered before/without joining. A Space "exists"
   // only while ≥1 member is currently connected (the server is in-memory).
   | { type: 'check-space'; spaceId: string; secret?: string }
@@ -138,10 +168,12 @@ export type ServerMessage =
   // Sent to the newcomer right after a successful join. Carries the room's current
   // stage holder (spotlight) so a mid-join client renders theater immediately —
   // broadcasts only reach existing members (same reason peers carry screenStreamId).
-  // `ownerId`/`bannerDataUrl` are only populated on a fresh Space join, never on
-  // a same-space room switch — absence there means "no update," not "cleared,"
-  // since owner/banner are Space-scoped and must survive a room switch.
-  | { type: 'welcome'; selfId: PeerId; peers: Peer[]; rooms: Room[]; wasEmpty?: boolean; spotlightHolderId?: PeerId | null; spotlightKind?: 'screen' | 'camera' | null; ownerId?: string | null; bannerDataUrl?: string | null }
+  // `ownerId`/`bannerDataUrl`/`lockedRooms`/`spaceLocked`/`bannedUsers` are only
+  // populated on a fresh Space join, never on a same-space room switch — absence
+  // there means "no update," not "cleared," since they are Space-scoped and must
+  // survive a room switch. `moderatorId` is room-scoped (like the spotlight
+  // fields) and present on every welcome that lands the client in a room.
+  | { type: 'welcome'; selfId: PeerId; peers: Peer[]; rooms: Room[]; wasEmpty?: boolean; spotlightHolderId?: PeerId | null; spotlightKind?: 'screen' | 'camera' | null; ownerId?: string | null; bannerDataUrl?: string | null; moderatorId?: PeerId | null; lockedRooms?: string[]; spaceLocked?: boolean; bannedUsers?: BannedUser[] }
   // Sent to existing peers when someone new joins.
   | { type: 'peer-joined'; peer: Peer }
   // Sent to remaining peers when someone disconnects.
@@ -193,6 +225,23 @@ export type ServerMessage =
   | { type: 'owner-state'; spaceId: string; ownerId: string | null }
   // The Space's banner changed (or was cleared); broadcast to every space member.
   | { type: 'banner-state'; spaceId: string; bannerDataUrl: string | null; updatedBy: string }
+  // The room's moderator (longest-present member) changed; broadcast to the
+  // whole room. null only transiently (a room that empties is deleted).
+  | { type: 'moderator-state'; holderId: PeerId | null }
+  // A room was locked/unlocked; broadcast space-wide (sidebar lock icons must
+  // reach members outside the room). `room` is the bare room id.
+  | { type: 'room-lock-state'; spaceId: string; room: RoomId; locked: boolean }
+  // The Space was locked/unlocked to newcomers; broadcast space-wide.
+  | { type: 'space-lock-state'; spaceId: string; locked: boolean }
+  // The Space's ban list changed; full list, broadcast space-wide (every member
+  // persists it so a future owner can re-seed after a server restart).
+  | { type: 'ban-state'; spaceId: string; bannedUsers: BannedUser[] }
+  // Directed to a moderated user just before the action lands: scope 'room' =
+  // returned to the lobby (connection survives); scope 'space' = the socket is
+  // closed right after (terminal client-side, no auto-reconnect).
+  | { type: 'kicked'; scope: 'room' | 'space'; room?: RoomId; reason: 'kicked' | 'banned' }
+  // Join rejected by a moderation gate (room-full pattern; terminal client-side).
+  | { type: 'join-denied'; spaceId: string; reason: 'banned' | 'space-locked' | 'room-locked' }
   // Relayed room chat / reaction.
   | { type: 'chat'; from: PeerId; text: string; reaction?: boolean }
   // Reply to a client ping.

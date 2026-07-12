@@ -629,6 +629,12 @@
 }
 
 
+/* Lock indicator on a locked room (moderation): quiet dimmed ink beside the name. */
+.room-row__lock {
+  flex-shrink: 0;
+  color: var(--dim);
+}
+
 .room-row__count {
   display: inline-flex;
   align-items: center;
@@ -850,6 +856,20 @@
   /* Un-bolds from the parent __name (fw-2). */
   font-weight: var(--fw-1);
   margin-left: var(--s-2);
+}
+
+/* Authority badge (gold = Space Owner via inline SELF_COLOR, silver = room
+   moderator). Inline-flex so the crown baseline-aligns inside name rows. */
+.role-star {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-left: var(--s-1);
+  vertical-align: -1px;
+}
+
+.role-star--mod {
+  color: color-mix(in srgb, var(--text) 55%, transparent);
 }
 
 /* Hover-revealed "send file" action; also surfaces on keyboard focus. */
@@ -3705,6 +3725,37 @@
   object-fit: cover;
   border-radius: var(--r-2);
   display: block;
+}
+
+/* ─── Space Settings › Moderation (owner-gated) ──────────────────────────── */
+/* One action row: a stretching label/select + a trailing seg-btn. */
+.mod-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-top: var(--s-2);
+}
+
+.mod-row__label {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-1);
+  color: var(--dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mod-row__select {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Banned-users list: separated from the lock/transfer rows above it. */
+.mod-banlist {
+  margin-top: var(--s-3);
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--border);
 }
 
 .avatar-settings-remove {

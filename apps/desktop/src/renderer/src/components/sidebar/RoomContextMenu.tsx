@@ -1,4 +1,4 @@
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2, Lock, LockOpen } from 'lucide-react';
 import type { Room } from '@chickadee/shared';
 
 interface RoomContextMenuProps {
@@ -6,14 +6,22 @@ interface RoomContextMenuProps {
   onClose: () => void;
   onRequestRename: (room: Room) => void;
   onRemoveRoom: (id: string) => void;
+  /** Whether the local user may lock/unlock this room (owner anywhere; the room's moderator for their own room). */
+  canLock?: boolean;
+  /** Whether this room is currently locked to new entrants. */
+  locked?: boolean;
+  onToggleLock?: (roomId: string, locked: boolean) => void;
 }
 
-/** Right-click context menu for a room row: Rename / Remove. */
+/** Right-click context menu for a room row: Rename / Lock–Unlock (when authorized) / Remove. */
 export function RoomContextMenu({
   menu,
   onClose,
   onRequestRename,
   onRemoveRoom,
+  canLock = false,
+  locked = false,
+  onToggleLock,
 }: RoomContextMenuProps): React.JSX.Element {
   return (
     <div
@@ -39,6 +47,18 @@ export function RoomContextMenu({
           <Pencil size={13} />
           Rename
         </button>
+        {canLock && onToggleLock && (
+          <button
+            className="menu-item"
+            onClick={() => {
+              onToggleLock(menu.room.id, !locked);
+              onClose();
+            }}
+          >
+            {locked ? <LockOpen size={13} /> : <Lock size={13} />}
+            {locked ? 'Unlock room' : 'Lock room'}
+          </button>
+        )}
         <button
           className="menu-item menu-item--danger"
           onClick={() => {

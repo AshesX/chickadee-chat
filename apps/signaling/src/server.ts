@@ -20,6 +20,15 @@ import {
 } from './handlers/mirrors';
 import { handleClaimSpotlight, handleReleaseSpotlight } from './handlers/spotlight';
 import { handleClaimOwnership, handleRenameSpace, handleSetBanner, handleUpdateRooms } from './handlers/spaceMeta';
+import {
+  handleBanUser,
+  handleKickUser,
+  handleSeedModeration,
+  handleSetRoomLock,
+  handleSetSpaceLock,
+  handleTransferOwnership,
+  handleUnbanUser,
+} from './handlers/moderation';
 
 const wss = new WebSocketServer({
   port: PORT,
@@ -141,6 +150,20 @@ wss.on('connection', (socket) => {
       handleClaimOwnership(conn);
     } else if (msg.type === 'set-banner') {
       handleSetBanner(conn, msg.bannerDataUrl);
+    } else if (msg.type === 'kick-user') {
+      handleKickUser(conn, msg.userId, msg.scope === 'space' ? 'space' : 'room');
+    } else if (msg.type === 'ban-user') {
+      handleBanUser(conn, msg.userId);
+    } else if (msg.type === 'unban-user') {
+      handleUnbanUser(conn, msg.userId);
+    } else if (msg.type === 'set-room-lock') {
+      handleSetRoomLock(conn, msg.room, msg.locked === true);
+    } else if (msg.type === 'set-space-lock') {
+      handleSetSpaceLock(conn, msg.locked === true);
+    } else if (msg.type === 'transfer-ownership') {
+      handleTransferOwnership(conn, msg.toUserId);
+    } else if (msg.type === 'seed-moderation') {
+      handleSeedModeration(conn, msg.bannedUsers, msg.locked);
     } else if (msg.type === 'chat') {
       handleChat(conn, msg.text, msg.reaction);
     }

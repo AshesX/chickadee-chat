@@ -4,6 +4,7 @@ import { sanitizeAvatarDataUrl } from '@chickadee/shared';
 import { usePeerAudioGraph } from '../hooks/usePeerAudioGraph';
 import { withAlpha } from '../lib/userColors';
 import { TileVolumeControl } from './TileVolumeControl';
+import { RoleStar } from './RoleStar';
 
 export interface ParticipantTileProps {
   displayName: string;
@@ -64,6 +65,10 @@ export interface ParticipantTileProps {
   showSpotlightButton?: boolean;
   /** Self only: claim the stage for this camera. */
   onSpotlight?: () => void;
+  /** Authority badge beside the name: Space Owner (gold) / Room Moderator (silver) / none. */
+  role?: 'owner' | 'moderator' | null;
+  /** Remote only: open the moderation context menu for this user (tile right-click). */
+  onUserContextMenu?: (userId: string, name: string, x: number, y: number) => void;
 }
 
 const CONN_LABEL: Partial<Record<RTCPeerConnectionState, string>> = {
@@ -101,6 +106,8 @@ function ParticipantTileImpl({
   onLeaveVideo,
   showSpotlightButton = false,
   onSpotlight,
+  role = null,
+  onUserContextMenu,
 }: ParticipantTileProps): React.JSX.Element {
   // Validate peer-supplied avatar data URLs before rendering (defense in depth;
   // the server already sanitizes, but never trust an <img src> from the wire).
@@ -164,6 +171,14 @@ function ParticipantTileImpl({
     <li
       className={`tile${isSelf ? ' tile--self' : ''}${showVideo ? ' tile--video' : ''}`}
       style={{ '--accent': color, '--accent-glow': withAlpha(color, 44) } as React.CSSProperties}
+      onContextMenu={
+        !isSelf && onUserContextMenu && userId != null
+          ? (e) => {
+              e.preventDefault();
+              onUserContextMenu(userId, displayName, e.clientX, e.clientY);
+            }
+          : undefined
+      }
     >
 
 
@@ -197,6 +212,7 @@ function ParticipantTileImpl({
           {displayName}
           {isSelf && ' (you)'}
         </span>
+        {role && <RoleStar role={role} />}
         {deafened && showVideo && <VolumeX size={14} className="tile__badge-mute" />}
         {showMuteIcon && showVideo && <MicOff size={14} className="tile__badge-mute" />}
       </div>
