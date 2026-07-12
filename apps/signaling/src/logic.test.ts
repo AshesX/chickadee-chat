@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
+  MAX_ROOMS,
   bumpRateWindow,
   canModerate,
   evaluateJoinGate,
   evaluateRoomEntry,
+  evaluateRoomsUpdate,
   evaluateSpotlightClaim,
   resolveRoomCap,
   sanitizeJoinRequest,
+  sanitizeRoomList,
   shouldAdoptSeed,
   type ModAction,
 } from './logic';
@@ -166,6 +169,94 @@ describe('canModerate', () => {
     const both = { ...owner, isModerator: true };
     expect(canModerate('ban', both)).toBe(true);
     expect(canModerate('kick-room', { ...both, targetInActorRoom: false })).toBe(true);
+  });
+});
+
+describe('sanitizeRoomList', () => {
+  it('passes a normal list through, normalizing legacy types', () => {
+    expect(sanitizeRoomList([{ id: 'lounge', label: 'Lounge', icon: 'sofa', type: 'voice' }])).toEqual([
+      { id: 'lounge', label: 'Lounge', icon: 'sofa', type: 'hybrid' },
+    ]);
+  });
+
+  it('returns [] for non-arrays and drops malformed entries', () => {
+    expect(sanitizeRoomList(undefined)).toEqual([]);
+    expect(sanitizeRoomList('rooms')).toEqual([]);
+    expect(sanitizeRoomList([null, 42, {}, { id: '' }])).toEqual([]);
+  });
+
+  it('falls back label to id, clamps fields, de-dupes by id, keeps createdBy', () => {
+    const [a, b] = sanitizeRoomList([
+      { id: 'a', label: '', icon: 7, createdBy: 'uid-1' },
+      { id: 'x'.repeat(500), label: 'y'.repeat(500), icon: 'sofa' },
+      { id: 'a', label: 'dup' },
+    ]);
+    expect(a).toEqual({ id: 'a', label: 'a', icon: '', type: 'hybrid', createdBy: 'uid-1' });
+    expect(b!.id).toHaveLength(128);
+    expect(b!.label).toHaveLength(32);
+    expect(sanitizeRoomList([{ id: 'a' }, { id: 'a' }])).toHaveLength(1);
+  });
+
+  it('caps the list at MAX_ROOMS', () => {
+    const flood = Array.from({ length: MAX_ROOMS + 10 }, (_, i) => ({ id: `r${i}`, label: 'R', icon: 'i' }));
+    expect(sanitizeRoomList(flood)).toHaveLength(MAX_ROOMS);
+  });
+});
+
+describe('evaluateRoomsUpdate', () => {
+  const legacy = { id: 'general', label: 'General', icon: 'chat', type: 'hybrid' as const };
+  const mine = { id: 'my-room', label: 'My Room', icon: 'sofa', type: 'hybrid' as const, createdBy: 'me' };
+  const theirs = { id: 'their-room', label: 'Their Room', icon: 'dice', type: 'hybrid' as const, createdBy: 'them' };
+
+  it('owner may add/rename/remove anything', () => {
+    const d = evaluateRoomsUpdate([legacy, theirs], [{ ...legacy, label: 'Renamed' }, { id: 'new', label: 'New', icon: 'i' }], true, 'owner');
+    expect(d.ok).toBe(true);
+    if (d.ok) {
+      expect(d.rooms.map((r) => r.id)).toEqual(['general', 'new']);
+      expect(d.rooms[1]!.createdBy).toBe('owner');
+    }
+  });
+
+  it('non-owner may add one room, stamped with THEIR id (anti-tamper)', () => {
+    const d = evaluateRoomsUpdate([legacy], [legacy, { id: 'new', label: 'New', icon: 'i', createdBy: 'spoofed' }], false, 'me');
+    expect(d.ok).toBe(true);
+    if (d.ok) expect(d.rooms.find((r) => r.id === 'new')!.createdBy).toBe('me');
+  });
+
+  it('non-owner may not hold a second created room, but delete-then-create in one update is fine', () => {
+    expect(evaluateRoomsUpdate([legacy, mine], [legacy, mine, { id: 'second', label: 'S', icon: 'i' }], false, 'me').ok).toBe(false);
+    const swap = evaluateRoomsUpdate([legacy, mine], [legacy, { id: 'second', label: 'S', icon: 'i' }], false, 'me');
+    expect(swap.ok).toBe(true);
+  });
+
+  it('non-owner may rename/remove only their own room', () => {
+    expect(evaluateRoomsUpdate([legacy, mine], [legacy, { ...mine, label: 'Renamed' }], false, 'me').ok).toBe(true);
+    expect(evaluateRoomsUpdate([legacy, mine], [legacy], false, 'me').ok).toBe(true);
+    // Legacy (unstamped) and other-created rooms are untouchable.
+    expect(evaluateRoomsUpdate([legacy, mine], [{ ...legacy, label: 'Hax' }, mine], false, 'me').ok).toBe(false);
+    expect(evaluateRoomsUpdate([legacy, mine], [mine], false, 'me').ok).toBe(false);
+    expect(evaluateRoomsUpdate([theirs], [{ ...theirs, icon: 'other' }], false, 'me').ok).toBe(false);
+    expect(evaluateRoomsUpdate([theirs], [], false, 'me').ok).toBe(false);
+  });
+
+  it('surviving rooms keep their CURRENT createdBy regardless of what the sender claims', () => {
+    const d = evaluateRoomsUpdate([theirs, mine], [{ ...theirs, createdBy: 'me' }, mine], false, 'me');
+    expect(d.ok).toBe(true);
+    if (d.ok) expect(d.rooms.find((r) => r.id === 'their-room')!.createdBy).toBe('them');
+    // ...and a legacy room can't be given a creator after the fact.
+    const d2 = evaluateRoomsUpdate([legacy], [{ ...legacy, createdBy: 'me' }], false, 'me');
+    expect(d2.ok).toBe(true);
+    if (d2.ok) expect(d2.rooms[0]!.createdBy).toBeUndefined();
+  });
+
+  it('a no-change update and pure reordering are always ok', () => {
+    expect(evaluateRoomsUpdate([legacy, mine], [legacy, mine], false, 'me').ok).toBe(true);
+    expect(evaluateRoomsUpdate([legacy, mine], [mine, legacy], false, 'me').ok).toBe(true);
+  });
+
+  it('an anonymous (empty-userId) non-owner can change nothing', () => {
+    expect(evaluateRoomsUpdate([legacy], [legacy, { id: 'new', label: 'N', icon: 'i' }], false, '').ok).toBe(false);
+    expect(evaluateRoomsUpdate([legacy], [], false, '').ok).toBe(false);
   });
 });
 

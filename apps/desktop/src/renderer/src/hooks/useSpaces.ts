@@ -101,8 +101,14 @@ export function useSpaces(
   }
 
   function deleteSpace(spaceId: string, spaceName: string): void {
+    // Removal is local-only either way (the server is in-memory and other
+    // members' persisted lists resurrect the Space) — but the honest framing
+    // differs: an owner "deletes", a member "leaves" and can rejoin by code.
+    const owned = !!userId && spaces.find((s) => s.id === spaceId)?.ownerId === userId;
     const confirmed = window.confirm(
-      `Are you sure you want to delete the Space "${spaceName}"? All customized rooms and history will be lost locally.`,
+      owned
+        ? `Are you sure you want to delete the Space "${spaceName}"? All customized rooms and history will be lost locally.`
+        : `Leave the Space "${spaceName}"? It will be removed from your sidebar — you can rejoin later with the invite code.`,
     );
     if (!confirmed) return;
 

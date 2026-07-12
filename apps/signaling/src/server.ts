@@ -143,7 +143,7 @@ wss.on('connection', (socket) => {
     } else if (msg.type === 'accent-state') {
       handleAccentState(conn, msg.accentColor);
     } else if (msg.type === 'update-rooms') {
-      handleUpdateRooms(msg.spaceId, msg.rooms);
+      handleUpdateRooms(conn, msg.rooms);
     } else if (msg.type === 'rename-space') {
       handleRenameSpace(conn, msg.newSpaceId, msg.newSpaceName);
     } else if (msg.type === 'claim-ownership') {

@@ -1,4 +1,4 @@
-import { Check, Copy, Settings, Trash2 } from 'lucide-react';
+import { Check, Copy, LogOut, Settings, Trash2 } from 'lucide-react';
 import type { SpaceInfo } from '@chickadee/shared';
 
 interface SpaceRowProps {
@@ -14,6 +14,9 @@ interface SpaceRowProps {
   onCopyHoverLeave: () => void;
   onSettings: () => void;
   onDelete: () => void;
+  /** Whether the local user owns this space — labels the removal "Delete" (owner)
+   *  vs "Leave" (member). Behavior is identical either way: local removal only. */
+  isOwned: boolean;
 }
 
 /**
@@ -31,6 +34,7 @@ export function SpaceRow({
   onCopyHoverLeave,
   onSettings,
   onDelete,
+  isOwned,
 }: SpaceRowProps): React.JSX.Element {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-1)', padding: 'var(--s-1) var(--s-2)' }}>
@@ -79,9 +83,9 @@ export function SpaceRow({
           e.stopPropagation();
           onDelete();
         }}
-        title="Delete Space"
+        title={isOwned ? 'Delete Space' : 'Leave Space'}
       >
-        <Trash2 size={12} />
+        {isOwned ? <Trash2 size={12} /> : <LogOut size={12} />}
       </button>
     </div>
   );

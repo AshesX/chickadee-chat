@@ -17,6 +17,12 @@ interface SidebarProps {
   onCreateRoom: () => void;
   onRequestRename: (room: Room) => void;
   onRemoveRoom: (id: string) => void;
+  /** Room governance: whether the local user may rename/remove this room
+   *  (owner: all rooms; member: only the one they created). */
+  canManageRoom: (room: Room) => boolean;
+  /** Local stable userId — drives per-space owner checks in the switcher
+   *  ("Leave Space" vs "Delete Space" labels). */
+  myUserId: string;
   users: SpaceUser[];
   selfName: string;
   selfColor: string;
@@ -100,6 +106,8 @@ export function Sidebar({
   onCreateRoom,
   onRequestRename,
   onRemoveRoom,
+  canManageRoom,
+  myUserId,
   users,
   selfName,
   selfColor,
@@ -157,6 +165,14 @@ export function Sidebar({
 
   const activeSpace = spaces.find((s) => s.id === activeSpaceId);
 
+  // Owner may lock any ACTIVE room (the server no-ops empty ones — an
+  // ephemeral lock on an empty room would never clear); a mod only their own.
+  const roomLockable = (roomId: string): boolean =>
+    onToggleRoomLock != null &&
+    (amOwner
+      ? roomId === currentRoomId || users.some((u) => u.roomId === roomId)
+      : amModerator && roomId === currentRoomId);
+
   const renderRoomRow = (r: Room): React.JSX.Element => (
     <RoomRow
       key={r.id}
@@ -173,7 +189,11 @@ export function Sidebar({
       mutedUserIds={mutedUserIds}
       onTogglePeerMute={onTogglePeerMute}
       onSelectRoom={onSelectRoom}
-      onContextMenu={(room, x, y) => setMenu({ room, x, y })}
+      onContextMenu={(room, x, y) => {
+        // Open only when at least one item would show (mirrors UserContextMenu:
+        // unauthorized users never see an empty menu shell).
+        if (canManageRoom(room) || roomLockable(room.id)) setMenu({ room, x, y });
+      }}
       compact={compact}
       onLeaveRoom={onLeaveRoom}
       locked={lockedRoomIds?.includes(r.id) ?? false}
@@ -194,6 +214,7 @@ export function Sidebar({
         canLockSpace={amOwner}
         spaceLocked={spaceLocked}
         onToggleSpaceLock={onToggleSpaceLock}
+        myUserId={myUserId}
       />
 
       <div className="sidebar__scroll">
@@ -278,14 +299,8 @@ export function Sidebar({
           onClose={() => setMenu(null)}
           onRequestRename={onRequestRename}
           onRemoveRoom={onRemoveRoom}
-          // Owner may lock any ACTIVE room (the server no-ops empty ones — an
-          // ephemeral lock on an empty room would never clear); a mod only their own.
-          canLock={
-            onToggleRoomLock != null &&
-            (amOwner
-              ? menu.room.id === currentRoomId || users.some((u) => u.roomId === menu.room.id)
-              : amModerator && menu.room.id === currentRoomId)
-          }
+          canManage={canManageRoom(menu.room)}
+          canLock={roomLockable(menu.room.id)}
           locked={lockedRoomIds?.includes(menu.room.id) ?? false}
           onToggleLock={onToggleRoomLock}
         />

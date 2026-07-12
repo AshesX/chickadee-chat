@@ -1,22 +1,38 @@
-import { MAX_DISPLAY_NAME_LEN, MAX_ID_LEN, clampString, sanitizeBannerDataUrl, type Room } from '@chickadee/shared';
-import { broadcastSpace, send, spaceBanners, spaceConnections, spaceOwners, spaces, type Connection } from '../state';
+import { MAX_DISPLAY_NAME_LEN, MAX_ID_LEN, clampString, sanitizeBannerDataUrl } from '@chickadee/shared';
+import { broadcastSpace, send, spaceBanners, spaceOwners, spaces, type Connection } from '../state';
+import { evaluateRoomsUpdate } from '../logic';
 
-export function handleUpdateRooms(spaceId: string, roomsList: Room[]): void {
-  if (!Array.isArray(roomsList)) return;
-  spaces.set(spaceId, roomsList);
-  // Broadcast to space members directly (spaceConnections already indexes them,
-  // avoiding an O(all peers) sweep of every room map).
-  const conns = spaceConnections.get(spaceId);
-  if (conns) {
-    for (const conn of conns.values()) {
-      send(conn.socket, { type: 'rooms-updated', spaceId, rooms: roomsList });
-    }
+/**
+ * Whole-list room update, validated against the room-governance rules (see
+ * evaluateRoomsUpdate): the owner manages every room; a standard member may
+ * hold one self-created room (stamped `createdBy` server-side) and can only
+ * rename/remove that one. Always keyed on the CONNECTION's space — the wire
+ * `spaceId` is ignored, so a client can never rewrite another space's rooms.
+ * On deny, the sender alone is resynced with the authoritative list so their
+ * optimistic local update reverts (everyone else never sees the attempt).
+ */
+export function handleUpdateRooms(conn: Connection, roomsList: unknown): void {
+  const spaceId = conn.space;
+  const current = spaces.get(spaceId) ?? [];
+  const isOwner = spaceOwners.get(spaceId) === conn.peer.userId;
+  const decision = evaluateRoomsUpdate(current, roomsList, isOwner, conn.peer.userId);
+  if (!decision.ok) {
+    send(conn.socket, { type: 'rooms-updated', spaceId, rooms: current });
+    return;
   }
-  console.log(`[rooms-update] space "${spaceId}" rooms updated; broadcasted to members`);
+  spaces.set(spaceId, decision.rooms);
+  broadcastSpace(spaceId, { type: 'rooms-updated', spaceId, rooms: decision.rooms });
+  console.log(`[rooms-update] space "${spaceId}" rooms updated by ${conn.peer.displayName}; broadcasted to members`);
 }
 
+/**
+ * Owner-gated (silent no-op like handleSetBanner): renaming propagates to every
+ * member and regenerates the invite code, so it's an owner power. An unowned
+ * space stays un-renamable until someone claims ownership.
+ */
 export function handleRenameSpace(conn: Connection, newSpaceId: string, newSpaceName: string): void {
   const spaceId = conn.space;
+  if (spaceOwners.get(spaceId) !== conn.peer.userId) return;
   const clampedId = clampString(newSpaceId, MAX_ID_LEN);
   const clampedName = clampString(newSpaceName, MAX_DISPLAY_NAME_LEN);
 

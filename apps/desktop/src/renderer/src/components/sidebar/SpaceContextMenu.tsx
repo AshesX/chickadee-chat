@@ -1,4 +1,4 @@
-import { Settings, Copy, Trash2, Lock, LockOpen } from 'lucide-react';
+import { Settings, Copy, Trash2, Lock, LockOpen, LogOut } from 'lucide-react';
 import type { SpaceInfo } from '@chickadee/shared';
 
 interface SpaceContextMenuProps {
@@ -11,6 +11,9 @@ interface SpaceContextMenuProps {
   canLockSpace?: boolean;
   spaceLocked?: boolean;
   onToggleSpaceLock?: (locked: boolean) => void;
+  /** Whether the local user owns this space — labels the removal "Delete" (owner)
+   *  vs "Leave" (member). Behavior is identical either way: local removal only. */
+  isOwned?: boolean;
 }
 
 /** Right-click context menu for the space header: Space Settings / Copy Space Code / Lock (owner) / Delete. */
@@ -23,6 +26,7 @@ export function SpaceContextMenu({
   canLockSpace = false,
   spaceLocked = false,
   onToggleSpaceLock,
+  isOwned = false,
 }: SpaceContextMenuProps): React.JSX.Element {
   return (
     <div
@@ -77,8 +81,8 @@ export function SpaceContextMenu({
             onClose();
           }}
         >
-          <Trash2 size={13} />
-          Delete Space
+          {isOwned ? <Trash2 size={13} /> : <LogOut size={13} />}
+          {isOwned ? 'Delete Space' : 'Leave Space'}
         </button>
       </div>
     </div>

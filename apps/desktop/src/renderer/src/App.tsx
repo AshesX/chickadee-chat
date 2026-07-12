@@ -446,6 +446,14 @@ export function App(): React.JSX.Element {
     [signaling.send],
   );
 
+  // Room governance: the owner manages every room; a standard member manages
+  // only the one room they created (Room.createdBy). Legacy/default rooms have
+  // no stamp → owner-managed only. Mirrors the server's evaluateRoomsUpdate.
+  const canManageRoom = useCallback(
+    (room: Room): boolean => amOwner || (!!room.createdBy && room.createdBy === userId),
+    [amOwner, userId],
+  );
+
   // One seed per connection: once this connection confirms us as owner, restore
   // the server's (possibly restart-emptied) ban list + space lock from our
   // persisted copy. Idempotent server-side (apply-if-absent), so a duplicate or
@@ -603,8 +611,17 @@ export function App(): React.JSX.Element {
   }
 
   function createRoom(label: string, icon: string): void {
+    // Belt to the onCreateRoom pre-check's suspenders: one created room per
+    // standard member (the server enforces this too and would resync us back).
+    if (!amOwner && rooms.some((r) => r.createdBy === userId)) {
+      setModNotice('You already manage a room — delete it to create another.');
+      setCreateOpen(false);
+      return;
+    }
     const id = slugify(label);
-    const next = rooms.some((r) => r.id === id) ? rooms : [...rooms, { id, label, icon, type: 'hybrid' as const }];
+    const next = rooms.some((r) => r.id === id)
+      ? rooms
+      : [...rooms, { id, label, icon, type: 'hybrid' as const, ...(userId ? { createdBy: userId } : {}) }];
     updateRooms(next);
     setCreateOpen(false);
     if (signaling.status === 'connected' && currentSpaceId) {
@@ -1151,9 +1168,19 @@ export function App(): React.JSX.Element {
           rooms={rooms}
           currentRoomId={currentRoomId}
           onSelectRoom={joinRoom}
-          onCreateRoom={() => openExpanded(() => setCreateOpen(true))}
+          onCreateRoom={() => {
+            // One created room per standard member — say so instead of opening
+            // a modal whose submit the server would bounce.
+            if (!amOwner && rooms.some((r) => r.createdBy === userId)) {
+              setModNotice('You already manage a room — delete it to create another.');
+              return;
+            }
+            openExpanded(() => setCreateOpen(true));
+          }}
           onRequestRename={(room) => openExpanded(() => setRenameTarget(room))}
           onRemoveRoom={removeRoom}
+          canManageRoom={canManageRoom}
+          myUserId={userId}
           users={users}
           selfName={displayName}
           selfColor={selfColor}

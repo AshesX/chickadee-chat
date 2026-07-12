@@ -689,6 +689,95 @@ s2NonOwner.ws.close();
 s2Victim.ws.close();
 await wait(100);
 
+// Phase 9: Room/space governance — update-rooms is validated server-side
+// (owner manages everything; a member holds ONE self-created room), the wire
+// spaceId is ignored, and rename-space is owner-gated. Fresh space ids again.
+const GOV_SPACE = 'gov-space';
+const GOV_ROOMS = [{ id: 'general', label: 'General', icon: 'chat-bubble', type: 'hybrid' }];
+
+const govOwner = client('GovOwner', { room: null, spaceId: GOV_SPACE, userId: 'uid-gov-owner', rooms: GOV_ROOMS });
+await govOwner.ready;
+const govUser = client('GovUser', { room: null, spaceId: GOV_SPACE, userId: 'uid-gov-user' });
+await govUser.ready;
+
+// Unowned space is strict: a member can't touch the legacy room list yet.
+const beforeUnowned = govOwner.events.length;
+govUser.ws.send(JSON.stringify({ type: 'update-rooms', spaceId: GOV_SPACE, rooms: [{ ...GOV_ROOMS[0], label: 'Hax' }] }));
+await wait(150);
+check('unowned space: member rename of a legacy room is denied (strict until claimed)',
+  !govOwner.events.slice(beforeUnowned).some((ev) => ev.type === 'rooms-updated'));
+check('denied update-rooms resyncs the sender with the authoritative list',
+  govUser.events.some((ev) => ev.type === 'rooms-updated' && ev.rooms.length === 1 && ev.rooms[0].label === 'General'));
+
+govOwner.ws.send(JSON.stringify({ type: 'claim-ownership' }));
+await wait(150);
+
+// Non-owner rename-space is a silent no-op; the owner's goes through.
+govUser.ws.send(JSON.stringify({ type: 'rename-space', spaceId: GOV_SPACE, newSpaceId: 'hax-space', newSpaceName: 'Hax' }));
+await wait(150);
+check('non-owner rename-space is silently ignored',
+  !govOwner.events.some((ev) => ev.type === 'space-renamed'));
+govOwner.ws.send(JSON.stringify({ type: 'rename-space', spaceId: GOV_SPACE, newSpaceId: 'gov-space-2', newSpaceName: 'Gov 2' }));
+await wait(150);
+check('owner rename-space broadcasts space-renamed',
+  govUser.events.some((ev) => ev.type === 'space-renamed' && ev.newSpaceId === 'gov-space-2'));
+
+// Member creates their one room; server stamps createdBy (spoof ignored), and
+// the wire spaceId is ignored in favor of the connection's space.
+govUser.ws.send(JSON.stringify({
+  type: 'update-rooms',
+  spaceId: 'some-other-space',
+  rooms: [...GOV_ROOMS, { id: 'my-room', label: 'My Room', icon: 'sofa', type: 'hybrid', createdBy: 'uid-spoofed' }],
+}));
+await wait(150);
+const myRoomAdded = (ev) =>
+  ev.type === 'rooms-updated' && ev.spaceId === GOV_SPACE &&
+  ev.rooms.some((r) => r.id === 'my-room' && r.createdBy === 'uid-gov-user');
+check('member add of one room broadcasts, keyed to the CONNECTION space, creator-stamped (spoof ignored)',
+  govOwner.events.some(myRoomAdded) && govUser.events.some(myRoomAdded));
+
+// A second created room is denied; renaming their own room is fine; touching
+// the legacy room or the whole list stays denied.
+const beforeSecond = govOwner.events.length;
+govUser.ws.send(JSON.stringify({
+  type: 'update-rooms', spaceId: GOV_SPACE,
+  rooms: [...GOV_ROOMS, { id: 'my-room', label: 'My Room', icon: 'sofa' }, { id: 'second', label: 'Second', icon: 'sofa' }],
+}));
+await wait(150);
+check('member is limited to ONE created room (second add denied)',
+  !govOwner.events.slice(beforeSecond).some((ev) => ev.type === 'rooms-updated'));
+
+govUser.ws.send(JSON.stringify({
+  type: 'update-rooms', spaceId: GOV_SPACE,
+  rooms: [...GOV_ROOMS, { id: 'my-room', label: 'Renamed Mine', icon: 'sofa' }],
+}));
+await wait(150);
+check('member may rename their own created room',
+  govOwner.events.some((ev) => ev.type === 'rooms-updated' && ev.rooms.some((r) => r.id === 'my-room' && r.label === 'Renamed Mine')));
+
+const beforeWipe = govOwner.events.length;
+govUser.ws.send(JSON.stringify({ type: 'update-rooms', spaceId: GOV_SPACE, rooms: [] }));
+await wait(150);
+check('member cannot remove the legacy room (wipe denied)',
+  !govOwner.events.slice(beforeWipe).some((ev) => ev.type === 'rooms-updated'));
+
+// The owner can remove the member's room; the freed quota lets them create again.
+govOwner.ws.send(JSON.stringify({ type: 'update-rooms', spaceId: GOV_SPACE, rooms: GOV_ROOMS }));
+await wait(150);
+check('owner may remove a member-created room',
+  govUser.events.some((ev) => ev.type === 'rooms-updated' && ev.rooms.length === 1 && ev.rooms[0].id === 'general'));
+govUser.ws.send(JSON.stringify({
+  type: 'update-rooms', spaceId: GOV_SPACE,
+  rooms: [...GOV_ROOMS, { id: 'my-room-2', label: 'Mine Again', icon: 'sofa' }],
+}));
+await wait(150);
+check('quota frees after removal — member may create again',
+  govOwner.events.some((ev) => ev.type === 'rooms-updated' && ev.rooms.some((r) => r.id === 'my-room-2' && r.createdBy === 'uid-gov-user')));
+
+govOwner.ws.close();
+govUser.ws.close();
+await wait(100);
+
 for (const cl of [a, c, d, e]) cl.ws.close();
 await wait(100);
 

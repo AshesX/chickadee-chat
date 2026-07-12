@@ -71,7 +71,16 @@ export function SpaceSettingsModal({ space, myUserId, onSave, onSaveBanner, onCl
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Enter new space name"
+          // Renaming propagates to every member and regenerates the invite
+          // code — owner-only (the server rejects non-owner rename-space too).
+          disabled={!isOwner}
+          title={isOwner ? undefined : 'Only the Space Owner can rename the Space.'}
         />
+        {!isOwner && (
+          <span className="hint" style={{ marginTop: 'var(--s-2)', display: 'block' }}>
+            Only the Space Owner can rename the Space.
+          </span>
+        )}
         {name.trim().toLowerCase() !== space.name.toLowerCase() && (
           <span className="hint" style={{ marginTop: 'var(--s-2)', display: 'block', color: 'var(--orange)', fontSize: 'var(--fs-1)', fontWeight: 'var(--fw-1)' }}>
             ⚠️ Changing name will regenerate invite code to: <strong>{slug}-xxxxx</strong>. Active members in the space will update automatically. Others must receive the new code.

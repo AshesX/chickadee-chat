@@ -60,6 +60,16 @@ export interface Room {
   /** Room kind. 'hybrid' (audio + optional video, 8-cap) going forward; legacy
    *  'voice'/'video'/omitted are normalized to 'hybrid' on load. */
   type?: RoomType;
+  /**
+   * Stable userId of the member who created this room. Drives room governance:
+   * a standard member may hold ONE room they created (rename/delete it only);
+   * the Space Owner manages every room. undefined = legacy/default room —
+   * owner-managed only, counts against nobody's quota. Stamped server-side on
+   * create (client-asserted values for surviving rooms are ignored) and
+   * persisted with the room list, so it survives server restarts via the
+   * normal room-list re-seed.
+   */
+  createdBy?: string;
 }
 
 export interface SpacePresence {

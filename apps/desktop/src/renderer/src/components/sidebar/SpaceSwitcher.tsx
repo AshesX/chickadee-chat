@@ -21,6 +21,8 @@ interface SpaceSwitcherProps {
   canLockSpace?: boolean;
   spaceLocked?: boolean;
   onToggleSpaceLock?: (locked: boolean) => void;
+  /** Local stable userId — per-space owner check for "Leave" vs "Delete" labels. */
+  myUserId: string;
 }
 
 /**
@@ -40,6 +42,7 @@ export function SpaceSwitcher({
   canLockSpace = false,
   spaceLocked = false,
   onToggleSpaceLock,
+  myUserId,
 }: SpaceSwitcherProps): React.JSX.Element {
   const [switcherOpen, setSwitcherOpen] = useState(false);
   // Per-space so the "copied" indicator can't appear on a different hovered space.
@@ -186,6 +189,7 @@ export function SpaceSwitcher({
                     setSwitcherOpen(false);
                   }}
                   onDelete={() => onDeleteSpace(s.id, s.name)}
+                  isOwned={!!myUserId && s.ownerId === myUserId}
                 />
               ))}
             </div>
@@ -225,6 +229,7 @@ export function SpaceSwitcher({
           canLockSpace={canLockSpace && ctxMenu.space.id === activeSpaceId}
           spaceLocked={spaceLocked}
           onToggleSpaceLock={onToggleSpaceLock}
+          isOwned={!!myUserId && ctxMenu.space.ownerId === myUserId}
         />
       )}
     </div>

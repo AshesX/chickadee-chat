@@ -1,4 +1,12 @@
-import { MAX_ID_LEN, capacityForType, clampString, type PeerId, type Room } from '@chickadee/shared';
+import {
+  MAX_DISPLAY_NAME_LEN,
+  MAX_ID_LEN,
+  capacityForType,
+  clampString,
+  normalizeRoomType,
+  type PeerId,
+  type Room,
+} from '@chickadee/shared';
 
 // Pure decision logic, kept free of sockets and the in-memory maps so it can be
 // unit tested (the handlers own the side effects).
@@ -63,7 +71,10 @@ export function sanitizeJoinRequest(msg: {
   if (!spaceId) return null;
   const userId = clampString(msg.userId, MAX_ID_LEN);
   const room = msg.room == null ? null : clampString(msg.room, MAX_ID_LEN) || null;
-  const joinRooms = Array.isArray(msg.rooms) ? msg.rooms : [];
+  // The joiner's local room list may seed the space (incl. `createdBy` stamps,
+  // which is how governance survives a server restart) — sanitize it like any
+  // other client field.
+  const joinRooms = sanitizeRoomList(msg.rooms);
   return { spaceId, userId, room, joinRooms };
 }
 
@@ -146,6 +157,89 @@ export function canModerate(
     }
   }
   return true;
+}
+
+// --- Room-list governance -------------------------------------------------
+
+/** Cap on a space's room list — an anti-nonsense bound for an 8-person hangout app. */
+export const MAX_ROOMS = 64;
+
+/**
+ * Validate/clamp an untrusted room list (`update-rooms` payload and the `join`
+ * room-list seed): array guard, per-entry id/label/icon clamps, legacy-type
+ * normalization, de-dupe by id, list cap. `createdBy` is clamped but otherwise
+ * passed through — `evaluateRoomsUpdate` decides whether to trust it.
+ */
+export function sanitizeRoomList(value: unknown): Room[] {
+  if (!Array.isArray(value)) return [];
+  const out: Room[] = [];
+  const seen = new Set<string>();
+  for (const entry of value) {
+    if (out.length >= MAX_ROOMS) break;
+    if (!entry || typeof entry !== 'object') continue;
+    const e = entry as Partial<Room>;
+    const id = clampString(e.id, MAX_ID_LEN);
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    const createdBy = clampString(e.createdBy, MAX_ID_LEN);
+    out.push({
+      id,
+      label: clampString(e.label, MAX_DISPLAY_NAME_LEN) || id,
+      icon: clampString(e.icon, MAX_ID_LEN),
+      type: normalizeRoomType(e.type),
+      ...(createdBy ? { createdBy } : {}),
+    });
+  }
+  return out;
+}
+
+export type RoomsUpdateDecision = { ok: true; rooms: Room[] } | { ok: false };
+
+/**
+ * Authorize a whole-list `update-rooms` against the room-governance rules by
+ * diffing proposed vs current on the stable room id:
+ * - Surviving rooms keep their CURRENT `createdBy` (a sender can never
+ *   re-stamp someone else's — or a legacy — room); added rooms are stamped
+ *   with the sender's userId.
+ * - Owner: everything goes. Non-owner: may rename/remove only rooms they
+ *   created (`createdBy === userId`; legacy unstamped rooms are owner-managed),
+ *   and after the update may hold at most ONE created room — which permits a
+ *   delete-then-recreate in a single update but blocks a second room.
+ * Deny returns `{ok:false}`; the caller resyncs the sender with the current
+ * authoritative list (their optimistic local update reverts).
+ */
+export function evaluateRoomsUpdate(
+  current: readonly Room[],
+  proposedRaw: unknown,
+  isOwner: boolean,
+  userId: string,
+): RoomsUpdateDecision {
+  const proposed = sanitizeRoomList(proposedRaw);
+  const currentById = new Map(current.map((r) => [r.id, r]));
+
+  const rooms: Room[] = proposed.map((p) => {
+    const existing = currentById.get(p.id);
+    const createdBy = existing ? existing.createdBy : userId || undefined;
+    const { createdBy: _claimed, ...rest } = p;
+    return createdBy ? { ...rest, createdBy } : rest;
+  });
+
+  if (!isOwner) {
+    const ownsRoom = (r: Room | undefined): boolean => !!userId && r?.createdBy === userId;
+    for (const cur of current) {
+      const next = rooms.find((r) => r.id === cur.id);
+      if (!next) {
+        if (!ownsRoom(cur)) return { ok: false };
+      } else if (next.label !== cur.label || next.icon !== cur.icon) {
+        if (!ownsRoom(cur)) return { ok: false };
+      }
+    }
+    if (rooms.some((r) => !currentById.has(r.id))) {
+      if (!userId) return { ok: false };
+      if (rooms.filter((r) => r.createdBy === userId).length > 1) return { ok: false };
+    }
+  }
+  return { ok: true, rooms };
 }
 
 /**
