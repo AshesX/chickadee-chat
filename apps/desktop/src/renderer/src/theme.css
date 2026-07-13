@@ -20,7 +20,7 @@
 
   /* Semantic accent colors */
   --green: #5fb81f;
-  --orange: #fbc224;
+  --orange: #F59E0B;
   --red: #c20114;
 
   --silver: color-mix(in srgb, white 62%, black 38%);
@@ -36,7 +36,7 @@
   --offline: #b5b0a8;
 
   /* Actions / active */
-  --gradient: linear-gradient(135deg, var(--orange), #f59000);
+  --gradient: linear-gradient(135deg, var(--orange), #F59E0B);
   --active-bg: var(--text);
   --active-text: var(--card);
 
