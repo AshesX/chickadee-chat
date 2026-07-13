@@ -6,6 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Lightweight P2P desktop **voice / video / screen-share** app — "Discord Lite" — for small groups of **up to 8 users per room** (one unified "hybrid" room type: audio + optional golden-ratio video). Built to call friends and share a game screen. **Windows-first.** The media core, the "Midnight Gamer Lounge" UI, and a portable Windows build are all complete; the renderer's large files have been decomposed and a `vitest` unit-test net guards the pure logic.
 
+## Performance & Code Philosophy
+Optimizing performance in code for this application is essential. The users of this app are very critical of any performance demands it may impose, and this should always be a primary consideration. Keep things 'DRY' (Don't Repeat Yourself), and adhere to an ultra-lean and clean code philosophy.
+
 ## Current state
 
 What the app does today:
