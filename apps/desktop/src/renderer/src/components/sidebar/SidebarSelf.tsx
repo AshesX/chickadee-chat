@@ -77,7 +77,7 @@ export function SidebarSelf({
       {compact ? (
         <div className="self__mini-grid">
           <button
-            className={`self__mini-btn${micEnabled ? '' : ' self__mini-btn--danger'}`}
+            className={`self__mini-btn${micEnabled ? '' : ' self__mini-btn--active'}`}
             onClick={onToggleMic}
             disabled={!hasMic}
             title={micEnabled ? 'Mute' : 'Unmute'}
@@ -86,7 +86,7 @@ export function SidebarSelf({
             {micEnabled ? <Mic size={14} /> : <MicOff size={14} />}
           </button>
           <button
-            className={`self__mini-btn${deafened ? ' self__mini-btn--danger' : ''}`}
+            className={`self__mini-btn${deafened ? ' self__mini-btn--active' : ''}`}
             onClick={onToggleDeafen}
             title={deafened ? 'Undeafen' : 'Deafen'}
             aria-label={deafened ? 'Undeafen' : 'Deafen'}

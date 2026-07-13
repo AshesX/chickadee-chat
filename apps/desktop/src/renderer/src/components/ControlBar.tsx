@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { INPUT_MODE_ICONS } from '../lib/inputModeIcons';
 
-type ButtonState = 'default' | 'active' | 'danger' | 'fade';
+type ButtonState = 'default' | 'active' | 'leave' | 'fade';
 
 function ControlButton({
   icon: Icon,
@@ -95,109 +95,108 @@ export function ControlBar({
   selfSpeaking,
 }: ControlBarProps): React.JSX.Element {
   return (
-    <footer className="control-bar">
-      <div className="ctrl-group">
-        <ControlButton
-          icon={micEnabled ? Mic : MicOff}
-          label={micEnabled ? 'Mute' : 'Unmute'}
-          state={micEnabled ? 'default' : 'danger'}
-          disabled={!hasMic}
-          title={hasMic ? '' : 'No microphone'}
-          onClick={onToggleMic}
-        />
-        <button
-          className="ctrl-btn--chevron"
-          title="Input settings"
-          onClick={(e) => onInputMenu(e.currentTarget.getBoundingClientRect())}
-        >
-          <ChevronUp size={11} />
-        </button>
-      </div>
+    <div className="control-bar-dock">
+      <footer className="control-bar">
+        <div className="ctrl-group">
+          <ControlButton
+            icon={micEnabled ? Mic : MicOff}
+            label={micEnabled ? 'Mute' : 'Unmute'}
+            state={micEnabled ? 'default' : 'active'}
+            disabled={!hasMic}
+            title={hasMic ? '' : 'No microphone'}
+            onClick={onToggleMic}
+          />
+          <button
+            className="ctrl-btn--chevron"
+            title="Input settings"
+            onClick={(e) => onInputMenu(e.currentTarget.getBoundingClientRect())}
+          >
+            <ChevronUp size={11} />
+          </button>
+        </div>
 
-      <div className="ctrl-group">
-        <ControlButton
-          icon={deafened ? HeadphoneOff : Headphones}
-          label={deafened ? 'Undeafen' : 'Deafen'}
-          state={deafened ? 'danger' : 'default'}
-          onClick={onToggleDeafen}
-        />
-        <button
-          className="ctrl-btn--chevron"
-          title="Output settings"
-          onClick={(e) => onOutputMenu(e.currentTarget.getBoundingClientRect())}
-        >
-          <ChevronUp size={11} />
-        </button>
-      </div>
+        <div className="ctrl-group">
+          <ControlButton
+            icon={deafened ? HeadphoneOff : Headphones}
+            label={deafened ? 'Undeafen' : 'Deafen'}
+            state={deafened ? 'active' : 'default'}
+            onClick={onToggleDeafen}
+          />
+          <button
+            className="ctrl-btn--chevron"
+            title="Output settings"
+            onClick={(e) => onOutputMenu(e.currentTarget.getBoundingClientRect())}
+          >
+            <ChevronUp size={11} />
+          </button>
+        </div>
 
-      <div className="control-bar__divider" />
+        <div className="control-bar__divider" />
 
-      <div className="ctrl-group">
-        <ControlButton
-          icon={INPUT_MODE_ICONS[inputMode]}
-          label={inputMode === 'ptt' ? 'Push-Talk' : 'Voice'}
-          state="default"
-          title="Click to cycle: Voice Activation → Push-to-Talk"
-          onClick={onCycleInputMode}
-          speaking={selfSpeaking}
-        />
-        <button
-          className="ctrl-btn--chevron"
-          title="Input mode settings"
-          onClick={(e) => onInputModeMenu(e.currentTarget.getBoundingClientRect())}
-        >
-          <ChevronUp size={11} />
-        </button>
-      </div>
+        <div className="ctrl-group">
+          <ControlButton
+            icon={INPUT_MODE_ICONS[inputMode]}
+            label={inputMode === 'ptt' ? 'Push-Talk' : 'Voice'}
+            state="default"
+            title="Click to cycle: Voice Activation → Push-to-Talk"
+            onClick={onCycleInputMode}
+            speaking={selfSpeaking}
+          />
+          <button
+            className="ctrl-btn--chevron"
+            title="Input mode settings"
+            onClick={(e) => onInputModeMenu(e.currentTarget.getBoundingClientRect())}
+          >
+            <ChevronUp size={11} />
+          </button>
+        </div>
 
-      <div className="ctrl-group">
-        <ControlButton
-          icon={cameraEnabled ? VideoOff : (sharingScreen ? ScreenShareOff : (activeVideoMode === 'screen' ? ScreenShare : Video))}
-          label={cameraEnabled ? 'Stop Cam' : (sharingScreen ? 'Stop Share' : (activeVideoMode === 'screen' ? 'Share' : 'Camera'))}
-          state={(cameraEnabled || sharingScreen) ? 'active' : 'default'}
-          onClick={() => {
-            if (cameraEnabled) {
-              onToggleCamera();
-            } else if (sharingScreen) {
-              onToggleShare();
-            } else {
-              if (activeVideoMode === 'screen') {
+        <div className="ctrl-group">
+          <ControlButton
+            icon={cameraEnabled ? VideoOff : (sharingScreen ? ScreenShareOff : (activeVideoMode === 'screen' ? ScreenShare : Video))}
+            label={cameraEnabled ? 'Stop Cam' : (sharingScreen ? 'Stop Share' : (activeVideoMode === 'screen' ? 'Share' : 'Camera'))}
+            state={(cameraEnabled || sharingScreen) ? 'active' : 'default'}
+            onClick={() => {
+              if (cameraEnabled) {
+                onToggleCamera();
+              } else if (sharingScreen) {
                 onToggleShare();
               } else {
-                onToggleCamera();
+                if (activeVideoMode === 'screen') {
+                  onToggleShare();
+                } else {
+                  onToggleCamera();
+                }
               }
-            }
-          }}
-        />
-        <button
-          className="ctrl-btn--chevron"
-          title="Video settings"
-          onClick={(e) => onVideoMenu(e.currentTarget.getBoundingClientRect())}
+            }}
+          />
+          <button
+            className="ctrl-btn--chevron"
+            title="Video settings"
+            onClick={(e) => onVideoMenu(e.currentTarget.getBoundingClientRect())}
+          >
+            <ChevronUp size={11} />
+          </button>
+        </div>
+
+        <div className="control-bar__divider" />
+
+        <div
+          onMouseEnter={onMouseEnterReact}
+          onMouseLeave={onMouseLeaveReact}
+          style={{ display: 'flex' }}
         >
-          <ChevronUp size={11} />
-        </button>
-      </div>
+          <ControlButton
+            icon={Smile}
+            label="React"
+            onClick={(e) => onReactMenu(e.currentTarget.getBoundingClientRect())}
+          />
+        </div>
 
-      <div className="control-bar__divider" />
+        <div className="control-bar__divider" />
 
-      <div
-        onMouseEnter={onMouseEnterReact}
-        onMouseLeave={onMouseLeaveReact}
-        style={{ display: 'flex' }}
-      >
-        <ControlButton
-          icon={Smile}
-          label="React"
-          onClick={(e) => onReactMenu(e.currentTarget.getBoundingClientRect())}
-        />
-      </div>
-
-      <div className="control-bar__divider" />
-
-      <button className="btn btn--danger" onClick={onLeave}>
-        <PhoneOff size={16} />
-        Leave
-      </button>
-    </footer>
+        <ControlButton icon={PhoneOff} label="Leave" state="leave" onClick={onLeave} />
+      </footer>
+    </div>
   );
 }

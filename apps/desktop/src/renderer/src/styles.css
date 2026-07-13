@@ -373,7 +373,7 @@
 
 .app--compact-chat .content-area > .grid,
 .app--compact-chat .content-area > .presentation,
-.app--compact-chat .control-bar {
+.app--compact-chat .control-bar-dock {
   display: none;
 }
 
@@ -685,8 +685,8 @@
   inset: 0;
   display: grid;
   place-items: center;
-  color: #fff;
-  background: color-mix(in srgb, var(--red) 100%, transparent);
+  color: var(--on-accent);
+  background: var(--orange);
 }
 
 
@@ -905,7 +905,8 @@
   padding: var(--s-3) var(--s-4) var(--s-4);
   height: 76px;
   border-top: 1px solid var(--border);
-  /* Same deck treatment as .control-bar — the two 76px footers read as one. */
+  /* The room area's .control-bar has since detached into its own floating
+     pill — this footer keeps the original raised-deck gradient on its own. */
   background: linear-gradient(180deg,
       color-mix(in srgb, var(--tint) 8%, transparent),
       color-mix(in srgb, var(--tint) 4%, transparent));
@@ -945,7 +946,7 @@
    sized to match the 48px self-avatar so the footer reads as two even blocks.
    The divider between cells is a real grid `gap` revealing the container's
    own --border background, not a box-shadow seam between flush, differently-
-   colored (sometimes red, e.g. muted/deafened) buttons — adjacent opaque
+   colored (sometimes orange, e.g. muted/deafened) buttons — adjacent opaque
    layers with a `transform` transition are prone to compositor edge
    anti-aliasing bleed where they touch. A real gap has no shared edge to
    bleed across. Each button also rounds only its own outer corner, so no
@@ -1000,13 +1001,13 @@
   cursor: not-allowed;
 }
 
-.self__mini-btn--danger,
-.self__mini-btn--danger:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--red) 18%, transparent);
-  color: var(--danger-fg);
+.self__mini-btn--active,
+.self__mini-btn--active:hover:not(:disabled) {
+  background: var(--orange);
+  color: var(--on-accent);
 }
 
-.self__mini-btn--danger:hover:not(:disabled) {
+.self__mini-btn--active:hover:not(:disabled) {
   filter: brightness(1.08);
 }
 
@@ -1207,21 +1208,13 @@
   min-height: 0;
   list-style: none;
   display: grid;
-  gap: 1px;
+  gap: var(--s-3);
+  padding: var(--s-3);
 }
 
 .grid[data-count='1'] {
   grid-template-columns: 1fr;
   grid-template-rows: 1fr;
-}
-
-/* A lone occupant has no neighboring tile to abut, so it can afford real
-   elevation instead of the grid's flat hairline divider — scoped to this one
-   case so a full room's tiles don't compete with stacked shadows. A faint warm
-   radial behind the centered avatar reads as "present," not "unfinished." */
-.grid[data-count='1'] .tile {
-  box-shadow: var(--sh-1);
-  background: radial-gradient(420px circle at 50% 50%, color-mix(in srgb, var(--orange) 6%, transparent), transparent 70%), var(--bg);
 }
 
 .grid[data-count='2'] {
@@ -1260,8 +1253,8 @@
   overflow: hidden;
   background: var(--bg);
   border: none;
-  border-radius: 0;
-  box-shadow: 1px 0 0 0 var(--border), 0 1px 0 0 var(--border);
+  border-radius: var(--r-2);
+  box-shadow: var(--sh-1);
   transition: border var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease);
 }
 
@@ -1322,13 +1315,13 @@
   height: 24px;
   padding: 0 var(--s-1);
   border-radius: var(--r-1);
-  background: var(--red);
+  background: var(--orange);
   outline: 2px solid var(--bg);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--s-1);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 /* Base badge = the VOICE-tile name: plain centered text beneath the grid-
@@ -1382,9 +1375,9 @@
 }
 
 .tile__badge-mute {
-  /* Rose, not raw --red: clears the ≥3:1 graphics threshold even over a
-     bright video frame behind the scrim. Only renders on video tiles. */
-  color: color-mix(in srgb, var(--red) 45%, white);
+  /* Solid orange, matching every other mute/deafen indicator; only renders
+     on video tiles, over the badge's own dark scrim bar. */
+  color: var(--orange);
 }
 
 .tile__conn {
@@ -1635,7 +1628,8 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: var(--s-3);
+  padding: var(--s-3);
 }
 
 .stage {
@@ -1670,8 +1664,8 @@
   overflow: hidden;
   background: #000;
   border: none;
-  border-radius: 0;
-  box-shadow: 0 0 24px var(--secondary-glow), 1px 0 0 0 var(--border), 0 1px 0 0 var(--border);
+  border-radius: var(--r-2);
+  box-shadow: 0 0 24px var(--secondary-glow), var(--sh-1);
 }
 
 .screen__video {
@@ -1790,7 +1784,7 @@
 .filmstrip {
   list-style: none;
   display: flex;
-  gap: 1px;
+  gap: var(--s-2);
   height: 124px;
   overflow-x: auto;
 }
@@ -1801,9 +1795,11 @@
   aspect-ratio: 16 / 9;
 }
 
-/* Filmstrip compacts (124px-tall tiles). */
+/* Filmstrip compacts (124px-tall tiles): a short top padding keeps the
+   badge — and its gradient scrim, which scales with this box — clear of a
+   centered .tile__watch button instead of reaching up toward it. */
 .filmstrip .tile--video .tile__badge {
-  padding: var(--s-3) 44px var(--s-1) var(--s-2);
+  padding: var(--s-1) 44px var(--s-1) var(--s-2);
   gap: var(--s-1);
 }
 
@@ -1830,21 +1826,30 @@
 }
 
 /* ── Control bar ──────────────────────────────────────────── */
-.control-bar {
+/* The dock spans the full available width and is the @container reference
+   (so the shrink query below measures available space, not the bar's own
+   already-shrunk-to-content width); the bar itself is a plain flex item that
+   hugs its content and floats, detached, above the window's bottom edge. */
+.control-bar-dock {
   flex-shrink: 0;
+  height: 76px;
   display: flex;
+  align-items: center;
   justify-content: center;
+  container-type: inline-size;
+  container-name: control-bar-dock;
+}
+
+.control-bar {
+  display: flex;
   align-items: center;
   gap: var(--s-2);
-  padding: var(--s-3) var(--s-5);
-  height: 76px;
-  border-top: 1px solid var(--border);
-  /* The bottom "deck": a lit-top translucent gradient over the canvas depth
-     fade. Mirrored on .sidebar__self so both 76px footers read as one
-     continuous raised deck across the sidebar border. */
-  background: linear-gradient(180deg,
-      color-mix(in srgb, var(--tint) 8%, transparent),
-      color-mix(in srgb, var(--tint) 4%, transparent));
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-2);
+  border: 1px solid var(--border);
+  background: var(--card);
+  box-shadow: var(--sh-1);
+  --ctrl-chevron-w: 28px;
 }
 
 .ctrl-btn {
@@ -1895,27 +1900,23 @@
   flex-shrink: 0;
 }
 
+/* Engaged is one solid identity color across the whole bar — mic/deafen
+   share this with camera/share; Leave gets its own red variant below. */
 .ctrl-btn--active {
   background: var(--orange);
   border-color: var(--orange);
   color: var(--on-accent);
 }
 
-.ctrl-btn--active .ctrl-btn__label {
-  color: var(--on-accent);
+.ctrl-btn--leave {
+  background: var(--red);
+  border-color: var(--red);
+  color: var(--badge-fg);
 }
 
-/* Engaged (muted/deafened) is a tinted state, not an alarm: red-family fill +
-   border + ink reads unmistakably "on" without shouting. --danger-fg (not raw
-   --red) carries the label so contrast clears on the tint in both themes. */
-.ctrl-btn--danger {
-  background: color-mix(in srgb, var(--red) 18%, transparent);
-  border-color: color-mix(in srgb, var(--red) 45%, transparent);
-  color: var(--danger-fg);
-}
-
-.ctrl-btn--danger .ctrl-btn__label {
-  color: var(--danger-fg);
+.ctrl-btn--active .ctrl-btn__label,
+.ctrl-btn--leave .ctrl-btn__label {
+  color: inherit;
 }
 
 .ctrl-btn--fade {
@@ -1966,7 +1967,8 @@
   align-items: center;
   justify-content: center;
   padding: var(--s-1) var(--s-1);
-  min-width: auto;
+  width: var(--ctrl-chevron-w);
+  flex-shrink: 0;
   border-radius: 0 var(--r-2) var(--r-2) 0;
   border: 1px solid var(--border);
   /* The main button's right border is the group divider. */
@@ -1997,6 +1999,20 @@
 
 .ctrl-btn--chevron:focus-visible {
   border-radius: 0 var(--r-2) var(--r-2) 0;
+}
+
+/* Narrow room area: every main button shrinks to the chevron's own width
+   and drops its label, so the bar keeps fitting between the sidebar and the
+   window edge without colliding. Chevrons are untouched — they're already
+   fixed at --ctrl-chevron-w, so nothing about them moves or resizes. */
+@container control-bar-dock (max-width: 800px) {
+  .ctrl-btn:not(.ctrl-btn--chevron) {
+    width: var(--ctrl-chevron-w);
+  }
+
+  .ctrl-btn__label {
+    display: none;
+  }
 }
 
 /* ── Audio device menu ────────────────────────────────────── */
@@ -2145,18 +2161,23 @@
   flex-direction: column;
   background: var(--bg);
   border: none;
-  border-radius: 0;
-  border-left: 1px solid var(--border);
+  /* Floats above the control bar like the tiles do: same bottom gap
+     (var(--s-3), matching .grid's own padding), and the one corner that
+     newly has room to show a curve — the inner corner facing the room area,
+     where the divider used to run straight into the dock — is rounded. */
+  border-radius: 0 0 0 var(--r-2);
+  margin-bottom: var(--s-3);
 }
 
 .chat-panel--left {
-  border-left: none;
-  border-right: 1px solid var(--border);
+  border-radius: 0 0 var(--r-2) 0;
 }
 
 
 .chat-panel__resize-handle {
   left: 0;
+  /* Stop short of the rounded bottom corner instead of running into it. */
+  bottom: var(--r-2);
 }
 
 .chat-panel--left .chat-panel__resize-handle {
@@ -2166,6 +2187,7 @@
 
 .chat-panel__resize-handle::after {
   left: -1px;
+  bottom: var(--r-2);
 }
 
 .chat-panel--left .chat-panel__resize-handle::after {
