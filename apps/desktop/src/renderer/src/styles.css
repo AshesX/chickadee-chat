@@ -2161,22 +2161,29 @@
   flex-direction: column;
   background: var(--bg);
   border: none;
-  /* Floats above the control bar like the tiles do: same bottom gap
-     (var(--s-3), matching .grid's own padding), and the one corner that
-     newly has room to show a curve — the inner corner facing the room area,
-     where the divider used to run straight into the dock — is rounded. */
-  border-radius: 0 0 0 var(--r-2);
-  margin-bottom: var(--s-3);
+  /* A fully floating tile, same as .tile: all four corners rounded, the
+     same elevation, and — since .content-area gives it zero padding of its
+     own — the same var(--s-3) gap on every side (align-items: stretch on
+     the flex row turns a plain margin into that gap on all four edges).
+     The inner edge (facing .grid/.presentation) is the exception: that
+     sibling already reserves its own var(--s-3) padding there, so a margin
+     on this side too would double the gap versus the tile-to-tile one. */
+  border-radius: var(--r-2);
+  box-shadow: var(--sh-1);
+  margin: var(--s-3);
+  margin-left: 0;
 }
 
 .chat-panel--left {
-  border-radius: 0 0 var(--r-2) 0;
+  margin-left: var(--s-3);
+  margin-right: 0;
 }
 
 
 .chat-panel__resize-handle {
   left: 0;
-  /* Stop short of the rounded bottom corner instead of running into it. */
+  /* Stop short of the rounded corners instead of running into them. */
+  top: var(--r-2);
   bottom: var(--r-2);
 }
 
@@ -2187,7 +2194,11 @@
 
 .chat-panel__resize-handle::after {
   left: -1px;
-  bottom: var(--r-2);
+  /* No top/bottom override here: .chat-panel__resize-handle is this
+     pseudo-element's containing block and is already shrunk by var(--r-2)
+     on both ends, so the inherited top:0/bottom:0 from .resize-handle::after
+     already matches that (shrunk) extent exactly. Re-applying var(--r-2)
+     here would inset a second time relative to the already-shrunk parent. */
 }
 
 .chat-panel--left .chat-panel__resize-handle::after {
