@@ -136,4 +136,8 @@ export interface SettingsModalProps {
   onChangeTtsToggleKey: (key: string) => void;
   ttsStopKey: string;
   onChangeTtsStopKey: (key: string) => void;
+  customEmojis: string[];
+  onChangeCustomEmojis: (emojis: string[]) => void;
+  quickReactions: string[];
+  onChangeQuickReactions: (emojis: string[]) => void;
 }

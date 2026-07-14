@@ -221,6 +221,10 @@ export const store = {
   setRoomsSectionCollapsed: setter('roomsSectionCollapsed'),
   getHideSpaceBanner: getter('hideSpaceBanner'),
   setHideSpaceBanner: setter('hideSpaceBanner'),
+  getCustomEmojis: getter('customEmojis'),
+  setCustomEmojis: setter('customEmojis'),
+  getQuickReactions: getter('quickReactions'),
+  setQuickReactions: setter('quickReactions'),
 };
 
 const FRIEND_PALETTE = [

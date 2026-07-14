@@ -163,6 +163,10 @@ export interface PersistedSettings {
   roomsSectionCollapsed: boolean;
   /** Hide the space banner image and show a shorter, text-only header instead. */
   hideSpaceBanner: boolean;
+  /** Custom favorite emojis for the picker. */
+  customEmojis: string[];
+  /** Exactly 6 emojis used for quick reactions in the UI. */
+  quickReactions: string[];
 }
 
 export const DEFAULT_ROOMS: Room[] = [
@@ -240,5 +244,7 @@ export function defaultSettings(): PersistedSettings {
     compactMode: false,
     roomsSectionCollapsed: false,
     hideSpaceBanner: false,
+    customEmojis: [],
+    quickReactions: ['🔥', '😂', '👍', '❤️', '🎉', '💀'],
   };
 }
