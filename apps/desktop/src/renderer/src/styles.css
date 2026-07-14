@@ -2695,7 +2695,7 @@
 }
 
 .switch--on {
-  background: var(--active-bg);
+  background: var(--orange);
   border-color: var(--orange);
 }
 
@@ -2713,7 +2713,7 @@
 
 .switch--on .switch__knob {
   transform: translateX(16px);
-  background: var(--orange);
+  background: var(--knob);
 }
 
 
