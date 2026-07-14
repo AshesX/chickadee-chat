@@ -225,6 +225,8 @@ export const store = {
   setCustomEmojis: setter('customEmojis'),
   getQuickReactions: getter('quickReactions'),
   setQuickReactions: setter('quickReactions'),
+  getReactionsEnabled: getter('reactionsEnabled'),
+  setReactionsEnabled: setter('reactionsEnabled'),
 };
 
 const FRIEND_PALETTE = [

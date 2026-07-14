@@ -230,6 +230,7 @@ export function App(): React.JSX.Element {
   const [chatTtsSpeakName, applyChatTtsSpeakName] = usePersistedState(store.getChatTtsSpeakName, store.setChatTtsSpeakName);
   const [chatTtsSpeakOwnMessages, applyChatTtsSpeakOwnMessages] = usePersistedState(store.getChatTtsSpeakOwnMessages, store.setChatTtsSpeakOwnMessages);
   const [chatTtsSpeakWhenFocused, applyChatTtsSpeakWhenFocused] = usePersistedState(store.getChatTtsSpeakWhenFocused, store.setChatTtsSpeakWhenFocused);
+  const [reactionsEnabled, applyReactionsEnabled] = usePersistedState(store.getReactionsEnabled, store.setReactionsEnabled);
   const [theme, applyTheme] = usePersistedState<ThemeName>(store.getTheme, store.setTheme);
   const [hideSpaceBanner, applyHideSpaceBanner] = usePersistedState(store.getHideSpaceBanner, store.setHideSpaceBanner);
   const [launchOnStartup, setLaunchOnStartup] = useState(() => store.getLaunchOnStartup());
@@ -1306,6 +1307,7 @@ export function App(): React.JSX.Element {
               onCycleInputMode={cycleInputMode}
               onInputModeMenu={menus.openInputModeMenu}
               onReactMenu={menus.openReactionMenu}
+              reactionsEnabled={reactionsEnabled}
               onLeave={leaveRoom}
               deafened={deafened}
               onToggleDeafen={toggleDeafen}
@@ -1731,6 +1733,8 @@ export function App(): React.JSX.Element {
           onChangeChatTtsSpeakOwnMessages={applyChatTtsSpeakOwnMessages}
           chatTtsSpeakWhenFocused={chatTtsSpeakWhenFocused}
           onChangeChatTtsSpeakWhenFocused={applyChatTtsSpeakWhenFocused}
+          reactionsEnabled={reactionsEnabled}
+          onChangeReactionsEnabled={applyReactionsEnabled}
           voicePreference={localVoicePreference}
           onChangeVoicePreference={applyVoicePreference}
           analyserNode={mesh.analyserNode}

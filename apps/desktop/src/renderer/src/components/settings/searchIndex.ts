@@ -28,6 +28,7 @@ export const SETTINGS_SEARCH_INDEX: SearchEntry[] = [
   { label: 'Chat Font Size', description: 'Chat message text size', tab: 'chat', sectionId: 'section-chat-settings', keywords: ['font', 'size', 'scale', 'text', 'chat', 'zoom'] },
   { label: 'Chat Width', description: 'Room chat panel width', tab: 'chat', sectionId: 'section-chat-settings', keywords: ['width', 'panel', 'chat', 'size', 'scale'] },
   { label: 'Chat Position', description: 'Dock chat to the left or right', tab: 'chat', sectionId: 'section-chat-settings', keywords: ['chat', 'position', 'left', 'right', 'layout', 'side'] },
+  { label: 'Enable Reactions', description: 'Show floating emoji reactions and the React button', tab: 'chat', sectionId: 'section-chat-emojis', keywords: ['reactions', 'react', 'emoji', 'floating', 'disable', 'hide', 'button'] },
   { label: 'Theme', description: 'Application color theme', tab: 'ui', keywords: ['theme', 'color', 'light', 'dark', 'midnight', 'swiss', 'alabaster', 'appearance', 'colours'] },
   { label: 'Hide Space Banner', description: 'Show a compact, text-only header instead of the banner photo', tab: 'ui', keywords: ['banner', 'space', 'header', 'image', 'photo', 'minimal', 'compact'] },
   { label: 'UI Scale', description: 'Adjust overall application size', tab: 'ui', keywords: ['scale', 'zoom', 'size', 'ui', 'interface', 'accessibility', 'dpi'] },
@@ -63,6 +64,7 @@ export const SUBSECTIONS: Partial<Record<string, { label: string; id: string }[]
   ],
   chat: [
     { label: 'Chat Settings', id: 'section-chat-settings' },
+    { label: 'Emojis & Reactions', id: 'section-chat-emojis' },
     { label: 'Text-to-Speech', id: 'section-chat-tts' },
     { label: 'Keybindings', id: 'section-chat-keybindings' },
   ],

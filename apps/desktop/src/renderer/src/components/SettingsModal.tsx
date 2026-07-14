@@ -151,6 +151,7 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
     props.onChangeChatTtsSpeakName(defaults.chatTtsSpeakName);
     props.onChangeChatTtsSpeakOwnMessages(defaults.chatTtsSpeakOwnMessages);
     props.onChangeChatTtsSpeakWhenFocused(defaults.chatTtsSpeakWhenFocused);
+    props.onChangeReactionsEnabled(defaults.reactionsEnabled);
     props.onChangeVoicePreference(defaults.voicePreference);
     props.onChangeDeafenKey(defaults.deafenKey);
     props.onChangeDeafenMode(defaults.deafenMode);

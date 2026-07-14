@@ -167,6 +167,12 @@ export interface PersistedSettings {
   customEmojis: string[];
   /** Exactly 6 emojis used for quick reactions in the UI. */
   quickReactions: string[];
+  /**
+   * Show floating emoji reactions in the room and the control-bar "React"
+   * button. false = hide incoming reactions from other users AND the React
+   * button (the button's flanking divider collapses too).
+   */
+  reactionsEnabled: boolean;
 }
 
 export const DEFAULT_ROOMS: Room[] = [
@@ -246,5 +252,6 @@ export function defaultSettings(): PersistedSettings {
     hideSpaceBanner: false,
     customEmojis: [],
     quickReactions: ['🔥', '😂', '👍', '❤️', '🎉', '💀'],
+    reactionsEnabled: true,
   };
 }

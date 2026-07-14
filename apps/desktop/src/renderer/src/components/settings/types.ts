@@ -111,6 +111,8 @@ export interface SettingsModalProps {
   onChangeChatTtsSpeakOwnMessages: (on: boolean) => void;
   chatTtsSpeakWhenFocused: boolean;
   onChangeChatTtsSpeakWhenFocused: (on: boolean) => void;
+  reactionsEnabled: boolean;
+  onChangeReactionsEnabled: (on: boolean) => void;
   voicePreference: string;
   onChangeVoicePreference: (id: string) => void;
   analyserNode: AnalyserNode | null;

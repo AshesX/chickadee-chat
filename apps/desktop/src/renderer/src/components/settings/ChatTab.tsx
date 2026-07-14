@@ -20,6 +20,7 @@ type ChatTabProps = Pick<
   | 'chatTtsSpeakName' | 'onChangeChatTtsSpeakName'
   | 'chatTtsSpeakOwnMessages' | 'onChangeChatTtsSpeakOwnMessages'
   | 'chatTtsSpeakWhenFocused' | 'onChangeChatTtsSpeakWhenFocused'
+  | 'reactionsEnabled' | 'onChangeReactionsEnabled'
   | 'voicePreference' | 'onChangeVoicePreference'
   | 'chatPanelKey' | 'onChangeChatPanelKey'
   | 'ttsToggleKey' | 'onChangeTtsToggleKey'
@@ -39,6 +40,8 @@ export function ChatTab({
   onChangeChatTtsSpeakOwnMessages,
   chatTtsSpeakWhenFocused,
   onChangeChatTtsSpeakWhenFocused,
+  reactionsEnabled,
+  onChangeReactionsEnabled,
   voicePreference,
   onChangeVoicePreference,
   chatPanelKey,
@@ -90,6 +93,13 @@ export function ChatTab({
 
       <hr className="settings-divider" />
       <SettingsSection id="section-chat-emojis" title="Emojis & Reactions" />
+
+      <ToggleRow
+        label="Enable reactions"
+        hint="Show floating emoji reactions from others and the control-bar React button."
+        value={reactionsEnabled}
+        onChange={onChangeReactionsEnabled}
+      />
 
       <SettingsRow label="Quick Reactions" hint="Exactly 6 emojis shown in the quick reaction popover.">
         <EmojiListManager emojis={quickReactions} onChange={setQuickReactions} max={6} />

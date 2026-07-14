@@ -62,6 +62,8 @@ interface ControlBarProps {
   onCycleInputMode: () => void;
   onInputModeMenu: (rect: DOMRect) => void;
   onReactMenu: (rect: DOMRect) => void;
+  /** When false, the React button + its flanking divider are hidden. */
+  reactionsEnabled: boolean;
   onLeave: () => void;
   deafened: boolean;
   onToggleDeafen: () => void;
@@ -86,6 +88,7 @@ export function ControlBar({
   onCycleInputMode,
   onInputModeMenu,
   onReactMenu,
+  reactionsEnabled,
   onLeave,
   deafened,
   onToggleDeafen,
@@ -179,19 +182,23 @@ export function ControlBar({
           </button>
         </div>
 
-        <div className="control-bar__divider" />
+        {reactionsEnabled && (
+          <>
+            <div className="control-bar__divider" />
 
-        <div
-          onMouseEnter={onMouseEnterReact}
-          onMouseLeave={onMouseLeaveReact}
-          style={{ display: 'flex' }}
-        >
-          <ControlButton
-            icon={Smile}
-            label="React"
-            onClick={(e) => onReactMenu(e.currentTarget.getBoundingClientRect())}
-          />
-        </div>
+            <div
+              onMouseEnter={onMouseEnterReact}
+              onMouseLeave={onMouseLeaveReact}
+              style={{ display: 'flex' }}
+            >
+              <ControlButton
+                icon={Smile}
+                label="React"
+                onClick={(e) => onReactMenu(e.currentTarget.getBoundingClientRect())}
+              />
+            </div>
+          </>
+        )}
 
         <div className="control-bar__divider" />
 

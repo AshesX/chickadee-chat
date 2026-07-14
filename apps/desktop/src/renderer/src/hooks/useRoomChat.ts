@@ -81,7 +81,8 @@ export function useRoomChat({ signaling, displayName, colors, roomId, onNewMessa
       if (msg.type !== 'chat') return;
 
       if (msg.reaction) {
-        spawnFloat(msg.text);
+        // Honor the local "disable reactions" setting — drop incoming floats.
+        if (store.getReactionsEnabled()) spawnFloat(msg.text);
       } else {
         if (store.getSfxEnabled() && store.getSfxChatEnabled()) {
           playSfx('chat', store.getSfxVolume());
