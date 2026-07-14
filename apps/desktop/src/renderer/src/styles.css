@@ -2005,7 +2005,7 @@
    and drops its label, so the bar keeps fitting between the sidebar and the
    window edge without colliding. Chevrons are untouched — they're already
    fixed at --ctrl-chevron-w, so nothing about them moves or resizes. */
-@container control-bar-dock (max-width: 800px) {
+@container control-bar-dock (max-width: 700px) {
   .ctrl-btn:not(.ctrl-btn--chevron) {
     width: var(--ctrl-chevron-w);
   }
@@ -2740,6 +2740,7 @@
   display: flex;
   flex-wrap: wrap;
   flex-shrink: 0;
+  padding-right: 1px; /* Prevent subpixel clipping on the right-most border */
 }
 
 .seg-btn {
@@ -2751,6 +2752,11 @@
   font-size: var(--fs-1);
   font-weight: var(--fw-1);
   cursor: pointer;
+  position: relative;
+}
+
+.seg-group>.seg-btn:not(:first-child) {
+  margin-left: -1px;
 }
 
 .seg-group>.seg-btn:first-child {
@@ -2759,13 +2765,13 @@
 
 .seg-group>.seg-btn:last-child {
   border-radius: 0 var(--r-1) var(--r-1) 0;
-  border-left: none;
 }
 
 .seg-btn--active {
   border-color: var(--block-bg);
   color: var(--bg);
   background: var(--orange);
+  z-index: 1;
 }
 
 .seg-btn__cap {
