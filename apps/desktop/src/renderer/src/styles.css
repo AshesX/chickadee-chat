@@ -430,8 +430,8 @@
   flex: 1;
 }
 
-.app--compact-chat .content-area > .grid,
-.app--compact-chat .content-area > .presentation,
+.app--compact-chat .content-area>.grid,
+.app--compact-chat .content-area>.presentation,
 .app--compact-chat .control-bar-dock {
   display: none;
 }
@@ -2445,6 +2445,19 @@
   margin-top: var(--s-1);
 }
 
+/* In a settings row the manager is its own bounded column so its wrapping
+   chips (up to 24 favorites) can't spill into the label/hint column. */
+.settings-row>.emoji-manager {
+  flex: 0 1 67%;
+  min-width: 0;
+  margin-top: 0;
+}
+
+/* Top-align the label against the (often tall) emoji column. */
+.settings-row:has(> .emoji-manager) {
+  align-items: flex-start;
+}
+
 .emoji-manager__list {
   display: flex;
   flex-wrap: wrap;
@@ -2532,7 +2545,8 @@
   line-height: 1.4;
   resize: none;
   overflow-y: auto;
-  min-height: 38px; /* Approx height of the single line input */
+  min-height: 38px;
+  /* Approx height of the single line input */
   transition: border-color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
 }
 
@@ -2890,7 +2904,8 @@
   display: flex;
   flex-wrap: wrap;
   flex-shrink: 0;
-  padding-right: 1px; /* Prevent subpixel clipping on the right-most border */
+  padding-right: 1px;
+  /* Prevent subpixel clipping on the right-most border */
 }
 
 .seg-btn {
