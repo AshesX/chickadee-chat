@@ -170,12 +170,12 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
 
         {/* Left Sidebar Menu */}
         <div className="settings-sidebar">
-          <div className="settings-sidebar__search-wrap">
-            <Search size={12} className="settings-sidebar__search-icon" />
+          <div className="search-field__wrap settings-sidebar__search-wrap">
+            <Search size={12} className="search-field__icon" />
             <input
               ref={searchInputRef}
               type="text"
-              className="settings-sidebar__search-input"
+              className="search-field__input"
               placeholder="Search settings…"
               value={searchQuery}
               onChange={(e) => { setSearchQuery(e.target.value); setHighlightedIndex(-1); }}
@@ -186,7 +186,7 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
             />
             {searchQuery && (
               <button
-                className="settings-sidebar__search-clear"
+                className="search-field__clear"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => { setSearchQuery(''); setHighlightedIndex(-1); searchInputRef.current?.focus(); }}
                 aria-label="Clear search"

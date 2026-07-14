@@ -244,6 +244,65 @@
   outline: none;
 }
 
+/* ── Search field primitive (icon + input + clear-X) ───────── */
+.search-field__wrap {
+  position: relative;
+}
+
+.search-field__icon {
+  position: absolute;
+  left: var(--s-2);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--dim);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.search-field__input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--veil-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-1);
+  color: var(--text);
+  font-family: inherit;
+  font-size: var(--fs-1);
+  padding: var(--s-1) var(--s-6);
+  transition: border-color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
+}
+
+.search-field__input::placeholder {
+  color: var(--dim);
+  opacity: 0.5;
+}
+
+.search-field__input:focus {
+  border-color: var(--orange);
+  outline: none;
+}
+
+.search-field__clear {
+  position: absolute;
+  right: var(--s-2);
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  background: transparent;
+  border: none;
+  color: var(--dim);
+  cursor: pointer;
+  padding: var(--s-1);
+  border-radius: var(--r-1);
+  transition: color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
+}
+
+.search-field__clear:hover {
+  color: var(--text);
+  background: var(--veil-2);
+}
+
 /* ── Label primitive (.label) ──────────────────────────────── */
 .label {
   font-size: var(--fs-0);
@@ -2332,6 +2391,7 @@
 .emoji-picker-pop__section {
   display: flex;
   flex-direction: column;
+  gap: var(--s-1);
 }
 
 .emoji-picker-pop__grid {
@@ -2362,47 +2422,6 @@
   transform: scale(0.92);
 }
 
-.emoji-picker-pop__search-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.emoji-picker-pop__search-icon {
-  position: absolute;
-  left: var(--s-2);
-  color: var(--dim);
-}
-
-.emoji-picker-pop__search-input {
-  width: 100%;
-  background: var(--veil-1);
-  border: 1px solid var(--border);
-  border-radius: var(--r-1);
-  padding: var(--s-1) var(--s-2) var(--s-1) var(--s-5);
-  color: var(--text);
-  font-size: var(--fs-1);
-}
-
-.emoji-picker-pop__search-input:focus {
-  border-color: var(--orange);
-  outline: none;
-}
-
-.emoji-picker-pop__search-clear {
-  position: absolute;
-  right: var(--s-2);
-  background: transparent;
-  border: none;
-  color: var(--dim);
-  cursor: pointer;
-  padding: var(--s-1);
-}
-
-.emoji-picker-pop__search-clear:hover {
-  color: var(--text);
-}
-
 .emoji-picker-pop__scrollable {
   max-height: 240px;
   overflow-y: auto;
@@ -2412,17 +2431,9 @@
   padding-right: var(--s-1);
 }
 
-.emoji-picker-pop__section-title {
-  font-size: var(--fs-0);
-  color: var(--dim);
-  margin-bottom: var(--s-1);
-  font-weight: 500;
-}
-
+/* Section title + empty-state reuse the .hint primitive; these hold only the residual layout. */
 .emoji-picker-pop__empty {
   text-align: center;
-  color: var(--dim);
-  font-size: var(--fs-1);
   padding: var(--s-3) 0;
 }
 
@@ -2447,7 +2458,7 @@
   background: var(--veil-1);
   border: 1px solid var(--border);
   border-radius: var(--r-1);
-  padding: 4px 6px 4px 8px;
+  padding: var(--s-1) var(--s-2);
   font-size: var(--fs-3);
 }
 
@@ -2499,11 +2510,6 @@
 .emoji-manager__add input::placeholder {
   opacity: 0.4;
   filter: grayscale(1);
-}
-
-.emoji-manager__hint {
-  font-size: var(--fs-0);
-  color: var(--dim);
 }
 
 .chat-panel__input-row {
@@ -3520,63 +3526,9 @@
 }
 
 
+/* Search box composes the .search-field__* primitive; this holds only the sidebar-specific spacing. */
 .settings-sidebar__search-wrap {
-  position: relative;
   margin-bottom: var(--s-1);
-}
-
-.settings-sidebar__search-icon {
-  position: absolute;
-  left: 9px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--dim);
-  opacity: 0.5;
-  pointer-events: none;
-}
-
-.settings-sidebar__search-input {
-  width: 100%;
-  background: var(--veil-1);
-  border: 1px solid transparent;
-  border-radius: var(--r-1);
-  color: var(--text);
-  font-size: var(--fs-1);
-  font-family: inherit;
-  padding: var(--s-1) var(--s-6);
-  transition: border-color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
-  box-sizing: border-box;
-}
-
-.settings-sidebar__search-input::placeholder {
-  color: var(--dim);
-  opacity: 0.5;
-}
-
-.settings-sidebar__search-input:focus {
-  border-color: var(--orange);
-  background: var(--veil-1);
-  outline: none;
-}
-
-.settings-sidebar__search-clear {
-  position: absolute;
-  right: 7px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--dim);
-  opacity: 0.55;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  padding: var(--s-1);
-  border-radius: var(--r-1);
-  transition: opacity var(--dur-1) var(--ease);
-}
-
-.settings-sidebar__search-clear:hover {
-  opacity: 1;
-  background: var(--veil-2);
 }
 
 .settings-sidebar__search-results {

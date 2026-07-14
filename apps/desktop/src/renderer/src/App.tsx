@@ -236,8 +236,6 @@ export function App(): React.JSX.Element {
   const [closeBehavior, applyCloseBehavior] = usePersistedState<'quit' | 'tray'>(store.getCloseBehavior, store.setCloseBehavior);
   const [alwaysOnTop, setAlwaysOnTop] = useState(() => store.getAlwaysOnTop());
   const [activeVideoMode, setActiveVideoMode] = usePersistedState<'camera' | 'screen'>(store.getDefaultVideoAction, store.setDefaultVideoAction);
-  const [customEmojis, applyCustomEmojis] = usePersistedState(store.getCustomEmojis, store.setCustomEmojis);
-  const [quickReactions, applyQuickReactions] = usePersistedState(store.getQuickReactions, store.setQuickReactions);
 
   // Apply initial UI scale and whenever it changes
   useEffect(() => {
@@ -1735,10 +1733,6 @@ export function App(): React.JSX.Element {
           onChangeChatTtsSpeakWhenFocused={applyChatTtsSpeakWhenFocused}
           voicePreference={localVoicePreference}
           onChangeVoicePreference={applyVoicePreference}
-          customEmojis={customEmojis}
-          onChangeCustomEmojis={applyCustomEmojis}
-          quickReactions={quickReactions}
-          onChangeQuickReactions={applyQuickReactions}
           analyserNode={mesh.analyserNode}
           onClose={() => { setSettingsOpen(false); setSettingsInitialTab('profile'); }}
           avatarDataUrl={localAvatarUrl}

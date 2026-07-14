@@ -34,12 +34,12 @@ export function EmojiPickerPopover({ onSelectEmoji, onClose, anchorRect, onMouse
 
   return (
     <ChevronMenu anchorRect={anchorRect} onClose={onClose} className="emoji-picker-pop menu-surface menu-surface--frosted" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
-        <div className="emoji-picker-pop__search-wrap">
-          <Search size={12} className="emoji-picker-pop__search-icon" />
+        <div className="search-field__wrap">
+          <Search size={12} className="search-field__icon" />
           <input
             ref={searchInputRef}
             type="text"
-            className="emoji-picker-pop__search-input"
+            className="search-field__input"
             placeholder="Search emojis…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -52,7 +52,7 @@ export function EmojiPickerPopover({ onSelectEmoji, onClose, anchorRect, onMouse
           />
           {searchQuery && (
             <button
-              className="emoji-picker-pop__search-clear"
+              className="search-field__clear"
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => setSearchQuery('')}
             >
@@ -65,7 +65,7 @@ export function EmojiPickerPopover({ onSelectEmoji, onClose, anchorRect, onMouse
           {displaySections.map((cat) => (
             cat.emojis.length > 0 && (
               <div key={cat.name} className="emoji-picker-pop__section">
-                {displaySections.length > 1 && <div className="emoji-picker-pop__section-title">{cat.name}</div>}
+                {displaySections.length > 1 && <div className="hint">{cat.name}</div>}
                 <div className="emoji-picker-pop__grid">
                   {cat.emojis.map((emoji) => (
                     <button
@@ -81,7 +81,7 @@ export function EmojiPickerPopover({ onSelectEmoji, onClose, anchorRect, onMouse
             )
           ))}
           {searchQuery.trim() && searchResults.length === 0 && (
-            <div className="emoji-picker-pop__empty">No emojis found</div>
+            <div className="hint emoji-picker-pop__empty">No emojis found</div>
           )}
         </div>
     </ChevronMenu>
