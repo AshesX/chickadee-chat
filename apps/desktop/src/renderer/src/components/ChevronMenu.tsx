@@ -1,4 +1,5 @@
 import { useState, useLayoutEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 
 /**
  * Centers a popover above its anchor button, clamped to stay 8px inside the
@@ -63,7 +64,10 @@ export function ChevronMenu({
     window.innerHeight
   );
 
-  return (
+  // Portaled to document.body so the fixed backdrop + menu escape `.main`'s
+  // stacking context (z-index:1) — otherwise they paint beneath the sidebar
+  // (z-index:2) whenever the popover's clamped position overlaps it.
+  return createPortal(
     <>
       <div className="backdrop backdrop--dropdown" onClick={onClose} />
       <div
@@ -81,6 +85,7 @@ export function ChevronMenu({
       >
         {children}
       </div>
-    </>
+    </>,
+    document.body,
   );
 }
