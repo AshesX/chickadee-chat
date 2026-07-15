@@ -618,6 +618,7 @@
 .room-row--active:hover {
   background: var(--active-bg);
   color: var(--block-fg);
+  outline: 1px solid var(--orange);
 }
 
 .room-row--create:active {
