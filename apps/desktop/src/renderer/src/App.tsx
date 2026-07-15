@@ -801,19 +801,23 @@ export function App(): React.JSX.Element {
     [sendFileTo],
   );
 
-  // Sidebar actions that open a real modal (Settings, Create/Rename Room, Space
-  // Settings, Create/Join Space) need real screen space, so expand the window
-  // first if it's currently docked to the compact sidebar-only strip.
-  const openExpanded = useCallback(
-    (action: () => void) => {
-      if (compactMode) {
-        setCompactMode(false);
-        store.setCompactMode(false);
-      }
-      action();
-    },
-    [compactMode],
-  );
+  // Sidebar actions open a real modal (Settings, Create/Rename Room, Space Settings,
+  // Create/Join Space) that needs more width than the compact dock strip. Rather than
+  // leave compact mode (which would re-show the room + re-decode video behind the
+  // modal, and persist the exit), temporarily widen the OS window while any of them is
+  // open — the app stays compact and snaps back to the dock on close.
+  const overlayNeedsSpace =
+    compactMode &&
+    (settingsOpen ||
+      createOpen ||
+      renameTarget != null ||
+      spaceSettingsTarget != null ||
+      spaceJoin.createSpaceOpen ||
+      spaceJoin.joinSpaceOpen);
+
+  useEffect(() => {
+    window.chickadee?.windowControls?.setOverlayExpand?.(overlayNeedsSpace);
+  }, [overlayNeedsSpace]);
 
   useEffect(() => {
     window.chickadee?.windowControls?.setCompact?.(
@@ -1176,9 +1180,9 @@ export function App(): React.JSX.Element {
               setModNotice('You already manage a room — delete it to create another.');
               return;
             }
-            openExpanded(() => setCreateOpen(true));
+            setCreateOpen(true);
           }}
-          onRequestRename={(room) => openExpanded(() => setRenameTarget(room))}
+          onRequestRename={(room) => setRenameTarget(room)}
           onRemoveRoom={removeRoom}
           canManageRoom={canManageRoom}
           myUserId={userId}
@@ -1187,14 +1191,14 @@ export function App(): React.JSX.Element {
           selfColor={selfColor}
           selfAvatarUrl={localAvatarUrl}
           online={signaling.status === 'connected'}
-          onOpenSettings={() => openExpanded(() => setSettingsOpen(true))}
+          onOpenSettings={() => setSettingsOpen(true)}
           spaces={spaces}
           activeSpaceId={currentSpaceId}
           onSelectSpace={switchSpace}
-          onCreateSpace={() => openExpanded(spaceJoin.openCreateSpace)}
-          onJoinSpace={() => openExpanded(spaceJoin.openJoinSpace)}
+          onCreateSpace={spaceJoin.openCreateSpace}
+          onJoinSpace={spaceJoin.openJoinSpace}
           onDeleteSpace={deleteSpace}
-          onSpaceSettings={(id) => openExpanded(() => setSpaceSettingsTarget(id))}
+          onSpaceSettings={(id) => setSpaceSettingsTarget(id)}
           selfStatus={selfStatus}
           onChangeStatus={applyStatus}
           roomsCollapsed={roomsSectionCollapsed}

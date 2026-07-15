@@ -17,6 +17,12 @@ export const DEFAULT_HEIGHT = 720;
 export const COMPACT_CHAT_MIN_WIDTH = 520; // COMPACT_MIN_WIDTH + a usable chat minimum
 export const COMPACT_CHAT_MAX_WIDTH = 960; // generous but still a "dock", not full view
 
+/** Width the docked window temporarily grows to while a sidebar modal (Settings,
+ *  Create/Rename Room, Space Settings, Create/Join Space) is open — enough to host
+ *  the settings panel above its 900px fullscreen breakpoint. The app stays in
+ *  compact mode; the window snaps back to the dock width on close. */
+export const OVERLAY_EXPAND_WIDTH = 960;
+
 /** Clamp a requested compact-dock width to the allowed range. `hasChat` widens
  *  the range to the compact+chat bounds. */
 export function clampCompactWidth(px: number, hasChat = false): number {

@@ -23,6 +23,7 @@ import {
   DEFAULT_HEIGHT,
   NORMAL_MIN_HEIGHT,
   NORMAL_MIN_WIDTH,
+  OVERLAY_EXPAND_WIDTH,
   clampCompactWidth,
 } from './windowSize';
 import { registerPushToTalk, handleBeforeInput, setHotkeyMainWindow, stopHotkeys } from './hotkeys';
@@ -64,6 +65,12 @@ let isCompactChat = false;
 // the dock at).
 let savedFullWidth: number | null = null;
 let wasMaximized = false;
+// A sidebar modal (Settings, etc.) needs more width than the dock strip provides,
+// so while one is open the docked window temporarily widens WITHOUT leaving compact
+// mode. Distinct from the compact↔full transition above: compactMode never flips, so
+// the docked layout + detached video stay put and this restores the exact dock width.
+let overlayExpanded = false;
+let savedCompactWidth: number | null = null;
 
 function registerWindowControls(): void {
   ipcMain.on('chickadee:window-minimize', (e) => BrowserWindow.fromWebContents(e.sender)?.minimize());
@@ -84,6 +91,10 @@ function registerWindowControls(): void {
       // bounds below, so it can't share the old "compact === isCompact" bail-out.
       const hasChat = chatWidth != null;
       if (compact === isCompact && (!compact || hasChat === isCompactChat)) return;
+      // A real compact enter/exit supersedes any overlay expansion — drop its saved
+      // state so it can't strand the width cap or restore a stale dock width.
+      overlayExpanded = false;
+      savedCompactWidth = null;
       if (compact) {
         if (!isCompact) {
           wasMaximized = win.isMaximized();
@@ -132,7 +143,7 @@ function registerWindowControls(): void {
   // Live width-only resize while docked (in-app sidebar drag handle + slider).
   ipcMain.on('chickadee:window-set-width', (e, px: number) => {
     const win = BrowserWindow.fromWebContents(e.sender);
-    if (!win || !isCompact) return;
+    if (!win || !isCompact || overlayExpanded) return;
     const bounds = win.getBounds();
     win.setBounds({
       x: bounds.x,
@@ -140,6 +151,28 @@ function registerWindowControls(): void {
       width: clampCompactWidth(px, isCompactChat),
       height: bounds.height,
     });
+  });
+  // Temporarily widen the docked window to host a modal, then restore. Keeps the
+  // app in compact mode (compactMode never flips), so only the window size changes —
+  // no room-view flash, no video re-decode, no persisted exit.
+  ipcMain.on('chickadee:window-set-overlay-expand', (e, expand: boolean) => {
+    const win = BrowserWindow.fromWebContents(e.sender);
+    if (!win) return;
+    if (expand) {
+      if (!isCompact || overlayExpanded) return;
+      overlayExpanded = true;
+      const b = win.getBounds();
+      savedCompactWidth = b.width;
+      win.setMaximumSize(0, 0); // lift the compact cap so the overlay gets room
+      win.setBounds({ x: b.x, y: b.y, width: OVERLAY_EXPAND_WIDTH, height: b.height });
+    } else {
+      if (!overlayExpanded) return;
+      overlayExpanded = false;
+      win.setMaximumSize(isCompactChat ? COMPACT_CHAT_MAX_WIDTH : COMPACT_MAX_WIDTH, 0);
+      const b = win.getBounds();
+      win.setBounds({ x: b.x, y: b.y, width: savedCompactWidth ?? COMPACT_WIDTH, height: b.height });
+      savedCompactWidth = null;
+    }
   });
 }
 
@@ -205,7 +238,7 @@ function createWindow(): void {
   // (edge drag, Aero snap, double-click-maximize). setMaximumSize covers normal
   // edge drags, but snap/maximize can bypass it; clamp the requested bounds here.
   window.on('will-resize', (e, newBounds) => {
-    if (!isCompact) return;
+    if (!isCompact || overlayExpanded) return;
     const clamped = clampCompactWidth(newBounds.width, isCompactChat);
     if (clamped !== newBounds.width) {
       e.preventDefault();

@@ -110,6 +110,10 @@ const api = {
       ipcRenderer.send('chickadee:window-set-compact', compact, compactWidth, chatWidth),
     /** Live width-only resize of the docked compact window (no-op when not compact). */
     setWindowWidth: (px: number): void => ipcRenderer.send('chickadee:window-set-width', px),
+    /** Temporarily widen the docked window to host a modal, then restore. Stays in
+     *  compact mode; no-op when not compact. */
+    setOverlayExpand: (expand: boolean): void =>
+      ipcRenderer.send('chickadee:window-set-overlay-expand', expand),
   },
   /**
    * Subscribe to window-visibility changes (false when minimized/hidden, true
