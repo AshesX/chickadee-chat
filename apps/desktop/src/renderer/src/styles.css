@@ -516,25 +516,6 @@
   transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
 }
 
-/* Subtle silver shimmer lines framing each section header, top and bottom. */
-.sidebar__section-header::before,
-.sidebar__section-header::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 1px;
-  pointer-events: none;
-  background: var(--shimmer-gradient);
-}
-
-.sidebar__section-header::before {
-  top: 0;
-}
-
-.sidebar__section-header::after {
-  bottom: 0;
-}
 
 .sidebar__section-header:hover {
   background: var(--veil-2);
@@ -617,7 +598,7 @@
 .room-row--active,
 .room-row--active:hover {
   background: var(--active-bg);
-  color: var(--block-fg);
+  color: var(--active-text);
   outline: 1px solid var(--orange);
 }
 
@@ -806,18 +787,16 @@
   flex-shrink: 0;
   border-radius: var(--r-1);
 
-  /* Sits on the dark active row in BOTH themes (--active-bg is ink/indigo),
-     so its washes derive from --block-fg — the "light ink on a dark block"
-     token — rather than theme-blind raw white alphas. */
-  border: 1px solid color-mix(in srgb, var(--block-fg) 16%, transparent);
-  background: color-mix(in srgb, var(--block-fg) 10%, transparent);
-  color: var(--block-fg);
+  /* Sits on the active row, whose text color is --active-text */
+  border: 1px solid color-mix(in srgb, var(--active-text) 16%, transparent);
+  background: color-mix(in srgb, var(--active-text) 10%, transparent);
+  color: var(--active-text);
   transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
 }
 
 .room-row__mini-btn:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--block-fg) 20%, transparent);
-  border-color: color-mix(in srgb, var(--block-fg) 30%, transparent);
+  background: color-mix(in srgb, var(--active-text) 20%, transparent);
+  border-color: color-mix(in srgb, var(--active-text) 30%, transparent);
 }
 
 .room-row__mini-btn:active:not(:disabled) {
@@ -1136,14 +1115,14 @@
 .title-bar__logo {
   width: 20px;
   height: 20px;
-  --logo-fill: var(--dim);
+  --logo-fill: var(--text);
 }
 
 .title-bar__wordmark {
   font-weight: var(--fw-2);
   font-size: var(--fs-1);
   letter-spacing: 0.05em;
-  color: var(--dim);
+  color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   max-width: 200px;

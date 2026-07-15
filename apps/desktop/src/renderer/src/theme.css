@@ -23,9 +23,6 @@
   --orange: #F59E0B;
   --red: #c20114;
 
-  --silver: color-mix(in srgb, white 62%, black 38%);
-  --shimmer-gradient: linear-gradient(90deg, transparent 0%, var(--silver) 50%, transparent 100%);
-
   /* Cool secondary — reserved for "live" moments (spotlight, screen-share).
      Deepened here vs. the dark-theme value so it holds contrast on paper. */
   --secondary: #7c3aed;
@@ -37,8 +34,8 @@
 
   /* Actions / active */
   --gradient: linear-gradient(135deg, var(--orange), #F59E0B);
-  --active-bg: var(--text);
-  --active-text: var(--card);
+  --active-bg: var(--veil-2);
+  --active-text: var(--text);
 
   /* Supporting */
   --scrollbar: #c7c7c2;
@@ -49,7 +46,7 @@
   --knob: #ffffff;
 
   /* Logo */
-  --logo-fill: #1f1300;
+  --logo-fill: var(--text);
 
   /* Structural tokens */
   --tint: #000000;
@@ -171,8 +168,6 @@
   --fade: #6c7280;
 
   --secondary: #a78bfa;
-
-  --silver: color-mix(in srgb, white 82%, black 18%);
 
   --active-bg: #232a3c;
   --active-text: #ffffff;
