@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, ChevronDown } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { sanitizeBannerDataUrl, type SpaceInfo } from '@chickadee/shared';
 import { useDismissTimeout } from '../../hooks/useDismissTimeout';
 import { SIDEBAR_HEADER_HEIGHT_PX, SIDEBAR_HEADER_MINIMAL_HEIGHT_PX } from '../../lib/spaceHeader';
