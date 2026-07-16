@@ -8,6 +8,9 @@ import {
   MAX_FILE_NAME_LEN,
   MAX_FILE_SIZE_BYTES,
   MAX_ID_LEN,
+  MAX_SOUNDBOARD_CLIP_NAME_LEN,
+  MAX_SOUNDBOARD_CLIPS,
+  MAX_SOUNDBOARD_DURATION_MS,
   clampString,
   sanitizeAccentColor,
   sanitizeAvatarDataUrl,
@@ -16,7 +19,10 @@ import {
   sanitizeFileOfferFiles,
   sanitizeFileOfferMeta,
   sanitizeSaveFileName,
+  sanitizeSoundboardClipMeta,
+  sanitizeSoundboardClips,
   sanitizeSoundboardHash,
+  sanitizeSoundboardTriggerSource,
   sanitizeStatus,
   suffixedFileName,
 } from './sanitize';
@@ -280,5 +286,96 @@ describe('sanitizeSoundboardHash', () => {
     expect(sanitizeSoundboardHash(null)).toBeNull();
     expect(sanitizeSoundboardHash(42)).toBeNull();
     expect(sanitizeSoundboardHash({})).toBeNull();
+  });
+});
+
+describe('sanitizeSoundboardClipMeta', () => {
+  const hash = 'a'.repeat(64);
+
+  it('passes a well-formed entry through', () => {
+    expect(sanitizeSoundboardClipMeta({ hash, name: 'Air Horn', durationMs: 2500 })).toEqual({
+      hash,
+      name: 'Air Horn',
+      durationMs: 2500,
+    });
+  });
+
+  it('rejects an invalid hash', () => {
+    expect(sanitizeSoundboardClipMeta({ hash: 'not-a-hash', name: 'x', durationMs: 100 })).toBeNull();
+  });
+
+  it('rejects an empty name', () => {
+    expect(sanitizeSoundboardClipMeta({ hash, name: '', durationMs: 100 })).toBeNull();
+  });
+
+  it('rejects a negative, non-finite, or over-cap duration', () => {
+    expect(sanitizeSoundboardClipMeta({ hash, name: 'x', durationMs: -1 })).toBeNull();
+    expect(sanitizeSoundboardClipMeta({ hash, name: 'x', durationMs: Infinity })).toBeNull();
+    expect(sanitizeSoundboardClipMeta({ hash, name: 'x', durationMs: MAX_SOUNDBOARD_DURATION_MS + 1 })).toBeNull();
+    expect(sanitizeSoundboardClipMeta({ hash, name: 'x', durationMs: MAX_SOUNDBOARD_DURATION_MS })).not.toBeNull();
+  });
+
+  it('clamps an over-long name rather than rejecting', () => {
+    const entry = sanitizeSoundboardClipMeta({ hash, name: 'x'.repeat(500), durationMs: 100 });
+    expect(entry!.name).toHaveLength(MAX_SOUNDBOARD_CLIP_NAME_LEN);
+  });
+
+  it('rejects non-objects and missing fields', () => {
+    expect(sanitizeSoundboardClipMeta(null)).toBeNull();
+    expect(sanitizeSoundboardClipMeta('x')).toBeNull();
+    expect(sanitizeSoundboardClipMeta({ hash })).toBeNull();
+  });
+});
+
+describe('sanitizeSoundboardClips', () => {
+  const hash1 = '1'.repeat(64);
+  const hash2 = '2'.repeat(64);
+
+  it('returns [] for non-arrays', () => {
+    expect(sanitizeSoundboardClips(undefined)).toEqual([]);
+    expect(sanitizeSoundboardClips('x')).toEqual([]);
+  });
+
+  it('drops malformed entries and keeps the rest', () => {
+    expect(
+      sanitizeSoundboardClips([
+        { hash: hash1, name: 'A', durationMs: 100 },
+        null,
+        { hash: 'bad', name: 'B', durationMs: 100 },
+        { hash: hash2, name: 'C', durationMs: 200 },
+      ]),
+    ).toEqual([
+      { hash: hash1, name: 'A', durationMs: 100 },
+      { hash: hash2, name: 'C', durationMs: 200 },
+    ]);
+  });
+
+  it('de-duplicates by hash (first wins) and caps the list length', () => {
+    const deduped = sanitizeSoundboardClips([
+      { hash: hash1, name: 'First', durationMs: 100 },
+      { hash: hash1, name: 'Second', durationMs: 200 },
+    ]);
+    expect(deduped).toEqual([{ hash: hash1, name: 'First', durationMs: 100 }]);
+
+    const many = Array.from({ length: MAX_SOUNDBOARD_CLIPS + 10 }, (_, i) => ({
+      hash: i.toString().padStart(64, '0'),
+      name: `clip-${i}`,
+      durationMs: 100,
+    }));
+    expect(sanitizeSoundboardClips(many)).toHaveLength(MAX_SOUNDBOARD_CLIPS);
+  });
+});
+
+describe('sanitizeSoundboardTriggerSource', () => {
+  it('accepts "preset" and "custom"', () => {
+    expect(sanitizeSoundboardTriggerSource('preset')).toBe('preset');
+    expect(sanitizeSoundboardTriggerSource('custom')).toBe('custom');
+  });
+
+  it('rejects anything else', () => {
+    expect(sanitizeSoundboardTriggerSource('other')).toBeNull();
+    expect(sanitizeSoundboardTriggerSource('')).toBeNull();
+    expect(sanitizeSoundboardTriggerSource(null)).toBeNull();
+    expect(sanitizeSoundboardTriggerSource(undefined)).toBeNull();
   });
 });

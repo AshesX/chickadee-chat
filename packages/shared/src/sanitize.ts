@@ -182,6 +182,64 @@ export function sanitizeSoundboardHash(value: unknown): string | null {
   return typeof value === 'string' && SOUNDBOARD_HASH_RE.test(value) ? value : null;
 }
 
+/** Max length of a soundboard clip's display name (relayed space-wide). */
+export const MAX_SOUNDBOARD_CLIP_NAME_LEN = 80;
+/** Cap on one peer's advertised custom-clip library — an anti-nonsense bound. */
+export const MAX_SOUNDBOARD_CLIPS = 200;
+/** Ceiling on a clip's declared duration — the 5s ingest trim plus generous slack. */
+export const MAX_SOUNDBOARD_DURATION_MS = 5_500;
+
+/**
+ * Validate one untrusted soundboard clip manifest entry. Returns the
+ * sanitized `{hash, name, durationMs}`, or null to drop just this entry
+ * (unlike a file-offer batch, a manifest is an additive/resilient list, not a
+ * one-shot transactional offer, so one bad entry doesn't reject the rest).
+ */
+export function sanitizeSoundboardClipMeta(
+  value: unknown,
+): { hash: string; name: string; durationMs: number } | null {
+  if (!value || typeof value !== 'object') return null;
+  const hash = sanitizeSoundboardHash((value as { hash?: unknown }).hash);
+  if (!hash) return null;
+  const name = clampString((value as { name?: unknown }).name, MAX_SOUNDBOARD_CLIP_NAME_LEN);
+  if (!name) return null;
+  const durationMs = (value as { durationMs?: unknown }).durationMs;
+  if (typeof durationMs !== 'number' || !Number.isFinite(durationMs) || durationMs < 0 || durationMs > MAX_SOUNDBOARD_DURATION_MS) {
+    return null;
+  }
+  return { hash, name, durationMs };
+}
+
+/**
+ * Validate an untrusted soundboard manifest (`soundboard-manifest-state`):
+ * drops malformed entries, de-duplicates by hash (first wins), and caps the
+ * list — styled after `sanitizeBannedUsers`, not `sanitizeFileOfferFiles`.
+ */
+export function sanitizeSoundboardClips(value: unknown): { hash: string; name: string; durationMs: number }[] {
+  if (!Array.isArray(value)) return [];
+  const out: { hash: string; name: string; durationMs: number }[] = [];
+  const seen = new Set<string>();
+  for (const entry of value) {
+    if (out.length >= MAX_SOUNDBOARD_CLIPS) break;
+    const meta = sanitizeSoundboardClipMeta(entry);
+    if (!meta || seen.has(meta.hash)) continue;
+    seen.add(meta.hash);
+    out.push(meta);
+  }
+  return out;
+}
+
+/** The valid soundboard clip sources. */
+export const SOUNDBOARD_TRIGGER_SOURCES = ['preset', 'custom'] as const;
+export type SoundboardTriggerSource = (typeof SOUNDBOARD_TRIGGER_SOURCES)[number];
+
+/** Narrow an untrusted value to a SoundboardTriggerSource, or null if invalid. */
+export function sanitizeSoundboardTriggerSource(value: unknown): SoundboardTriggerSource | null {
+  return SOUNDBOARD_TRIGGER_SOURCES.includes(value as SoundboardTriggerSource)
+    ? (value as SoundboardTriggerSource)
+    : null;
+}
+
 /** The valid presence statuses. */
 export const PRESENCE_STATUSES = ['online', 'idle', 'dnd'] as const;
 export type PresenceStatus = (typeof PRESENCE_STATUSES)[number];

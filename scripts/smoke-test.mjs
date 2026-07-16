@@ -9,7 +9,7 @@ const URL = 'ws://localhost:8080';
 const ROOM = 'smoke';
 const SPACE = 'smoke-space';
 
-function client(displayName, { room = ROOM, userId = `uid-${displayName}`, spaceId = SPACE, rooms, bannerDataUrl } = {}) {
+function client(displayName, { room = ROOM, userId = `uid-${displayName}`, spaceId = SPACE, rooms, bannerDataUrl, soundboardClips } = {}) {
   const events = [];
   const ws = new WebSocket(URL);
   const ready = new Promise((resolve) => {
@@ -18,6 +18,7 @@ function client(displayName, { room = ROOM, userId = `uid-${displayName}`, space
       if (userId !== null) join.userId = userId;
       if (rooms) join.rooms = rooms;
       if (bannerDataUrl !== undefined) join.bannerDataUrl = bannerDataUrl;
+      if (soundboardClips) join.soundboardClips = soundboardClips;
       ws.send(JSON.stringify(join));
     });
     ws.on('message', (d) => {
@@ -246,6 +247,71 @@ check(
   'invalid accent-state is sanitized to ""',
   a.events.some((ev) => ev.type === 'accent-state' && ev.from === wc.selfId && ev.accentColor === ''),
 );
+
+// Soundboard manifest mirror — C advertises a custom-clip library, A/D told
+// (room broadcast, like avatar/accent), C not echoed. One malformed entry
+// (bad hash) is dropped while the well-formed one survives.
+const CLIP_HASH = '1'.repeat(64);
+c.ws.send(
+  JSON.stringify({
+    type: 'soundboard-manifest-state',
+    clips: [
+      { hash: CLIP_HASH, name: 'Air Horn', durationMs: 2000 },
+      { hash: 'not-a-real-hash', name: 'Bad', durationMs: 100 },
+    ],
+  }),
+);
+await wait(200);
+const cManifest = (ev) => ev.type === 'soundboard-manifest-state' && ev.from === wc.selfId;
+check(
+  'A receives C soundboard-manifest-state with the malformed entry dropped',
+  a.events.some((ev) => cManifest(ev) && ev.clips.length === 1 && ev.clips[0].hash === CLIP_HASH),
+);
+check('D receives C soundboard-manifest-state', d.events.some(cManifest));
+check('C does not receive its own soundboard-manifest-state', !c.events.some((ev) => ev.type === 'soundboard-manifest-state'));
+
+// Soundboard trigger relay — C triggers a preset, A/D told (room-only, like
+// chat), C not echoed. An invalid source is silently dropped (no broadcast).
+c.ws.send(JSON.stringify({ type: 'soundboard-trigger', source: 'preset', clipId: 'air-horn' }));
+await wait(200);
+const cTrigger = (ev) => ev.type === 'soundboard-trigger' && ev.from === wc.selfId;
+check(
+  'A receives C soundboard-trigger',
+  a.events.some((ev) => cTrigger(ev) && ev.source === 'preset' && ev.clipId === 'air-horn'),
+);
+check('D receives C soundboard-trigger', d.events.some(cTrigger));
+check('C does not receive its own soundboard-trigger', !c.events.some((ev) => ev.type === 'soundboard-trigger'));
+
+const preInvalidTriggerCount = a.events.filter((ev) => ev.type === 'soundboard-trigger').length;
+c.ws.send(JSON.stringify({ type: 'soundboard-trigger', source: 'bogus', clipId: 'x' }));
+await wait(150);
+check(
+  'an invalid soundboard-trigger source is silently dropped (no broadcast)',
+  a.events.filter((ev) => ev.type === 'soundboard-trigger').length === preInvalidTriggerCount,
+);
+
+// The join message itself seeds soundboardClips (like avatarDataUrl) — a peer
+// who already had a library before connecting shows it correctly to the next joiner.
+const foxtrot = client('Foxtrot', {
+  userId: 'uid-foxtrot',
+  soundboardClips: [{ hash: '2'.repeat(64), name: 'Ding', durationMs: 500 }],
+});
+await foxtrot.ready;
+const golf = client('Golf', { userId: 'uid-golf' });
+const wg = await golf.ready;
+const foxtrotInWelcome = wg.peers.find((p) => p.displayName === 'Foxtrot');
+check(
+  'welcome seeds a join-time soundboardClips library for an existing peer',
+  !!foxtrotInWelcome && foxtrotInWelcome.soundboardClips?.length === 1 && foxtrotInWelcome.soundboardClips[0].hash === '2'.repeat(64),
+);
+check(
+  // Alpha never sent soundboard-manifest-state (unlike Charlie, used by the
+  // manifest-mirror test above) and joined without soundboardClips.
+  'a peer with no soundboardClips shows an empty library in welcome',
+  wg.peers.find((p) => p.displayName === 'Alpha')?.soundboardClips?.length === 0,
+);
+foxtrot.ws.close();
+golf.ws.close();
 
 // Phase 6C: a join without userId still gets a non-empty userId (server fallback).
 const f1 = client('Foxtrot', { room: 'fb', userId: null });

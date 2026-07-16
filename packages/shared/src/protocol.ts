@@ -50,6 +50,12 @@ export interface Peer {
    * watching nobody (the opt-in default).
    */
   videoSubscriptions: string[];
+  /**
+   * This peer's custom (non-preset) soundboard clips, advertised for P2P
+   * sync — presets need no sync since they're bundled identically in every
+   * build. Space-wide identity data, like avatarDataUrl.
+   */
+  soundboardClips: SoundboardClipMeta[];
 }
 
 /** A sidebar room entry (local; the server uses arbitrary room ids). */
@@ -115,9 +121,21 @@ export interface SoundboardLibraryClip {
   sourceFile: string;
 }
 
+/**
+ * A custom soundboard clip as advertised to peers (the wire-protocol shape).
+ * Unlike `SoundboardLibraryClip`, this never carries `sourceFile` — peers
+ * don't need to know your local inbox filename, only enough to detect a
+ * missing clip (hash) and render it before it's synced (name/durationMs).
+ */
+export interface SoundboardClipMeta {
+  hash: string;
+  name: string;
+  durationMs: number;
+}
+
 /** Messages sent from a client up to the signaling server. */
 export type ClientMessage =
-  | { type: 'join'; spaceId: string; room: RoomId | null; displayName: string; userId: string; rooms: Room[]; status?: 'online' | 'idle' | 'dnd'; avatarDataUrl?: string | null; voicePreference?: string; accentColor?: string; secret?: string; bannerDataUrl?: string | null }
+  | { type: 'join'; spaceId: string; room: RoomId | null; displayName: string; userId: string; rooms: Room[]; status?: 'online' | 'idle' | 'dnd'; avatarDataUrl?: string | null; voicePreference?: string; accentColor?: string; secret?: string; bannerDataUrl?: string | null; soundboardClips?: SoundboardClipMeta[] }
   | { type: 'join-room'; room: RoomId | null }
   | { type: 'offer'; to: PeerId; sdp: RTCSessionDescriptionInit }
   | { type: 'answer'; to: PeerId; sdp: RTCSessionDescriptionInit }
@@ -145,6 +163,12 @@ export type ClientMessage =
   | { type: 'avatar-state'; avatarDataUrl: string | null }
   | { type: 'voice-state'; voicePreference: string }
   | { type: 'accent-state'; accentColor: string }
+  // This peer's own custom-clip library changed; broadcast to the whole space
+  // (like avatar/accent) since your soundboard is identity-level, not room-level.
+  | { type: 'soundboard-manifest-state'; clips: SoundboardClipMeta[] }
+  // A soundboard clip was triggered; broadcast ROOM-only (like chat) — playback
+  // should only reach peers currently sharing a voice room, unlike the manifest.
+  | { type: 'soundboard-trigger'; source: 'preset' | 'custom'; clipId: string }
   // This peer's video opt-in state: which userIds it has joined (subscriptions)
   // and whether it's rendering video now (wantsVideo false while docked/compact).
   | { type: 'sink-state'; subscriptions: string[]; wantsVideo: boolean }
@@ -239,6 +263,10 @@ export type ServerMessage =
   | { type: 'voice-state'; from: PeerId; voicePreference: string }
   // A peer changed their accent color; broadcast to all space members.
   | { type: 'accent-state'; from: PeerId; accentColor: string }
+  // A peer's custom soundboard library changed; broadcast to all space members.
+  | { type: 'soundboard-manifest-state'; from: PeerId; clips: SoundboardClipMeta[] }
+  // A peer triggered a soundboard clip; broadcast to the room only.
+  | { type: 'soundboard-trigger'; from: PeerId; source: 'preset' | 'custom'; clipId: string }
   // A peer updated its video opt-in state (joined subscriptions and/or dock
   // state); broadcast to the room (the mesh is room-scoped).
   | { type: 'sink-state'; from: PeerId; subscriptions: string[]; wantsVideo: boolean }

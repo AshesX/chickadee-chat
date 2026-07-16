@@ -7,6 +7,7 @@ import {
   sanitizeAccentColor,
   sanitizeAvatarDataUrl,
   sanitizeBannerDataUrl,
+  sanitizeSoundboardClips,
   sanitizeStatus,
   type ClientMessage,
   type Peer,
@@ -123,6 +124,7 @@ export function handleJoin(socket: WebSocket, msg: Extract<ClientMessage, { type
     accentColor: sanitizeAccentColor(msg.accentColor),
     wantsVideo: true,
     videoSubscriptions: [],
+    soundboardClips: sanitizeSoundboardClips(msg.soundboardClips),
   };
   const conn: Connection = { socket, peer, space: spaceId, room: fullRoomId };
 

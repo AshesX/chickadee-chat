@@ -19,6 +19,7 @@ import {
   handleVoiceState,
 } from './handlers/mirrors';
 import { handleClaimSpotlight, handleReleaseSpotlight } from './handlers/spotlight';
+import { handleSoundboardManifestState, handleSoundboardTrigger } from './handlers/soundboard';
 import { handleClaimOwnership, handleRenameSpace, handleSetBanner, handleUpdateRooms } from './handlers/spaceMeta';
 import {
   handleBanUser,
@@ -142,6 +143,10 @@ wss.on('connection', (socket) => {
       handleReleaseSpotlight(conn);
     } else if (msg.type === 'accent-state') {
       handleAccentState(conn, msg.accentColor);
+    } else if (msg.type === 'soundboard-manifest-state') {
+      handleSoundboardManifestState(conn, msg.clips);
+    } else if (msg.type === 'soundboard-trigger') {
+      handleSoundboardTrigger(conn, msg.source, msg.clipId);
     } else if (msg.type === 'update-rooms') {
       handleUpdateRooms(conn, msg.rooms);
     } else if (msg.type === 'rename-space') {

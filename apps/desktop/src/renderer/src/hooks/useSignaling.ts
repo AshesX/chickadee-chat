@@ -7,6 +7,7 @@ import {
   type PeerId,
   type Room,
   type ServerMessage,
+  type SoundboardClipMeta,
   type SpacePresence,
 } from '@chickadee/shared';
 import {
@@ -58,7 +59,7 @@ export interface SignalingState {
 }
 
 export interface Signaling extends SignalingState {
-  join: (spaceId: string, room: string | null, displayName: string, userId: string, rooms: Room[], status: 'online' | 'idle' | 'dnd', avatarDataUrl?: string | null, voicePreference?: string, accentColor?: string, joinSecret?: string, signalingUrl?: string, bannerDataUrl?: string | null) => void;
+  join: (spaceId: string, room: string | null, displayName: string, userId: string, rooms: Room[], status: 'online' | 'idle' | 'dnd', avatarDataUrl?: string | null, voicePreference?: string, accentColor?: string, joinSecret?: string, signalingUrl?: string, bannerDataUrl?: string | null, soundboardClips?: SoundboardClipMeta[]) => void;
   leave: () => void;
   joinRoom: (room: string | null) => void;
   /** Send a message to the server (used by WebRTC negotiation + mic-state). */
@@ -74,6 +75,13 @@ export interface Signaling extends SignalingState {
   claimSpotlight: (kind: 'screen' | 'camera', force?: boolean) => void;
   /** Release the stage if this client holds it. */
   releaseSpotlight: () => void;
+  /**
+   * Keep the join-payload ref fresh so a future reconnect's `join` message
+   * carries the current custom-clip library (mirrors how avatar/accent stay
+   * current — no separate reannounce path needed since the manifest already
+   * rides `join` directly, unlike media state).
+   */
+  setSoundboardClips: (clips: SoundboardClipMeta[]) => void;
 }
 
 const INITIAL: SignalingState = {
@@ -247,6 +255,13 @@ export function applyPresenceUpdate(state: SignalingState, msg: ServerMessage): 
           p.id === msg.from ? { ...p, accentColor: msg.accentColor } : p,
         ),
       };
+    case 'soundboard-manifest-state':
+      return {
+        ...state,
+        peers: state.peers.map((p) =>
+          p.id === msg.from ? { ...p, soundboardClips: msg.clips } : p,
+        ),
+      };
     case 'sink-state':
       return {
         ...state,
@@ -288,6 +303,7 @@ export function useSignaling(): Signaling {
   const statusRef = useRef<'online' | 'idle' | 'dnd'>('online');
   const avatarDataUrlRef = useRef<string | null>(null);
   const bannerDataUrlRef = useRef<string | null>(null);
+  const soundboardClipsRef = useRef<SoundboardClipMeta[]>([]);
   const voicePreferenceRef = useRef<string>('');
   const accentColorRef = useRef<string>('');
   const joinSecretRef = useRef<string>('');
@@ -368,6 +384,7 @@ export function useSignaling(): Signaling {
           // Use space-specific secret if provided, else fallback to global.
           secret: joinSecretRef.current || (window.chickadee?.joinSecret ?? ''),
           bannerDataUrl: bannerDataUrlRef.current,
+          soundboardClips: soundboardClipsRef.current,
         }),
       );
       // Heartbeat: ping periodically; if pongs stop, force-close → reconnect.
@@ -442,7 +459,7 @@ export function useSignaling(): Signaling {
   }, [connect]);
 
   const join = useCallback(
-    (spaceId: string, room: string | null, displayName: string, userId: string, roomsList: Room[], status: 'online' | 'idle' | 'dnd', avatarDataUrl?: string | null, voicePreference?: string, accentColor?: string, joinSecret?: string, signalingUrl?: string, bannerDataUrl?: string | null) => {
+    (spaceId: string, room: string | null, displayName: string, userId: string, roomsList: Room[], status: 'online' | 'idle' | 'dnd', avatarDataUrl?: string | null, voicePreference?: string, accentColor?: string, joinSecret?: string, signalingUrl?: string, bannerDataUrl?: string | null, soundboardClips?: SoundboardClipMeta[]) => {
       closeSocket();
       clearTimers();
       shouldReconnectRef.current = true;
@@ -459,6 +476,7 @@ export function useSignaling(): Signaling {
       joinSecretRef.current = joinSecret ?? '';
       if (signalingUrl) signalingUrlRef.current = signalingUrl;
       bannerDataUrlRef.current = bannerDataUrl ?? null;
+      soundboardClipsRef.current = soundboardClips ?? [];
       setState({ ...INITIAL, status: 'connecting', rooms: roomsList });
       connect();
     },
@@ -491,6 +509,10 @@ export function useSignaling(): Signaling {
     send({ type: 'release-spotlight' });
   }, [send]);
 
+  const setSoundboardClips = useCallback((clips: SoundboardClipMeta[]) => {
+    soundboardClipsRef.current = clips;
+  }, []);
+
   const leave = useCallback(() => {
     shouldReconnectRef.current = false;
     clearTimers();
@@ -507,5 +529,16 @@ export function useSignaling(): Signaling {
     };
   }, [clearTimers, closeSocket]);
 
-  return { ...state, join, leave, joinRoom, send, subscribe, verifySpace, claimSpotlight, releaseSpotlight };
+  return {
+    ...state,
+    join,
+    leave,
+    joinRoom,
+    send,
+    subscribe,
+    verifySpace,
+    claimSpotlight,
+    releaseSpotlight,
+    setSoundboardClips,
+  };
 }

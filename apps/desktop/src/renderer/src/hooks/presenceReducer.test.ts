@@ -32,6 +32,7 @@ function makePeer(over: Partial<Peer> & { id: PeerId }): Peer {
     accentColor: '',
     wantsVideo: true,
     videoSubscriptions: [],
+    soundboardClips: [],
     ...over,
   };
 }
@@ -75,6 +76,18 @@ describe('applyPresenceUpdate', () => {
     const b = next.peers.find((p) => p.id === 'b');
     expect(b?.muted).toBe(true);
     expect(b?.cameraOn).toBe(false); // other fields untouched
+  });
+
+  it('soundboard-manifest-state updates only the addressed peer\'s clip library', () => {
+    const start: SignalingState = { ...BASE_STATE, peers: [makePeer({ id: 'a' }), makePeer({ id: 'b' })] };
+    const clips = [{ hash: 'a'.repeat(64), name: 'Air Horn', durationMs: 2000 }];
+    const next = applyPresenceUpdate(start, {
+      type: 'soundboard-manifest-state',
+      from: 'b',
+      clips,
+    } as ServerMessage);
+    expect(next.peers.find((p) => p.id === 'a')?.soundboardClips).toEqual([]);
+    expect(next.peers.find((p) => p.id === 'b')?.soundboardClips).toEqual(clips);
   });
 
   it('room-full resets peers/selfId but keeps the room list', () => {
