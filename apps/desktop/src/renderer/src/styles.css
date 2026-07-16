@@ -2352,7 +2352,7 @@
   padding: 0 var(--s-1);
   transition: transform var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
   color: var(--dim);
-  margin-bottom: 7px;
+  margin-bottom: calc((19.6px * var(--chat-font-scale, 1) - 14px) / 2);
 }
 
 .emoji-trigger-btn:hover {
@@ -2650,7 +2650,6 @@
   line-height: 1.4;
   resize: none;
   overflow-y: auto;
-  min-height: 38px;
   /* Approx height of the single line input */
   transition: border-color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
 }
@@ -2672,7 +2671,7 @@
   color: var(--on-accent);
   background: var(--orange);
   transition: opacity var(--dur-1) var(--ease), transform var(--dur-1) var(--ease), filter var(--dur-1) var(--ease);
-  margin-bottom: 7px;
+  margin-bottom: calc((19.6px * var(--chat-font-scale, 1) - 14px) / 2);
 }
 
 .send-btn:hover:not(:disabled) {
