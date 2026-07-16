@@ -148,13 +148,6 @@ export function SpaceSwitcher({
               if (activeSpace) setCtxMenu({ space: activeSpace, x: e.clientX, y: e.clientY });
             }}
           >
-            {activeSpace && (
-              <ChevronDown
-                size={16}
-                strokeWidth={2.5}
-                className={`sidebar__section-chevron${!switcherOpen ? ' sidebar__section-chevron--collapsed' : ''}`}
-              />
-            )}
             <div className="space-switcher-btn__meta">
               <span className={`space-switcher-btn__name${!activeSpace ? ' space-switcher-btn__name--empty' : ''}`}>
                 {activeSpace?.name ?? 'Create / Join Space'}

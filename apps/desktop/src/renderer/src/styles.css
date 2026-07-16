@@ -488,7 +488,7 @@
 
 .sidebar__scroll {
   flex: 1;
-  padding: 0 var(--s-2) var(--s-3) var(--s-2);
+  padding: 0 0 var(--s-3) 0;
   overflow-y: auto;
 }
 
@@ -499,10 +499,10 @@
   display: flex;
   align-items: center;
   gap: var(--s-1);
-  margin-left: calc(-1 * var(--s-2));
-  margin-right: calc(-1 * var(--s-2));
+  margin-left: 0;
+  margin-right: 0;
   margin-bottom: var(--s-2);
-  width: calc(100% + (var(--s-2) * 2));
+  width: 100%;
   height: 32px;
   padding: 0 var(--s-4);
   font-family: var(--font-base);
@@ -566,7 +566,7 @@
   overflow: hidden;
   margin-bottom: var(--s-2);
   width: 100%;
-  border-radius: var(--r-1);
+  border-radius: 0;
   color: var(--text);
   transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
   display: flex;
@@ -582,9 +582,8 @@
   display: flex;
   align-items: center;
   gap: var(--s-2);
-  /* Rows are inset by the scroll padding now (8px), so s-3 here lands the
-     content at the same optical 20px indent the full-bleed rows had. */
-  padding: 0 var(--s-3);
+  /* Row padding adjusted to match full-bleed */
+  padding: 0 var(--s-4);
   font-size: var(--fs-3);
   text-align: left;
 }
@@ -609,31 +608,30 @@
    is never transitioned — the hover nub scales in at a fixed 12px, and the
    hover→active growth is a discrete swap that lands together with the row's
    background flip, so selection reads as one crisp state change. */
-.room-row::before {
+.room-row__main::before {
   content: '';
   position: absolute;
   z-index: 1;
-  left: 0;
+  left: -8px;
   top: 50%;
-  width: 4px;
-  height: 12px;
-  border-radius: 0 var(--r-1) var(--r-1) 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
   background: var(--orange);
   opacity: 0;
-  transform: translateY(-50%) scaleY(0.4);
+  transform: translateY(-50%) scale(0.4);
   transition: transform var(--dur-2) var(--ease), opacity var(--dur-2) var(--ease);
 }
 
-.room-row:hover::before {
+.room-row:hover .room-row__main::before {
   opacity: 1;
-  transform: translateY(-50%) scaleY(1);
+  transform: translateY(-50%) scale(1);
 }
 
-.room-row--active::before,
-.room-row--active:hover::before {
-  height: calc(100% - 12px);
+.room-row--active .room-row__main::before,
+.room-row--active:hover .room-row__main::before {
   opacity: 1;
-  transform: translateY(-50%) scaleY(1);
+  transform: translateY(-50%) scale(1);
 }
 
 .room-row__icon {
@@ -730,7 +728,7 @@
   display: flex;
   align-items: center;
   gap: var(--s-1);
-  margin: var(--s-1) var(--s-3);
+  margin: var(--s-1) var(--s-4);
 }
 
 .room-row__avatar-strip .room-row__avatar {
@@ -756,7 +754,7 @@
 .room-row--create-inline {
   border: 1px dashed var(--border);
   padding: var(--s-2) var(--s-3);
-  margin: var(--s-2) 0;
+  margin: var(--s-2) var(--s-4);
   cursor: pointer;
   transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
   color: var(--dim);
@@ -819,9 +817,9 @@
   display: flex;
   align-items: center;
   gap: var(--s-2);
-  padding: var(--s-1) var(--s-3) var(--s-1) var(--s-3);
+  padding: var(--s-1) var(--s-4) var(--s-1) var(--s-4);
   margin-bottom: var(--s-2);
-  border-radius: var(--r-1);
+  border-radius: 0;
   transition: background var(--dur-1) var(--ease);
 }
 
@@ -1106,6 +1104,16 @@
   background: color-mix(in srgb, var(--panel) 40%, var(--bg));
   border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
   -webkit-app-region: drag;
+}
+
+.app--compact .title-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: transparent;
+  border-bottom: none;
+  z-index: 100;
 }
 
 .title-bar__left {
@@ -3227,13 +3235,20 @@
    (CSS can't import that constant, so this one stays a literal). */
 .sidebar__space-header {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: stretch;
+  justify-content: flex-start;
   height: 96px;
   padding: 0;
   position: relative;
   overflow: hidden;
   border-bottom: 1px solid var(--border);
+  -webkit-app-region: drag;
+}
+
+/* In compact mode, the TitleBar overlaps the banner. If the banner remains
+   draggable, it eats the clicks meant for the TitleBar's no-drag buttons. */
+.app--compact .sidebar__space-header {
+  -webkit-app-region: no-drag;
 }
 
 /* The ROOMS section header directly below already gets its own top-edge
@@ -3285,20 +3300,23 @@
   position: relative;
   z-index: 1;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   min-width: 0;
   flex: 1;
+  height: 100%;
 }
 
 .space-switcher-btn {
   position: relative;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: var(--s-2);
   cursor: pointer;
-  text-align: center;
+  text-align: left;
   width: 100%;
+  padding: 0 var(--s-4) var(--s-4) var(--s-4);
+  -webkit-app-region: no-drag;
 }
 
 .space-switcher-btn .sidebar__section-chevron {
@@ -3322,7 +3340,7 @@
   font-size: var(--fs-5);
   color: var(--text);
   white-space: normal;
-  text-align: center;
+  text-align: left;
   line-height: var(--lh-1);
 }
 

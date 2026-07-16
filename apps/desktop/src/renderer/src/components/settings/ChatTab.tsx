@@ -20,7 +20,6 @@ type ChatTabProps = Pick<
   | 'chatTtsSpeakName' | 'onChangeChatTtsSpeakName'
   | 'chatTtsSpeakOwnMessages' | 'onChangeChatTtsSpeakOwnMessages'
   | 'chatTtsSpeakWhenFocused' | 'onChangeChatTtsSpeakWhenFocused'
-  | 'reactionsEnabled' | 'onChangeReactionsEnabled'
   | 'voicePreference' | 'onChangeVoicePreference'
   | 'chatPanelKey' | 'onChangeChatPanelKey'
   | 'ttsToggleKey' | 'onChangeTtsToggleKey'
@@ -40,8 +39,6 @@ export function ChatTab({
   onChangeChatTtsSpeakOwnMessages,
   chatTtsSpeakWhenFocused,
   onChangeChatTtsSpeakWhenFocused,
-  reactionsEnabled,
-  onChangeReactionsEnabled,
   voicePreference,
   onChangeVoicePreference,
   chatPanelKey,
