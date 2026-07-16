@@ -140,8 +140,6 @@ export function ControlBar({
           </button>
         </div>
 
-        <div className="control-bar__divider" />
-
         <div className="ctrl-group">
           <ControlButton
             icon={INPUT_MODE_ICONS[inputMode]}
@@ -188,9 +186,6 @@ export function ControlBar({
           </button>
         </div>
 
-        {(reactionsEnabled || soundboardEnabled) && (
-          <div className="control-bar__divider" />
-        )}
 
         {reactionsEnabled && (
           <div
@@ -214,7 +209,6 @@ export function ControlBar({
           />
         )}
 
-        <div className="control-bar__divider" />
 
         <ControlButton icon={PhoneOff} label="Leave" state="leave" onClick={onLeave} />
       </footer>

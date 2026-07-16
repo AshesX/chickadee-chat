@@ -510,15 +510,14 @@
   font-weight: var(--fw-1);
   letter-spacing: 0.08em;
   color: var(--text);
-  background: var(--veil-1);
+  background: transparent;
   cursor: pointer;
   position: relative;
-  transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+  transition: color var(--dur-1) var(--ease);
 }
 
 
 .sidebar__section-header:hover {
-  background: var(--veil-2);
   color: var(--text-sub);
 }
 
@@ -599,7 +598,6 @@
 .room-row--active:hover {
   background: var(--active-bg);
   color: var(--active-text);
-  outline: 1px solid var(--orange);
 }
 
 .room-row--create:active {
@@ -670,24 +668,21 @@
   padding: 0 var(--s-1);
   flex-shrink: 0;
   font-size: var(--fs-1);
-  font-weight: var(--fw-2);
+  font-weight: var(--fw-1);
   border-radius: var(--r-1);
   background: transparent;
-  border: 1px solid color-mix(in srgb, var(--orange) 30%, transparent);
   color: var(--orange);
   letter-spacing: 0.02em;
 }
 
 
 .room-row__count--full {
-  border-color: color-mix(in srgb, var(--red) 45%, transparent);
   color: var(--red);
 }
 
 
 .room-row--active .room-row__count,
 .room-row--active .room-row__count--full {
-  border-color: color-mix(in srgb, var(--orange) 45%, transparent);
   color: var(--orange);
 }
 
@@ -1889,12 +1884,13 @@
 .control-bar {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: var(--s-2);
-  padding: var(--s-2) var(--s-3);
-  border-radius: var(--r-2);
-  border: 1px solid var(--border);
+  width: 100%;
+  height: 100%;
+  padding: 0 var(--s-3);
+  border-top: 1px solid var(--border);
   background: var(--card);
-  box-shadow: var(--sh-1);
   --ctrl-chevron-w: 28px;
 }
 
@@ -1907,11 +1903,13 @@
   padding: var(--s-1) var(--s-1);
   height: 48px;
   width: 72px;
+  min-width: var(--ctrl-chevron-w);
+  container-type: inline-size;
   border-radius: var(--r-2);
-  border: 1px solid var(--border);
+  border: none;
   background: var(--veil-1);
   color: var(--text-sub);
-  transition-property: background, color, border-color, transform, filter, opacity;
+  transition-property: background, color, border-color, transform, filter, opacity, gap;
   transition-duration: var(--dur-1);
   transition-timing-function: var(--ease);
 }
@@ -1922,6 +1920,8 @@
 
 .ctrl-btn:hover:not(:disabled) {
   transform: translateY(-2px);
+  background: var(--veil-2);
+  color: var(--text-sub);
   filter: brightness(1.12);
 }
 
@@ -1944,6 +1944,10 @@
   text-overflow: ellipsis;
   text-align: center;
   flex-shrink: 0;
+  opacity: 1;
+  max-height: 20px;
+  margin-top: 0;
+  transition: opacity var(--dur-1) var(--ease), max-height var(--dur-1) var(--ease), margin-top var(--dur-1) var(--ease);
 }
 
 /* Engaged is one solid identity color across the whole bar — mic/deafen
@@ -1954,9 +1958,19 @@
   color: var(--on-accent);
 }
 
+.ctrl-btn--active:hover:not(:disabled) {
+  background: var(--orange);
+  color: var(--on-accent);
+}
+
 .ctrl-btn--leave {
   background: var(--red);
   border-color: var(--red);
+  color: var(--badge-fg);
+}
+
+.ctrl-btn--leave:hover:not(:disabled) {
+  background: var(--red);
   color: var(--badge-fg);
 }
 
@@ -1973,12 +1987,6 @@
   color: var(--fade);
 }
 
-.control-bar__divider {
-  width: 1px;
-  height: 24px;
-  background: color-mix(in srgb, var(--border) 70%, transparent);
-  margin: 0 var(--s-2);
-}
 
 /* Main button + its chevron read (and lift) as ONE grouped control: no gap,
    shared outer rounding, the main button's own right border as the divider. */
@@ -1986,6 +1994,7 @@
   display: flex;
   align-items: stretch;
   gap: 0;
+  min-width: 0;
   transition: transform var(--dur-1) var(--ease);
 }
 
@@ -1995,6 +2004,7 @@
 
 .ctrl-group>.ctrl-btn {
   border-radius: var(--r-2) 0 0 var(--r-2);
+  border-right: none;
 }
 
 /* Inside a group the per-button lift is disabled (the group lifts as one)… */
@@ -2016,9 +2026,9 @@
   width: var(--ctrl-chevron-w);
   flex-shrink: 0;
   border-radius: 0 var(--r-2) var(--r-2) 0;
-  border: 1px solid var(--border);
-  /* The main button's right border is the group divider. */
-  border-left: none;
+  border: none;
+  /* Explicitly draw the dividing line on the chevron's left edge */
+  border-left: 1px solid var(--card);
   background: var(--veil-1);
   color: var(--dim);
   transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
@@ -2047,17 +2057,12 @@
   border-radius: 0 var(--r-2) var(--r-2) 0;
 }
 
-/* Narrow room area: every main button shrinks to the chevron's own width
-   and drops its label, so the bar keeps fitting between the sidebar and the
-   window edge without colliding. Chevrons are untouched — they're already
-   fixed at --ctrl-chevron-w, so nothing about them moves or resizes. */
-@container control-bar-dock (max-width: 700px) {
-  .ctrl-btn:not(.ctrl-btn--chevron) {
-    width: var(--ctrl-chevron-w);
-  }
-
+/* Smoothly fade and collapse label as button shrinks */
+@container (max-width: 56px) {
   .ctrl-btn__label {
-    display: none;
+    opacity: 0;
+    max-height: 0;
+    margin-top: calc(-1 * var(--s-1));
   }
 }
 
