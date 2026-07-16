@@ -182,6 +182,16 @@ export interface PersistedSettings {
    * users too.
    */
   autoAcceptUsers: { userId: string; displayName: string }[];
+  /**
+   * Master switch for the whole P2P soundboard feature: the control-bar
+   * button, background manifest sync, playback, and the local ingest watcher
+   * all gate on this (off = no ffmpeg spawns, not just a hidden button).
+   */
+  soundboardEnabled: boolean;
+  /** Soundboard clip playback volume (0-2) — separate from sfxVolume since these are full-fidelity user clips, not UI chimes. */
+  soundboardVolume: number;
+  /** Auto-download other peers' custom soundboard clips in the background. */
+  soundboardAutoSyncEnabled: boolean;
 }
 
 export const DEFAULT_ROOMS: Room[] = [
@@ -264,5 +274,8 @@ export function defaultSettings(): PersistedSettings {
     reactionsEnabled: true,
     autoAcceptEnabled: true,
     autoAcceptUsers: [],
+    soundboardEnabled: true,
+    soundboardVolume: 1.0,
+    soundboardAutoSyncEnabled: true,
   };
 }

@@ -170,6 +170,18 @@ export function sanitizeBannedUsers(value: unknown): { userId: string; displayNa
   return out;
 }
 
+const SOUNDBOARD_HASH_RE = /^[0-9a-f]{64}$/;
+
+/**
+ * Validate an untrusted soundboard clip hash: must be a lowercase 64-char hex
+ * SHA-256 digest. Used wherever a hash is turned into a cache filename (main
+ * process IPC) or a signaling field, so a malformed value can never reach a
+ * filesystem path (path-traversal defense) or a wire message.
+ */
+export function sanitizeSoundboardHash(value: unknown): string | null {
+  return typeof value === 'string' && SOUNDBOARD_HASH_RE.test(value) ? value : null;
+}
+
 /** The valid presence statuses. */
 export const PRESENCE_STATUSES = ['online', 'idle', 'dnd'] as const;
 export type PresenceStatus = (typeof PRESENCE_STATUSES)[number];

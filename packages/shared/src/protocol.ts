@@ -99,6 +99,22 @@ export interface ScreenSource {
   appIcon: string | null;
 }
 
+/**
+ * A clip in this user's own soundboard library, enumerated by the main
+ * process (which owns the inbox folder, the content-addressed cache, and the
+ * ffmpeg ingest pipeline) and reported to the renderer over IPC. Distinct
+ * from `SoundboardClipMeta` (the wire-protocol shape advertised to peers):
+ * `sourceFile` is a local implementation detail peers never need to know.
+ */
+export interface SoundboardLibraryClip {
+  /** Content hash (SHA-256 hex) of the transcoded clip — also its cache filename. */
+  hash: string;
+  name: string;
+  durationMs: number;
+  /** Basename in the local inbox folder; lets deleting it there remove the matching clip. */
+  sourceFile: string;
+}
+
 /** Messages sent from a client up to the signaling server. */
 export type ClientMessage =
   | { type: 'join'; spaceId: string; room: RoomId | null; displayName: string; userId: string; rooms: Room[]; status?: 'online' | 'idle' | 'dnd'; avatarDataUrl?: string | null; voicePreference?: string; accentColor?: string; secret?: string; bannerDataUrl?: string | null }

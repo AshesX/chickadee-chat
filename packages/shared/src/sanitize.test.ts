@@ -16,6 +16,7 @@ import {
   sanitizeFileOfferFiles,
   sanitizeFileOfferMeta,
   sanitizeSaveFileName,
+  sanitizeSoundboardHash,
   sanitizeStatus,
   suffixedFileName,
 } from './sanitize';
@@ -257,5 +258,27 @@ describe('sanitizeSaveFileName', () => {
     expect(sanitizeSaveFileName('')).toBe('download');
     expect(sanitizeSaveFileName('. . .')).toBe('download');
     expect(sanitizeSaveFileName(null)).toBe('download');
+  });
+});
+
+describe('sanitizeSoundboardHash', () => {
+  const validHash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+
+  it('accepts a lowercase 64-char hex digest', () => {
+    expect(sanitizeSoundboardHash(validHash)).toBe(validHash);
+  });
+
+  it('rejects wrong length, uppercase, and non-hex characters', () => {
+    expect(sanitizeSoundboardHash(validHash.slice(0, 63))).toBeNull();
+    expect(sanitizeSoundboardHash(`${validHash}a`)).toBeNull();
+    expect(sanitizeSoundboardHash(validHash.toUpperCase())).toBeNull();
+    expect(sanitizeSoundboardHash(`${validHash.slice(0, 63)}g`)).toBeNull();
+  });
+
+  it('rejects path-traversal-shaped and non-string input', () => {
+    expect(sanitizeSoundboardHash('../../etc/passwd')).toBeNull();
+    expect(sanitizeSoundboardHash(null)).toBeNull();
+    expect(sanitizeSoundboardHash(42)).toBeNull();
+    expect(sanitizeSoundboardHash({})).toBeNull();
   });
 });
