@@ -76,9 +76,9 @@
   --s-6: 24px;
 
   /* Type */
-  --font-base: 'Geist', -apple-system, system-ui, sans-serif;
+  --font-base: 'Outfit', -apple-system, system-ui, sans-serif;
 
-  --font-mono: 'Geist Mono', monospace;
+  --font-mono: 'Outfit', -apple-system, system-ui, sans-serif;
   --fs-0: 10px;
   --fs-1: 12px;
   --fs-2: 14px;
