@@ -17,7 +17,7 @@ describe('prettifyName', () => {
   });
 });
 
-describe('PRESET_CLIPS (bundled assets/soundboard-presets/*.ogg via import.meta.glob)', () => {
+describe('PRESET_CLIPS (bundled assets/soundboard-presets/*.mp3 via import.meta.glob)', () => {
   it('discovers the placeholder preset clips with resolved URLs, sorted by name', () => {
     const ids = PRESET_CLIPS.map((c) => c.id);
     expect(ids).toEqual(expect.arrayContaining(['beep', 'buzz', 'chime', 'ding']));

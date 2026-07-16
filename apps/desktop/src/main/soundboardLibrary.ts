@@ -43,6 +43,13 @@ function cacheDir(): string {
   return join(app.getPath('userData'), 'soundboard-cache');
 }
 
+/** Cache filename extension — kept in one place; see soundboardTranscode.ts for why it's MP3, not Ogg. */
+const CACHE_EXT = '.mp3';
+
+function cachePath(hash: string): string {
+  return join(cacheDir(), `${hash}${CACHE_EXT}`);
+}
+
 function manifestPath(): string {
   return join(app.getPath('userData'), 'soundboard-manifest.json');
 }
@@ -55,6 +62,7 @@ function isValidManifestEntry(value: unknown): value is SoundboardLibraryClip {
     typeof v.hash === 'string' &&
     typeof v.name === 'string' &&
     typeof v.durationMs === 'number' &&
+    typeof v.sizeBytes === 'number' &&
     typeof v.sourceFile === 'string'
   );
 }
@@ -114,7 +122,7 @@ function handleInboxDeletion(filename: string): void {
   if (!entry) return;
   manifest = manifest.filter((c) => c.sourceFile !== filename);
   persistManifest();
-  void unlink(join(cacheDir(), `${entry.hash}.ogg`)).catch(() => {});
+  void unlink(cachePath(entry.hash)).catch(() => {});
   pushManifestChanged();
 }
 
@@ -127,14 +135,14 @@ async function processInboxFile(filename: string): Promise<void> {
   inFlight.add(filename);
   const jobId = randomUUID();
   const inputPath = join(inboxDir(), filename);
-  const tempOutputPath = join(cacheDir(), `.tmp-${jobId}.ogg`);
+  const tempOutputPath = join(cacheDir(), `.tmp-${jobId}${CACHE_EXT}`);
   try {
     const result = await transcodeClip(inputPath, tempOutputPath, (progress) => {
       pushToRenderer('chickadee:soundboard-transcode-progress', { jobId, sourceFile: filename, ratio: progress.ratio });
     });
     const bytes = await readFile(tempOutputPath);
     const hash = await sha256Hex(bytes);
-    const finalPath = join(cacheDir(), `${hash}.ogg`);
+    const finalPath = cachePath(hash);
     if (existsSync(finalPath)) {
       // Identical processed content already cached (e.g. re-adding the same clip).
       await unlink(tempOutputPath).catch(() => {});
@@ -142,7 +150,13 @@ async function processInboxFile(filename: string): Promise<void> {
       await rename(tempOutputPath, finalPath);
     }
     if (!manifest.some((c) => c.hash === hash)) {
-      manifest.push({ hash, name: deriveClipName(filename), durationMs: result.durationMs, sourceFile: filename });
+      manifest.push({
+        hash,
+        name: deriveClipName(filename),
+        durationMs: result.durationMs,
+        sizeBytes: bytes.length,
+        sourceFile: filename,
+      });
       persistManifest();
     }
     pushToRenderer('chickadee:soundboard-transcode-done', { jobId, sourceFile: filename, hash });
@@ -228,7 +242,7 @@ export function configureSoundboard(): void {
     if (!h || !entry) return;
     manifest = manifest.filter((c) => c.hash !== h);
     persistManifest();
-    await unlink(join(cacheDir(), `${h}.ogg`)).catch(() => {});
+    await unlink(cachePath(h)).catch(() => {});
     await unlink(join(inboxDir(), entry.sourceFile)).catch(() => {});
     pushManifestChanged();
   });
@@ -238,14 +252,14 @@ export function configureSoundboard(): void {
 
   ipcMain.handle('chickadee:soundboard-cache-has', (_e, hash: unknown): boolean => {
     const h = sanitizeSoundboardHash(hash);
-    return !!h && existsSync(join(cacheDir(), `${h}.ogg`));
+    return !!h && existsSync(cachePath(h));
   });
 
   ipcMain.handle('chickadee:soundboard-cache-read', async (_e, hash: unknown): Promise<Uint8Array | null> => {
     const h = sanitizeSoundboardHash(hash);
     if (!h) return null;
     try {
-      return await readFile(join(cacheDir(), `${h}.ogg`));
+      return await readFile(cachePath(h));
     } catch {
       return null;
     }
@@ -253,8 +267,8 @@ export function configureSoundboard(): void {
 
   ipcMain.handle('chickadee:soundboard-cache-begin-write', (_e, hash: unknown): boolean => {
     const h = sanitizeSoundboardHash(hash);
-    if (!h || cacheWrites.has(h) || existsSync(join(cacheDir(), `${h}.ogg`))) return false;
-    const finalPath = join(cacheDir(), `${h}.ogg`);
+    if (!h || cacheWrites.has(h) || existsSync(cachePath(h))) return false;
+    const finalPath = cachePath(h);
     const partPath = `${finalPath}.part`;
     const entry: ActiveCacheWrite = { stream: createWriteStream(partPath), partPath, finalPath, failed: null };
     entry.stream.on('error', (err) => {

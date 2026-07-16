@@ -21,6 +21,7 @@ import { useStageSpotlight } from './hooks/useStageSpotlight';
 import { useFileTransfers } from './hooks/useFileTransfers';
 import { useSoundboardLibrary } from './hooks/useSoundboardLibrary';
 import { useSoundboardPlayback } from './hooks/useSoundboardPlayback';
+import { useSoundboardSync } from './hooks/useSoundboardSync';
 import { useWindowFocus } from './hooks/useWindowFocus';
 import { selectStage } from './lib/stageSelection';
 import { generateSpaceId } from './lib/spaceOps';
@@ -820,6 +821,14 @@ export function App(): React.JSX.Element {
     send: signaling.send,
     enabled: soundboardEnabled,
     volume: soundboardVolume,
+  });
+  useSoundboardSync({
+    peers: signaling.peers,
+    send: signaling.send,
+    subscribe: signaling.subscribe,
+    iceServers,
+    enabled: soundboardEnabled,
+    autoSyncEnabled: soundboardAutoSyncEnabled,
   });
 
   // Transient picker per gesture: input.click() must run synchronously inside

@@ -117,6 +117,7 @@ export interface SoundboardLibraryClip {
   hash: string;
   name: string;
   durationMs: number;
+  sizeBytes: number;
   /** Basename in the local inbox folder; lets deleting it there remove the matching clip. */
   sourceFile: string;
 }
@@ -125,12 +126,14 @@ export interface SoundboardLibraryClip {
  * A custom soundboard clip as advertised to peers (the wire-protocol shape).
  * Unlike `SoundboardLibraryClip`, this never carries `sourceFile` — peers
  * don't need to know your local inbox filename, only enough to detect a
- * missing clip (hash) and render it before it's synced (name/durationMs).
+ * missing clip (hash), render it before it's synced (name/durationMs), and
+ * size a receive queue for it (sizeBytes) once a P2P fetch actually starts.
  */
 export interface SoundboardClipMeta {
   hash: string;
   name: string;
   durationMs: number;
+  sizeBytes: number;
 }
 
 /** Messages sent from a client up to the signaling server. */
@@ -169,6 +172,20 @@ export type ClientMessage =
   // A soundboard clip was triggered; broadcast ROOM-only (like chat) — playback
   // should only reach peers currently sharing a voice room, unlike the manifest.
   | { type: 'soundboard-trigger'; source: 'preset' | 'custom'; clipId: string }
+  // Directed, SPACE-scoped relay for the silent background clip-byte pull
+  // (shape mirrors file-offer/file-signal/file-cancel, deliberately NOT reusing
+  // those types — useFileTransfers pattern-matches on them and must never
+  // mistake this traffic for a user-facing transfer). `requestId` is the batch
+  // id on -request/-cancel; soundboard-fetch-signal's `requestId` instead
+  // carries the DERIVED per-clip id `${requestId}:${index}`
+  // (fileTransferPolicy.makeBatchFileId) — always the derived form, even for a
+  // single-hash request, since (unlike file transfer) there's no user-facing
+  // single-vs-batch UX distinction to preserve here. There is deliberately no
+  // "answer" message: the possessor either silently opens send links for the
+  // hashes it has, or replies -cancel if it can serve none of them.
+  | { type: 'soundboard-fetch-request'; to: PeerId; requestId: string; hashes: string[] }
+  | { type: 'soundboard-fetch-signal'; to: PeerId; requestId: string; sdp?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit }
+  | { type: 'soundboard-fetch-cancel'; to: PeerId; requestId: string; reason?: string }
   // This peer's video opt-in state: which userIds it has joined (subscriptions)
   // and whether it's rendering video now (wantsVideo false while docked/compact).
   | { type: 'sink-state'; subscriptions: string[]; wantsVideo: boolean }
@@ -267,6 +284,10 @@ export type ServerMessage =
   | { type: 'soundboard-manifest-state'; from: PeerId; clips: SoundboardClipMeta[] }
   // A peer triggered a soundboard clip; broadcast to the room only.
   | { type: 'soundboard-trigger'; from: PeerId; source: 'preset' | 'custom'; clipId: string }
+  // Relayed soundboard clip-fetch handshake (space-wide, directed), `from` stamped.
+  | { type: 'soundboard-fetch-request'; from: PeerId; requestId: string; hashes: string[] }
+  | { type: 'soundboard-fetch-signal'; from: PeerId; requestId: string; sdp?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit }
+  | { type: 'soundboard-fetch-cancel'; from: PeerId; requestId: string; reason?: string }
   // A peer updated its video opt-in state (joined subscriptions and/or dock
   // state); broadcast to the room (the mesh is room-scoped).
   | { type: 'sink-state'; from: PeerId; subscriptions: string[]; wantsVideo: boolean }

@@ -188,16 +188,18 @@ export const MAX_SOUNDBOARD_CLIP_NAME_LEN = 80;
 export const MAX_SOUNDBOARD_CLIPS = 200;
 /** Ceiling on a clip's declared duration — the 5s ingest trim plus generous slack. */
 export const MAX_SOUNDBOARD_DURATION_MS = 5_500;
+/** Ceiling on a clip's declared byte size — 128kbps*5.5s is ~88KB; generous slack for container overhead. */
+export const MAX_SOUNDBOARD_CLIP_SIZE_BYTES = 256 * 1024;
 
 /**
  * Validate one untrusted soundboard clip manifest entry. Returns the
- * sanitized `{hash, name, durationMs}`, or null to drop just this entry
- * (unlike a file-offer batch, a manifest is an additive/resilient list, not a
- * one-shot transactional offer, so one bad entry doesn't reject the rest).
+ * sanitized `{hash, name, durationMs, sizeBytes}`, or null to drop just this
+ * entry (unlike a file-offer batch, a manifest is an additive/resilient list,
+ * not a one-shot transactional offer, so one bad entry doesn't reject the rest).
  */
 export function sanitizeSoundboardClipMeta(
   value: unknown,
-): { hash: string; name: string; durationMs: number } | null {
+): { hash: string; name: string; durationMs: number; sizeBytes: number } | null {
   if (!value || typeof value !== 'object') return null;
   const hash = sanitizeSoundboardHash((value as { hash?: unknown }).hash);
   if (!hash) return null;
@@ -207,7 +209,16 @@ export function sanitizeSoundboardClipMeta(
   if (typeof durationMs !== 'number' || !Number.isFinite(durationMs) || durationMs < 0 || durationMs > MAX_SOUNDBOARD_DURATION_MS) {
     return null;
   }
-  return { hash, name, durationMs };
+  const sizeBytes = (value as { sizeBytes?: unknown }).sizeBytes;
+  if (
+    typeof sizeBytes !== 'number' ||
+    !Number.isSafeInteger(sizeBytes) ||
+    sizeBytes < 0 ||
+    sizeBytes > MAX_SOUNDBOARD_CLIP_SIZE_BYTES
+  ) {
+    return null;
+  }
+  return { hash, name, durationMs, sizeBytes };
 }
 
 /**
@@ -215,9 +226,11 @@ export function sanitizeSoundboardClipMeta(
  * drops malformed entries, de-duplicates by hash (first wins), and caps the
  * list — styled after `sanitizeBannedUsers`, not `sanitizeFileOfferFiles`.
  */
-export function sanitizeSoundboardClips(value: unknown): { hash: string; name: string; durationMs: number }[] {
+export function sanitizeSoundboardClips(
+  value: unknown,
+): { hash: string; name: string; durationMs: number; sizeBytes: number }[] {
   if (!Array.isArray(value)) return [];
-  const out: { hash: string; name: string; durationMs: number }[] = [];
+  const out: { hash: string; name: string; durationMs: number; sizeBytes: number }[] = [];
   const seen = new Set<string>();
   for (const entry of value) {
     if (out.length >= MAX_SOUNDBOARD_CLIPS) break;
@@ -225,6 +238,28 @@ export function sanitizeSoundboardClips(value: unknown): { hash: string; name: s
     if (!meta || seen.has(meta.hash)) continue;
     seen.add(meta.hash);
     out.push(meta);
+  }
+  return out;
+}
+
+/** Max hashes in one soundboard-fetch-request — mirrors MAX_BATCH_FILES. */
+export const MAX_SOUNDBOARD_FETCH_HASHES = 32;
+
+/**
+ * Validate an untrusted soundboard-fetch-request hash list: drops malformed
+ * entries, de-duplicates, and caps the list. Reject-only beyond that — never
+ * throws, and (like the manifest) never rejects the whole request over one bad hash.
+ */
+export function sanitizeSoundboardFetchHashes(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const entry of value) {
+    if (out.length >= MAX_SOUNDBOARD_FETCH_HASHES) break;
+    const hash = sanitizeSoundboardHash(entry);
+    if (!hash || seen.has(hash)) continue;
+    seen.add(hash);
+    out.push(hash);
   }
   return out;
 }

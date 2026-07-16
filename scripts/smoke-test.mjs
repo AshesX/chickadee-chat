@@ -256,8 +256,8 @@ c.ws.send(
   JSON.stringify({
     type: 'soundboard-manifest-state',
     clips: [
-      { hash: CLIP_HASH, name: 'Air Horn', durationMs: 2000 },
-      { hash: 'not-a-real-hash', name: 'Bad', durationMs: 100 },
+      { hash: CLIP_HASH, name: 'Air Horn', durationMs: 2000, sizeBytes: 40_000 },
+      { hash: 'not-a-real-hash', name: 'Bad', durationMs: 100, sizeBytes: 100 },
     ],
   }),
 );
@@ -294,7 +294,7 @@ check(
 // who already had a library before connecting shows it correctly to the next joiner.
 const foxtrot = client('Foxtrot', {
   userId: 'uid-foxtrot',
-  soundboardClips: [{ hash: '2'.repeat(64), name: 'Ding', durationMs: 500 }],
+  soundboardClips: [{ hash: '2'.repeat(64), name: 'Ding', durationMs: 500, sizeBytes: 12_000 }],
 });
 await foxtrot.ready;
 const golf = client('Golf', { userId: 'uid-golf' });
@@ -583,6 +583,80 @@ await wait(200);
 check(
   'invalid batches (1 entry / empty / 33 entries / one bad size) are dropped whole',
   ftB.events.filter((ev) => ev.type === 'file-offer').length === ftBBatchesBefore,
+);
+
+// Soundboard clip-fetch relay — same directed, SPACE-scoped shape as file
+// transfer (reaches across rooms within a space, never across spaces).
+const SB_HASH_A = 'a'.repeat(64);
+const SB_HASH_B = 'b'.repeat(64);
+ftA.ws.send(
+  JSON.stringify({ type: 'soundboard-fetch-request', to: wFtB.selfId, requestId: 'req-1', hashes: [SB_HASH_A, SB_HASH_B] }),
+);
+await wait(200);
+check(
+  'soundboard-fetch-request relayed cross-room within the space with from stamped, hashes intact',
+  ftB.events.some(
+    (ev) =>
+      ev.type === 'soundboard-fetch-request' &&
+      ev.from === wFtA.selfId &&
+      ev.requestId === 'req-1' &&
+      ev.hashes.length === 2 &&
+      ev.hashes.includes(SB_HASH_A) &&
+      ev.hashes.includes(SB_HASH_B),
+  ),
+);
+
+// A request with only invalid hashes drops entirely (nothing worth relaying).
+const ftBFetchRequestsBefore = ftB.events.filter((ev) => ev.type === 'soundboard-fetch-request').length;
+ftA.ws.send(JSON.stringify({ type: 'soundboard-fetch-request', to: wFtB.selfId, requestId: 'req-bad', hashes: ['not-a-hash'] }));
+await wait(150);
+check(
+  'soundboard-fetch-request with only invalid hashes is dropped entirely',
+  ftB.events.filter((ev) => ev.type === 'soundboard-fetch-request').length === ftBFetchRequestsBefore,
+);
+
+// soundboard-fetch-signal carries the DERIVED per-clip id and relays sdp/candidate verbatim.
+ftB.ws.send(
+  JSON.stringify({
+    type: 'soundboard-fetch-signal',
+    to: wFtA.selfId,
+    requestId: 'req-1:0',
+    sdp: { type: 'answer', sdp: 'v=0 fake-answer' },
+  }),
+);
+await wait(200);
+check(
+  'soundboard-fetch-signal relayed verbatim with the derived id preserved',
+  ftA.events.some(
+    (ev) =>
+      ev.type === 'soundboard-fetch-signal' &&
+      ev.from === wFtB.selfId &&
+      ev.requestId === 'req-1:0' &&
+      ev.sdp &&
+      ev.sdp.type === 'answer' &&
+      ev.sdp.sdp === 'v=0 fake-answer',
+  ),
+);
+
+// Over-long cancel reason arrives clamped to 120 chars.
+ftB.ws.send(JSON.stringify({ type: 'soundboard-fetch-cancel', to: wFtA.selfId, requestId: 'req-1', reason: 'r'.repeat(300) }));
+await wait(200);
+check(
+  'soundboard-fetch-cancel reason clamped to 120',
+  ftA.events.some(
+    (ev) => ev.type === 'soundboard-fetch-cancel' && ev.requestId === 'req-1' && typeof ev.reason === 'string' && ev.reason.length === 120,
+  ),
+);
+
+// Never relayed across spaces, and never to yourself.
+ftX.ws.send(JSON.stringify({ type: 'soundboard-fetch-request', to: wFtA.selfId, requestId: 'req-x', hashes: [SB_HASH_A] }));
+const ftASelfSendBefore = ftA.events.filter((ev) => ev.type === 'soundboard-fetch-request').length;
+ftA.ws.send(JSON.stringify({ type: 'soundboard-fetch-request', to: wFtA.selfId, requestId: 'req-self', hashes: [SB_HASH_A] }));
+await wait(200);
+check('soundboard-fetch-request NOT relayed across spaces', !ftA.events.some((ev) => ev.type === 'soundboard-fetch-request'));
+check(
+  'soundboard-fetch-request to self is dropped',
+  ftA.events.filter((ev) => ev.type === 'soundboard-fetch-request').length === ftASelfSendBefore,
 );
 
 ftA.ws.close();

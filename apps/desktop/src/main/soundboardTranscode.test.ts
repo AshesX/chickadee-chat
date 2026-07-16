@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { MAX_CLIP_DURATION_S, buildTranscodeArgs } from './soundboardTranscode';
 
 describe('buildTranscodeArgs', () => {
-  const args = buildTranscodeArgs('C:/in/airhorn.wav', 'C:/out/abc123.ogg');
+  const args = buildTranscodeArgs('C:/in/airhorn.wav', 'C:/out/abc123.mp3');
 
   it('trims INPUT-side, before -i, so discarded audio never reaches the filtergraph', () => {
     const tIndex = args.indexOf('-t');
@@ -14,7 +14,7 @@ describe('buildTranscodeArgs', () => {
 
   it('passes the exact input and output paths', () => {
     expect(args[args.indexOf('-i') + 1]).toBe('C:/in/airhorn.wav');
-    expect(args.at(-1)).toBe('C:/out/abc123.ogg');
+    expect(args.at(-1)).toBe('C:/out/abc123.mp3');
   });
 
   it('applies single-pass dynaudnorm loudness normalization', () => {
@@ -23,8 +23,8 @@ describe('buildTranscodeArgs', () => {
     expect(args[afIndex + 1]).toMatch(/^dynaudnorm=/);
   });
 
-  it('encodes to 128kbps Ogg Vorbis', () => {
-    expect(args).toContain('libvorbis');
+  it('encodes to 128kbps MP3 (bit-deterministic, unlike Ogg Vorbis — see the module doc comment)', () => {
+    expect(args).toContain('libmp3lame');
     expect(args[args.indexOf('-b:a') + 1]).toBe('128k');
   });
 

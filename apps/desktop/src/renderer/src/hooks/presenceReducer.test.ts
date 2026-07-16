@@ -80,7 +80,7 @@ describe('applyPresenceUpdate', () => {
 
   it('soundboard-manifest-state updates only the addressed peer\'s clip library', () => {
     const start: SignalingState = { ...BASE_STATE, peers: [makePeer({ id: 'a' }), makePeer({ id: 'b' })] };
-    const clips = [{ hash: 'a'.repeat(64), name: 'Air Horn', durationMs: 2000 }];
+    const clips = [{ hash: 'a'.repeat(64), name: 'Air Horn', durationMs: 2000, sizeBytes: 40_000 }];
     const next = applyPresenceUpdate(start, {
       type: 'soundboard-manifest-state',
       from: 'b',

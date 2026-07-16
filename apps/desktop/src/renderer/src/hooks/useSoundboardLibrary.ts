@@ -45,7 +45,7 @@ export function useSoundboardLibrary({ send, setSoundboardClips, enabled }: Soun
   // connected peers, not just a locally-hidden button.
   useEffect(() => {
     const meta: SoundboardClipMeta[] = enabled
-      ? ownClips.map(({ hash, name, durationMs }) => ({ hash, name, durationMs }))
+      ? ownClips.map(({ hash, name, durationMs, sizeBytes }) => ({ hash, name, durationMs, sizeBytes }))
       : [];
     setSoundboardClips(meta);
     send({ type: 'soundboard-manifest-state', clips: meta });

@@ -21,6 +21,15 @@ export const MAX_CLIP_DURATION_S = 5;
  * reserved for real errors via `-loglevel error`) and doubles as the source
  * of the clip's duration, avoiding a second bundled binary (ffprobe) just to
  * read it back.
+ *
+ * Codec is MP3 (libmp3lame), not the originally-planned Ogg Vorbis: empirically
+ * verified (transcoding identical input twice and diffing the output) that
+ * ffmpeg's Ogg muxer embeds a randomized per-file stream serial number, making
+ * Vorbis output non-deterministic even for byte-identical input — which
+ * silently breaks content-addressed caching (the same source clip would hash
+ * differently every time it's ingested, defeating dedup both locally and
+ * across peers). MP3 elementary streams have no such per-file randomness and
+ * were confirmed bit-identical across repeated encodes of the same input.
  */
 export function buildTranscodeArgs(inputPath: string, outputPath: string): string[] {
   return [
@@ -32,7 +41,7 @@ export function buildTranscodeArgs(inputPath: string, outputPath: string): strin
     '-vn',
     '-af', 'dynaudnorm=f=200:g=5',
     '-ar', '48000',
-    '-c:a', 'libvorbis',
+    '-c:a', 'libmp3lame',
     '-b:a', '128k',
     '-progress', 'pipe:1',
     '-nostats',
