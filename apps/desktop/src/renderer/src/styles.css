@@ -2425,6 +2425,13 @@
   cursor: not-allowed;
 }
 
+.soundboard-pop__tile--cooldown {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+  filter: grayscale(0.5);
+}
+
 .soundboard-pop__empty {
   font-size: var(--fs-2);
   color: var(--dim);

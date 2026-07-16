@@ -4,6 +4,9 @@ import { ChevronMenu } from './ChevronMenu';
 import { PRESET_CLIPS } from '../lib/soundboardAssets';
 import type { SoundboardClipSource } from '../lib/soundboardPlayer';
 
+/** Global (not per-clip) UI cooldown — mirrors ReactionPopover's spam guard so mashing any tile can't fire faster than one clip/second. */
+const SOUNDBOARD_COOLDOWN_MS = 1000;
+
 interface SoundboardPopoverProps {
   ownClips: SoundboardLibraryClip[];
   peers: Peer[];
@@ -39,6 +42,14 @@ function collectPeerCustomClips(peers: Peer[]): PeerCustomClip[] {
 export function SoundboardPopover({ ownClips, peers, onTrigger, onClose, anchorRect }: SoundboardPopoverProps): React.JSX.Element {
   const peerCustomClips = useMemo(() => collectPeerCustomClips(peers), [peers]);
   const [availableHashes, setAvailableHashes] = useState<Set<string>>(new Set());
+  const [cooldown, setCooldown] = useState(false);
+
+  function handleTrigger(source: SoundboardClipSource, clipId: string): void {
+    if (cooldown) return;
+    onTrigger(source, clipId);
+    setCooldown(true);
+    setTimeout(() => setCooldown(false), SOUNDBOARD_COOLDOWN_MS);
+  }
 
   useEffect(() => {
     if (!window.chickadee || peerCustomClips.length === 0) {
@@ -72,9 +83,10 @@ export function SoundboardPopover({ ownClips, peers, onTrigger, onClose, anchorR
             {PRESET_CLIPS.map((clip) => (
               <button
                 key={clip.id}
-                className="soundboard-pop__tile"
-                title={clip.name}
-                onClick={() => onTrigger('preset', clip.id)}
+                className={`soundboard-pop__tile${cooldown ? ' soundboard-pop__tile--cooldown' : ''}`}
+                title={cooldown ? 'Cooldown active...' : clip.name}
+                disabled={cooldown}
+                onClick={() => handleTrigger('preset', clip.id)}
               >
                 {clip.name}
               </button>
@@ -90,9 +102,10 @@ export function SoundboardPopover({ ownClips, peers, onTrigger, onClose, anchorR
             {ownClips.map((clip) => (
               <button
                 key={clip.hash}
-                className="soundboard-pop__tile"
-                title={clip.name}
-                onClick={() => onTrigger('custom', clip.hash)}
+                className={`soundboard-pop__tile${cooldown ? ' soundboard-pop__tile--cooldown' : ''}`}
+                title={cooldown ? 'Cooldown active...' : clip.name}
+                disabled={cooldown}
+                onClick={() => handleTrigger('custom', clip.hash)}
               >
                 {clip.name}
               </button>
@@ -107,13 +120,15 @@ export function SoundboardPopover({ ownClips, peers, onTrigger, onClose, anchorR
           <div className="soundboard-pop__grid">
             {peerCustomClips.map((clip) => {
               const available = availableHashes.has(clip.hash);
+              const disabled = !available || cooldown;
+              const title = !available ? `${clip.name} — syncing…` : cooldown ? 'Cooldown active...' : clip.name;
               return (
                 <button
                   key={clip.hash}
-                  className={`soundboard-pop__tile${available ? '' : ' soundboard-pop__tile--unavailable'}`}
-                  title={available ? clip.name : `${clip.name} — syncing…`}
-                  disabled={!available}
-                  onClick={() => onTrigger('custom', clip.hash)}
+                  className={`soundboard-pop__tile${available ? '' : ' soundboard-pop__tile--unavailable'}${cooldown ? ' soundboard-pop__tile--cooldown' : ''}`}
+                  title={title}
+                  disabled={disabled}
+                  onClick={() => handleTrigger('custom', clip.hash)}
                 >
                   {clip.name}
                 </button>
