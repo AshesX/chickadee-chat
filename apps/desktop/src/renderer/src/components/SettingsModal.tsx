@@ -43,7 +43,7 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
   const [searchFocused, setSearchFocused] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const version = window.chickadee?.appVersion || '0.3.1';
+  const version = window.chickadee?.appVersion || '0.4.0';
 
   function scrollToSection(id: string): void {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });

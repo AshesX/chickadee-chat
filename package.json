@@ -1,6 +1,6 @@
 {
   "name": "chickadee-chat",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "private": true,
   "description": "Lightweight P2P desktop voice/video/screen-share app for small groups.",
   "workspaces": [
