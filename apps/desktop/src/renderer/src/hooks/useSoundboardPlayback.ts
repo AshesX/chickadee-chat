@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { ClientMessage, ServerMessage } from '@chickadee/shared';
-import { canPlayTrigger, shouldAcceptTrigger } from '../lib/soundboardTriggers';
+import { canPlayTrigger, isSenderMuted, shouldAcceptTrigger } from '../lib/soundboardTriggers';
 import { playClip, type SoundboardClipSource } from '../lib/soundboardPlayer';
 
 export interface SoundboardPlaybackArgs {
@@ -8,6 +8,8 @@ export interface SoundboardPlaybackArgs {
   send: (message: ClientMessage) => void;
   enabled: boolean;
   volume: number;
+  /** Live per-peer volume map (peer.id -> volume), the same one usePeerVolumes exposes; volume <= 0 means silenced. */
+  volumes: Record<string, number>;
 }
 
 export interface SoundboardPlayback {
@@ -22,16 +24,27 @@ export interface SoundboardPlayback {
  * should. The per-peer cooldown (shouldAcceptTrigger) only makes sense for
  * the inbound path — there's no "peer" to key a self-cooldown on for your
  * own clicks, and it would just make fast, intentional clicking feel broken.
+ * The local mute gate (isSenderMuted) is inbound-only for the same reason:
+ * a peer silenced via per-tile volume (volume <= 0) should be inaudible
+ * everywhere, including their soundboard hits, not just their mic.
  */
-export function useSoundboardPlayback({ subscribe, send, enabled, volume }: SoundboardPlaybackArgs): SoundboardPlayback {
+export function useSoundboardPlayback({
+  subscribe,
+  send,
+  enabled,
+  volume,
+  volumes,
+}: SoundboardPlaybackArgs): SoundboardPlayback {
   const activeVoicesRef = useRef(0);
   const lastTriggerAtByPeerRef = useRef<Record<string, number>>({});
   // Refs so the subscribe effect below never needs to re-subscribe on a
   // setting change (mirrors useStageSpotlight/useSfxEvents's live-ref pattern).
   const enabledRef = useRef(enabled);
   const volumeRef = useRef(volume);
+  const volumesRef = useRef(volumes);
   enabledRef.current = enabled;
   volumeRef.current = volume;
+  volumesRef.current = volumes;
 
   const play = useCallback((source: SoundboardClipSource, clipId: string) => {
     activeVoicesRef.current += 1;
@@ -43,6 +56,7 @@ export function useSoundboardPlayback({ subscribe, send, enabled, volume }: Soun
   useEffect(() => {
     return subscribe((msg) => {
       if (msg.type !== 'soundboard-trigger' || !enabledRef.current) return;
+      if (isSenderMuted(msg.from, volumesRef.current)) return;
       if (!shouldAcceptTrigger(msg.from, Date.now(), lastTriggerAtByPeerRef.current)) return;
       lastTriggerAtByPeerRef.current[msg.from] = Date.now();
       if (!canPlayTrigger(activeVoicesRef.current)) return;

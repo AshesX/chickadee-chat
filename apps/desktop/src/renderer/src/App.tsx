@@ -821,6 +821,7 @@ export function App(): React.JSX.Element {
     send: signaling.send,
     enabled: soundboardEnabled,
     volume: soundboardVolume,
+    volumes,
   });
   useSoundboardSync({
     peers: signaling.peers,

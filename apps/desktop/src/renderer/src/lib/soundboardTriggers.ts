@@ -25,3 +25,13 @@ export function shouldAcceptTrigger(
   const last = lastTriggerAtByPeer[fromPeerId];
   return last === undefined || now - last >= MIN_TRIGGER_GAP_MS_PER_PEER;
 }
+
+/**
+ * Local mute gate: usePeerVolumes has no separate mute flag — silence is just
+ * volume <= 0 (see its pvMuted convention) — so a peer silenced that way
+ * should be inaudible everywhere, including their soundboard triggers, not
+ * just their mic.
+ */
+export function isSenderMuted(fromPeerId: string, volumes: Record<string, number>): boolean {
+  return (volumes[fromPeerId] ?? 1) <= 0;
+}
