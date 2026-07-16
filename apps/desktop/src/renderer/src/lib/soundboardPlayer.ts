@@ -68,12 +68,28 @@ async function getDecodedClip(
  * same limiter every peer voice and SFX already connects to, so this mixes
  * cleanly with live voice without any new mixing logic. Never touches the
  * mic-capture graph, so it can't be sent as outbound voice.
+ *
+ * `onEnded`, if given, fires exactly once — on real playback end, or
+ * immediately if playback never started (no context/no decodable bytes) — so
+ * a caller tracking a concurrency count can always pair one decrement with
+ * one call, regardless of which path this took.
  */
-export async function playClip(clipId: string, source: SoundboardClipSource, cueVolume: number): Promise<void> {
+export async function playClip(
+  clipId: string,
+  source: SoundboardClipSource,
+  cueVolume: number,
+  onEnded?: () => void,
+): Promise<void> {
   const ctx = getSharedAudioContext();
-  if (!ctx) return;
+  if (!ctx) {
+    onEnded?.();
+    return;
+  }
   const buffer = await getDecodedClip(ctx, clipId, source);
-  if (!buffer) return;
+  if (!buffer) {
+    onEnded?.();
+    return;
+  }
 
   const src = ctx.createBufferSource();
   src.buffer = buffer;
@@ -81,5 +97,6 @@ export async function playClip(clipId: string, source: SoundboardClipSource, cue
   gain.gain.setValueAtTime(Math.max(0, cueVolume), ctx.currentTime);
   src.connect(gain);
   gain.connect(getMasterBus() ?? ctx.destination);
+  if (onEnded) src.onended = () => onEnded();
   src.start();
 }

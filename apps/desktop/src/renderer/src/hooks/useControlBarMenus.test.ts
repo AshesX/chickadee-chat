@@ -14,6 +14,7 @@ describe('useControlBarMenus', () => {
     expect(m.inputModeMenuOpen).toBe(false);
     expect(m.videoMenuOpen).toBe(false);
     expect(m.reactionMenuOpen).toBe(false);
+    expect(m.soundboardMenuOpen).toBe(false);
     expect(m.inputMenuAnchor).toBeNull();
   });
 
@@ -40,6 +41,34 @@ describe('useControlBarMenus', () => {
     act(() => result.current.openInputMenu(rect));
     act(() => result.current.closeInputMenu());
     expect(result.current.inputMenuOpen).toBe(false);
+  });
+
+  it('opening the soundboard menu sets its anchor, opens only it, and closes reaction', () => {
+    const { result } = renderHook(() => useControlBarMenus());
+    act(() => result.current.openReactionMenu(rect));
+    act(() => result.current.openSoundboardMenu(rect));
+    expect(result.current.soundboardMenuOpen).toBe(true);
+    expect(result.current.soundboardMenuAnchor).toBe(rect);
+    expect(result.current.reactionMenuOpen).toBe(false);
+    expect(result.current.inputMenuOpen).toBe(false);
+    expect(result.current.outputMenuOpen).toBe(false);
+    expect(result.current.inputModeMenuOpen).toBe(false);
+    expect(result.current.videoMenuOpen).toBe(false);
+  });
+
+  it('opening any other menu closes the soundboard menu', () => {
+    const { result } = renderHook(() => useControlBarMenus());
+    act(() => result.current.openSoundboardMenu(rect));
+    act(() => result.current.openInputMenu(rect));
+    expect(result.current.soundboardMenuOpen).toBe(false);
+    expect(result.current.inputMenuOpen).toBe(true);
+  });
+
+  it('closeSoundboardMenu closes it', () => {
+    const { result } = renderHook(() => useControlBarMenus());
+    act(() => result.current.openSoundboardMenu(rect));
+    act(() => result.current.closeSoundboardMenu());
+    expect(result.current.soundboardMenuOpen).toBe(false);
   });
 
   describe('reaction popover auto-close', () => {

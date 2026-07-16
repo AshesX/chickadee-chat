@@ -2364,6 +2364,73 @@
   filter: grayscale(0.5);
 }
 
+/* ── Soundboard Popover ───────────────────────────────────── */
+.soundboard-pop {
+  position: fixed;
+  z-index: var(--z-dropdown);
+  padding: var(--s-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  max-width: 300px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.soundboard-pop__section-label {
+  font-size: var(--fs-1);
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-top: var(--s-2);
+}
+
+.soundboard-pop__section-label:first-child {
+  margin-top: 0;
+}
+
+.soundboard-pop__grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.soundboard-pop__tile {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--r-1);
+  font-size: var(--fs-2);
+  color: var(--text);
+  cursor: pointer;
+  transition: transform var(--dur-1) var(--ease), opacity var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
+  padding: var(--s-2) var(--s-3);
+  line-height: 1.2;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.soundboard-pop__tile:hover:not(:disabled) {
+  background: var(--veil-1);
+  transform: scale(1.04);
+}
+
+.soundboard-pop__tile:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.soundboard-pop__tile--unavailable {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.soundboard-pop__empty {
+  font-size: var(--fs-2);
+  color: var(--dim);
+  padding: var(--s-2) 0;
+}
+
 /* ── Emoji Picker Popover ─────────────────────────────────── */
 .emoji-picker-pop {
   position: fixed;

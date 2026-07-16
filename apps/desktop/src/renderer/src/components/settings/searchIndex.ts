@@ -20,6 +20,10 @@ export const SETTINGS_SEARCH_INDEX: SearchEntry[] = [
 
   { label: 'Sound Effects', description: 'Enable or disable all audio cues', tab: 'sfx', keywords: ['sfx', 'sounds', 'audio cues', 'join', 'leave', 'beep', 'chime', 'notification'] },
   { label: 'SFX Volume', description: 'Sound effects volume', tab: 'sfx', keywords: ['sfx volume', 'sound effects volume', 'sounds'] },
+  { label: 'Enable Soundboard', description: 'Turn the Soundboard button and background sync on or off', tab: 'soundboard', keywords: ['soundboard', 'sounds', 'clips', 'button', 'enable', 'disable'] },
+  { label: 'Soundboard Volume', description: 'Playback volume for triggered clips', tab: 'soundboard', keywords: ['soundboard volume', 'clip volume', 'sounds'] },
+  { label: 'Auto-sync Sounds', description: "Automatically download other members' custom clips", tab: 'soundboard', keywords: ['soundboard', 'sync', 'auto', 'download', 'clips'] },
+  { label: 'Custom Sounds', description: 'Add or remove your own soundboard clips', tab: 'soundboard', keywords: ['soundboard', 'custom', 'add sound', 'clips', 'folder', 'inbox'] },
   { label: 'Text-to-Speech', description: 'Speaks new chat messages aloud', tab: 'chat', sectionId: 'section-chat-tts', keywords: ['tts', 'text to speech', 'read aloud', 'voice', 'speak', 'speech'] },
   { label: 'Speak Own Messages', description: 'Also reads your own sent messages', tab: 'chat', sectionId: 'section-chat-tts', keywords: ['tts', 'own', 'self', 'sent', 'my messages'] },
   { label: 'Speak While Focused', description: 'Reads messages even while the app is focused', tab: 'chat', sectionId: 'section-chat-tts', keywords: ['tts', 'focus', 'focused', 'unfocused', 'background'] },
@@ -80,7 +84,7 @@ export const SUBSECTIONS: Partial<Record<string, { label: string; id: string }[]
 export const TAB_LABELS: Record<TabId, string> = {
   profile: 'My Profile', audio: 'Voice & Audio', video: 'Video',
   sfx: 'Sound Effects', chat: 'Chat Settings', ui: 'User Interface',
-  app: 'App Settings', keybindings: 'Keybindings',
+  app: 'App Settings', keybindings: 'Keybindings', soundboard: 'Soundboard',
 };
 
 export function getSearchResults(query: string): SearchEntry[] {

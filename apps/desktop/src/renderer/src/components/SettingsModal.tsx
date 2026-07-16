@@ -1,5 +1,5 @@
 import { Fragment, useState, useEffect, useRef } from 'react';
-import { User, Mic, Volume2, Sliders, X, Video, Monitor, MessageSquare, Search, Keyboard } from 'lucide-react';
+import { User, Mic, Volume2, Sliders, X, Video, Monitor, MessageSquare, Search, Keyboard, Music2 } from 'lucide-react';
 import { defaultSettings } from '@chickadee/shared';
 import type { SettingsModalProps, TabId } from './settings/types';
 import { SUBSECTIONS, TAB_LABELS, getSearchResults } from './settings/searchIndex';
@@ -14,6 +14,7 @@ const NAV_SECTIONS: { title: string; tabs: { id: TabId; icon: typeof User }[] }[
       { id: 'audio', icon: Mic },
       { id: 'video', icon: Video },
       { id: 'sfx', icon: Volume2 },
+      { id: 'soundboard', icon: Music2 },
       { id: 'chat', icon: MessageSquare },
       { id: 'keybindings', icon: Keyboard },
       { id: 'ui', icon: Monitor },
@@ -26,6 +27,7 @@ import { ProfileTab } from './settings/ProfileTab';
 import { AudioTab } from './settings/AudioTab';
 import { VideoTab } from './settings/VideoTab';
 import { SfxTab } from './settings/SfxTab';
+import { SoundboardTab } from './settings/SoundboardTab';
 import { ChatTab } from './settings/ChatTab';
 import { UiTab } from './settings/UiTab';
 import { KeybindingsTab } from './settings/KeybindingsTab';
@@ -133,6 +135,8 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
     props.onChangeSfxChatEnabled(defaults.sfxChatEnabled);
     props.onChangeSfxDeafenEnabled(defaults.sfxDeafenEnabled);
     props.onChangeBadgeNotificationsEnabled(defaults.badgeNotificationsEnabled);
+    props.onChangeSoundboardEnabled(defaults.soundboardEnabled);
+    props.onChangeSoundboardVolume(defaults.soundboardVolume);
     props.onChangeMicVolume(defaults.micVolume);
 
     props.onChangeCameraResolution(defaults.cameraResolution);
@@ -276,6 +280,7 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
             )}
             {activeTab === 'video' && <VideoTab {...props} />}
             {activeTab === 'sfx' && <SfxTab {...props} />}
+            {activeTab === 'soundboard' && <SoundboardTab {...props} />}
             {activeTab === 'chat' && <ChatTab {...props} />}
             {activeTab === 'ui' && <UiTab {...props} />}
             {activeTab === 'keybindings' && (

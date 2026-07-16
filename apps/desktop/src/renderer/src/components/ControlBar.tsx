@@ -11,6 +11,7 @@ import {
   HeadphoneOff,
   ChevronUp,
   Smile,
+  Music2,
 } from 'lucide-react';
 import { INPUT_MODE_ICONS } from '../lib/inputModeIcons';
 
@@ -64,6 +65,9 @@ interface ControlBarProps {
   onReactMenu: (rect: DOMRect) => void;
   /** When false, the React button + its flanking divider are hidden. */
   reactionsEnabled: boolean;
+  onSoundboardMenu: (rect: DOMRect) => void;
+  /** When false, the Soundboard button + its flanking divider are hidden. */
+  soundboardEnabled: boolean;
   onLeave: () => void;
   deafened: boolean;
   onToggleDeafen: () => void;
@@ -89,6 +93,8 @@ export function ControlBar({
   onInputModeMenu,
   onReactMenu,
   reactionsEnabled,
+  onSoundboardMenu,
+  soundboardEnabled,
   onLeave,
   deafened,
   onToggleDeafen,
@@ -197,6 +203,17 @@ export function ControlBar({
                 onClick={(e) => onReactMenu(e.currentTarget.getBoundingClientRect())}
               />
             </div>
+          </>
+        )}
+
+        {soundboardEnabled && (
+          <>
+            <div className="control-bar__divider" />
+            <ControlButton
+              icon={Music2}
+              label="Sounds"
+              onClick={(e) => onSoundboardMenu(e.currentTarget.getBoundingClientRect())}
+            />
           </>
         )}
 

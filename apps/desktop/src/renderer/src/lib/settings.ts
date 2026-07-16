@@ -237,6 +237,13 @@ export const store = {
   setQuickReactions: setter('quickReactions'),
   getReactionsEnabled: getter('reactionsEnabled'),
   setReactionsEnabled: setter('reactionsEnabled'),
+  getSoundboardEnabled: getter('soundboardEnabled'),
+  setSoundboardEnabled: setter('soundboardEnabled'),
+  // Clamped: matches getMicVolume's precedent (0-200% boost range).
+  getSoundboardVolume: (): number => Math.min(2, cache.soundboardVolume ?? DEFAULTS.soundboardVolume),
+  setSoundboardVolume: setter('soundboardVolume'),
+  getSoundboardAutoSyncEnabled: getter('soundboardAutoSyncEnabled'),
+  setSoundboardAutoSyncEnabled: setter('soundboardAutoSyncEnabled'),
 };
 
 const FRIEND_PALETTE = [

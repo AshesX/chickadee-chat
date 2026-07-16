@@ -18,24 +18,29 @@ export function useControlBarMenus() {
   const [videoMenuAnchor, setVideoMenuAnchor] = useState<DOMRect | null>(null);
   const [reactionMenuOpen, setReactionMenuOpen] = useState(false);
   const [reactionMenuAnchor, setReactionMenuAnchor] = useState<DOMRect | null>(null);
+  const [soundboardMenuOpen, setSoundboardMenuOpen] = useState(false);
+  const [soundboardMenuAnchor, setSoundboardMenuAnchor] = useState<DOMRect | null>(null);
 
   const reactionCloseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reactionHasEnteredPopoverRef = useRef(false);
 
   const openInputMenu = useCallback((rect: DOMRect) => {
-    setInputMenuAnchor(rect); setInputMenuOpen(true); setOutputMenuOpen(false); setInputModeMenuOpen(false); setVideoMenuOpen(false); setReactionMenuOpen(false);
+    setInputMenuAnchor(rect); setInputMenuOpen(true); setOutputMenuOpen(false); setInputModeMenuOpen(false); setVideoMenuOpen(false); setReactionMenuOpen(false); setSoundboardMenuOpen(false);
   }, []);
   const openOutputMenu = useCallback((rect: DOMRect) => {
-    setOutputMenuAnchor(rect); setOutputMenuOpen(true); setInputMenuOpen(false); setInputModeMenuOpen(false); setVideoMenuOpen(false); setReactionMenuOpen(false);
+    setOutputMenuAnchor(rect); setOutputMenuOpen(true); setInputMenuOpen(false); setInputModeMenuOpen(false); setVideoMenuOpen(false); setReactionMenuOpen(false); setSoundboardMenuOpen(false);
   }, []);
   const openInputModeMenu = useCallback((rect: DOMRect) => {
-    setInputModeMenuAnchor(rect); setInputModeMenuOpen(true); setInputMenuOpen(false); setOutputMenuOpen(false); setVideoMenuOpen(false); setReactionMenuOpen(false);
+    setInputModeMenuAnchor(rect); setInputModeMenuOpen(true); setInputMenuOpen(false); setOutputMenuOpen(false); setVideoMenuOpen(false); setReactionMenuOpen(false); setSoundboardMenuOpen(false);
   }, []);
   const openVideoMenu = useCallback((rect: DOMRect) => {
-    setVideoMenuAnchor(rect); setVideoMenuOpen(true); setInputMenuOpen(false); setOutputMenuOpen(false); setInputModeMenuOpen(false); setReactionMenuOpen(false);
+    setVideoMenuAnchor(rect); setVideoMenuOpen(true); setInputMenuOpen(false); setOutputMenuOpen(false); setInputModeMenuOpen(false); setReactionMenuOpen(false); setSoundboardMenuOpen(false);
   }, []);
   const openReactionMenu = useCallback((rect: DOMRect) => {
-    setReactionMenuAnchor(rect); setReactionMenuOpen(true); setInputMenuOpen(false); setOutputMenuOpen(false); setInputModeMenuOpen(false); setVideoMenuOpen(false);
+    setReactionMenuAnchor(rect); setReactionMenuOpen(true); setInputMenuOpen(false); setOutputMenuOpen(false); setInputModeMenuOpen(false); setVideoMenuOpen(false); setSoundboardMenuOpen(false);
+  }, []);
+  const openSoundboardMenu = useCallback((rect: DOMRect) => {
+    setSoundboardMenuAnchor(rect); setSoundboardMenuOpen(true); setInputMenuOpen(false); setOutputMenuOpen(false); setInputModeMenuOpen(false); setVideoMenuOpen(false); setReactionMenuOpen(false);
   }, []);
 
   const closeInputMenu = useCallback(() => setInputMenuOpen(false), []);
@@ -43,6 +48,7 @@ export function useControlBarMenus() {
   const closeInputModeMenu = useCallback(() => setInputModeMenuOpen(false), []);
   const closeVideoMenu = useCallback(() => setVideoMenuOpen(false), []);
   const closeReactionMenu = useCallback(() => setReactionMenuOpen(false), []);
+  const closeSoundboardMenu = useCallback(() => setSoundboardMenuOpen(false), []);
 
   const startReactionCloseTimeout = useCallback(() => {
     if (reactionCloseTimeoutRef.current) clearTimeout(reactionCloseTimeoutRef.current);
@@ -88,8 +94,9 @@ export function useControlBarMenus() {
     inputModeMenuOpen, inputModeMenuAnchor,
     videoMenuOpen, videoMenuAnchor,
     reactionMenuOpen, reactionMenuAnchor,
-    openInputMenu, openOutputMenu, openInputModeMenu, openVideoMenu, openReactionMenu,
-    closeInputMenu, closeOutputMenu, closeInputModeMenu, closeVideoMenu, closeReactionMenu,
+    soundboardMenuOpen, soundboardMenuAnchor,
+    openInputMenu, openOutputMenu, openInputModeMenu, openVideoMenu, openReactionMenu, openSoundboardMenu,
+    closeInputMenu, closeOutputMenu, closeInputModeMenu, closeVideoMenu, closeReactionMenu, closeSoundboardMenu,
     startReactionCloseTimeout, cancelReactionCloseTimeout, handleReactionPopoverEnter,
   };
 }

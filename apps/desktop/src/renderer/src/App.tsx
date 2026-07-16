@@ -19,6 +19,8 @@ import { useTraySync } from './hooks/useTraySync';
 import { usePeerVolumes } from './hooks/usePeerVolumes';
 import { useStageSpotlight } from './hooks/useStageSpotlight';
 import { useFileTransfers } from './hooks/useFileTransfers';
+import { useSoundboardLibrary } from './hooks/useSoundboardLibrary';
+import { useSoundboardPlayback } from './hooks/useSoundboardPlayback';
 import { useWindowFocus } from './hooks/useWindowFocus';
 import { selectStage } from './lib/stageSelection';
 import { generateSpaceId } from './lib/spaceOps';
@@ -34,6 +36,7 @@ import { ChatPanel, type ChatMessage } from './components/ChatPanel';
 import { TransferTray } from './components/TransferTray';
 import { formatBytes } from './webrtc/fileTransferPolicy';
 import { ReactionPopover } from './components/ReactionPopover';
+import { SoundboardPopover } from './components/SoundboardPopover';
 import { UserContextMenu, type UserMenuTarget } from './components/UserContextMenu';
 import { AudioDeviceMenu } from './components/AudioDeviceMenu';
 import { InputModeMenu } from './components/InputModeMenu';
@@ -244,6 +247,12 @@ export function App(): React.JSX.Element {
   const [chatTtsSpeakOwnMessages, applyChatTtsSpeakOwnMessages] = usePersistedState(store.getChatTtsSpeakOwnMessages, store.setChatTtsSpeakOwnMessages);
   const [chatTtsSpeakWhenFocused, applyChatTtsSpeakWhenFocused] = usePersistedState(store.getChatTtsSpeakWhenFocused, store.setChatTtsSpeakWhenFocused);
   const [reactionsEnabled, applyReactionsEnabled] = usePersistedState(store.getReactionsEnabled, store.setReactionsEnabled);
+  const [soundboardEnabled, applySoundboardEnabled] = usePersistedState(store.getSoundboardEnabled, store.setSoundboardEnabled);
+  const [soundboardVolume, applySoundboardVolume] = usePersistedState(store.getSoundboardVolume, store.setSoundboardVolume);
+  const [soundboardAutoSyncEnabled, applySoundboardAutoSyncEnabled] = usePersistedState(
+    store.getSoundboardAutoSyncEnabled,
+    store.setSoundboardAutoSyncEnabled,
+  );
   const [theme, applyTheme] = usePersistedState<ThemeName>(store.getTheme, store.setTheme);
   const [hideSpaceBanner, applyHideSpaceBanner] = usePersistedState(store.getHideSpaceBanner, store.setHideSpaceBanner);
   const [launchOnStartup, setLaunchOnStartup] = useState(() => store.getLaunchOnStartup());
@@ -800,6 +809,18 @@ export function App(): React.JSX.Element {
   });
   const { sendFilesTo } = fileTransfers;
   const incomingOffer = fileTransfers.incomingOffer;
+
+  const soundboardLibrary = useSoundboardLibrary({
+    send: signaling.send,
+    setSoundboardClips: signaling.setSoundboardClips,
+    enabled: soundboardEnabled,
+  });
+  const soundboardPlayback = useSoundboardPlayback({
+    subscribe: signaling.subscribe,
+    send: signaling.send,
+    enabled: soundboardEnabled,
+    volume: soundboardVolume,
+  });
 
   // Transient picker per gesture: input.click() must run synchronously inside
   // the user's click for Chromium to open the dialog; no persistent DOM node.
@@ -1358,6 +1379,8 @@ export function App(): React.JSX.Element {
               onInputModeMenu={menus.openInputModeMenu}
               onReactMenu={menus.openReactionMenu}
               reactionsEnabled={reactionsEnabled}
+              onSoundboardMenu={menus.openSoundboardMenu}
+              soundboardEnabled={soundboardEnabled}
               onLeave={leaveRoom}
               deafened={deafened}
               onToggleDeafen={toggleDeafen}
@@ -1452,6 +1475,15 @@ export function App(): React.JSX.Element {
                 onMouseLeave={menus.startReactionCloseTimeout}
               />
             )}
+            {menus.soundboardMenuOpen && menus.soundboardMenuAnchor && (
+              <SoundboardPopover
+                ownClips={soundboardLibrary.ownClips}
+                peers={signaling.peers}
+                onTrigger={soundboardPlayback.triggerClip}
+                onClose={menus.closeSoundboardMenu}
+                anchorRect={menus.soundboardMenuAnchor}
+              />
+            )}
           </>
         ) : (
           <div className="empty-lounge">
@@ -1478,7 +1510,8 @@ export function App(): React.JSX.Element {
             (menus.inputMenuOpen && menus.inputMenuAnchor) ||
             (menus.outputMenuOpen && menus.outputMenuAnchor) ||
             (menus.inputModeMenuOpen && menus.inputModeMenuAnchor) ||
-            (menus.reactionMenuOpen && menus.reactionMenuAnchor) || null;
+            (menus.reactionMenuOpen && menus.reactionMenuAnchor) ||
+            (menus.soundboardMenuOpen && menus.soundboardMenuAnchor) || null;
 
           const toastStyle: React.CSSProperties | undefined = activeToastAnchor
             ? { left: `${activeToastAnchor.left + activeToastAnchor.width / 2}px` }
@@ -1779,6 +1812,16 @@ export function App(): React.JSX.Element {
           onChangeAutoAcceptEnabled={applyAutoAcceptEnabled}
           autoAcceptUsers={autoAcceptUsers}
           onRemoveTrustedUser={handleRemoveTrustedUser}
+          soundboardEnabled={soundboardEnabled}
+          onChangeSoundboardEnabled={applySoundboardEnabled}
+          soundboardVolume={soundboardVolume}
+          onChangeSoundboardVolume={applySoundboardVolume}
+          soundboardAutoSyncEnabled={soundboardAutoSyncEnabled}
+          onChangeSoundboardAutoSyncEnabled={applySoundboardAutoSyncEnabled}
+          soundboardOwnClips={soundboardLibrary.ownClips}
+          onAddSoundboardFiles={soundboardLibrary.addFiles}
+          onRemoveSoundboardClip={soundboardLibrary.removeClip}
+          onOpenSoundboardInbox={soundboardLibrary.openInboxFolder}
           micVolume={micVolume}
           onChangeMicVolume={applyMicVolume}
           outputVolume={outputVolume}

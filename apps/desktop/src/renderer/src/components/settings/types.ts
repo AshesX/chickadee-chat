@@ -1,7 +1,7 @@
-import type { AudioQuality, ThemeName, VideoQuality } from '@chickadee/shared';
+import type { AudioQuality, SoundboardLibraryClip, ThemeName, VideoQuality } from '@chickadee/shared';
 import type { MediaDeviceOption } from '../../hooks/useMediaDevices';
 
-export type TabId = 'profile' | 'audio' | 'video' | 'sfx' | 'chat' | 'ui' | 'app' | 'keybindings';
+export type TabId = 'profile' | 'audio' | 'video' | 'sfx' | 'chat' | 'ui' | 'app' | 'keybindings' | 'soundboard';
 
 export interface SearchEntry {
   label: string;
@@ -76,6 +76,18 @@ export interface SettingsModalProps {
   onChangeAutoAcceptEnabled: (on: boolean) => void;
   autoAcceptUsers: { userId: string; displayName: string }[];
   onRemoveTrustedUser: (userId: string) => void;
+  /** Master switch for the whole P2P soundboard feature. */
+  soundboardEnabled: boolean;
+  onChangeSoundboardEnabled: (on: boolean) => void;
+  soundboardVolume: number;
+  onChangeSoundboardVolume: (vol: number) => void;
+  /** Auto-download other peers' custom soundboard clips in the background. */
+  soundboardAutoSyncEnabled: boolean;
+  onChangeSoundboardAutoSyncEnabled: (on: boolean) => void;
+  soundboardOwnClips: SoundboardLibraryClip[];
+  onAddSoundboardFiles: () => void;
+  onRemoveSoundboardClip: (hash: string) => void;
+  onOpenSoundboardInbox: () => void;
   initialTab?: string;
   micVolume: number;
   onChangeMicVolume: (vol: number) => void;
