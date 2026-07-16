@@ -173,6 +173,15 @@ export interface PersistedSettings {
    * button (the button's flanking divider collapses too).
    */
   reactionsEnabled: boolean;
+  /** Master switch for the file-transfer trust list (pause without clearing it). */
+  autoAcceptEnabled: boolean;
+  /**
+   * Users whose file transfers auto-accept (skip the prompt + save dialog and
+   * stream straight to Downloads). Keyed by stable userId; displayName is a
+   * snapshot from when trust was granted so the Settings list renders offline
+   * users too.
+   */
+  autoAcceptUsers: { userId: string; displayName: string }[];
 }
 
 export const DEFAULT_ROOMS: Room[] = [
@@ -253,5 +262,7 @@ export function defaultSettings(): PersistedSettings {
     customEmojis: [],
     quickReactions: ['🔥', '😂', '👍', '❤️', '🎉', '💀'],
     reactionsEnabled: true,
+    autoAcceptEnabled: true,
+    autoAcceptUsers: [],
   };
 }

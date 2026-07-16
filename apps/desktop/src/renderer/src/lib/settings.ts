@@ -106,6 +106,16 @@ export const store = {
   getPeerVolumes: getter('peerVolumes'),
   setPeerVolume: (userId: string, volume: number): void =>
     persist({ peerVolumes: { ...(cache.peerVolumes ?? {}), [userId]: volume } }),
+  getAutoAcceptEnabled: getter('autoAcceptEnabled'),
+  setAutoAcceptEnabled: setter('autoAcceptEnabled'),
+  getAutoAcceptUsers: getter('autoAcceptUsers'),
+  addAutoAcceptUser: (userId: string, displayName: string): void => {
+    const current = cache.autoAcceptUsers ?? [];
+    if (current.some((u) => u.userId === userId)) return;
+    persist({ autoAcceptUsers: [...current, { userId, displayName }] });
+  },
+  removeAutoAcceptUser: (userId: string): void =>
+    persist({ autoAcceptUsers: (cache.autoAcceptUsers ?? []).filter((u) => u.userId !== userId) }),
   // Coerce here so a profile persisted with the removed 'open' mode (or a missing
   // value) migrates to 'voice' transparently; it re-persists as 'voice' on next save.
   getInputMode: (): 'voice' | 'ptt' => (cache.inputMode === 'ptt' ? 'ptt' : 'voice'),

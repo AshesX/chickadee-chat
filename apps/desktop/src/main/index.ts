@@ -42,7 +42,9 @@ if (!app.isPackaged) {
 
 loadDotEnv();
 
-const GRANTED_PERMISSIONS = new Set(['media', 'display-capture']);
+// 'notifications' powers the renderer's transfer toasts (auto-accepts + offers
+// while unfocused); without it the deny-by-default handler silently blocks them.
+const GRANTED_PERMISSIONS = new Set(['media', 'display-capture', 'notifications']);
 
 function configureMediaPermissions(): void {
   session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
@@ -286,6 +288,13 @@ function createWindow(): void {
   window.webContents.setWindowOpenHandler(({ url }) => {
     void shell.openExternal(url);
     return { action: 'deny' };
+  });
+
+  // The app never navigates after load (programmatic loadURL/loadFile don't
+  // emit this). Blocks e.g. a stray OS file drop navigating to file:// —
+  // belt-and-suspenders under the renderer's own dragover/drop preventDefault.
+  window.webContents.on('will-navigate', (event) => {
+    event.preventDefault();
   });
 
   if (process.env['ELECTRON_RENDERER_URL']) {

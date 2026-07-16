@@ -213,6 +213,19 @@ export function App(): React.JSX.Element {
   const [badgeNotificationsEnabled, applyBadgeNotificationsEnabled] = usePersistedState(store.getBadgeNotificationsEnabled, store.setBadgeNotificationsEnabled);
   const [unreadCount, setUnreadCount] = useState(0);
 
+  // File-transfer trust list. The store cache is what useFileTransfers reads at
+  // offer time; this state mirror keeps the Settings list + modal checkbox live.
+  const [autoAcceptEnabled, applyAutoAcceptEnabled] = usePersistedState(store.getAutoAcceptEnabled, store.setAutoAcceptEnabled);
+  const [autoAcceptUsers, setAutoAcceptUsers] = useState(() => store.getAutoAcceptUsers());
+  const handleTrustUser = useCallback((userId: string, displayName: string) => {
+    store.addAutoAcceptUser(userId, displayName);
+    setAutoAcceptUsers(store.getAutoAcceptUsers());
+  }, []);
+  const handleRemoveTrustedUser = useCallback((userId: string) => {
+    store.removeAutoAcceptUser(userId);
+    setAutoAcceptUsers(store.getAutoAcceptUsers());
+  }, []);
+
   // Focus/visibility (gates animations + video decode). On focus gain: clear the
   // unread badge and stop any queued TTS backlog.
   const handleWindowFocus = useCallback(() => {
@@ -776,15 +789,17 @@ export function App(): React.JSX.Element {
       peers: signaling.peers,
     });
 
-  // P2P file transfers to space members (USERS-row send button + accept modal
-  // + the floating transfer tray).
+  // P2P file transfers to space members (USERS-row send button + drag-drop +
+  // accept modal + the floating transfer tray).
   const fileTransfers = useFileTransfers({
     spacePresence: signaling.spacePresence,
     send: signaling.send,
     subscribe: signaling.subscribe,
     iceServers,
+    windowFocused,
   });
-  const { sendFileTo } = fileTransfers;
+  const { sendFilesTo } = fileTransfers;
+  const incomingOffer = fileTransfers.incomingOffer;
 
   // Transient picker per gesture: input.click() must run synchronously inside
   // the user's click for Chromium to open the dialog; no persistent DOM node.
@@ -792,14 +807,44 @@ export function App(): React.JSX.Element {
     (userId: string) => {
       const input = document.createElement('input');
       input.type = 'file';
+      input.multiple = true; // more than one selection becomes a batch
       input.onchange = () => {
-        const file = input.files?.[0];
-        if (file) sendFileTo(userId, file);
+        const files = Array.from(input.files ?? []);
+        if (files.length > 0) sendFilesTo(userId, files);
       };
       input.click();
     },
-    [sendFileTo],
+    [sendFilesTo],
   );
+
+  // OS files dropped on a USERS row (FriendRow validates online + Files-drag).
+  const handleDropFiles = useCallback(
+    (userId: string, files: File[]) => sendFilesTo(userId, files),
+    [sendFilesTo],
+  );
+
+  // A drop that misses a USERS row must never navigate the window (Electron's
+  // default opens the dropped file); main's will-navigate guard is the backstop.
+  useEffect(() => {
+    const prevent = (e: DragEvent): void => e.preventDefault();
+    window.addEventListener('dragover', prevent);
+    window.addEventListener('drop', prevent);
+    return () => {
+      window.removeEventListener('dragover', prevent);
+      window.removeEventListener('drop', prevent);
+    };
+  }, []);
+
+  // "Always accept files from X" checkbox on the incoming prompt; resets per offer.
+  const [trustSender, setTrustSender] = useState(false);
+  const incomingOfferId = incomingOffer?.transferId ?? null;
+  useEffect(() => setTrustSender(false), [incomingOfferId]);
+  const handleAcceptIncoming = useCallback(() => {
+    if (incomingOffer && trustSender && incomingOffer.fromUserId) {
+      handleTrustUser(incomingOffer.fromUserId, incomingOffer.fromName);
+    }
+    fileTransfers.acceptIncoming();
+  }, [incomingOffer, trustSender, handleTrustUser, fileTransfers.acceptIncoming]);
 
   // Sidebar actions open a real modal (Settings, Create/Rename Room, Space Settings,
   // Create/Join Space) that needs more width than the compact dock strip. Rather than
@@ -1221,6 +1266,7 @@ export function App(): React.JSX.Element {
           onTogglePeerMute={togglePeerMuteByUserId}
           onLeaveRoom={leaveRoom}
           onSendFile={handleSendFileTo}
+          onDropFiles={handleDropFiles}
           ownerUserId={ownerUserId}
           moderatorUserId={moderatorUserId}
           amOwner={amOwner}
@@ -1503,15 +1549,46 @@ export function App(): React.JSX.Element {
         </Modal>
       )}
 
-      {fileTransfers.incomingOffer && (
-        <Modal title="Incoming file" onClose={fileTransfers.declineIncoming}>
-          <p style={{ marginBottom: 'var(--s-4)' }}>
-            {fileTransfers.incomingOffer.fromName} wants to send you{' '}
-            <strong>{fileTransfers.incomingOffer.name}</strong> ({formatBytes(fileTransfers.incomingOffer.size)}).
+      {incomingOffer && (
+        <Modal title={incomingOffer.files ? 'Incoming files' : 'Incoming file'} onClose={fileTransfers.declineIncoming}>
+          <p style={{ marginBottom: incomingOffer.files ? 'var(--s-2)' : 'var(--s-4)' }}>
+            {incomingOffer.fromName} wants to send you{' '}
+            {incomingOffer.files ? (
+              <>
+                <strong>{incomingOffer.files.length} files</strong> ({formatBytes(incomingOffer.size)}).
+              </>
+            ) : (
+              <>
+                <strong>{incomingOffer.name}</strong> ({formatBytes(incomingOffer.size)}).
+              </>
+            )}
           </p>
+          {incomingOffer.files && (
+            <ul className="incoming-files">
+              {incomingOffer.files.slice(0, 5).map((f, i) => (
+                <li key={i}>
+                  <span className="incoming-files__name">{f.name}</span>
+                  <span className="incoming-files__size">{formatBytes(f.size)}</span>
+                </li>
+              ))}
+              {incomingOffer.files.length > 5 && (
+                <li className="incoming-files__more">+{incomingOffer.files.length - 5} more</li>
+              )}
+            </ul>
+          )}
+          {incomingOffer.fromUserId !== '' && (
+            <label className="incoming-trust">
+              <input
+                type="checkbox"
+                checked={trustSender}
+                onChange={(e) => setTrustSender(e.target.checked)}
+              />
+              Always accept files from {incomingOffer.fromName}
+            </label>
+          )}
           <div style={{ display: 'flex', gap: 'var(--s-2)', justifyContent: 'flex-end' }}>
             <button className="btn btn--ghost" onClick={fileTransfers.declineIncoming}>Decline</button>
-            <button className="btn btn--primary" onClick={fileTransfers.acceptIncoming}>Accept</button>
+            <button className="btn btn--primary" onClick={handleAcceptIncoming}>Accept</button>
           </div>
         </Modal>
       )}
@@ -1698,6 +1775,10 @@ export function App(): React.JSX.Element {
           onChangeSfxDeafenEnabled={applySfxDeafenEnabled}
           badgeNotificationsEnabled={badgeNotificationsEnabled}
           onChangeBadgeNotificationsEnabled={applyBadgeNotificationsEnabled}
+          autoAcceptEnabled={autoAcceptEnabled}
+          onChangeAutoAcceptEnabled={applyAutoAcceptEnabled}
+          autoAcceptUsers={autoAcceptUsers}
+          onRemoveTrustedUser={handleRemoveTrustedUser}
           micVolume={micVolume}
           onChangeMicVolume={applyMicVolume}
           outputVolume={outputVolume}

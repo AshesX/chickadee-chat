@@ -109,7 +109,11 @@ export type ClientMessage =
   // Directed file-transfer handshake, relayed SPACE-wide (unlike the room-scoped
   // offer/answer/ice-candidate above) so a transfer can cross rooms. File BYTES
   // never touch the signaling socket — they flow over a dedicated RTCDataChannel.
-  | { type: 'file-offer'; to: PeerId; transferId: string; name: string; size: number }
+  // `files` present = a multi-file batch (2..MAX_BATCH_FILES); `transferId` is
+  // then the batch id, `name`/`size` summarize (first name, total bytes), and
+  // per-file transfers use DERIVED ids `${transferId}:${index}` in file-signal.
+  // file-answer/file-cancel always carry the ROOT id (batch-wide semantics).
+  | { type: 'file-offer'; to: PeerId; transferId: string; name: string; size: number; files?: { name: string; size: number }[] }
   | { type: 'file-answer'; to: PeerId; transferId: string; accept: boolean }
   // SDP/ICE for the dedicated file-transfer RTCPeerConnection (sender = offerer,
   // fixed roles — no perfect negotiation). Relayed verbatim, never inspected.
@@ -197,7 +201,7 @@ export type ServerMessage =
   | { type: 'answer'; from: PeerId; sdp: RTCSessionDescriptionInit }
   | { type: 'ice-candidate'; from: PeerId; candidate: RTCIceCandidateInit }
   // Relayed file-transfer handshake (space-wide, directed), `from` stamped.
-  | { type: 'file-offer'; from: PeerId; transferId: string; name: string; size: number }
+  | { type: 'file-offer'; from: PeerId; transferId: string; name: string; size: number; files?: { name: string; size: number }[] }
   | { type: 'file-answer'; from: PeerId; transferId: string; accept: boolean }
   | { type: 'file-signal'; from: PeerId; transferId: string; sdp?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit }
   | { type: 'file-cancel'; from: PeerId; transferId: string; reason?: string }

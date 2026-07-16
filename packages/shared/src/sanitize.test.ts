@@ -3,6 +3,7 @@ import {
   MAX_AVATAR_DATA_URL_LEN,
   MAX_BANNED_USERS,
   MAX_BANNER_DATA_URL_LEN,
+  MAX_BATCH_FILES,
   MAX_DISPLAY_NAME_LEN,
   MAX_FILE_NAME_LEN,
   MAX_FILE_SIZE_BYTES,
@@ -12,9 +13,11 @@ import {
   sanitizeAvatarDataUrl,
   sanitizeBannedUsers,
   sanitizeBannerDataUrl,
+  sanitizeFileOfferFiles,
   sanitizeFileOfferMeta,
   sanitizeSaveFileName,
   sanitizeStatus,
+  suffixedFileName,
 } from './sanitize';
 
 const tinyPng = `data:image/png;base64,${'A'.repeat(64)}`;
@@ -173,6 +176,50 @@ describe('sanitizeBannedUsers', () => {
 
     const flood = Array.from({ length: MAX_BANNED_USERS + 50 }, (_, i) => ({ userId: `u${i}`, displayName: '' }));
     expect(sanitizeBannedUsers(flood)).toHaveLength(MAX_BANNED_USERS);
+  });
+});
+
+describe('sanitizeFileOfferFiles', () => {
+  const file = (name: string, size: number): { name: string; size: number } => ({ name, size });
+
+  it('passes a valid batch through with names clamped', () => {
+    const files = sanitizeFileOfferFiles([file('a.mp4', 100), file('b'.repeat(300), 200)]);
+    expect(files).toHaveLength(2);
+    expect(files?.[0]).toEqual({ name: 'a.mp4', size: 100 });
+    expect(files?.[1].name).toHaveLength(MAX_FILE_NAME_LEN);
+  });
+
+  it('rejects non-batches: single entry, empty, over the cap, non-arrays', () => {
+    expect(sanitizeFileOfferFiles([file('a.mp4', 1)])).toBeNull();
+    expect(sanitizeFileOfferFiles([])).toBeNull();
+    const tooMany = Array.from({ length: MAX_BATCH_FILES + 1 }, (_, i) => file(`f${i}`, 1));
+    expect(sanitizeFileOfferFiles(tooMany)).toBeNull();
+    expect(sanitizeFileOfferFiles(Array.from({ length: MAX_BATCH_FILES }, (_, i) => file(`f${i}`, 1)))).toHaveLength(MAX_BATCH_FILES);
+    expect(sanitizeFileOfferFiles('nope')).toBeNull();
+    expect(sanitizeFileOfferFiles(undefined)).toBeNull();
+  });
+
+  it('rejects the whole batch on any bad entry', () => {
+    expect(sanitizeFileOfferFiles([file('a.mp4', 1), file('', 1)])).toBeNull();
+    expect(sanitizeFileOfferFiles([file('a.mp4', 1), file('b.mp4', -1)])).toBeNull();
+    expect(sanitizeFileOfferFiles([file('a.mp4', 1), null])).toBeNull();
+    expect(sanitizeFileOfferFiles([file('a.mp4', 1), 'x'])).toBeNull();
+  });
+
+  it('allows zero-byte entries', () => {
+    expect(sanitizeFileOfferFiles([file('a', 0), file('b', 0)])).toHaveLength(2);
+  });
+});
+
+describe('suffixedFileName', () => {
+  it('inserts the suffix before the last extension', () => {
+    expect(suffixedFileName('clip.mp4', 2)).toBe('clip (2).mp4');
+    expect(suffixedFileName('archive.tar.gz', 3)).toBe('archive.tar (3).gz');
+  });
+
+  it('appends for extension-less and leading-dot names', () => {
+    expect(suffixedFileName('README', 2)).toBe('README (2)');
+    expect(suffixedFileName('.env', 2)).toBe('.env (2)');
   });
 });
 

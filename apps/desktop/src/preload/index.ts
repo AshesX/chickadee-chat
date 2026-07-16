@@ -100,6 +100,21 @@ const api = {
     /** Reveal a completed transfer's file in Explorer. */
     showInFolder: (transferId: string): Promise<void> =>
       ipcRenderer.invoke('chickadee:show-file-in-folder', transferId),
+    /** Pick ONE folder for a whole batch; per-file streams open lazily against it. */
+    beginBatchSave: (batchId: string): Promise<string | null> =>
+      ipcRenderer.invoke('chickadee:begin-batch-save', batchId),
+    /** Trusted sender: authorize Downloads as the batch folder, no dialog. */
+    authorizeAutoBatch: (batchId: string): Promise<string | null> =>
+      ipcRenderer.invoke('chickadee:authorize-auto-batch', batchId),
+    /** Trusted sender, single file: dialog-less save into Downloads (collision-suffixed). */
+    beginAutoSave: (transferId: string, suggestedName: string): Promise<string | null> =>
+      ipcRenderer.invoke('chickadee:begin-auto-save', transferId, suggestedName),
+    /** Open one batch file's .part stream inside the authorized folder; resolves the (suffixed) name. */
+    beginBatchFileSave: (batchId: string, fileTransferId: string, suggestedName: string): Promise<string | null> =>
+      ipcRenderer.invoke('chickadee:begin-batch-file-save', batchId, fileTransferId, suggestedName),
+    /** Batch settled: drop its folder authorization. */
+    releaseBatch: (batchId: string): Promise<void> =>
+      ipcRenderer.invoke('chickadee:release-batch', batchId),
   },
   /** Frameless-window title-bar controls. */
   windowControls: {

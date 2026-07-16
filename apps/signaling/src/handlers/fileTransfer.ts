@@ -2,6 +2,7 @@ import {
   MAX_FILE_REASON_LEN,
   MAX_ID_LEN,
   clampString,
+  sanitizeFileOfferFiles,
   sanitizeFileOfferMeta,
   type ClientMessage,
 } from '@chickadee/shared';
@@ -33,12 +34,21 @@ export function relayFileMessage(conn: Connection, msg: FileRelayMessage): void 
     case 'file-offer': {
       const meta = sanitizeFileOfferMeta(msg.name, msg.size);
       if (!meta) return;
+      // A batch offer must be wholly valid (2..MAX_BATCH_FILES clean entries);
+      // one bad entry drops the offer rather than shrinking it.
+      let files: { name: string; size: number }[] | undefined;
+      if (msg.files !== undefined) {
+        const sanitized = sanitizeFileOfferFiles(msg.files);
+        if (!sanitized) return;
+        files = sanitized;
+      }
       send(target.socket, {
         type: 'file-offer',
         from: conn.peer.id,
         transferId,
         name: meta.name,
         size: meta.size,
+        ...(files ? { files } : {}),
       });
       break;
     }

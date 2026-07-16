@@ -71,6 +71,24 @@ export function parseControlMessage(data: unknown): ControlMessage | null {
   return { t } as ControlMessage;
 }
 
+/**
+ * Per-file transfer id inside a multi-file batch. Derived, never carried in
+ * the offer — `file-signal` routing and main's save-stream map key on it.
+ * The batch id is a UUID (no ':'), so the last colon is the separator.
+ */
+export function makeBatchFileId(batchId: string, index: number): string {
+  return `${batchId}:${index}`;
+}
+
+/** Parse a derived batch-file id; null for plain (single-file) transfer ids. */
+export function parseBatchFileId(id: string): { batchId: string; index: number } | null {
+  const sep = id.lastIndexOf(':');
+  if (sep <= 0 || sep === id.length - 1) return null;
+  const digits = id.slice(sep + 1);
+  if (!/^\d{1,3}$/.test(digits)) return null;
+  return { batchId: id.slice(0, sep), index: Number(digits) };
+}
+
 /** Sender-side backpressure: stop slicing while the SCTP buffer is at/above high water. */
 export function shouldPauseSend(bufferedAmount: number): boolean {
   return bufferedAmount >= SEND_HIGH_WATER;

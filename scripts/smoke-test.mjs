@@ -487,6 +487,38 @@ check(
   ftB.events.some((ev) => ev.type === 'file-offer' && ev.transferId === 'tr-5' && ev.name.length === 160),
 );
 
+// Multi-file batch offers: a valid batch relays with `files` intact (entries
+// clamped); malformed batches are dropped whole.
+ftA.ws.send(JSON.stringify({
+  type: 'file-offer', to: wFtB.selfId, transferId: 'batch-1', name: 'a.mp4', size: 30,
+  files: [{ name: 'a.mp4', size: 10 }, { name: 'x'.repeat(300), size: 20 }],
+}));
+await wait(200);
+check(
+  'batch file-offer relays with files intact and entry names clamped',
+  ftB.events.some(
+    (ev) => ev.type === 'file-offer' && ev.transferId === 'batch-1' && Array.isArray(ev.files) &&
+      ev.files.length === 2 && ev.files[0].name === 'a.mp4' && ev.files[0].size === 10 && ev.files[1].name.length === 160,
+  ),
+);
+
+const ftBBatchesBefore = ftB.events.filter((ev) => ev.type === 'file-offer').length;
+ftA.ws.send(JSON.stringify({ type: 'file-offer', to: wFtB.selfId, transferId: 'batch-2', name: 'a', size: 1, files: [{ name: 'a', size: 1 }] }));
+ftA.ws.send(JSON.stringify({ type: 'file-offer', to: wFtB.selfId, transferId: 'batch-3', name: 'a', size: 1, files: [] }));
+ftA.ws.send(JSON.stringify({
+  type: 'file-offer', to: wFtB.selfId, transferId: 'batch-4', name: 'a', size: 33,
+  files: Array.from({ length: 33 }, (_, i) => ({ name: `f${i}`, size: 1 })),
+}));
+ftA.ws.send(JSON.stringify({
+  type: 'file-offer', to: wFtB.selfId, transferId: 'batch-5', name: 'a', size: 2,
+  files: [{ name: 'a', size: 1 }, { name: 'b', size: -1 }],
+}));
+await wait(200);
+check(
+  'invalid batches (1 entry / empty / 33 entries / one bad size) are dropped whole',
+  ftB.events.filter((ev) => ev.type === 'file-offer').length === ftBBatchesBefore,
+);
+
 ftA.ws.close();
 ftB.ws.close();
 ftX.ws.close();

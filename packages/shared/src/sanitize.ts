@@ -87,6 +87,42 @@ export function sanitizeFileOfferMeta(name: unknown, size: unknown): { name: str
   return { name: safeName, size };
 }
 
+/** Max files in one multi-file transfer batch. */
+export const MAX_BATCH_FILES = 32;
+
+/**
+ * Validate a batch offer's untrusted `files` list. Returns the sanitized
+ * entries, or null to reject the whole offer: a batch must be 2..MAX_BATCH_FILES
+ * entries (a single file uses the plain offer shape) and every entry must pass
+ * `sanitizeFileOfferMeta` — one bad entry rejects the batch rather than
+ * silently shrinking it.
+ */
+export function sanitizeFileOfferFiles(value: unknown): { name: string; size: number }[] | null {
+  if (!Array.isArray(value) || value.length < 2 || value.length > MAX_BATCH_FILES) return null;
+  const out: { name: string; size: number }[] = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== 'object') return null;
+    const meta = sanitizeFileOfferMeta(
+      (entry as { name?: unknown }).name,
+      (entry as { size?: unknown }).size,
+    );
+    if (!meta) return null;
+    out.push(meta);
+  }
+  return out;
+}
+
+/**
+ * Windows-Explorer-style collision suffix: "clip.mp4" + 2 → "clip (2).mp4".
+ * Splits at the LAST dot; extension-less names and leading-dot names append
+ * instead. Callers loop n = 2, 3, … until the name is free.
+ */
+export function suffixedFileName(name: string, n: number): string {
+  const dot = name.lastIndexOf('.');
+  if (dot <= 0) return `${name} (${n})`;
+  return `${name.slice(0, dot)} (${n})${name.slice(dot)}`;
+}
+
 // Reserved punctuation + control chars Windows filenames can't contain.
 // eslint-disable-next-line no-control-regex -- stripping control chars is the point
 const UNSAFE_FILENAME_CHARS_RE = /[\\/:*?"<>|\u0000-\u001f]/g;

@@ -36,6 +36,8 @@ export const SETTINGS_SEARCH_INDEX: SearchEntry[] = [
   { label: 'Minimize to Tray', description: 'Minimize to tray keeps voice connected', tab: 'app', keywords: ['tray', 'close', 'minimize', 'background', 'quit', 'system tray'] },
   { label: 'Always on Top', description: 'Pin window above other apps', tab: 'app', keywords: ['always on top', 'pin', 'window', 'focus', 'float'] },
   { label: 'Taskbar Badge', description: 'Show unread count on taskbar icon', tab: 'app', keywords: ['badge', 'taskbar', 'unread', 'notification', 'count'] },
+  { label: 'Auto-Accept Files', description: 'Accept file transfers from trusted users without a prompt', tab: 'app', keywords: ['file', 'files', 'transfer', 'auto', 'accept', 'trust', 'download', 'sharing', 'send'] },
+  { label: 'Trusted Users', description: 'Users whose file transfers save straight to Downloads', tab: 'app', keywords: ['file', 'transfer', 'trust', 'trusted', 'allow', 'list', 'auto accept', 'remove'] },
   { label: 'Voice Quality', description: 'Caps outbound Opus bitrate for your voice', tab: 'audio', sectionId: 'section-voice-quality', keywords: ['audio quality', 'voice quality', 'opus', 'bitrate', 'bandwidth', 'mono', 'stereo'] },
   { label: 'Deafen Key', description: 'System-wide hotkey to deafen/undeafen', tab: 'keybindings', sectionId: 'section-kb-voice', keywords: ['deafen', 'keybind', 'hotkey', 'bind'] },
   { label: 'Camera Key', description: 'System-wide hotkey to toggle camera', tab: 'keybindings', sectionId: 'section-kb-video', keywords: ['camera', 'keybind', 'hotkey', 'video', 'bind'] },

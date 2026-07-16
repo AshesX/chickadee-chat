@@ -31,10 +31,23 @@ function statusLabel(t: TransferCard): string | null {
   }
 }
 
+/** Foot line: "2/5 · 1.2 GB / 3.4 GB · 8 MB/s" while moving, status text otherwise. */
+function footText(t: TransferCard, terminal: boolean, label: string | null): string {
+  const chip = t.fileCount ? `${Math.min((t.fileIndex ?? 0) + 1, t.fileCount)}/${t.fileCount}` : null;
+  if (t.status === 'transferring') {
+    const rate = t.rateBps > 0 ? ` · ${formatRate(t.rateBps)}` : '';
+    return `${chip ? `${chip} · ` : ''}${formatBytes(t.bytesDone)} / ${formatBytes(t.size)}${rate}`;
+  }
+  if (t.status === 'done' && t.fileCount) return `${t.fileCount} files · ${label}`;
+  if (!terminal && chip) return `${chip} · ${label}`;
+  return label ?? '';
+}
+
 /**
- * Floating bottom-right stack of file-transfer cards: direction, filename,
- * peer, progress bar, live rate, and cancel/dismiss. Terminal receive cards
- * offer "Show in folder". Renders nothing while no transfers exist.
+ * Floating bottom-right stack of file-transfer cards: direction, filename
+ * (batches show the active file + an i/N chip), peer, progress bar, live
+ * rate, and cancel/dismiss. Terminal receive cards offer "Show in folder".
+ * Renders nothing while no transfers exist.
  */
 export function TransferTray({ transfers, onCancel, onDismiss, onShowInFolder }: TransferTrayProps): React.JSX.Element | null {
   if (transfers.length === 0) return null;
@@ -72,14 +85,7 @@ export function TransferTray({ transfers, onCancel, onDismiss, onShowInFolder }:
               />
             </div>
             <div className="transfer-card__foot">
-              {t.status === 'transferring' ? (
-                <span>
-                  {formatBytes(t.bytesDone)} / {formatBytes(t.size)}
-                  {t.rateBps > 0 ? ` · ${formatRate(t.rateBps)}` : ''}
-                </span>
-              ) : (
-                <span>{label}</span>
-              )}
+              <span>{footText(t, terminal, label)}</span>
               {t.canReveal && t.status === 'done' && (
                 <button className="transfer-card__reveal" onClick={() => onShowInFolder(t.id)}>
                   <FolderOpen size={12} />

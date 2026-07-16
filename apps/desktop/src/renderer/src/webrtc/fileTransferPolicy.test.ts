@@ -7,7 +7,9 @@ import {
   formatBytes,
   formatRate,
   isTerminalStatus,
+  makeBatchFileId,
   nextFlowControl,
+  parseBatchFileId,
   parseControlMessage,
   shouldEmitProgress,
   shouldPauseSend,
@@ -131,6 +133,27 @@ describe('isTerminalStatus', () => {
     expect(isTerminalStatus('error')).toBe(true);
     expect(isTerminalStatus('transferring')).toBe(false);
     expect(isTerminalStatus('connecting')).toBe(false);
+  });
+});
+
+describe('makeBatchFileId / parseBatchFileId', () => {
+  it('round-trips derived ids', () => {
+    const batchId = 'a1b2c3d4-e5f6-7890-abcd-ef0123456789';
+    const id = makeBatchFileId(batchId, 7);
+    expect(id).toBe(`${batchId}:7`);
+    expect(parseBatchFileId(id)).toEqual({ batchId, index: 7 });
+    expect(parseBatchFileId(makeBatchFileId(batchId, 0))).toEqual({ batchId, index: 0 });
+    expect(parseBatchFileId(makeBatchFileId(batchId, 31))).toEqual({ batchId, index: 31 });
+  });
+
+  it('returns null for plain single-file ids and malformed values', () => {
+    expect(parseBatchFileId('a1b2c3d4-e5f6-7890-abcd-ef0123456789')).toBeNull(); // no colon
+    expect(parseBatchFileId('batch:')).toBeNull(); // empty index
+    expect(parseBatchFileId(':3')).toBeNull(); // empty batch id
+    expect(parseBatchFileId('batch:abc')).toBeNull(); // non-numeric
+    expect(parseBatchFileId('batch:1234')).toBeNull(); // absurd index (>3 digits)
+    expect(parseBatchFileId('batch:1.5')).toBeNull();
+    expect(parseBatchFileId('batch:-1')).toBeNull();
   });
 });
 

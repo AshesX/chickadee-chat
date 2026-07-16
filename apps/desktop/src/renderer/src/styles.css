@@ -908,6 +908,13 @@
   opacity: 1;
 }
 
+/* Drop-target highlight while OS files drag over a row (outline: no layout shift). */
+.friend-row--drop {
+  outline: 1px dashed var(--orange);
+  outline-offset: -1px;
+  background: color-mix(in srgb, var(--orange) 10%, transparent);
+}
+
 .presence-dot {
   display: inline-block;
   width: 12px;
@@ -2699,6 +2706,51 @@
 
 .transfer-card__reveal:hover {
   color: var(--text);
+}
+
+/* Incoming-batch file list in the accept modal. */
+.incoming-files {
+  list-style: none;
+  margin: 0 0 var(--s-4);
+  padding: var(--s-2) var(--s-3);
+  background: var(--veil-1);
+  border-radius: var(--r-1);
+  max-height: 160px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.incoming-files li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-3);
+  font-size: var(--fs-1);
+}
+
+.incoming-files__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.incoming-files__size,
+.incoming-files__more {
+  color: var(--dim);
+  flex-shrink: 0;
+}
+
+/* "Always accept files from X" checkbox on the incoming prompt. */
+.incoming-trust {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--fs-1);
+  color: var(--text-sub);
+  margin-bottom: var(--s-4);
+  cursor: pointer;
 }
 
 /* ── Modals ───────────────────────────────────────────────── */

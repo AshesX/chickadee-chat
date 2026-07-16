@@ -76,6 +76,8 @@ interface SidebarProps {
   onLeaveRoom: () => void;
   /** Start a P2P file transfer to a space member (USERS-row hover button). */
   onSendFile?: (userId: string) => void;
+  /** OS files dropped onto a USERS row (multiple files = one batch). */
+  onDropFiles?: (userId: string, files: File[]) => void;
 
   // Moderation (Space Owner / Room Moderator)
   /** Stable userId of the Space Owner (gold star), or null when unowned. */
@@ -147,6 +149,7 @@ export function Sidebar({
   onTogglePeerMute,
   onLeaveRoom,
   onSendFile,
+  onDropFiles,
   ownerUserId,
   moderatorUserId,
   amOwner = false,
@@ -266,6 +269,7 @@ export function Sidebar({
                   user={u}
                   role={u.id === ownerUserId ? 'owner' : u.id === moderatorUserId ? 'moderator' : null}
                   onSendFile={onSendFile}
+                  onDropFiles={onDropFiles}
                   onContextMenu={onUserContextMenu}
                 />
               ))}

@@ -71,6 +71,11 @@ export interface SettingsModalProps {
   onChangeSfxDeafenEnabled: (on: boolean) => void;
   badgeNotificationsEnabled: boolean;
   onChangeBadgeNotificationsEnabled: (on: boolean) => void;
+  /** File sharing: auto-accept transfers from the trusted-users list. */
+  autoAcceptEnabled: boolean;
+  onChangeAutoAcceptEnabled: (on: boolean) => void;
+  autoAcceptUsers: { userId: string; displayName: string }[];
+  onRemoveTrustedUser: (userId: string) => void;
   initialTab?: string;
   micVolume: number;
   onChangeMicVolume: (vol: number) => void;
