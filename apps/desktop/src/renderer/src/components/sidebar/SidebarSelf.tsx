@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Settings, Mic, MicOff, Headphones, HeadphoneOff } from 'lucide-react';
+import { Settings, Mic, MicOff, Headphones, HeadphoneOff, PhoneOff } from 'lucide-react';
 import { AvatarBadge } from '../AvatarBadge';
 import { INPUT_MODE_ICONS } from '../../lib/inputModeIcons';
 
@@ -25,6 +25,8 @@ interface SidebarSelfProps {
   inputMode: 'voice' | 'ptt';
   onCycleInputMode: () => void;
   selfSpeaking: boolean;
+  inRoom: boolean;
+  onLeaveRoom: () => void;
 }
 
 const STATUS_OPTIONS: { value: SelfStatus; label: string }[] = [
@@ -52,6 +54,8 @@ export function SidebarSelf({
   inputMode,
   onCycleInputMode,
   selfSpeaking,
+  inRoom,
+  onLeaveRoom,
 }: SidebarSelfProps): React.JSX.Element {
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
   const InputModeIcon = INPUT_MODE_ICONS[inputMode];
@@ -75,35 +79,47 @@ export function SidebarSelf({
         <div className="self__name">{selfName || 'You'}</div>
       </div>
       {compact ? (
-        <div className="self__mini-grid">
-          <button
-            className={`self__mini-btn${micEnabled ? '' : ' self__mini-btn--active'}`}
-            onClick={onToggleMic}
-            disabled={!hasMic}
-            title={micEnabled ? 'Mute' : 'Unmute'}
-            aria-label={micEnabled ? 'Mute' : 'Unmute'}
-          >
-            {micEnabled ? <Mic size={14} /> : <MicOff size={14} />}
-          </button>
-          <button
-            className={`self__mini-btn${deafened ? ' self__mini-btn--active' : ''}`}
-            onClick={onToggleDeafen}
-            title={deafened ? 'Undeafen' : 'Deafen'}
-            aria-label={deafened ? 'Undeafen' : 'Deafen'}
-          >
-            {deafened ? <HeadphoneOff size={14} /> : <Headphones size={14} />}
-          </button>
-          <button
-            className={`self__mini-btn${selfSpeaking ? ' self__mini-btn--speaking' : ''}`}
-            onClick={onCycleInputMode}
-            title={inputMode === 'ptt' ? 'Push-Talk' : 'Voice'}
-            aria-label="Cycle input mode"
-          >
-            <InputModeIcon size={14} />
-          </button>
-          <button className="self__mini-btn" onClick={onOpenSettings} aria-label="Settings">
-            <Settings size={14} />
-          </button>
+        <div className="self__compact-controls">
+          <div className="self__mini-grid">
+            <button
+              className={`self__mini-btn${micEnabled ? '' : ' self__mini-btn--active'}`}
+              onClick={onToggleMic}
+              disabled={!hasMic}
+              title={micEnabled ? 'Mute' : 'Unmute'}
+              aria-label={micEnabled ? 'Mute' : 'Unmute'}
+            >
+              {micEnabled ? <Mic size={14} /> : <MicOff size={14} />}
+            </button>
+            <button
+              className={`self__mini-btn${deafened ? ' self__mini-btn--active' : ''}`}
+              onClick={onToggleDeafen}
+              title={deafened ? 'Undeafen' : 'Deafen'}
+              aria-label={deafened ? 'Undeafen' : 'Deafen'}
+            >
+              {deafened ? <HeadphoneOff size={14} /> : <Headphones size={14} />}
+            </button>
+            <button
+              className={`self__mini-btn${selfSpeaking ? ' self__mini-btn--speaking' : ''}`}
+              onClick={onCycleInputMode}
+              title={inputMode === 'ptt' ? 'Push-Talk' : 'Voice'}
+              aria-label="Cycle input mode"
+            >
+              <InputModeIcon size={14} />
+            </button>
+            <button className="self__mini-btn" onClick={onOpenSettings} aria-label="Settings">
+              <Settings size={14} />
+            </button>
+          </div>
+          {inRoom && (
+            <button
+              className="self__leave-btn"
+              onClick={onLeaveRoom}
+              title="Leave room"
+              aria-label="Leave room"
+            >
+              <PhoneOff size={16} />
+            </button>
+          )}
         </div>
       ) : (
         <button className="self__settings" onClick={onOpenSettings} aria-label="Settings">

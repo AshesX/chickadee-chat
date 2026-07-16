@@ -990,6 +990,33 @@
    anti-aliasing bleed where they touch. A real gap has no shared edge to
    bleed across. Each button also rounds only its own outer corner, so no
    parent clip mask is needed either. */
+.self__compact-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+}
+
+.self__leave-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  border-radius: var(--r-1);
+  background: var(--red);
+  color: #fff;
+  transition: background var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
+}
+
+.self__leave-btn:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.self__leave-btn:active:not(:disabled) {
+  transform: scale(0.9);
+}
+
 .self__mini-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);

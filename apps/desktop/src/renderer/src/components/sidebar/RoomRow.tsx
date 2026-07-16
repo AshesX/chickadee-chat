@@ -1,4 +1,4 @@
-import { VolumeX, PhoneOff, Lock } from 'lucide-react';
+import { VolumeX, Lock } from 'lucide-react';
 import { capacityForType, sanitizeAvatarDataUrl, type Room } from '@chickadee/shared';
 import type { SpaceUser } from '../../hooks/useSpacePresence';
 import { RoomIcon } from '../RoomIcon';
@@ -18,8 +18,6 @@ interface RoomRowProps {
   onTogglePeerMute: (userId: string) => void;
   onSelectRoom: (id: string) => void;
   onContextMenu: (room: Room, x: number, y: number) => void;
-  compact: boolean;
-  onLeaveRoom: () => void;
   /** Whether this room is currently locked to new entrants (moderation). */
   locked?: boolean;
 }
@@ -39,8 +37,6 @@ export function RoomRow({
   onTogglePeerMute,
   onSelectRoom,
   onContextMenu,
-  compact,
-  onLeaveRoom,
   locked = false,
 }: RoomRowProps): React.JSX.Element {
   const active = r.id === currentRoomId;
@@ -124,16 +120,6 @@ export function RoomRow({
       {active && roomUsers.length > 0 && (
         <div className="room-row__avatar-strip">
           {roomUsers.map(renderAvatar)}
-          {compact && (
-            <button
-              className="room-row__mini-btn room-row__mini-btn--end room-row__mini-btn--danger"
-              onClick={onLeaveRoom}
-              title="Leave room"
-              aria-label="Leave room"
-            >
-              <PhoneOff size={14} />
-            </button>
-          )}
         </div>
       )}
     </div>

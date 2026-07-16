@@ -197,8 +197,6 @@ export function Sidebar({
         // unauthorized users never see an empty menu shell).
         if (canManageRoom(room) || roomLockable(room.id)) setMenu({ room, x, y });
       }}
-      compact={compact}
-      onLeaveRoom={onLeaveRoom}
       locked={lockedRoomIds?.includes(r.id) ?? false}
     />
   );
@@ -295,6 +293,8 @@ export function Sidebar({
         inputMode={inputMode}
         onCycleInputMode={onCycleInputMode}
         selfSpeaking={selfSpeaking}
+        inRoom={currentRoomId !== null}
+        onLeaveRoom={onLeaveRoom}
       />
 
       {menu && (
