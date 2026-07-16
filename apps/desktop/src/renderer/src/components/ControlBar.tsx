@@ -188,33 +188,30 @@ export function ControlBar({
           </button>
         </div>
 
-        {reactionsEnabled && (
-          <>
-            <div className="control-bar__divider" />
+        {(reactionsEnabled || soundboardEnabled) && (
+          <div className="control-bar__divider" />
+        )}
 
-            <div
-              onMouseEnter={onMouseEnterReact}
-              onMouseLeave={onMouseLeaveReact}
-              style={{ display: 'flex' }}
-            >
-              <ControlButton
-                icon={Smile}
-                label="React"
-                onClick={(e) => onReactMenu(e.currentTarget.getBoundingClientRect())}
-              />
-            </div>
-          </>
+        {reactionsEnabled && (
+          <div
+            onMouseEnter={onMouseEnterReact}
+            onMouseLeave={onMouseLeaveReact}
+            style={{ display: 'flex' }}
+          >
+            <ControlButton
+              icon={Smile}
+              label="React"
+              onClick={(e) => onReactMenu(e.currentTarget.getBoundingClientRect())}
+            />
+          </div>
         )}
 
         {soundboardEnabled && (
-          <>
-            <div className="control-bar__divider" />
-            <ControlButton
-              icon={Music2}
-              label="Sounds"
-              onClick={(e) => onSoundboardMenu(e.currentTarget.getBoundingClientRect())}
-            />
-          </>
+          <ControlButton
+            icon={Music2}
+            label="Sounds"
+            onClick={(e) => onSoundboardMenu(e.currentTarget.getBoundingClientRect())}
+          />
         )}
 
         <div className="control-bar__divider" />
