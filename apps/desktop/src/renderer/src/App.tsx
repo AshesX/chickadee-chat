@@ -47,6 +47,7 @@ import { generateBadgeOverlay } from './lib/trayIcon';
 import { Modal } from './components/Modal';
 import { playSfx } from './lib/sfx';
 import { AdvancedConnectionSettings } from './components/AdvancedConnectionSettings';
+import { DevPanel } from './components/DevPanel';
 
 // Heavy, conditionally-mounted modals are code-split so their JS isn't parsed at
 // cold start — each chunk loads the first time the modal opens. Named exports are
@@ -1946,6 +1947,8 @@ export function App(): React.JSX.Element {
           </Suspense>
         );
       })()}
+
+      <DevPanel signaling={signaling} />
     </div>
   );
 }

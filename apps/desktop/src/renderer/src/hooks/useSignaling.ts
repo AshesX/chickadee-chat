@@ -82,6 +82,8 @@ export interface Signaling extends SignalingState {
    * rides `join` directly, unlike media state).
    */
   setSoundboardClips: (clips: SoundboardClipMeta[]) => void;
+  injectGhostPeer: (peer: Peer) => void;
+  clearGhostPeers: () => void;
 }
 
 const INITIAL: SignalingState = {
@@ -520,6 +522,17 @@ export function useSignaling(): Signaling {
     setState(INITIAL);
   }, [clearTimers, closeSocket]);
 
+  const injectGhostPeer = useCallback((peer: Peer) => {
+    setState((prev) => ({ ...prev, peers: [...prev.peers, peer] }));
+  }, []);
+
+  const clearGhostPeers = useCallback(() => {
+    setState((prev) => ({
+      ...prev,
+      peers: prev.peers.filter((p) => !p.id.startsWith('ghost-')),
+    }));
+  }, []);
+
   // Clean up timers + socket if the component unmounts mid-call.
   useEffect(() => {
     return () => {
@@ -540,5 +553,7 @@ export function useSignaling(): Signaling {
     claimSpotlight,
     releaseSpotlight,
     setSoundboardClips,
+    injectGhostPeer,
+    clearGhostPeers,
   };
 }

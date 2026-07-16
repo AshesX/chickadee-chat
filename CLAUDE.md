@@ -230,6 +230,10 @@ The soundboard clip-fetch handshake (`soundboard-fetch-request`/`-signal`/`-canc
 - **WebRTC media can't be verified headlessly** — this environment can't launch the Electron GUI. Real audio/video/screen needs a **manual two-instance test, same room, with headphones** (mics + system-audio loopback echo otherwise).
 - **CI** (`.github/workflows/ci.yml`) runs `npm ci --ignore-scripts` → typecheck → `npm test` → smoke test on every PR + push to `main`.
 
+## Development Tools
+
+- **Ghost User Spawner:** A development-only floating panel (`DevPanel.tsx`, rendered when `NODE_ENV === 'development'`) allows injecting synthetic WebRTC peer objects directly into the local React signaling state. This allows for layout and UI testing of full rooms without requiring multiple app instances or real WebRTC connections. The ghost peers bypass networking but behave identically to real peers in the UI.
+
 ## Constraints
 
 Per-room cap is a unified **8** (hybrid rooms); the golden-ratio media model — one high-quality stage stream + compressed thumbnails, bounded by the per-user upload budget — is what keeps an 8-way video mesh safe. Signaling is in-memory, single-process, no auth/persistence. Windows-first (system-audio loopback); other platforms fall back to video-only screen share.
