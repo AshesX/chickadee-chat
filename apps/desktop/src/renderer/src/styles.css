@@ -1995,6 +1995,10 @@
   align-items: stretch;
   gap: 0;
   min-width: 0;
+  /* Syncs shrink rate: 72px standalone / 100px group basis = 0.72. This ensures 
+     the inner 72px button shrinks at the exact same absolute pixel rate as 
+     standalone buttons, hitting the 56px fade threshold simultaneously. */
+  flex-shrink: 0.72;
   transition: transform var(--dur-1) var(--ease);
 }
 

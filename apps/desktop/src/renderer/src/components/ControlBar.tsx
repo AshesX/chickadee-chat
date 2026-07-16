@@ -191,7 +191,7 @@ export function ControlBar({
           <div
             onMouseEnter={onMouseEnterReact}
             onMouseLeave={onMouseLeaveReact}
-            style={{ display: 'flex' }}
+            style={{ display: 'flex', minWidth: 0 }}
           >
             <ControlButton
               icon={Smile}
