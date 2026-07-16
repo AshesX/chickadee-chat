@@ -52,11 +52,10 @@ export function ChatTab({
   onChangeTtsStopKey,
 }: ChatTabProps): React.JSX.Element {
   const [customEmojis, setCustomEmojis] = usePersistedState(store.getCustomEmojis, store.setCustomEmojis);
-  const [quickReactions, setQuickReactions] = usePersistedState(store.getQuickReactions, store.setQuickReactions);
 
   return (
     <>
-      <SettingsSection id="section-chat-settings" title="Chat Settings" />
+      <SettingsSection id="section-chat-settings" title="Chat" />
 
       <SliderRow
         label="Chat Font Scale"
@@ -92,18 +91,7 @@ export function ChatTab({
       />
 
       <hr className="settings-divider" />
-      <SettingsSection id="section-chat-emojis" title="Emojis & Reactions" />
-
-      <ToggleRow
-        label="Enable reactions"
-        hint="Show floating emoji reactions from others and the control-bar React button."
-        value={reactionsEnabled}
-        onChange={onChangeReactionsEnabled}
-      />
-
-      <SettingsRow label="Quick Reactions" hint="Exactly 6 emojis shown in the quick reaction popover.">
-        <EmojiListManager emojis={quickReactions} onChange={setQuickReactions} max={6} />
-      </SettingsRow>
+      <SettingsSection id="section-chat-emojis" title="Emojis" />
 
       <SettingsRow label="Favorite Emojis" hint="Custom emojis pinned to the top of your emoji picker.">
         <EmojiListManager emojis={customEmojis} onChange={setCustomEmojis} max={24} />

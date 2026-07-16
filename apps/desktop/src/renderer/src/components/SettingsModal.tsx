@@ -1,5 +1,5 @@
 import { Fragment, useState, useEffect, useRef } from 'react';
-import { User, Mic, Volume2, Sliders, X, Video, Monitor, MessageSquare, Search, Keyboard, Music2 } from 'lucide-react';
+import { User, Mic, Volume2, Sliders, X, Video, Monitor, MessageSquare, Search, Keyboard, Music2, Smile } from 'lucide-react';
 import { defaultSettings } from '@chickadee/shared';
 import type { SettingsModalProps, TabId } from './settings/types';
 import { SUBSECTIONS, TAB_LABELS, getSearchResults } from './settings/searchIndex';
@@ -16,6 +16,7 @@ const NAV_SECTIONS: { title: string; tabs: { id: TabId; icon: typeof User }[] }[
       { id: 'sfx', icon: Volume2 },
       { id: 'soundboard', icon: Music2 },
       { id: 'chat', icon: MessageSquare },
+      { id: 'reactions', icon: Smile },
       { id: 'keybindings', icon: Keyboard },
       { id: 'ui', icon: Monitor },
       { id: 'app', icon: Sliders },
@@ -29,6 +30,7 @@ import { VideoTab } from './settings/VideoTab';
 import { SfxTab } from './settings/SfxTab';
 import { SoundboardTab } from './settings/SoundboardTab';
 import { ChatTab } from './settings/ChatTab';
+import { ReactionsTab } from './settings/ReactionsTab';
 import { UiTab } from './settings/UiTab';
 import { KeybindingsTab } from './settings/KeybindingsTab';
 import { AppTab } from './settings/AppTab';
@@ -282,6 +284,7 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
             {activeTab === 'sfx' && <SfxTab {...props} />}
             {activeTab === 'soundboard' && <SoundboardTab {...props} />}
             {activeTab === 'chat' && <ChatTab {...props} />}
+            {activeTab === 'reactions' && <ReactionsTab {...props} />}
             {activeTab === 'ui' && <UiTab {...props} />}
             {activeTab === 'keybindings' && (
               <KeybindingsTab {...props} />

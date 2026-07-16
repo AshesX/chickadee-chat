@@ -1,7 +1,7 @@
 import type { AudioQuality, SoundboardLibraryClip, ThemeName, VideoQuality } from '@chickadee/shared';
 import type { MediaDeviceOption } from '../../hooks/useMediaDevices';
 
-export type TabId = 'profile' | 'audio' | 'video' | 'sfx' | 'chat' | 'ui' | 'app' | 'keybindings' | 'soundboard';
+export type TabId = 'profile' | 'audio' | 'video' | 'sfx' | 'chat' | 'reactions' | 'ui' | 'app' | 'keybindings' | 'soundboard';
 
 export interface SearchEntry {
   label: string;
