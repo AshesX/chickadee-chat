@@ -3300,24 +3300,10 @@
   background: var(--card);
   position: relative;
   overflow: hidden;
-  -webkit-app-region: drag;
-}
-
-/* In compact mode, the TitleBar overlaps the banner. If the banner remains
-   draggable, it eats the clicks meant for the TitleBar's no-drag buttons. */
-.app--compact .sidebar__space-header {
-  -webkit-app-region: no-drag;
-}
-
-/* The ROOMS section header directly below already gets its own top-edge
-   divider line (.sidebar__section-header::before). Over a banner photo,
-   this flat hairline sitting immediately above that divider line
-   reads as a stray double-border seam. Drop it only for the banner state;
-   the plain-panel (no photo) header keeps it since there's no double-line
-   clash to cause the seam there. */
-/* The border is part of the card now, so no need to adjust for banner vs no banner */
-.sidebar__space-header--banner {
-  /* Retained for modifier logic if needed */
+  /* Opening the hamburger menu squares the bottom corners + collapses the
+     bottom margin so the Manage Spaces panel below reads as this same card
+     growing a drawer — see `--open` below. */
+  transition: margin-bottom var(--dur-2) var(--ease), border-radius var(--dur-2) var(--ease);
 }
 
 /* "Hide space banner image" setting: a shorter, typographic-only strip in
@@ -3411,8 +3397,7 @@
   z-index: 2;
   display: flex;
   align-items: center;
-  gap: 0;
-  -webkit-app-region: no-drag;
+  gap: var(--s-1);
 }
 
 .space-header__menu-btn {
@@ -3426,7 +3411,7 @@
 .space-header__actions {
   display: flex;
   align-items: center;
-  gap: 0;
+  gap: var(--s-1);
   animation: popIn var(--dur-1) var(--ease);
 }
 
@@ -3451,11 +3436,20 @@
 .space-header__delete-btn {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: var(--s-1);
   white-space: nowrap;
-  /* Slight breathing room from Copy/Settings/Lock — a destructive action
-     shouldn't sit flush against the others in a zero-gap icon group. */
-  margin-left: var(--s-1);
+}
+
+/* Lock Space shows the space's CURRENT state, not the action a click would
+   take (a closed padlock while unlocked read as "it's already locked" at a
+   glance) — locked = closed padlock in red for emphasis, unlocked = open
+   padlock in the cluster's normal ink color. Specificity matches the
+   banner-mode icon-color override above and is declared after it, so the
+   red wins in both plain and banner-photo headers. */
+.space-header__menu .icon-btn.space-header__lock-btn--locked,
+.space-header__menu .icon-btn.space-header__lock-btn--locked:hover {
+  color: var(--red);
 }
 
 /* Arm-then-confirm: clicking Delete/Leave once grows this button into a
@@ -3468,13 +3462,6 @@
   padding: 0 var(--s-2);
   background: var(--danger-bg);
   color: var(--danger-fg);
-}
-
-/* When the menu is open, the banner's bottom corners square off and its own
-   bottom margin collapses so the Manage Spaces panel below reads as the
-   SAME card growing a drawer, not a second floating card with a gap. */
-.sidebar__space-header {
-  transition: margin-bottom var(--dur-2) var(--ease), border-radius var(--dur-2) var(--ease);
 }
 
 .sidebar__space-header--open {

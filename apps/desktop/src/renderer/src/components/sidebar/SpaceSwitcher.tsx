@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, Check, Copy, Lock, LockOpen, LogOut, Menu, Plus, Settings, Trash2, X } from 'lucide-react';
 import { sanitizeBannerDataUrl, type SpaceInfo } from '@chickadee/shared';
 import { useDismissTimeout } from '../../hooks/useDismissTimeout';
@@ -59,23 +59,38 @@ export function SpaceSwitcher({
     setBannerLoaded(false);
   }, [safeBanner]);
 
-  const { arm: armDelete, cancel: cancelArmDelete } = useDismissTimeout(() => setDeleteArmed(false));
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // Close when clicking outside the header + manage panel container.
+  const { arm: armDelete, cancel: cancelArmDelete } = useDismissTimeout(() => setDeleteArmed(false));
+  const { arm: armMenuClose, cancel: cancelMenuClose } = useDismissTimeout(() => {
+    setMenuOpen(false);
+    setDeleteArmed(false);
+  });
+
+  // Close when clicking outside the header + manage panel container. Listens
+  // for `click`, not `mousedown`: the Manage Spaces panel lives in normal
+  // flow (it pushes ROOMS/USERS down, unlike the old absolutely-positioned
+  // dropdown it replaced), so closing it reflows the sidebar. Closing on
+  // mousedown moved that content out from under the cursor before the
+  // browser's mouseup/click pairing resolved, so a click meant for e.g. a
+  // room row landed on nothing. `click` fires after that pairing is already
+  // resolved against the pre-close layout, and bubbles through the target's
+  // own handler (attached closer to it in the tree) before it ever reaches
+  // this document-level listener — so the click "goes through" and closes
+  // the menu in one motion instead of just closing it.
   useEffect(() => {
     if (!menuOpen) return;
 
     function handleOutsideClick(e: MouseEvent): void {
-      const container = document.getElementById('sidebar-space-header-container');
-      if (container && !container.contains(e.target as Node)) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setMenuOpen(false);
         setDeleteArmed(false);
       }
     }
 
-    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('click', handleOutsideClick);
     return () => {
-      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('click', handleOutsideClick);
     };
   }, [menuOpen]);
 
@@ -99,10 +114,20 @@ export function SpaceSwitcher({
     return () => clearInterval(interval);
   }, [hovered, activeSpace]);
 
-  function toggleMenu(): void {
+  function toggleMenu(e: React.MouseEvent): void {
+    // Defense in depth: the outside-click-closes effect's own containment
+    // check already excludes this button (it's inside the container), so
+    // this click shouldn't reach it as an "outside click" regardless. But
+    // opening and closing both route through this one state update, and a
+    // stray document-level listener re-closing the menu in the same tick
+    // (batched with this open) would silently net out to "nothing happened"
+    // — stopping propagation here removes that whole class of race, rather
+    // than relying solely on the containment check being right every time.
+    e.stopPropagation();
     setMenuOpen((open) => !open);
     setDeleteArmed(false);
     cancelArmDelete();
+    cancelMenuClose();
   }
 
   function copySpaceCode(): void {
@@ -130,7 +155,12 @@ export function SpaceSwitcher({
   }
 
   return (
-    <div id="sidebar-space-header-container" className="sidebar__space-header-container">
+    <div
+      ref={containerRef}
+      className="sidebar__space-header-container"
+      onMouseLeave={() => { if (menuOpen) armMenuClose(3000); }}
+      onMouseEnter={cancelMenuClose}
+    >
       <div className={`sidebar__space-header${safeBanner ? ' sidebar__space-header--banner' : ''}${hideSpaceBanner ? ' sidebar__space-header--minimal' : ''}${menuOpen ? ' sidebar__space-header--open' : ''}`}>
         {safeBanner && (
           <>
@@ -158,6 +188,31 @@ export function SpaceSwitcher({
           {menuOpen && activeSpace && (
             <div className="space-header__actions">
               <button
+                className={`icon-btn icon-btn--sm icon-btn--danger space-header__delete-btn${deleteArmed ? ' space-header__delete-btn--armed' : ''}`}
+                onClick={handleDeleteClick}
+                title={isOwned ? 'Delete Space' : 'Leave Space'}
+              >
+                {deleteArmed ? (
+                  <>
+                    <AlertTriangle size={12} />
+                    <span>{isOwned ? 'Confirm delete?' : 'Confirm leave?'}</span>
+                  </>
+                ) : isOwned ? (
+                  <Trash2 size={12} />
+                ) : (
+                  <LogOut size={12} />
+                )}
+              </button>
+              {canLockSpace && onToggleSpaceLock && (
+                <button
+                  className={`icon-btn icon-btn--sm${spaceLocked ? ' space-header__lock-btn--locked' : ''}`}
+                  onClick={() => onToggleSpaceLock(!spaceLocked)}
+                  title={spaceLocked ? 'Unlock Space' : 'Lock Space'}
+                >
+                  {spaceLocked ? <Lock size={12} /> : <LockOpen size={12} />}
+                </button>
+              )}
+              <button
                 className="icon-btn icon-btn--sm"
                 onClick={copySpaceCode}
                 onMouseEnter={() => setHovered(true)}
@@ -175,31 +230,6 @@ export function SpaceSwitcher({
                 title="Space Settings"
               >
                 <Settings size={12} />
-              </button>
-              {canLockSpace && onToggleSpaceLock && (
-                <button
-                  className="icon-btn icon-btn--sm"
-                  onClick={() => onToggleSpaceLock(!spaceLocked)}
-                  title={spaceLocked ? 'Unlock Space' : 'Lock Space'}
-                >
-                  {spaceLocked ? <LockOpen size={12} /> : <Lock size={12} />}
-                </button>
-              )}
-              <button
-                className={`icon-btn icon-btn--sm icon-btn--danger space-header__delete-btn${deleteArmed ? ' space-header__delete-btn--armed' : ''}`}
-                onClick={handleDeleteClick}
-                title={isOwned ? 'Delete Space' : 'Leave Space'}
-              >
-                {deleteArmed ? (
-                  <>
-                    <AlertTriangle size={12} />
-                    <span>{isOwned ? 'Confirm delete?' : 'Confirm leave?'}</span>
-                  </>
-                ) : isOwned ? (
-                  <Trash2 size={12} />
-                ) : (
-                  <LogOut size={12} />
-                )}
               </button>
             </div>
           )}
