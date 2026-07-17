@@ -3327,7 +3327,7 @@
   height: 40px;
 }
 
-.sidebar__space-header--minimal .space-switcher-btn__name {
+.sidebar__space-header--minimal .space-header__name {
   font-size: var(--fs-3);
 }
 
@@ -3363,85 +3363,183 @@
   min-width: 0;
   flex: 1;
   height: 100%;
-}
-
-.space-switcher-btn {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: var(--s-2);
-  cursor: pointer;
-  text-align: left;
-  width: 100%;
   padding: 0 var(--s-2) var(--s-2) var(--s-2);
-  -webkit-app-region: no-drag;
 }
 
-.space-switcher-btn .sidebar__section-chevron {
-  position: absolute;
-  left: var(--s-4);
-  margin-top: 2px;
-}
-
-.space-switcher-btn__meta {
-  display: flex;
-  flex-direction: column;
-  flex: 0 1 auto;
-  min-width: 0;
-}
-
-.space-switcher-btn__name {
+.space-header__name {
   position: relative;
-  display: inline-block;
+  display: block;
   font-family: var(--font-base);
   font-weight: var(--fw-2);
   font-size: var(--fs-5);
   color: var(--text);
-  white-space: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
   text-align: left;
   line-height: var(--lh-1);
 }
 
 /* Banner-only override: light text for legibility over an arbitrary photo.
    Uses --block-fg so it resolves to an off-white in both themes. */
-.sidebar__space-header--banner .space-switcher-btn__name {
+.sidebar__space-header--banner .space-header__name {
   color: var(--block-fg);
 }
 
-
-.space-switcher-btn__name--code {
+.space-header__name--code {
   font-family: var(--font-mono);
   color: var(--orange);
   font-weight: var(--fw-2);
   letter-spacing: 0.02em;
 }
 
-.space-switcher-btn__name--empty {
+.space-header__name--empty {
   font-weight: var(--fw-1);
   font-style: italic;
   color: var(--dim);
 }
 
-.space-switcher-btn__code {
-  font-size: var(--fs-1);
-  font-weight: var(--fw-1);
-  color: var(--dim);
-  opacity: 0.82;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  margin-top: var(--s-1);
+/* Top-right menu cluster — anchored by `right`/`top` only (no `left`), so it
+   shrink-wraps its content and grows LEFTWARD as the action row (or the
+   delete button's armed state) widens, rather than the hamburger jumping
+   around or eating into the name's space at the bottom of the banner. */
+.space-header__menu {
+  position: absolute;
+  top: var(--s-2);
+  right: var(--s-2);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  -webkit-app-region: no-drag;
 }
 
-.space-switcher-btn__chevron {
-  color: var(--dim);
+.space-header__menu-btn {
   flex-shrink: 0;
-  transition: transform var(--dur-2) var(--ease);
 }
 
-.space-switcher-btn__chevron--open {
-  transform: rotate(180deg);
+/* Active space's actions — copy/settings/lock/delete — unfold to the left
+   of the hamburger/X when the menu is open. Grouped visually as one cluster
+   (shared pill background over a banner photo) rather than individually
+   backed icons. */
+.space-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  animation: popIn var(--dur-1) var(--ease);
+}
+
+/* Over an arbitrary photo, the whole cluster gets one shared legibility
+   scrim (a "toolbar chip") so it reads consistently regardless of what's
+   underneath, rather than each icon needing its own backing. */
+.sidebar__space-header--banner .space-header__menu {
+  background: var(--scrim-legibility);
+  border-radius: var(--r-1);
+  padding: 2px;
+}
+
+.sidebar__space-header--banner .space-header__menu .icon-btn {
+  color: var(--block-fg);
+}
+
+.sidebar__space-header--banner .space-header__menu .icon-btn:hover {
+  background: color-mix(in srgb, white 18%, transparent);
+  color: var(--block-fg);
+}
+
+.space-header__delete-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  white-space: nowrap;
+  /* Slight breathing room from Copy/Settings/Lock — a destructive action
+     shouldn't sit flush against the others in a zero-gap icon group. */
+  margin-left: var(--s-1);
+}
+
+/* Arm-then-confirm: clicking Delete/Leave once grows this button into a
+   labeled danger state instead of a native window.confirm() — a second
+   click (or letting the arm timeout lapse) resolves it. Growing leftward
+   (the cluster has no fixed width) means this never collides with the
+   banner's right edge. */
+.space-header__delete-btn--armed {
+  width: auto;
+  padding: 0 var(--s-2);
+  background: var(--danger-bg);
+  color: var(--danger-fg);
+}
+
+/* When the menu is open, the banner's bottom corners square off and its own
+   bottom margin collapses so the Manage Spaces panel below reads as the
+   SAME card growing a drawer, not a second floating card with a gap. */
+.sidebar__space-header {
+  transition: margin-bottom var(--dur-2) var(--ease), border-radius var(--dur-2) var(--ease);
+}
+
+.sidebar__space-header--open {
+  margin-bottom: 0;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/* Manage Spaces panel — revealed below the banner in normal flow (pushes
+   ROOMS/USERS down, never overlays them), flush against the banner's now-
+   square bottom edge. A single-track CSS Grid row animates 0fr -> 1fr for a
+   smooth height reveal with no JS measuring; `overflow: hidden` +
+   `min-height: 0` on the inner wrapper let that track actually collapse to
+   zero despite the card's own content/padding. All inset spacing lives on
+   the innermost card (not this grid container, and not its immediate
+   child) so nothing pokes out while collapsed. */
+.space-manage-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--dur-2) var(--ease);
+  margin: 0 var(--s-3);
+}
+
+/* The bottom gap (before ROOMS) only applies while open — otherwise it'd
+   stack with the banner's own bottom margin and double the closed-state gap
+   even though the panel itself is collapsed to zero height. */
+.space-manage-panel--open {
+  grid-template-rows: 1fr;
+  margin-bottom: var(--s-3);
+}
+
+.space-manage-panel__inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.space-manage-panel__card {
+  background: var(--card);
+  border-top: none;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border-bottom-left-radius: var(--r-2);
+  border-bottom-right-radius: var(--r-2);
+}
+
+.space-manage-panel__list {
+  display: flex;
+  flex-direction: column;
+  padding: var(--s-1);
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.space-manage-panel__footer {
+  padding: var(--s-1);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+/* Divider only when a switch-list precedes it — otherwise (no other spaces)
+   the footer is the card's only content and a lone top border would read as
+   a stray line. */
+.space-manage-panel__footer:not(:first-child) {
+  border-top: 1px solid var(--border);
 }
 
 .settings-slider {

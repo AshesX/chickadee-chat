@@ -101,16 +101,16 @@
   --veil-1: color-mix(in srgb, var(--tint) 6%, transparent);
   --veil-2: color-mix(in srgb, var(--tint) 12%, transparent);
 
-  /* Fixed dark overlay for text legibility over an arbitrary photo (Space
-     banner) — deliberately not --veil-1/2 (those are theme-aware ink hover/
-     active overlays, not permanent legibility scrims). */
+  /* Fixed dark overlay for text/icon legibility over an arbitrary photo
+     (Space banner) — deliberately not --veil-1/2 (those are theme-aware ink
+     hover/active overlays, not permanent legibility scrims). Backs the
+     banner's hamburger button + action-row hover state over a photo. */
   --scrim-legibility: color-mix(in srgb, black 50%, transparent);
 
   /* Softer, shorter twin of --scrim-legibility for the Space banner's bottom-
-     edge grounding fade — decorative depth, not a legibility aid (the radial
-     vignette centered behind the name still uses --scrim-legibility for
-     that). Same literal-black, theme-invariant construction (photo overlays
-     don't follow --tint). */
+     edge grounding fade — decorative depth, not a legibility aid. Same
+     literal-black, theme-invariant construction (photo overlays don't follow
+     --tint). */
   --scrim-edge: color-mix(in srgb, black 40%, transparent);
 
   /* Elevation */
@@ -323,17 +323,5 @@ input:focus-visible,
   to {
     opacity: 1;
     transform: translateX(0);
-  }
-}
-
-@keyframes spaceDropdownIn {
-  from {
-    opacity: 0;
-    transform: translateY(-8px) scale(0.95);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
   }
 }

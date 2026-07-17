@@ -38,7 +38,7 @@ interface SidebarProps {
   onSelectSpace: (id: string) => void;
   onCreateSpace: () => void;
   onJoinSpace: () => void;
-  onDeleteSpace: (id: string, name: string) => void;
+  onDeleteSpace: (id: string) => void;
   onSpaceSettings: (id: string) => void;
 
   // Collapsible ROOMS section (rooms are unified hybrid — one list).

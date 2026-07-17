@@ -80,7 +80,7 @@ export function UserContextMenu({
             className="menu-item menu-item--danger"
             onClick={() => {
               // Ban is the one hard-to-walk-back action here (undo lives in
-              // Space Settings), so confirm like deleteSpace does.
+              // Space Settings), so it gets a confirm.
               if (window.confirm(`Ban ${menu.name} from this Space? They won't be able to rejoin until unbanned (Space Settings).`)) {
                 onBan(menu.userId);
               }

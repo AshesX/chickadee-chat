@@ -13,7 +13,7 @@ export interface UseSpacesResult {
   switchSpace: (spaceId: string) => void;
   /** Consolidated create/join handler for the space modals. */
   addSpace: (val: string, type: 'create' | 'join', customSignalingUrl?: string, joinSecret?: string) => Promise<AddSpaceResult>;
-  deleteSpace: (spaceId: string, spaceName: string) => void;
+  deleteSpace: (spaceId: string) => void;
   /** Initializes the first space during onboarding. */
   initFirstSpace: (val: string, action: 'create' | 'join', customSignalingUrl?: string, joinSecret?: string) => Promise<AddSpaceResult>;
   /** Updates settings for an existing space (supports renaming). */
@@ -100,18 +100,10 @@ export function useSpaces(
     return { ok: true };
   }
 
-  function deleteSpace(spaceId: string, spaceName: string): void {
-    // Removal is local-only either way (the server is in-memory and other
-    // members' persisted lists resurrect the Space) — but the honest framing
-    // differs: an owner "deletes", a member "leaves" and can rejoin by code.
-    const owned = !!userId && spaces.find((s) => s.id === spaceId)?.ownerId === userId;
-    const confirmed = window.confirm(
-      owned
-        ? `Are you sure you want to delete the Space "${spaceName}"? All customized rooms and history will be lost locally.`
-        : `Leave the Space "${spaceName}"? It will be removed from your sidebar — you can rejoin later with the invite code.`,
-    );
-    if (!confirmed) return;
-
+  // Removal is local-only either way (the server is in-memory and other
+  // members' persisted lists resurrect the Space) — confirmation happens
+  // inline in the space banner before this is ever called.
+  function deleteSpace(spaceId: string): void {
     const nextSpaces = spaces.filter((s) => s.id !== spaceId);
     store.setSpaces(nextSpaces);
     setSpaces(nextSpaces);
