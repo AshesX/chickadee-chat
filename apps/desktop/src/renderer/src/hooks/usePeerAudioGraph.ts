@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { getSharedAudioContext, getMasterBus } from '../lib/audioContext';
+import { useEffect, useMemo, useRef } from 'react';
+import { useAudioGraph } from './useAudioGraph';
 
 interface PeerAudioGraphOptions {
   /** Camera+mic stream: local (muted preview) for self, remote otherwise. */
@@ -17,8 +17,8 @@ interface PeerAudioGraphOptions {
 
 /**
  * Owns a remote peer's incoming-audio plumbing for a `ParticipantTile`: the
- * `<video>` srcObject binding, the per-peer Web Audio graph (so gain > 1.0 is
- * possible), the live gain apply, and the no-AudioContext fallback. Returns the
+ * `<video>` srcObject binding, the per-peer Web Audio graph (via `useAudioGraph`,
+ * so gain > 1.0 is possible), and the no-AudioContext fallback. Returns the
  * `videoRef` to attach to the element and `audioRouted` (true once audio plays
  * through the graph, so the element should be muted).
  */
@@ -34,11 +34,6 @@ export function usePeerAudioGraph({
   audioRouted: boolean;
 } {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const gainNodeRef = useRef<GainNode | null>(null);
-  const sourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
-  // True once remote audio is routed through the Web Audio graph; mutes the <video>
-  // element so audio isn't played twice. Stays false (element audible) if no AudioContext.
-  const [audioRouted, setAudioRouted] = useState(false);
 
   // Audio-only view of the stream, used while hidden (see the srcObject effect).
   const audioOnlyStream = useMemo(() => {
@@ -51,7 +46,7 @@ export function usePeerAudioGraph({
   // While the window is minimized/hidden, swap in an audio-only stream (NOT null):
   // Chromium stops decoding the video track nobody can see, but the remote audio
   // track stays sunk to a playing media element. That matters because the per-peer
-  // Web Audio graph below sources from the MediaStream via createMediaStreamSource,
+  // Web Audio graph sources from the MediaStream via createMediaStreamSource,
   // and Chromium only produces samples for a remote WebRTC track while it's still
   // consumed by a media element — detaching to null silenced all peers in compact/
   // minimized mode. (Self preview is muted; this is harmless for it.) Mirrors ScreenView.
@@ -69,59 +64,7 @@ export function usePeerAudioGraph({
       windowVisible && cameraStream ? new MediaStream(cameraStream.getTracks()) : audioOnlyStream;
   }, [cameraStream, cameraVideoId, windowVisible, audioOnlyStream]);
 
-  // Build a per-peer Web Audio graph (remote only) so gain > 1.0 is possible.
-  // Source from the MediaStream, not the <video> element: createMediaElementSource
-  // binds the element permanently (crashes on StrictMode re-mount) and goes silent for
-  // remote WebRTC streams in Chromium. createMediaStreamSource has neither problem.
-  // When `normalize` is on, a compressor + makeup gain are inserted ahead of the manual
-  // gain to auto-level quiet/loud talkers (listener-side, no dependence on the sender):
-  //   normalize on:  source → compressor → makeup → gain → destination
-  //   normalize off: source → gain → destination
-  useEffect(() => {
-    if (isSelf || !cameraStream) return;
-    const ctx = getSharedAudioContext();
-    if (!ctx) return;
-    const src = ctx.createMediaStreamSource(cameraStream);
-    const gain = ctx.createGain();
-    gain.gain.value = Math.max(0, volume ?? 1);
-    let compressor: DynamicsCompressorNode | null = null;
-    let makeup: GainNode | null = null;
-    if (normalize) {
-      compressor = ctx.createDynamicsCompressor();
-      compressor.threshold.value = -28;
-      compressor.knee.value = 24;
-      compressor.ratio.value = 4;
-      compressor.attack.value = 0.003;
-      compressor.release.value = 0.25;
-      makeup = ctx.createGain();
-      makeup.gain.value = 1.8; // ≈ +5 dB to recover compressed level
-      src.connect(compressor);
-      compressor.connect(makeup);
-      makeup.connect(gain);
-    } else {
-      src.connect(gain);
-    }
-    gain.connect(getMasterBus() ?? ctx.destination);
-    sourceNodeRef.current = src;
-    gainNodeRef.current = gain;
-    setAudioRouted(true);
-    return () => {
-      src.disconnect();
-      compressor?.disconnect();
-      makeup?.disconnect();
-      gain.disconnect();
-      sourceNodeRef.current = null;
-      gainNodeRef.current = null;
-      setAudioRouted(false);
-    };
-  }, [cameraStream, isSelf, normalize]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Per-peer output volume via GainNode (supports 0–2 for 0–200% boost).
-  // cameraStream is a dep so the value re-applies after the graph rebuilds.
-  useEffect(() => {
-    if (gainNodeRef.current && !isSelf)
-      gainNodeRef.current.gain.value = Math.max(0, volume ?? 1);
-  }, [volume, isSelf, cameraStream]);
+  const { audioRouted } = useAudioGraph({ stream: cameraStream, active: !isSelf, volume, normalize });
 
   // Fallback when the Web Audio graph isn't wired (no AudioContext): apply volume +
   // Deafen (volume 0) directly on the <video> so they still work. Near-dead-code in

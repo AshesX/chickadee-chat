@@ -6,6 +6,11 @@ interface VolumePeer {
   userId: string;
 }
 
+interface VolumeStore {
+  get: () => Record<string, number>;
+  set: (userId: string, volume: number) => void;
+}
+
 export interface PeerVolumes {
   volumes: Record<string, number>;
   handleVolumeChange: (peerId: string, volume: number) => void;
@@ -14,10 +19,15 @@ export interface PeerVolumes {
   mutedUserIds: Set<string>;
 }
 
-// Per-peer playback volume + click-to-silence. Live values are keyed by session
-// peer.id; persistence is keyed by stable userId so a boost sticks across
-// restarts/reconnects. Silence is just volume 0 (no separate mute flag).
-export function usePeerVolumes(peers: readonly VolumePeer[], onMuteOtherCue?: () => void): PeerVolumes {
+// Per-peer playback volume + click-to-silence, generic over which persisted
+// store backs it (voice vs. screen-share audio). Live values are keyed by
+// session peer.id; persistence is keyed by stable userId so a boost sticks
+// across restarts/reconnects. Silence is just volume 0 (no separate mute flag).
+function usePeerVolumeControl(
+  peers: readonly VolumePeer[],
+  volumeStore: VolumeStore,
+  onMuteOtherCue?: () => void,
+): PeerVolumes {
   const [volumes, setVolumes] = useState<Record<string, number>>({});
 
   // Mirror peers + volumes into refs so the callbacks below can stay
@@ -35,8 +45,8 @@ export function usePeerVolumes(peers: readonly VolumePeer[], onMuteOtherCue?: ()
   const handleVolumeChange = useCallback((peerId: string, volume: number) => {
     setVolumes((prev) => ({ ...prev, [peerId]: volume }));
     const uid = peersRef.current.find((p) => p.id === peerId)?.userId;
-    if (uid) store.setPeerVolume(uid, volume);
-  }, []);
+    if (uid) volumeStore.set(uid, volume);
+  }, [volumeStore]);
 
   // Click-to-silence: mute = volume 0, remembering the pre-mute level (by
   // peer.id, session-only) so a later un-silence restores it. Reuses the volume
@@ -74,7 +84,7 @@ export function usePeerVolumes(peers: readonly VolumePeer[], onMuteOtherCue?: ()
   // Hydrate per-peer volume from persisted (userId-keyed) values when peers
   // appear. Fill-missing-only so an in-session edit is never clobbered.
   useEffect(() => {
-    const saved = store.getPeerVolumes();
+    const saved = volumeStore.get();
     setVolumes((prev) => {
       let changed = false;
       const next = { ...prev };
@@ -88,7 +98,23 @@ export function usePeerVolumes(peers: readonly VolumePeer[], onMuteOtherCue?: ()
       }
       return changed ? next : prev;
     });
-  }, [peers]);
+  }, [peers, volumeStore]);
 
   return { volumes, handleVolumeChange, togglePeerMute, togglePeerMuteByUserId, mutedUserIds };
+}
+
+const VOICE_STORE: VolumeStore = { get: store.getPeerVolumes, set: store.setPeerVolume };
+const SCREEN_STORE: VolumeStore = { get: store.getPeerScreenVolumes, set: store.setPeerScreenVolume };
+
+export function usePeerVolumes(peers: readonly VolumePeer[], onMuteOtherCue?: () => void): PeerVolumes {
+  return usePeerVolumeControl(peers, VOICE_STORE, onMuteOtherCue);
+}
+
+// Same control, backing a peer's screen-share audio volume instead of their
+// voice — fully independent (own persisted store, own live state, own
+// click-to-silence memory). No SFX cue (that cue is a voice-mute social
+// signal) and no mutedUserIds/togglePeerMuteByUserId — there's no sidebar
+// affordance for screen-audio mute today.
+export function usePeerScreenVolumes(peers: readonly VolumePeer[]): PeerVolumes {
+  return usePeerVolumeControl(peers, SCREEN_STORE);
 }

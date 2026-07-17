@@ -106,6 +106,9 @@ export const store = {
   getPeerVolumes: getter('peerVolumes'),
   setPeerVolume: (userId: string, volume: number): void =>
     persist({ peerVolumes: { ...(cache.peerVolumes ?? {}), [userId]: volume } }),
+  getPeerScreenVolumes: getter('peerScreenVolumes'),
+  setPeerScreenVolume: (userId: string, volume: number): void =>
+    persist({ peerScreenVolumes: { ...(cache.peerScreenVolumes ?? {}), [userId]: volume } }),
   getAutoAcceptEnabled: getter('autoAcceptEnabled'),
   setAutoAcceptEnabled: setter('autoAcceptEnabled'),
   getAutoAcceptUsers: getter('autoAcceptUsers'),

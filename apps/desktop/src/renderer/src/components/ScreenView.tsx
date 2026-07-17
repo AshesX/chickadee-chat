@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { EyeOff, Eye, Minimize2 } from 'lucide-react';
+import { useAudioGraph } from '../hooks/useAudioGraph';
+import { TileVolumeControl } from './TileVolumeControl';
 
 export interface ScreenViewProps {
   /** Whose stream this is, for the label. */
@@ -9,8 +11,6 @@ export interface ScreenViewProps {
   kind?: 'screen' | 'camera';
   /** The stage stream (screen/camera video + optional audio). */
   stream: MediaStream | null;
-  /** Preferred speaker deviceId (setSinkId), or '' for the system default. */
-  outputDeviceId?: string;
   /** False while the window is minimized/hidden; pauses video decode (audio kept). */
   windowVisible?: boolean;
   /** Remote only: leave this peer's stream (stop watching). */
@@ -19,15 +19,40 @@ export interface ScreenViewProps {
   watcherCount?: number;
   /** Self only: drop this stream off the stage (stop screen share / unspotlight camera). */
   onUnspotlight?: () => void;
+  /**
+   * Remote screen share only: this peer's screen-share audio gain (0–2,
+   * already folded in deafen/master-output-volume) — independent of their
+   * voice volume, which a camera has no separate audio track for anyway.
+   */
+  screenAudioVolume?: number;
+  /** Remote screen share only: the raw 0–2 factor for the volume control's own display/mute detection. */
+  screenAudioLevel?: number;
+  onScreenAudioVolumeChange?: (v: number) => void;
+  onToggleScreenAudioMute?: () => void;
 }
 
 /**
  * Large presentation view of the room stage — a shared screen or a spotlighted
  * camera. Uses object-fit: contain so the whole frame is visible (never cropped);
- * a self camera is mirrored. Self is muted to avoid echoing our own captured audio;
- * remote streams play their audio.
+ * a self camera is mirrored. The `<video>` element itself is always muted (self
+ * to avoid echoing our own captured audio, remote to avoid double-playing audio
+ * that a Web Audio graph already routes elsewhere) — see the screen-audio graph
+ * below for how a remote screen share's audio actually reaches the speakers.
  */
-export function ScreenView({ displayName, isSelf, kind = 'screen', stream, outputDeviceId, windowVisible = true, onLeave, watcherCount, onUnspotlight }: ScreenViewProps): React.JSX.Element {
+export function ScreenView({
+  displayName,
+  isSelf,
+  kind = 'screen',
+  stream,
+  windowVisible = true,
+  onLeave,
+  watcherCount,
+  onUnspotlight,
+  screenAudioVolume,
+  screenAudioLevel,
+  onScreenAudioVolumeChange,
+  onToggleScreenAudioMute,
+}: ScreenViewProps): React.JSX.Element {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   // While minimized/hidden, feed the element an audio-only stream so the shared
@@ -50,15 +75,17 @@ export function ScreenView({ displayName, isSelf, kind = 'screen', stream, outpu
     el.srcObject = windowVisible && stream ? new MediaStream(stream.getTracks()) : audioOnlyStream;
   }, [stream, videoTrackId, windowVisible, audioOnlyStream]);
 
-  // Route remote screen audio to the chosen output device (remote only).
-  useEffect(() => {
-    const el = videoRef.current as (HTMLVideoElement & { setSinkId?: (id: string) => Promise<void> }) | null;
-    if (el && !isSelf && typeof el.setSinkId === 'function') {
-      void el.setSinkId(outputDeviceId ?? '').catch(() => {
-        /* device may be gone; falls back to default */
-      });
-    }
-  }, [outputDeviceId, isSelf, stream]);
+  // Screen-share audio gets its own Web Audio gain graph (independent of voice
+  // volume) so it can be muted/boosted 0–200%. A spotlighted CAMERA has no
+  // separate audio track of its own — that peer's mic is already fully routed
+  // through their (always-rendered) filmstrip tile via usePeerAudioGraph, so
+  // building a second graph here would double-play their voice. The <video>
+  // element below is unconditionally muted for both kinds; audio for a remote
+  // screen share plays via this graph, and audio for a remote camera plays via
+  // the filmstrip tile only.
+  const routeScreenAudio = !isSelf && kind === 'screen';
+  useAudioGraph({ stream, active: routeScreenAudio, volume: screenAudioVolume });
+  const hasScreenAudio = routeScreenAudio && (stream?.getAudioTracks().length ?? 0) > 0;
 
   const label = kind === 'camera'
     ? (isSelf ? 'Your camera' : `${displayName}'s camera`)
@@ -71,9 +98,17 @@ export function ScreenView({ displayName, isSelf, kind = 'screen', stream, outpu
         className={`screen__video${isSelf && kind === 'camera' ? ' screen__video--mirror' : ''}`}
         autoPlay
         playsInline
-        muted={isSelf}
+        muted
       />
       <span className="screen__label">{label}</span>
+      {hasScreenAudio && onScreenAudioVolumeChange && (
+        <TileVolumeControl
+          displayName={`${displayName}'s screen audio`}
+          peerVolume={screenAudioLevel ?? 1}
+          onVolumeChange={onScreenAudioVolumeChange}
+          onToggleMute={onToggleScreenAudioMute}
+        />
+      )}
       {isSelf && typeof watcherCount === 'number' && watcherCount > 0 && (
         <span className="screen__watchers" title={`${watcherCount} watching`}>
           <Eye size={13} strokeWidth={2.5} />

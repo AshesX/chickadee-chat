@@ -16,7 +16,7 @@ import { useMediaDevices } from './hooks/useMediaDevices';
 import { useSfxEvents } from './hooks/useSfxEvents';
 import { useSfxSettings } from './hooks/useSfxSettings';
 import { useTraySync } from './hooks/useTraySync';
-import { usePeerVolumes } from './hooks/usePeerVolumes';
+import { usePeerVolumes, usePeerScreenVolumes } from './hooks/usePeerVolumes';
 import { useStageSpotlight } from './hooks/useStageSpotlight';
 import { useFileTransfers } from './hooks/useFileTransfers';
 import { useSoundboardLibrary } from './hooks/useSoundboardLibrary';
@@ -200,6 +200,14 @@ export function App(): React.JSX.Element {
   // Per-peer volume + click-to-silence (silence = volume 0, persisted by userId).
   const { volumes, handleVolumeChange, togglePeerMute, togglePeerMuteByUserId, mutedUserIds } =
     usePeerVolumes(signaling.peers, playMuteOtherCue);
+
+  // Per-peer screen-share audio volume + click-to-silence — fully independent
+  // of voice volume above (own persisted store, own live state).
+  const {
+    volumes: screenVolumes,
+    handleVolumeChange: handleScreenVolumeChange,
+    togglePeerMute: toggleScreenMute,
+  } = usePeerScreenVolumes(signaling.peers);
 
   // Output device is a single global property of the shared audio context (all
   // playback funnels through it), so set the sink once here — not per-peer tile.
@@ -1222,6 +1230,11 @@ export function App(): React.JSX.Element {
   const stageName = isSelfStage ? displayName : stagePeer?.displayName ?? '';
   const stageUserId = stagePeer?.userId;
   const stageAvatarUrl = isSelfStage ? localAvatarUrl : stagePeer?.avatarDataUrl ?? null;
+  // Screen-share audio gain, independent of voice volume — only meaningful for a
+  // remote peer's screen (a spotlighted camera has no separate audio track).
+  const isRemoteScreenStage = !isSelfStage && stageSel.stageSource === 'remote-screen';
+  const stageScreenAudioLevel = stagePeer ? screenVolumes[stagePeer.id] ?? 1 : 1;
+  const stageScreenAudioVolume = deafened ? 0 : stageScreenAudioLevel * outputVolume;
 
   const errors = [mesh.micError, mesh.cameraError, mesh.screenError, signaling.error, modNotice].filter(Boolean);
 
@@ -1328,9 +1341,18 @@ export function App(): React.JSX.Element {
                         isSelf={isSelfStage}
                         kind={signaling.spotlightKind ?? 'screen'}
                         stream={stageStream}
-                        outputDeviceId={outputDeviceId}
                         windowVisible={mediaVisible}
                         watcherCount={isSelfStage ? selfWatcherCount : undefined}
+                        screenAudioVolume={isRemoteScreenStage ? stageScreenAudioVolume : undefined}
+                        screenAudioLevel={isRemoteScreenStage ? stageScreenAudioLevel : undefined}
+                        onScreenAudioVolumeChange={
+                          isRemoteScreenStage && stagePeer
+                            ? (v) => handleScreenVolumeChange(stagePeer.id, v)
+                            : undefined
+                        }
+                        onToggleScreenAudioMute={
+                          isRemoteScreenStage && stagePeer ? () => toggleScreenMute(stagePeer.id) : undefined
+                        }
                         onLeave={!isSelfStage && stageUserId ? () => leaveVideo(stageUserId) : undefined}
                         onUnspotlight={
                           isSelfStage

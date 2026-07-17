@@ -43,6 +43,10 @@ describe('settings store (bridge path)', () => {
     store.setPeerVolume('u1', 1.5);
     expect(store.getPeerVolumes()).toEqual({ u1: 1.5 });
     expect(saveSettings).toHaveBeenCalledWith({ peerVolumes: { u1: 1.5 } });
+
+    store.setPeerScreenVolume('u1', 0.5);
+    expect(store.getPeerScreenVolumes()).toEqual({ u1: 0.5 });
+    expect(saveSettings).toHaveBeenCalledWith({ peerScreenVolumes: { u1: 0.5 } });
   });
 
   it('derives rooms from the active space, normalizing legacy types to hybrid', () => {

@@ -70,6 +70,8 @@ export interface PersistedSettings {
   normalizeVoices: boolean;
   /** Per-peer output volume (0–2) keyed by stable userId, so manual boosts persist across sessions/reconnects. */
   peerVolumes: Record<string, number>;
+  /** Per-peer screen-share audio volume (0–2), independent of peerVolumes (voice). Keyed by stable userId. */
+  peerScreenVolumes: Record<string, number>;
   /**
    * How the mic transmits: 'voice' = gated by VAD threshold, 'ptt' =
    * push-to-talk via the hotkey. (The legacy always-live 'open' mode was
@@ -212,6 +214,7 @@ export function defaultSettings(): PersistedSettings {
     autoGainControl: true,
     normalizeVoices: true,
     peerVolumes: {},
+    peerScreenVolumes: {},
     inputMode: 'voice',
     vadThreshold: 0.1,
     vadReleaseMs: 500,

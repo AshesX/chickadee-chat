@@ -1167,14 +1167,14 @@
 .title-bar__logo {
   width: 20px;
   height: 20px;
-  --logo-fill: var(--text);
+  --logo-fill: var(--dim);
 }
 
 .title-bar__wordmark {
   font-weight: var(--fw-2);
   font-size: var(--fs-1);
   letter-spacing: 0.05em;
-  color: var(--text);
+  color: var(--dim);
   white-space: nowrap;
   overflow: hidden;
   max-width: 200px;
@@ -1870,6 +1870,14 @@
 
 .screen__leave:active {
   transform: scale(0.95);
+}
+
+/* Screen-share audio volume control: reuses .tile__volume as-is (already
+   bottom-left, absolutely positioned, hover-to-expand) — the stage's other
+   corners are taken by .screen__watchers (top-left) and .screen__leave
+   (top-right), and .screen__label fades in along the bottom behind it. */
+.screen:hover .tile__volume {
+  opacity: 0.85;
 }
 
 .filmstrip {
