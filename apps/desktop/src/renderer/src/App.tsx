@@ -98,12 +98,14 @@ export function App(): React.JSX.Element {
   const [localVoicePreference, setLocalVoicePreference] = useState(() => store.getVoicePreference());
   const [localAccentColor, setLocalAccentColor] = useState(() => store.getAccentColor());
   const userId = useMemo(() => store.getUserId(), []);
-  // How many peers are watching OUR stage stream (their subscriptions include us) —
-  // drives the adaptive upload budget for the high-quality stage encoding.
-  const selfWatcherCount = useMemo(
-    () => signaling.peers.filter((p) => p.videoSubscriptions?.includes(userId)).length,
+  // Which peers are watching OUR stage stream (their subscriptions include us) —
+  // the count drives the adaptive upload budget for the high-quality stage
+  // encoding; the names feed the "who's watching" display on the stage itself.
+  const selfWatchers = useMemo(
+    () => signaling.peers.filter((p) => p.videoSubscriptions?.includes(userId)),
     [signaling.peers, userId],
   );
+  const selfWatcherCount = selfWatchers.length;
   // Which of our streams (if any) currently holds the room stage, per the
   // server-authoritative spotlight — 'stage' encoding for that kind, thumbnails else.
   const myStageKind: 'screen' | 'camera' | null =
@@ -1342,7 +1344,7 @@ export function App(): React.JSX.Element {
                         kind={signaling.spotlightKind ?? 'screen'}
                         stream={stageStream}
                         windowVisible={mediaVisible}
-                        watcherCount={isSelfStage ? selfWatcherCount : undefined}
+                        watcherNames={isSelfStage ? selfWatchers.map((p) => p.displayName) : undefined}
                         screenAudioVolume={isRemoteScreenStage ? stageScreenAudioVolume : undefined}
                         screenAudioLevel={isRemoteScreenStage ? stageScreenAudioLevel : undefined}
                         onScreenAudioVolumeChange={
@@ -1368,7 +1370,7 @@ export function App(): React.JSX.Element {
                           <div className="avatar avatar--lg" style={{ background: stageAvatarUrl ? undefined : (stagePeer?.accentColor || colors[stagePeer?.id ?? ''] || SELF_COLOR) }}>
                             {stageAvatarUrl ? <img src={stageAvatarUrl} alt={stageName} /> : (stageName.trim().charAt(0).toUpperCase() || '?')}
                           </div>
-                          <p>{stageName} is presenting</p>
+                          <p>{stageName} is streaming</p>
                           {stageUserId && (
                             <button className="btn btn--primary" onClick={() => joinVideo(stageUserId)}>
                               <Play size={15} strokeWidth={2.5} fill="currentColor" /> Watch
@@ -1605,7 +1607,7 @@ export function App(): React.JSX.Element {
       {pendingTakeover && (
         <Modal title="Stage in use" onClose={cancelTakeover}>
           <p style={{ marginBottom: 'var(--s-4)' }}>
-            {pendingTakeover.holderName} is presenting on the stage. Take it over?
+            {pendingTakeover.holderName} is streaming on the stage. Take it over?
           </p>
           <div style={{ display: 'flex', gap: 'var(--s-2)', justifyContent: 'flex-end' }}>
             <button className="btn btn--ghost" onClick={cancelTakeover}>Cancel</button>

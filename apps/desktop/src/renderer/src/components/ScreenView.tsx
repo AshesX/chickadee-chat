@@ -15,8 +15,8 @@ export interface ScreenViewProps {
   windowVisible?: boolean;
   /** Remote only: leave this peer's stream (stop watching). */
   onLeave?: () => void;
-  /** Self only: how many peers are currently watching our stream. */
-  watcherCount?: number;
+  /** Self only: display names of peers currently watching our stream. */
+  watcherNames?: string[];
   /** Self only: drop this stream off the stage (stop screen share / unspotlight camera). */
   onUnspotlight?: () => void;
   /**
@@ -46,7 +46,7 @@ export function ScreenView({
   stream,
   windowVisible = true,
   onLeave,
-  watcherCount,
+  watcherNames,
   onUnspotlight,
   screenAudioVolume,
   screenAudioLevel,
@@ -100,7 +100,15 @@ export function ScreenView({
         playsInline
         muted
       />
-      <span className="screen__label">{label}</span>
+      <div className="screen__info">
+        <span className="screen__label">{label}</span>
+        {isSelf && watcherNames && watcherNames.length > 0 && (
+          <span className="screen__watchers" title={watcherNames.join(', ')}>
+            <Eye size={13} strokeWidth={2.5} />
+            {watcherNames.join(', ')}
+          </span>
+        )}
+      </div>
       {hasScreenAudio && onScreenAudioVolumeChange && (
         <TileVolumeControl
           displayName={`${displayName}'s screen audio`}
@@ -108,12 +116,6 @@ export function ScreenView({
           onVolumeChange={onScreenAudioVolumeChange}
           onToggleMute={onToggleScreenAudioMute}
         />
-      )}
-      {isSelf && typeof watcherCount === 'number' && watcherCount > 0 && (
-        <span className="screen__watchers" title={`${watcherCount} watching`}>
-          <Eye size={13} strokeWidth={2.5} />
-          {watcherCount}
-        </span>
       )}
       {isSelf && onUnspotlight && (
         <button

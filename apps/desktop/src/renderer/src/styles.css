@@ -1444,20 +1444,22 @@
   white-space: nowrap;
 }
 
-/* Video tiles: the name sits on a bottom fade-up scrim (raw black is the
-   established on-media overlay convention). The tall top padding keeps the
-   text inside the ≥0.6-alpha band; right padding clears the volume pill. */
+/* Video tiles: the name moves to a compact top-left pill (matching the
+   stage's .screen__info treatment) instead of a bottom scrim — that frees the
+   bottom corners entirely, so the volume pill / leave / spotlight controls
+   below no longer need video-tile-specific position overrides; they just use
+   their normal (non-video-tile) corners. */
 .tile--video .tile__badge {
-  top: auto;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  top: 10px;
+  left: 10px;
+  right: auto;
+  bottom: auto;
   transform: none;
-  max-width: none;
-  gap: var(--s-2);
-  padding: var(--s-5) 48px var(--s-2) var(--s-3);
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.78), rgba(0, 0, 0, 0.6) 55%, transparent);
-  border-radius: 0;
+  max-width: calc(100% - 20px);
+  gap: var(--s-1);
+  padding: var(--s-1) var(--s-2);
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: var(--r-1);
 }
 
 .tile--video .tile__badge-name {
@@ -1609,8 +1611,9 @@
 }
 
 
-/* Self-only: promote this camera to the room stage. Bottom-left so it doesn't
-   collide with the bottom-right stop-watching / top volume affordances. */
+/* Self-only: promote this camera to the room stage. Bottom-left, same corner
+   as the (mutually exclusive, remote-only) volume pill; bottom-right is
+   .tile__leave's corner. */
 .tile__spotlight {
   position: absolute;
   bottom: 10px;
@@ -1666,42 +1669,10 @@
   opacity: 0.9;
 }
 
-/* On video tiles the bottom edge belongs to the name bar: the volume pill
-   moves to the bar's right end (z3 over the z2 scrim) and leave/spotlight
-   take the vacated top-left. row-reverse pins the volume trigger icon at
-   the right edge so the pill's discrete expansion grows leftward. */
-.tile--video .tile__volume {
-  left: auto;
-  right: var(--s-2);
-  bottom: var(--s-2);
-  flex-direction: row-reverse;
-}
-
-/* Mirror the reveal slide for the right-anchored pill (both rules needed:
-   the resting one outranks the base, the hover/focus one outranks both). */
-.tile--video .tile__volume>div,
-.tile--video .tile__volume>.tile__volume-pct {
-  transform: translateX(6px);
-}
-
-.tile--video .tile__volume:hover>div,
-.tile--video .tile__volume:hover>.tile__volume-pct,
-.tile--video .tile__volume:focus-within>div,
-.tile--video .tile__volume:focus-within>.tile__volume-pct {
-  transform: translateX(0);
-}
-
-.tile--video .tile__leave {
-  bottom: auto;
-  right: auto;
-  top: 10px;
-  left: 10px;
-}
-
-.tile--video .tile__spotlight {
-  bottom: auto;
-  top: 10px;
-}
+/* Volume / leave / spotlight no longer need video-tile-specific corner
+   overrides: now that the name has moved to a top-left pill (above), their
+   normal (non-video-tile) bottom-left/bottom-right positions never collide
+   with it. */
 
 .tile__leave:hover {
   opacity: 1;
@@ -1793,48 +1764,51 @@
   font-weight: var(--fw-1);
 }
 
-/* Aligned with the video-tile name bar: a bottom fade-up scrim spanning the
-   stage width, still hover-revealed (opacity only). */
-.screen__label {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: var(--s-5) var(--s-3) var(--s-2);
-  font-size: var(--fs-1);
-  font-weight: var(--fw-1);
-  color: #fff;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.78), rgba(0, 0, 0, 0.6) 55%, transparent);
-  border-radius: 0;
-  opacity: 0;
-  transition: opacity var(--dur-2) var(--ease);
-}
-
-.screen:hover .screen__label {
-  opacity: 1;
-}
-
-
-.screen__watchers {
+/* Name + "who's watching" now live in a top-left stack instead of the name's
+   old full-width bottom scrim — that freed the bottom-left corner for the
+   screen-audio volume pill (they used to occupy the same strip). Both fade
+   in together on stage hover (opacity only, no layout-affecting properties —
+   see the video-jitter fix above for why that matters right next to this
+   <video>). */
+.screen__info {
   position: absolute;
   top: 10px;
   left: 10px;
+  right: 10px;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
   gap: var(--s-1);
-  padding: var(--s-1) var(--s-2);
-  font-size: var(--fs-1);
-  font-weight: var(--fw-2);
-  font-variant-numeric: tabular-nums;
-  color: #fff;
-  background: rgba(0, 0, 0, 0.6);
-  border-radius: var(--r-1);
   opacity: 0;
   transition: opacity var(--dur-2) var(--ease);
 }
 
-.screen:hover .screen__watchers {
+.screen:hover .screen__info {
   opacity: 1;
+}
+
+.screen__label,
+.screen__watchers {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  max-width: 100%;
+  padding: var(--s-1) var(--s-2);
+  font-size: var(--fs-1);
+  color: #fff;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: var(--r-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.screen__label {
+  font-weight: var(--fw-1);
+}
+
+.screen__watchers {
+  font-weight: var(--fw-2);
 }
 
 
@@ -1872,12 +1846,46 @@
   transform: scale(0.95);
 }
 
-/* Screen-share audio volume control: reuses .tile__volume as-is (already
-   bottom-left, absolutely positioned, hover-to-expand) — the stage's other
-   corners are taken by .screen__watchers (top-left) and .screen__leave
-   (top-right), and .screen__label fades in along the bottom behind it. */
+/* Screen-share audio volume control: reuses .tile__volume, but overrides its
+   icon-collapse/hover-expand behavior (an animated `max-width`, a layout
+   property) since there's ample room on the stage anyway — show the full
+   control always and only fade its opacity (cheap, compositor-only, and
+   incidentally rules out `max-width` as a contributor to the video-jitter bug
+   fixed below), matching the reveal-on-stage-hover convention already used by
+   .screen__info/.screen__leave. Bottom-left; the stage's other corners are
+   .screen__info (name + watchers, top-left) and .screen__leave (top-right). */
+.screen .tile__volume {
+  max-width: 194px;
+  opacity: 0;
+  transition: opacity var(--dur-2) var(--ease);
+}
+
 .screen:hover .tile__volume {
-  opacity: 0.85;
+  opacity: 0.95;
+}
+
+.screen .tile__volume:hover,
+.screen .tile__volume:focus-within {
+  opacity: 1;
+}
+
+.screen .tile__volume>div,
+.screen .tile__volume>.tile__volume-pct {
+  opacity: 1;
+  transform: none;
+}
+
+/* Confirmed culprit: .tile__volume-icon-btn:hover's `transform: scale(1.08)`
+   promotes the icon to its own GPU compositing layer for as long as the
+   cursor sits over it. That layer churn, right next to the stage's large
+   (hardware-overlay-composited) <video>, forces Chromium to demote the video
+   out of direct scanout and recomposite it — a visible pixel-shift each time
+   the cursor crosses the icon's small hit area. Camera thumbnails never
+   showed this (too small to hit that code path); on the stage, skip the
+   transform entirely and rely on the pill's opacity reveal + the existing
+   boost/muted color cues for hover feedback instead. */
+.screen .tile__volume-icon-btn:hover {
+  transform: none;
 }
 
 .filmstrip {
@@ -1894,25 +1902,24 @@
   aspect-ratio: 16 / 9;
 }
 
-/* Filmstrip compacts (124px-tall tiles): a short top padding keeps the
-   badge — and its gradient scrim, which scales with this box — clear of a
-   centered .tile__watch button instead of reaching up toward it. */
+/* Filmstrip compacts (124px-tall tiles): tighter padding for the smaller
+   top-left name pill (matches the non-video filmstrip badge's compactness
+   below). No clearance rule needed for the centered .tile__watch button or
+   the volume pill — neither shares the badge's corner anymore. */
 .filmstrip .tile--video .tile__badge {
-  padding: var(--s-1) 44px var(--s-1) var(--s-2);
-  gap: var(--s-1);
-}
-
-.filmstrip .tile--video .tile__volume {
-  right: var(--s-1);
-  bottom: var(--s-1);
+  padding: 2px var(--s-2);
 }
 
 /* Voice tiles in the filmstrip: the 96px avatar leaves no room below the
-   center, so the name becomes a compact scrim pill over the avatar's
-   bottom edge instead of free-floating text. */
+   center, so the name becomes a compact scrim pill instead of free-floating
+   text — moved to the top-left corner (matching .tile--video's treatment)
+   rather than the bottom, which used to sit right on top of the bottom-left
+   volume pill in these short (124px) tiles. */
 .filmstrip .tile:not(.tile--video) .tile__badge {
-  top: auto;
-  bottom: var(--s-1);
+  top: var(--s-1);
+  left: var(--s-1);
+  bottom: auto;
+  transform: none;
   padding: 2px var(--s-2);
   background: rgba(0, 0, 0, 0.72);
   border-radius: var(--r-1);
