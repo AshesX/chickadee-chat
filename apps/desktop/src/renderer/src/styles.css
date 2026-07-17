@@ -506,10 +506,10 @@
   height: 32px;
   padding: 0 var(--s-4);
   font-family: var(--font-base);
-  font-size: var(--fs-0);
+  font-size: var(--fs-1);
   font-weight: var(--fw-1);
   letter-spacing: 0.08em;
-  color: var(--text);
+  color: var(--dim);
   background: transparent;
   cursor: pointer;
   position: relative;
@@ -518,7 +518,7 @@
 
 
 .sidebar__section-header:hover {
-  color: var(--text-sub);
+  color: var(--text);
 }
 
 
@@ -563,12 +563,9 @@
    corner radius. */
 .room-row {
   position: relative;
-  overflow: hidden;
-  margin-bottom: var(--s-2);
-  width: 100%;
-  border-radius: 0;
+  overflow: visible;
+  margin: 0 var(--s-3) var(--s-2);
   color: var(--text);
-  transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
   display: flex;
   flex-direction: column;
 }
@@ -582,19 +579,22 @@
   display: flex;
   align-items: center;
   gap: var(--s-2);
-  /* Row padding adjusted to match full-bleed */
-  padding: 0 var(--s-4);
+  /* Row padding adjusted for more breathing room from pill edges */
+  padding: 0 var(--s-2);
   font-size: var(--fs-3);
   text-align: left;
+  border-radius: var(--r-2);
+  transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
 }
 
 
-.room-row:hover {
+.room-row__main:hover,
+.room-row--create:hover {
   background: var(--veil-1);
 }
 
-.room-row--active,
-.room-row--active:hover {
+.room-row--active .room-row__main,
+.room-row--active .room-row__main:hover {
   background: var(--active-bg);
   color: var(--active-text);
 }
@@ -612,7 +612,7 @@
   content: '';
   position: absolute;
   z-index: 1;
-  left: -8px;
+  left: calc(-1 * var(--s-3) - 8px);
   top: 50%;
   width: 16px;
   height: 16px;
@@ -725,10 +725,23 @@
 
 
 .room-row__avatar-strip {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--s-1);
-  margin: var(--s-1) var(--s-4);
+  margin: var(--s-1) var(--s-1) var(--s-2) 40px;
+}
+
+.room-row__avatar-strip::before {
+  content: '';
+  position: absolute;
+  left: -20px;
+  top: 0;
+  width: 12px;
+  height: 12px;
+  border-left: 2px solid var(--border);
+  border-bottom: 2px solid var(--border);
+  border-bottom-left-radius: var(--r-1);
 }
 
 .room-row__avatar-strip .room-row__avatar {
@@ -3265,9 +3278,11 @@
   justify-content: flex-start;
   height: 96px;
   padding: 0;
+  margin: var(--s-3);
+  border-radius: var(--r-2);
+  background: var(--card);
   position: relative;
   overflow: hidden;
-  border-bottom: 1px solid var(--border);
   -webkit-app-region: drag;
 }
 
@@ -3283,8 +3298,9 @@
    reads as a stray double-border seam. Drop it only for the banner state;
    the plain-panel (no photo) header keeps it since there's no double-line
    clash to cause the seam there. */
+/* The border is part of the card now, so no need to adjust for banner vs no banner */
 .sidebar__space-header--banner {
-  border-bottom: none;
+  /* Retained for modifier logic if needed */
 }
 
 /* "Hide space banner image" setting: a shorter, typographic-only strip in

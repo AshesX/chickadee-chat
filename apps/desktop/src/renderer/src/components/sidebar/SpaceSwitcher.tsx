@@ -160,7 +160,7 @@ export function SpaceSwitcher({
       {switcherOpen && (
         <div
           className="menu-surface"
-          style={{ position: 'absolute', top: `${headerHeight + 1}px`, left: 0, width: '100%', zIndex: 'var(--z-dropdown)', display: 'flex', flexDirection: 'column', border: 'none', borderRadius: 0, boxShadow: 'var(--sh-1)', clipPath: 'inset(0px 0px -40px 0px)' }}
+          style={{ position: 'absolute', top: '100%', left: 0, width: '100%', zIndex: 'var(--z-dropdown)', display: 'flex', flexDirection: 'column', border: 'none', borderRadius: 0, boxShadow: 'var(--sh-1)', clipPath: 'inset(0px 0px -40px 0px)' }}
           onClick={(e) => e.stopPropagation()}
         >
           {spaces.length > 0 && (
