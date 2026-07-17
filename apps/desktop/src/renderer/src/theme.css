@@ -111,7 +111,7 @@
      vignette centered behind the name still uses --scrim-legibility for
      that). Same literal-black, theme-invariant construction (photo overlays
      don't follow --tint). */
-  --scrim-edge: color-mix(in srgb, black 30%, transparent);
+  --scrim-edge: color-mix(in srgb, black 40%, transparent);
 
   /* Elevation */
   --sh-1: 0 8px 28px var(--shadow-color);

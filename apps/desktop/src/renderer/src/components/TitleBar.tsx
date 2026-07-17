@@ -11,9 +11,23 @@ interface TitleBarProps {
 }
 
 export function TitleBar({ chatOpen, onToggleChat, inRoom, compact, onToggleCompact }: TitleBarProps): React.JSX.Element {
+  const collapseBtn = (
+    <button
+      className="icon-btn title-bar__collapse-btn"
+      onClick={onToggleCompact}
+      title={compact ? 'Expand' : 'Collapse to sidebar'}
+      aria-label={compact ? 'Expand' : 'Collapse to sidebar'}
+    >
+      <ChevronsLeft
+        size={14}
+        className={`title-bar__collapse-icon${compact ? ' title-bar__collapse-icon--flipped' : ''}`}
+      />
+    </button>
+  );
+
   return (
     <header className="title-bar">
-      <div className="title-bar__left">
+      <div className="title-bar__center">
         <Logo size={16} staticLogo className="title-bar__logo" />
         <span className="title-bar__wordmark">CHICKADEE CHAT</span>
       </div>
@@ -41,17 +55,7 @@ export function TitleBar({ chatOpen, onToggleChat, inRoom, compact, onToggleComp
             <MessageSquare size={14} />
           </button>
         )}
-        <button
-          className="icon-btn title-bar__collapse-btn"
-          onClick={onToggleCompact}
-          title={compact ? 'Expand' : 'Collapse to sidebar'}
-          aria-label={compact ? 'Expand' : 'Collapse to sidebar'}
-        >
-          <ChevronsLeft
-            size={14}
-            className={`title-bar__collapse-icon${compact ? ' title-bar__collapse-icon--flipped' : ''}`}
-          />
-        </button>
+        {collapseBtn}
         <WindowControls showMaximize={!compact} />
       </div>
     </header>

@@ -1230,15 +1230,13 @@ export function App(): React.JSX.Element {
       className={`app${windowFocused ? '' : ' app--unfocused'}${compactMode ? ' app--compact' : ''}${showCompactChat ? ' app--compact-chat' : ''}`}
       style={{ '--sidebar-width-scale': sidebarWidthScale } as React.CSSProperties}
     >
-      {compactMode && (
-        <TitleBar
-          chatOpen={chatOpen}
-          onToggleChat={toggleChat}
-          inRoom={inRoom}
-          compact={compactMode}
-          onToggleCompact={toggleCompactMode}
-        />
-      )}
+      <TitleBar
+        chatOpen={chatOpen}
+        onToggleChat={toggleChat}
+        inRoom={inRoom}
+        compact={compactMode}
+        onToggleCompact={toggleCompactMode}
+      />
 
       <div className="app-body">
         {chat.floats.map((f) => (
@@ -1312,15 +1310,6 @@ export function App(): React.JSX.Element {
         />
 
         <div className="main">
-          {!compactMode && (
-            <TitleBar
-              chatOpen={chatOpen}
-              onToggleChat={toggleChat}
-              inRoom={inRoom}
-              compact={compactMode}
-              onToggleCompact={toggleCompactMode}
-            />
-          )}
 
         {inRoom ? (
           <>
