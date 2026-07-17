@@ -564,7 +564,7 @@
 .room-row {
   position: relative;
   overflow: visible;
-  margin: 0 var(--s-3) var(--s-2);
+  margin: 0 var(--s-3) var(--s-1);
   color: var(--text);
   display: flex;
   flex-direction: column;
