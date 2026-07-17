@@ -94,6 +94,23 @@ export function SpaceSwitcher({
     };
   }, [menuOpen]);
 
+  // `hovered` is set by the Copy button's onMouseEnter/onMouseLeave, but that
+  // button only exists while the menu is open (`menuOpen && activeSpace`).
+  // If the menu closes — for any of its several reasons: an explicit close
+  // click, the outside-click handler, the hover auto-close timer — while the
+  // cursor is still positioned over/near where the button was, React unmounts
+  // it without ever firing onMouseLeave (there's no browser event for "the
+  // element under your cursor just vanished"). Without this, `hovered` would
+  // stay stuck true forever, permanently locking the name display on the
+  // invite code instead of the space name. Forcing it false here whenever
+  // the menu isn't open covers every close path in one place instead of
+  // threading a reset through each of them individually.
+  useEffect(() => {
+    if (!menuOpen) {
+      setHovered(false);
+    }
+  }, [menuOpen]);
+
   // Typewriter effect for the Copy Space Code hover.
   useEffect(() => {
     if (!hovered || !activeSpace) {
