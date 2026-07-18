@@ -884,15 +884,16 @@ check('denied update-rooms resyncs the sender with the authoritative list',
 govOwner.ws.send(JSON.stringify({ type: 'claim-ownership' }));
 await wait(150);
 
-// Non-owner rename-space is a silent no-op; the owner's goes through.
-govUser.ws.send(JSON.stringify({ type: 'rename-space', spaceId: GOV_SPACE, newSpaceId: 'hax-space', newSpaceName: 'Hax' }));
+// Non-owner rename-space is a silent no-op; the owner's goes through. Renaming
+// is cosmetic-only — the Space id (invite code) never changes.
+govUser.ws.send(JSON.stringify({ type: 'rename-space', spaceId: GOV_SPACE, newSpaceName: 'Hax' }));
 await wait(150);
 check('non-owner rename-space is silently ignored',
   !govOwner.events.some((ev) => ev.type === 'space-renamed'));
-govOwner.ws.send(JSON.stringify({ type: 'rename-space', spaceId: GOV_SPACE, newSpaceId: 'gov-space-2', newSpaceName: 'Gov 2' }));
+govOwner.ws.send(JSON.stringify({ type: 'rename-space', spaceId: GOV_SPACE, newSpaceName: 'Gov 2' }));
 await wait(150);
-check('owner rename-space broadcasts space-renamed',
-  govUser.events.some((ev) => ev.type === 'space-renamed' && ev.newSpaceId === 'gov-space-2'));
+check('owner rename-space broadcasts space-renamed with the SAME space id',
+  govUser.events.some((ev) => ev.type === 'space-renamed' && ev.spaceId === GOV_SPACE && ev.newSpaceName === 'Gov 2'));
 
 // Member creates their one room; server stamps createdBy (spoof ignored), and
 // the wire spaceId is ignored in favor of the connection's space.

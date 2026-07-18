@@ -16,8 +16,8 @@ export interface UseSpacesResult {
   deleteSpace: (spaceId: string) => void;
   /** Initializes the first space during onboarding. */
   initFirstSpace: (val: string, action: 'create' | 'join', customSignalingUrl?: string, joinSecret?: string) => Promise<AddSpaceResult>;
-  /** Updates settings for an existing space (supports renaming). */
-  updateSpaceSettings: (spaceId: string, name: string, customSignalingUrl: string, joinSecret: string, precomputedId?: string) => string;
+  /** Updates settings for an existing space (supports renaming; the space id/invite code never changes). */
+  updateSpaceSettings: (spaceId: string, name: string, customSignalingUrl: string, joinSecret: string) => void;
   /** Updates room list in state + persisted store. Used by createRoom/renameRoom/removeRoom/signaling sync. */
   updateRooms: (rooms: Room[]) => void;
   /** Applies a Space banner update (from a live `banner-state`/`welcome`, or a local owner edit) to state + persisted store. */
@@ -153,18 +153,11 @@ export function useSpaces(
     store.setRooms(nextRooms);
   }, []);
 
-  const updateSpaceSettings = useCallback((spaceId: string, name: string, customSignalingUrl: string, joinSecret: string, precomputedId?: string): string => {
-    const spaceToRename = spaces.find(s => s.id === spaceId);
-    let newSpaceId = spaceId;
-    if (spaceToRename && spaceToRename.name.trim().toLowerCase() !== name.trim().toLowerCase()) {
-      newSpaceId = precomputedId || generateSpaceId(name);
-    }
-
+  const updateSpaceSettings = useCallback((spaceId: string, name: string, customSignalingUrl: string, joinSecret: string): void => {
     const nextSpaces = spaces.map(s => {
       if (s.id === spaceId) {
         return {
           ...s,
-          id: newSpaceId,
           name: name.trim(),
           customSignalingUrl,
           joinSecret,
@@ -175,17 +168,7 @@ export function useSpaces(
 
     store.setSpaces(nextSpaces);
     setSpaces(nextSpaces);
-
-    if (spaceId === currentSpaceId) {
-      store.setActiveSpaceId(newSpaceId);
-      setCurrentSpaceId(newSpaceId);
-      if (spaceToRename) {
-        setRooms(normalizeRooms(spaceToRename.rooms));
-      }
-    }
-
-    return newSpaceId;
-  }, [spaces, currentSpaceId]);
+  }, [spaces]);
 
   const updateSpaceBanner = useCallback((spaceId: string, bannerDataUrl: string | null): void => {
     setSpaces((prev) => {

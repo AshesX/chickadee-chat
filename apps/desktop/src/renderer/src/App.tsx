@@ -24,7 +24,6 @@ import { useSoundboardPlayback } from './hooks/useSoundboardPlayback';
 import { useSoundboardSync } from './hooks/useSoundboardSync';
 import { useWindowFocus } from './hooks/useWindowFocus';
 import { selectStage } from './lib/stageSelection';
-import { generateSpaceId } from './lib/spaceOps';
 import { SELF_COLOR, useUserColors } from './lib/userColors';
 import { setOutputSink } from './lib/audioContext';
 import { store } from './lib/settings';
@@ -528,19 +527,15 @@ export function App(): React.JSX.Element {
 
     const unsubscribe = signaling.subscribe((msg) => {
       if (msg.type === 'space-renamed') {
-        const { spaceId, newSpaceId, newSpaceName } = msg;
-        const exists = spaces.some((s) => s.id === spaceId);
-        if (exists) {
-          const existingSpace = spaces.find((s) => s.id === spaceId);
-          if (existingSpace) {
-            updateSpaceSettings(
-              spaceId,
-              newSpaceName,
-              existingSpace.customSignalingUrl || '',
-              existingSpace.joinSecret || '',
-              newSpaceId
-            );
-          }
+        const { spaceId, newSpaceName } = msg;
+        const existingSpace = spaces.find((s) => s.id === spaceId);
+        if (existingSpace) {
+          updateSpaceSettings(
+            spaceId,
+            newSpaceName,
+            existingSpace.customSignalingUrl || '',
+            existingSpace.joinSecret || ''
+          );
         }
       } else if (msg.type === 'owner-state') {
         updateSpaceOwnerId(msg.spaceId, msg.ownerId);
@@ -1939,19 +1934,13 @@ export function App(): React.JSX.Element {
               const isRename = space.name.trim().toLowerCase() !== name.trim().toLowerCase();
 
               if (isRename && signaling.status === 'connected' && oldSpaceId === currentSpaceId) {
-                const newSpaceId = generateSpaceId(name);
-
                 signaling.send({
                   type: 'rename-space',
                   spaceId: oldSpaceId,
-                  newSpaceId,
                   newSpaceName: name.trim()
                 });
-
-                updateSpaceSettings(oldSpaceId, name, url, secret, newSpaceId);
-              } else {
-                updateSpaceSettings(oldSpaceId, name, url, secret);
               }
+              updateSpaceSettings(oldSpaceId, name, url, secret);
               setSpaceSettingsTarget(null);
             }}
             onClose={() => setSpaceSettingsTarget(null)}

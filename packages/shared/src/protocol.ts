@@ -196,8 +196,9 @@ export type ClientMessage =
   | { type: 'release-spotlight' }
   // Broadcast room list changes to the active space.
   | { type: 'update-rooms'; spaceId: string; rooms: Room[] }
-  // Broadcast space rename to active peers.
-  | { type: 'rename-space'; spaceId: string; newSpaceId: string; newSpaceName: string }
+  // Broadcast space rename to active peers. Renaming is cosmetic-only — the
+  // Space id (invite code) never changes.
+  | { type: 'rename-space'; spaceId: string; newSpaceName: string }
   // Claim ownership of this connection's Space if nobody owns it yet
   // (first-claim-wins; no force/take-over — ownership isn't disputed once set).
   | { type: 'claim-ownership' }
@@ -299,7 +300,7 @@ export type ServerMessage =
   // Broadcast room list changes to the active space.
   | { type: 'rooms-updated'; spaceId: string; rooms: Room[] }
   // Broadcast space rename to all clients in the space.
-  | { type: 'space-renamed'; spaceId: string; newSpaceId: string; newSpaceName: string }
+  | { type: 'space-renamed'; spaceId: string; newSpaceName: string }
   // The Space's owner was (re)established; broadcast to every space member.
   | { type: 'owner-state'; spaceId: string; ownerId: string | null }
   // The Space's banner changed (or was cleared); broadcast to every space member.

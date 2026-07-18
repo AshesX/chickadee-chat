@@ -160,7 +160,7 @@ wss.on('connection', (socket) => {
     } else if (msg.type === 'update-rooms') {
       handleUpdateRooms(conn, msg.rooms);
     } else if (msg.type === 'rename-space') {
-      handleRenameSpace(conn, msg.newSpaceId, msg.newSpaceName);
+      handleRenameSpace(conn, msg.newSpaceName);
     } else if (msg.type === 'claim-ownership') {
       handleClaimOwnership(conn);
     } else if (msg.type === 'set-banner') {

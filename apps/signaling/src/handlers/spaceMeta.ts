@@ -1,4 +1,4 @@
-import { MAX_DISPLAY_NAME_LEN, MAX_ID_LEN, clampString, sanitizeBannerDataUrl } from '@chickadee/shared';
+import { MAX_DISPLAY_NAME_LEN, clampString, sanitizeBannerDataUrl } from '@chickadee/shared';
 import { broadcastSpace, send, spaceBanners, spaceOwners, spaces, type Connection } from '../state';
 import { evaluateRoomsUpdate } from '../logic';
 
@@ -27,21 +27,22 @@ export function handleUpdateRooms(conn: Connection, roomsList: unknown): void {
 
 /**
  * Owner-gated (silent no-op like handleSetBanner): renaming propagates to every
- * member and regenerates the invite code, so it's an owner power. An unowned
- * space stays un-renamable until someone claims ownership.
+ * member. Cosmetic only — the Space id (invite code) never changes, so a
+ * rename can't strand offline members or previously-shared invite codes on a
+ * stale, diverged copy of the Space. An unowned space stays un-renamable
+ * until someone claims ownership.
  */
-export function handleRenameSpace(conn: Connection, newSpaceId: string, newSpaceName: string): void {
+export function handleRenameSpace(conn: Connection, newSpaceName: string): void {
   const spaceId = conn.space;
   if (spaceOwners.get(spaceId) !== conn.peer.userId) return;
-  const clampedId = clampString(newSpaceId, MAX_ID_LEN);
   const clampedName = clampString(newSpaceName, MAX_DISPLAY_NAME_LEN);
 
-  if (!clampedId || !clampedName) return;
+  if (!clampedName) return;
 
   // Broadcast the space-renamed message to everyone in the current space except the sender
-  broadcastSpace(spaceId, { type: 'space-renamed', spaceId, newSpaceId: clampedId, newSpaceName: clampedName }, conn);
+  broadcastSpace(spaceId, { type: 'space-renamed', spaceId, newSpaceName: clampedName }, conn);
 
-  console.log(`[space-rename] space "${spaceId}" renamed to "${clampedName}" with new ID "${clampedId}"`);
+  console.log(`[space-rename] space "${spaceId}" renamed to "${clampedName}"`);
 }
 
 /**
