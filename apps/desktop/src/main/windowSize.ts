@@ -14,7 +14,13 @@ export const DEFAULT_HEIGHT = 720;
 
 // Compact + chat: the dock widened to also show the room chat panel (sidebar
 // keeps its own width; chat flexes into the rest — see App.tsx showCompactChat).
-export const COMPACT_CHAT_MIN_WIDTH = 520; // COMPACT_MIN_WIDTH + a usable chat minimum
+// The floating chat panel carries var(--s-3) margin on both its left and right
+// (styles.css .app--compact-chat .chat-panel) — CSS can't be imported here, so
+// this literal must stay in sync with that rule.
+const CHAT_PANEL_MARGIN_PX = 24;
+// Both panels at their default (unscaled) width, margins included — the dock
+// can't shrink narrower than sidebar + chat already shown comfortably.
+export const COMPACT_CHAT_MIN_WIDTH = COMPACT_WIDTH * 2 + CHAT_PANEL_MARGIN_PX;
 export const COMPACT_CHAT_MAX_WIDTH = 960; // generous but still a "dock", not full view
 
 /** Width the docked window temporarily grows to while a sidebar modal (Settings,

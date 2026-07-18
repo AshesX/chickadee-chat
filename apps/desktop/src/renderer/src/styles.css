@@ -438,6 +438,11 @@
   width: auto;
   flex: 1;
   min-width: 220px;
+  /* .grid/.presentation are hidden above, so the panel is no longer facing a
+     sibling that reserves its own inner-edge gap — float it symmetrically
+     regardless of which side chatPosition docks it against. */
+  margin-left: var(--s-3);
+  margin-right: var(--s-3);
 }
 
 /* ── Sidebar ──────────────────────────────────────────────── */
@@ -1164,6 +1169,13 @@
   --logo-fill: var(--dim);
 }
 
+/* Light theme's --dim reads as muddy against the paper chrome — use the same
+   full-ink color as room names instead. Dark theme's --dim is light enough
+   to stay as-is. */
+:root[data-theme="light"] .title-bar__logo {
+  --logo-fill: var(--text);
+}
+
 .title-bar__wordmark {
   font-weight: var(--fw-2);
   font-size: var(--fs-1);
@@ -1174,6 +1186,10 @@
   max-width: 200px;
   opacity: 1;
   transition: opacity var(--dur-1) var(--ease), max-width var(--dur-1) var(--ease);
+}
+
+:root[data-theme="light"] .title-bar__wordmark {
+  color: var(--text);
 }
 
 .app--compact .title-bar__wordmark {
@@ -1203,7 +1219,9 @@
 }
 
 .title-bar__chat-btn--active {
-  color: var(--accent-ink);
+  /* Raw blaze, not the deepened --accent-ink text tone — dark theme's
+     --accent-ink already equals --orange, so this only changes light theme. */
+  color: var(--orange);
 }
 
 .title-bar__collapse-icon {
@@ -1242,7 +1260,7 @@
 }
 
 .pill--chat-on {
-  color: var(--accent-ink);
+  color: var(--orange);
 }
 
 /* Hover/active only — :focus-visible is deliberately NOT reset here, so the
@@ -3282,7 +3300,10 @@
   justify-content: flex-start;
   height: 96px;
   padding: 0;
-  margin: var(--s-3);
+  /* Flush with the sidebar's top edge (itself flush with the title bar's
+     bottom edge — .sidebar has no top padding) so the two shell regions
+     read as aligned instead of leaving a gap above the banner. */
+  margin: 0 var(--s-3) var(--s-3);
   border-radius: var(--r-2);
   background: var(--card);
   position: relative;
@@ -3302,6 +3323,13 @@
 
 .sidebar__space-header--minimal .space-header__name {
   font-size: var(--fs-3);
+}
+
+/* No banner image means no scrim/hamburger-cluster to sit clear of — center
+   the name instead of inheriting the with-image state's bottom alignment. */
+.sidebar__space-header--minimal .space-info-wrap {
+  align-items: center;
+  padding: 0 var(--s-2);
 }
 
 .sidebar__space-header-banner-img {

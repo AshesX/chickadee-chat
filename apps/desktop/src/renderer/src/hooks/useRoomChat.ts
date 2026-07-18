@@ -16,6 +16,8 @@ interface UseRoomChatArgs {
   signaling: Signaling;
   displayName: string;
   colors: Record<PeerId, string>;
+  /** Local user's effective accent color (chosen, else the default self gold). */
+  selfColor: string;
   /** Current room id; chat is ephemeral and clears when it changes. */
   roomId: string | null;
   onNewMessage?: (msg: ChatMessage) => void;
@@ -42,7 +44,7 @@ function nowTime(): string {
  * sender's name + accent color, and reactions also spawn a floating emoji.
  * Chat is ephemeral — cleared whenever the room changes.
  */
-export function useRoomChat({ signaling, displayName, colors, roomId, onNewMessage, onSelfMessage }: UseRoomChatArgs): RoomChat {
+export function useRoomChat({ signaling, displayName, colors, selfColor, roomId, onNewMessage, onSelfMessage }: UseRoomChatArgs): RoomChat {
   const { subscribe, send } = signaling;
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -53,6 +55,8 @@ export function useRoomChat({ signaling, displayName, colors, roomId, onNewMessa
   peersRef.current = signaling.peers;
   const colorsRef = useRef(colors);
   colorsRef.current = colors;
+  const selfColorRef = useRef(selfColor);
+  selfColorRef.current = selfColor;
   const nameRef = useRef(displayName);
   nameRef.current = displayName;
   const onNewMessageRef = useRef(onNewMessage);
@@ -92,7 +96,7 @@ export function useRoomChat({ signaling, displayName, colors, roomId, onNewMessa
         const message: ChatMessage = {
           id: nextId(),
           senderName: peer?.displayName ?? 'Someone',
-          color: colorsRef.current[msg.from] ?? SELF_COLOR,
+          color: peer?.accentColor || colorsRef.current[msg.from] || SELF_COLOR,
           text: msg.text,
           time: nowTime(),
           // Look up the sender's synced voice preference so TTS reads them in their chosen voice.
@@ -109,7 +113,7 @@ export function useRoomChat({ signaling, displayName, colors, roomId, onNewMessa
     (text: string) => {
       const trimmed = text.trim();
       if (!trimmed) return;
-      const message: ChatMessage = { id: nextId(), senderName: nameRef.current, color: SELF_COLOR, text: trimmed, time: nowTime() };
+      const message: ChatMessage = { id: nextId(), senderName: nameRef.current, color: selfColorRef.current, text: trimmed, time: nowTime() };
       setMessages((m) => [...m, message].slice(-MAX_MESSAGES));
       onSelfMessageRef.current?.(message);
       send({ type: 'chat', text: trimmed });

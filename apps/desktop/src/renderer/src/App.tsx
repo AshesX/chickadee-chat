@@ -96,6 +96,8 @@ export function App(): React.JSX.Element {
   const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(() => store.getAvatarDataUrl());
   const [localVoicePreference, setLocalVoicePreference] = useState(() => store.getVoicePreference());
   const [localAccentColor, setLocalAccentColor] = useState(() => store.getAccentColor());
+  // Our effective accent color: the chosen one, else the default self gold.
+  const selfColor = localAccentColor || SELF_COLOR;
   const userId = useMemo(() => store.getUserId(), []);
   // Which peers are watching OUR stage stream (their subscriptions include us) —
   // the count drives the adaptive upload budget for the high-quality stage
@@ -323,6 +325,7 @@ export function App(): React.JSX.Element {
     signaling,
     displayName,
     colors,
+    selfColor,
     roomId: currentRoomId,
     onNewMessage: handleNewMessage,
     onSelfMessage: handleSelfMessage,
@@ -414,9 +417,6 @@ export function App(): React.JSX.Element {
     },
     [currentSpaceId, signaling.status, signaling.send],
   );
-
-  // Our effective accent color: the chosen one, else the default self gold.
-  const selfColor = localAccentColor || SELF_COLOR;
 
   // Connection params for the active space — depend on these (not the whole
   // `spaces` array) so editing/deleting OTHER spaces doesn't tear down + reconnect
