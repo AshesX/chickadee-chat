@@ -40,7 +40,7 @@ export async function generateTrayIcon(size = 32): Promise<string> {
 }
 
 /**
- * Generate a small red circle badge with a white number count inside.
+ * Generate a small blaze circle badge with a near-black number count inside.
  * Returns a PNG data URL suitable for a Windows taskbar overlay icon.
  */
 export function generateBadgeOverlay(count: number, size = 16): string {
@@ -50,14 +50,14 @@ export function generateBadgeOverlay(count: number, size = 16): string {
   const ctx = canvas.getContext('2d');
   if (!ctx) return '';
 
-  // Red circle badge
+  // Blaze circle badge — orange owns "attention/live"; a red badge reads "error"
   ctx.beginPath();
   ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
-  ctx.fillStyle = '#ef4444'; // Tailwind Red 500
+  ctx.fillStyle = '#ff6700';
   ctx.fill();
 
-  // White text count
-  ctx.fillStyle = '#ffffff';
+  // Near-black count (poster black-on-orange; white on #FF6700 fails contrast)
+  ctx.fillStyle = '#070d0d';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   

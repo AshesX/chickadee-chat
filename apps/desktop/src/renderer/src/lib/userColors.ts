@@ -1,13 +1,22 @@
 import { useEffect, useRef, useState } from 'react';
 import type { PeerId } from '@chickadee/shared';
 
-/** Five per-user accent colors. The local user is always index 0 (gold). */
+/**
+ * Eight per-user accent colors — one per seat of an 8-cap room, so every peer
+ * gets a unique color. The local user is always index 0 (blaze). Every fill
+ * carries near-black ink (>=4.6:1) and reads as a bold name on both themes'
+ * chat cards. This is THE canonical identity palette — lib/settings.ts hashes
+ * over it too.
+ */
 export const USER_COLORS = [
-  '#f59e0b', // Amber
-  '#8b5cf6', // Violet
-  '#3b82f6', // Blue
-  '#ec4899', // Pink
-  '#10b981', // Emerald
+  '#ff6700', // Blaze (self)
+  '#14a38f', // Teal
+  '#1f9ec9', // Cyan
+  '#3e76e8', // Blue
+  '#8a63e8', // Violet
+  '#c44bc0', // Magenta
+  '#d9488c', // Pink
+  '#3fa65c', // Green
 ] as const;
 export const SELF_COLOR = USER_COLORS[0];
 

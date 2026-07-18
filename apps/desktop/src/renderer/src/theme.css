@@ -4,42 +4,46 @@
 
 /* ════════════ ① SETTINGS — design tokens ════════════ */
 :root {
-  /* Surfaces — warm alabaster, stepped: canvas < panel < card */
-  --bg: #fbfaf8;
-  --panel: #f5f3ef;
-  --card: #ffffff;
-  --border: #e7e3dc;
+  /* Surfaces — "Blaze on Paper": a 4-step warm-paper ladder, canvas (stage) <
+     panel (shell chrome) < card (in-shell floats) < float (overlays).
+     Shell regions separate by shade ONLY (no hairline seams), so adjacent
+     steps must stay clearly perceptible. */
+  --bg: #eae4d8;
+  --panel: #f2ede3;
+  --card: #faf7f0;
+  --float: #ffffff;
+  --border: #d8d1c2;
 
-  /* Text */
-  --dim: #5e574d;
-  /* Deep warm ink, not pure #000 — softer against the warm alabaster canvas
-     (still ≈16:1 on --bg, AAA). Also feeds --active-bg below. */
-  --text: #211c16;
-  --text-sub: #4a4036;
-  --fade: #807868;
+  /* Text — the poster black IS the ink (#070D0D family; AAA on every level) */
+  --dim: #4e5a57;
+  --text: #070d0d;
+  --text-sub: #333d3c;
+  --fade: #7c837d;
 
-  /* Semantic accent colors */
+  /* Semantic accent colors — Blaze Orange is THE accent, both themes */
   --green: #5fb81f;
-  --orange: #F59E0B;
+  --orange: #ff6700;
   --red: #c20114;
 
-  /* Cool secondary — reserved for "live" moments (spotlight, screen-share).
-     Deepened here vs. the dark-theme value so it holds contrast on paper. */
-  --secondary: #7c3aed;
+  /* The accent as INK. #FF6700 is a fill/ring color; as text or a focus
+     indicator on paper it fails contrast (2.3:1), so light deepens it to a
+     burnt orange. Dark resolves it to raw --orange (6.7:1 on the canvas). */
+  --accent-ink: #a84300;
 
   /* Status */
   --online: #5fb81f;
-  --idle: #ffa400;
+  /* Idle is clearly YELLOW — #ffa400 read as a second accent next to blaze */
+  --idle: #ffc400;
   --offline: #b5b0a8;
 
-  /* Actions / active */
-  --gradient: linear-gradient(135deg, var(--orange), #F59E0B);
-  --active-bg: var(--veil-2);
-  --active-text: var(--text);
+  /* Actions / active — solid blaze labels with near-black ink (poster style),
+     shared by both themes. Orange owns "active". */
+  --active-bg: var(--orange);
+  --active-text: var(--on-accent);
 
   /* Supporting */
-  --scrollbar: #c7c7c2;
-  --placeholder: #6e665b;
+  --scrollbar: #cbc4b4;
+  --placeholder: #68736f;
   /* Slider thumb — a deliberately theme-agnostic "physical knob" (stays white
      in both themes, like a native OS slider); tokenized to avoid a raw hex,
      not to vary per theme. */
@@ -49,17 +53,26 @@
   --logo-fill: var(--text);
 
   /* Structural tokens */
-  --tint: #000000;
-  --block-bg: #211c16;
-  --block-fg: #e9e9e9;
-  --on-accent: #000000;
-  --badge-fg: #e9e9e9;
+  --tint: #070d0d;
+  --block-bg: #070d0d;
+  --block-fg: #f4efe9;
+  /* Ink on accent fills: near-black in BOTH themes (white on #FF6700 is 2.9:1
+     and must never be used). */
+  --on-accent: #070d0d;
+  --badge-fg: #f4efe9;
   /* Tuned to carry modal focus on opacity alone — the backdrop deliberately
      has no blur (a full-window backdrop-filter re-rasterizes live video). */
-  --scrim: rgba(0, 0, 0, 0.55);
-  /* Light elevation is a soft warm shadow, not 50% black — premium-light
-     surfaces separate by tone, and the 1px --border carries the definition. */
-  --shadow-color: rgba(32, 26, 20, 0.16);
+  --scrim: rgba(7, 13, 13, 0.5);
+  /* Light elevation is a soft teal-ink shadow, not 50% black — paper surfaces
+     separate by tone; shadows only assist floating overlays. */
+  --shadow-color: rgba(7, 13, 13, 0.18);
+
+  /* Media invariants — surfaces/scrims/ink over live video & photos; these
+     never follow the theme (video is video in both). */
+  --media: #000000;
+  --on-media: #ffffff;
+  --scrim-media: rgba(0, 0, 0, 0.6);
+  --scrim-media-2: rgba(0, 0, 0, 0.72);
 
   /* ── Ultra-Lean primitives ────────────────────────────────── */
 
@@ -125,14 +138,12 @@
      deepens it toward ink, dark roses it toward white. */
   --danger-fg: color-mix(in srgb, var(--red) 85%, black);
 
-  /* Glow — restrained halos for "live" moments (spotlight/stage, empty-lounge
-     warmth). Resolve from --orange/--secondary, so they auto-follow whichever
-     theme is active without redefinition. NOT used inside .tile* — `--accent`/
-     `--accent-glow` there are runtime per-peer vars injected by ParticipantTile
-     (see theme.css note in CLAUDE.md); reusing the name would be shadowed by
-     that inline style, so this token is named --gold-glow to stay distinct. */
-  --gold-glow: color-mix(in srgb, var(--orange) 40%, transparent);
-  --secondary-glow: color-mix(in srgb, var(--secondary) 40%, transparent);
+  /* Glow — the one restrained halo for "live" moments (stage spotlight),
+     resolved from --orange so it follows the active theme. NOT used inside
+     .tile* — `--accent`/`--accent-glow` there are runtime per-peer vars
+     injected by ParticipantTile (see CLAUDE.md); reusing those names would be
+     shadowed by that inline style. */
+  --glow: color-mix(in srgb, var(--orange) 38%, transparent);
 
   /* Motion */
   --dur-1: 0.12s;
@@ -150,38 +161,46 @@
   /* tooltips — always on top */
 }
 
-/* ── Dark theme — "Midnight Lounge" ──────────────────────────
+/* ── Dark theme — "Blaze" ────────────────────────────────────
    Color tokens only; the Ultra-Lean primitives above (radius/spacing/type/
-   weight/motion/z-index) are theme-agnostic and stay shared. Gold stays the
-   identity accent in both themes; --secondary shifts to a lighter, more
-   saturated violet here so it reads distinctly against the indigo base's
-   own hue instead of blending into it. */
+   weight/motion/z-index) are theme-agnostic and stay shared. The whole
+   surface family is a teal-tinted near-black ladder derived from the Almost
+   Black canvas (#070D0D); Blaze Orange stays the identity accent in both
+   themes (--accent-ink resolves to it raw here — it clears 4.5:1 on these
+   surfaces). Accent/active/on-accent are shared (:root) — poster
+   black-on-orange works on both themes by design. */
 :root[data-theme="dark"] {
-  --bg: #0e1018;
-  --panel: #161a26;
-  --card: #1d2231;
-  --border: #2a3040;
+  --bg: #070d0d;
+  --panel: #111c1c;
+  --card: #1a2828;
+  --float: #243434;
+  --border: #263838;
 
-  --dim: #9aa0ae;
-  --text: #edeef2;
-  --text-sub: #c3c7d1;
-  --fade: #6c7280;
+  --dim: #95a09c;
+  --text: #f4efe9;
+  --text-sub: #c6c4bc;
+  --fade: #5e6b68;
 
-  --secondary: #a78bfa;
+  /* Danger lifts vs light — #c20114 melts into near-black chrome (2.7:1);
+     this clears 3.3:1 as a fill and stays hue+luminance distinct from
+     engaged-orange. */
+  --red: #d6132b;
 
-  --active-bg: #232a3c;
-  --active-text: #ffffff;
-  --on-accent: #0e1018;
+  --accent-ink: var(--orange);
 
-  --scrollbar: #2a3040;
-  --placeholder: #6c7280;
+  --scrollbar: #2e4242;
+  --placeholder: #6e7b77;
 
-  --logo-fill: #edeef2;
+  --logo-fill: #f4efe9;
 
   --tint: #ffffff;
-  --block-bg: #1d2231;
-  --block-fg: #edeef2;
-  --scrim: rgba(0, 0, 0, 0.68);
+  /* Veils step up from the light theme's 6/12% — white washes that thin are
+     barely perceptible on a near-black canvas. */
+  --veil-1: color-mix(in srgb, var(--tint) 8%, transparent);
+  --veil-2: color-mix(in srgb, var(--tint) 15%, transparent);
+  --block-bg: #1a2828;
+  --block-fg: #f4efe9;
+  --scrim: rgba(0, 0, 0, 0.7);
   --shadow-color: rgba(0, 0, 0, 0.6);
 
   --danger-fg: color-mix(in srgb, var(--red) 45%, white);
@@ -259,9 +278,15 @@ input:focus-visible,
 .room-row:focus-visible,
 .pill:focus-visible,
 .ctrl-btn:focus-visible {
-  outline: 2px solid var(--orange);
+  outline: 2px solid var(--accent-ink);
   outline-offset: 0;
   border-radius: var(--r-1);
+}
+
+/* Branded text selection (inputs/chat) — blaze block, near-black ink */
+::selection {
+  background: var(--orange);
+  color: var(--on-accent);
 }
 
 /* ── Animations ───────────────────────────────────────────── */

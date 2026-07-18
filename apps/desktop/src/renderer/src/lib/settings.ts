@@ -8,6 +8,8 @@ import {
   type ThemeName,
 } from '@chickadee/shared';
 
+import { USER_COLORS } from './userColors';
+
 export type { Room, SpaceInfo };
 export { DEFAULT_ROOMS };
 
@@ -249,20 +251,11 @@ export const store = {
   setSoundboardAutoSyncEnabled: setter('soundboardAutoSyncEnabled'),
 };
 
-const FRIEND_PALETTE = [
-  '#f97316',
-  '#10b981',
-  '#ec4899',
-  '#3b82f6',
-  '#8b5cf6',
-  '#f59e0b',
-  '#06b6d4',
-  '#ef4444',
-];
-
-/** Deterministic, stable avatar color for a user (hashed from their userId). */
+/** Deterministic, stable avatar color for a user (hashed from their userId).
+ *  Hashes over the one canonical identity palette (lib/userColors.ts) — this
+ *  file used to carry its own divergent 8-color list. */
 export function userColor(seed: string): string {
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-  return FRIEND_PALETTE[h % FRIEND_PALETTE.length];
+  return USER_COLORS[h % USER_COLORS.length];
 }

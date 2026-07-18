@@ -74,7 +74,7 @@
 .btn--danger-soft {
   background: var(--danger-bg);
   border-color: color-mix(in srgb, var(--red) 20%, transparent);
-  color: var(--red);
+  color: var(--danger-fg);
 }
 
 .btn--danger-soft:hover:not(:disabled) {
@@ -90,8 +90,8 @@
 /* ── Menu surface primitive ──────────────────────────────────
  */
 .menu-surface {
-  background: var(--card);
-  border-radius: var(--r-1);
+  background: var(--float);
+  border-radius: var(--r-2);
   box-shadow: var(--sh-1);
   animation: popIn var(--dur-1) var(--ease);
 }
@@ -101,7 +101,7 @@
    where a backdrop blur re-rasterizes every video frame. The modifier name is
    kept so the three call sites need no churn; --sh-1 carries the depth. */
 .menu-surface--frosted {
-  background: color-mix(in srgb, var(--card) 98%, transparent);
+  background: color-mix(in srgb, var(--float) 98%, transparent);
   box-shadow: var(--sh-1);
 }
 
@@ -138,12 +138,12 @@
 }
 
 .menu-item--danger {
-  color: var(--red);
+  color: var(--danger-fg);
 }
 
 .menu-item--danger:hover {
   background: var(--danger-bg);
-  color: var(--red);
+  color: var(--danger-fg);
 }
 
 /* ── Avatar primitive ────────────────────────────────────────
@@ -158,7 +158,9 @@
   place-items: center;
   font-size: var(--fs-3);
   font-weight: var(--fw-2);
-  color: var(--badge-fg);
+  /* Near-black initials on the vivid identity fills — poster "label sticker"
+     look; --badge-fg stays reserved for ink on red fills. */
+  color: var(--on-accent);
 }
 
 .avatar img {
@@ -207,7 +209,7 @@
 
 .icon-btn--danger:hover {
   background: var(--danger-bg) !important;
-  color: var(--red) !important;
+  color: var(--danger-fg) !important;
 }
 
 /* ── Input primitive (.input) ──────────────────────────────── */
@@ -234,12 +236,12 @@
 .input:focus,
 .welcome__input:focus,
 .room-modal__search-input:focus {
-  border-color: var(--orange);
+  border-color: var(--accent-ink);
   outline: none;
 }
 
 .field input:focus {
-  border-color: var(--orange);
+  border-color: var(--accent-ink);
   outline: none;
 }
 
@@ -277,7 +279,7 @@
 }
 
 .search-field__input:focus {
-  border-color: var(--orange);
+  border-color: var(--accent-ink);
   outline: none;
 }
 
@@ -382,13 +384,10 @@
   flex-direction: column;
   height: 100vh;
   overflow: hidden;
-  /* Canvas depth: a static "lit from above" vertical fade composed from the
-     theme's own panel/bg pair (lifted top in dark, faint warm top in light).
-     Paints once; shows through the empty lounge, grid gaps, and the
-     translucent bottom-deck tints. */
-  background: linear-gradient(180deg,
-      color-mix(in srgb, var(--panel) 55%, var(--bg)) 0%,
-      var(--bg) 42%);
+  /* The stage canvas: the ladder's deepest level, flat by design — the shell
+     chrome (title bar / sidebar / control bar, all --panel) reads as one
+     continuous frame around it, separated by shade alone. */
+  background: var(--bg);
 }
 
 .app-body {
@@ -472,16 +471,10 @@
   letter-spacing: -0.01em;
 }
 
-/* The gradient's end stop resolves per theme: gold → pale champagne on the
-   dark canvas, gold → deep amber ink on the light one. (The former
-   --active-text end stop was #fff in light mode — invisible on alabaster.)
-   The raw-gold START stop stays lower-contrast in light; accepted brand
-   tradeoff on a decorative wordmark. */
+/* Flat poster mark — solid accent ink (blaze on the dark canvas, burnt
+   orange on paper), no gradient. */
 .sidebar__wordmark-accent {
-  background: linear-gradient(90deg, var(--orange), color-mix(in srgb, var(--orange) 45%, var(--text) 55%));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--accent-ink);
 }
 
 .sidebar__scroll {
@@ -556,7 +549,7 @@
 
 /* Inset rounded "rail" rows: rows sit within the scroll padding while the
    section headers above them stay full-bleed — the headers deliberately read
-   wider than the rows. The active gold bar (::before, left: 0) is clipped by
+   wider than the rows. The active blaze nub (::before, left: 0) is clipped by
    overflow: hidden and stays fully inside the straight-edge zone of the 4px
    corner radius. */
 .room-row {
@@ -581,7 +574,8 @@
   padding: 0 var(--s-2);
   font-size: var(--fs-3);
   text-align: left;
-  border-radius: var(--r-2);
+  /* Radius role: list rows are CONTROLS — small radius, like every button. */
+  border-radius: var(--r-1);
   transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
 }
 
@@ -655,6 +649,10 @@
   color: var(--dim);
 }
 
+.room-row--active .room-row__lock {
+  color: var(--active-text);
+}
+
 .room-row__count {
   display: inline-flex;
   align-items: center;
@@ -667,19 +665,21 @@
   font-weight: var(--fw-1);
   border-radius: var(--r-1);
   background: transparent;
-  color: var(--orange);
+  color: var(--accent-ink);
   letter-spacing: 0.02em;
 }
 
 
 .room-row__count--full {
-  color: var(--red);
+  color: var(--danger-fg);
 }
 
 
+/* On the solid-blaze active row the count joins the row's near-black ink —
+   accent-on-accent would vanish. */
 .room-row--active .room-row__count,
 .room-row--active .room-row__count--full {
-  color: var(--orange);
+  color: var(--active-text);
 }
 
 .room-row--full .room-row__main {
@@ -817,7 +817,7 @@
 .room-row__mini-btn--danger:hover:not(:disabled) {
   background: var(--red);
   border-color: var(--red);
-  color: #fff;
+  color: var(--badge-fg);
 }
 
 .room-row__mini-btn--danger:hover:not(:disabled) {
@@ -954,11 +954,9 @@
   gap: var(--s-2);
   padding: var(--s-3) var(--s-4) var(--s-4);
   height: 76px;
-  /* The room area's .control-bar has since detached into its own floating
-     pill — this footer keeps the original raised-deck gradient on its own. */
-  background: linear-gradient(180deg,
-      color-mix(in srgb, var(--tint) 8%, transparent),
-      color-mix(in srgb, var(--tint) 4%, transparent));
+  /* A flat in-chrome zone (a veil over the sidebar's --panel), not its own
+     ladder level — the footer reads as part of the frame. */
+  background: var(--veil-1);
 }
 
 
@@ -1015,7 +1013,7 @@
   flex-shrink: 0;
   border-radius: var(--r-1);
   background: var(--red);
-  color: #fff;
+  color: var(--badge-fg);
   transition: background var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
 }
 
@@ -1137,9 +1135,9 @@
   justify-content: space-between;
   padding: 0 var(--s-4) 0 var(--s-2);
   height: 36px;
-  /* A half-step toward --panel: recessed chrome above
-     the lifted stage top (see the .app canvas fade). */
-  background: color-mix(in srgb, var(--panel) 40%, var(--bg));
+  /* Shell chrome — same --panel as the sidebar + control bar, so the three
+     read as ONE continuous frame around the darker stage. */
+  background: var(--panel);
   -webkit-app-region: drag;
 }
 
@@ -1205,7 +1203,7 @@
 }
 
 .title-bar__chat-btn--active {
-  color: var(--orange);
+  color: var(--accent-ink);
 }
 
 .title-bar__collapse-icon {
@@ -1244,11 +1242,11 @@
 }
 
 .pill--chat-on {
-  color: var(--orange);
+  color: var(--accent-ink);
 }
 
 /* Hover/active only — :focus-visible is deliberately NOT reset here, so the
-   global gold focus ring (theme.css) stays on these keyboard stops. */
+   global accent focus ring (theme.css) stays on these keyboard stops. */
 .pill--chat:hover,
 .pill--chat:active,
 .pill--chat-on:hover,
@@ -1280,7 +1278,7 @@
 
 .winctl__btn--close:hover {
   background: var(--red);
-  color: #fff;
+  color: var(--badge-fg);
 }
 
 /* ── Content area / grid ──────────────────────────────────── */
@@ -1341,7 +1339,7 @@
   justify-content: center;
   min-height: 0;
   overflow: hidden;
-  background: var(--bg);
+  background: var(--card);
   border: none;
   border-radius: var(--r-2);
   box-shadow: var(--sh-1);
@@ -1355,7 +1353,7 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  background: #000;
+  background: var(--media);
 }
 
 .tile--self .tile__video,
@@ -1406,7 +1404,7 @@
   padding: 0 var(--s-1);
   border-radius: var(--r-1);
   background: var(--orange);
-  outline: 2px solid var(--bg);
+  outline: 2px solid var(--card);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1457,7 +1455,7 @@
   max-width: calc(100% - 20px);
   gap: var(--s-1);
   padding: var(--s-1) var(--s-2);
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--scrim-media);
   border-radius: var(--r-1);
 }
 
@@ -1477,7 +1475,7 @@
   top: 8px;
   right: 8px;
   z-index: 2;
-  background: rgba(0, 0, 0, 0.72);
+  background: var(--scrim-media-2);
   border-radius: var(--r-1);
   padding: var(--s-1) var(--s-2);
   font-size: var(--fs-1);
@@ -1503,7 +1501,7 @@
   max-width: 32px;
 
   padding: var(--s-1);
-  background: color-mix(in srgb, var(--card) 94%, transparent);
+  background: color-mix(in srgb, var(--float) 96%, transparent);
   border: 1px solid var(--border);
   border-radius: var(--r-1);
   overflow: hidden;
@@ -1560,12 +1558,12 @@
 
 .tile__volume--boost .tile__volume-icon-btn,
 .tile__volume--boost .tile__volume-pct {
-  color: var(--orange);
+  color: var(--accent-ink);
 }
 
 .tile__volume--muted .tile__volume-icon-btn,
 .tile__volume--muted .tile__volume-pct {
-  color: var(--red);
+  color: var(--danger-fg);
 }
 
 .tile__volume-pct {
@@ -1655,7 +1653,7 @@
   width: 24px;
   height: 24px;
   padding: 0;
-  color: #fff;
+  color: var(--badge-fg);
   background: var(--red);
   border: 1px solid var(--red);
   border-radius: var(--r-1);
@@ -1714,7 +1712,7 @@
   grid-template-rows: 1fr 1fr;
 }
 
-/* The stage tile is the room's one "live" moment — a restrained violet ambient
+/* The stage tile is the room's one "live" moment — a restrained blaze ambient
    glow (soft, outward only; no hard ring across the video content) marks it as
    such, whether it's an active ScreenView or the unwatched placeholder below.
    Perf-audited: the shadow is static (never transitioned), so it paints once —
@@ -1723,17 +1721,17 @@
   position: relative;
   min-height: 0;
   overflow: hidden;
-  background: #000;
+  background: var(--media);
   border: none;
   border-radius: var(--r-2);
-  box-shadow: 0 0 24px var(--secondary-glow), var(--sh-1);
+  box-shadow: 0 0 24px var(--glow), var(--sh-1);
 }
 
 .screen__video {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  background: #000;
+  background: var(--media);
 }
 
 /* A spotlighted self camera mirrors like the tile self-preview. */
@@ -1753,7 +1751,7 @@
   flex-direction: column;
   align-items: center;
   gap: var(--s-3);
-  color: #fff;
+  color: var(--on-media);
   text-align: center;
 }
 
@@ -1794,8 +1792,8 @@
   max-width: 100%;
   padding: var(--s-1) var(--s-2);
   font-size: var(--fs-1);
-  color: #fff;
-  background: rgba(0, 0, 0, 0.6);
+  color: var(--on-media);
+  background: var(--scrim-media);
   border-radius: var(--r-1);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1822,7 +1820,7 @@
   padding: var(--s-1) var(--s-3);
   font-size: var(--fs-1);
   font-weight: var(--fw-2);
-  color: #fff;
+  color: var(--badge-fg);
   background: var(--red);
   border: 1px solid var(--red);
   border-radius: var(--r-1);
@@ -1920,7 +1918,7 @@
   bottom: auto;
   transform: none;
   padding: 2px var(--s-2);
-  background: rgba(0, 0, 0, 0.72);
+  background: var(--scrim-media-2);
   border-radius: var(--r-1);
   max-width: calc(100% - (var(--s-2) * 2));
 }
@@ -1953,7 +1951,8 @@
   width: 100%;
   height: 100%;
   padding: 0 var(--s-3);
-  background: var(--card);
+  /* Shell chrome — one frame with the title bar + sidebar. */
+  background: var(--panel);
   --ctrl-chevron-w: 28px;
 }
 
@@ -1968,7 +1967,9 @@
   width: 72px;
   min-width: var(--ctrl-chevron-w);
   container-type: inline-size;
-  border-radius: var(--r-2);
+  /* Radius role: controls share --r-1 (the deck's old --r-2 was the one
+     button family with a rounder shape). */
+  border-radius: var(--r-1);
   border: none;
   background: var(--veil-1);
   color: var(--text-sub);
@@ -2070,7 +2071,7 @@
 }
 
 .ctrl-group>.ctrl-btn {
-  border-radius: var(--r-2) 0 0 var(--r-2);
+  border-radius: var(--r-1) 0 0 var(--r-1);
   border-right: none;
 }
 
@@ -2092,10 +2093,11 @@
   padding: var(--s-1) var(--s-1);
   width: var(--ctrl-chevron-w);
   flex-shrink: 0;
-  border-radius: 0 var(--r-2) var(--r-2) 0;
+  border-radius: 0 var(--r-1) var(--r-1) 0;
   border: none;
-  /* Explicitly draw the dividing line on the chevron's left edge */
-  border-left: 1px solid var(--card);
+  /* Explicitly draw the dividing line on the chevron's left edge — the deck's
+     own chrome color, so it reads as a gap. */
+  border-left: 1px solid var(--panel);
   background: var(--veil-1);
   color: var(--dim);
   transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
@@ -2108,20 +2110,6 @@
 
 .ctrl-btn--chevron:active {
   transform: scale(0.9);
-}
-
-/* The global focus ring (theme.css) forces --r-1 corners; re-shape it to the
-   deck's rounder geometry so keyboard focus doesn't snap the corners. */
-.ctrl-btn:focus-visible {
-  border-radius: var(--r-2);
-}
-
-.ctrl-group>.ctrl-btn:focus-visible {
-  border-radius: var(--r-2) 0 0 var(--r-2);
-}
-
-.ctrl-btn--chevron:focus-visible {
-  border-radius: 0 var(--r-2) var(--r-2) 0;
 }
 
 /* Smoothly fade and collapse label as button shrinks */
@@ -2246,7 +2234,7 @@
   display: grid;
   place-items: center;
   padding: var(--s-6);
-  background: radial-gradient(480px circle at 50% 42%, color-mix(in srgb, var(--orange) 7%, transparent), transparent 70%);
+  background: radial-gradient(480px circle at 50% 42%, color-mix(in srgb, var(--orange) 10%, transparent), transparent 70%);
 }
 
 .empty-lounge__card {
@@ -2277,7 +2265,7 @@
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  background: var(--bg);
+  background: var(--card);
   border: none;
   /* A fully floating tile, same as .tile: all four corners rounded, the
      same elevation, and — since .content-area gives it zero padding of its
@@ -2624,7 +2612,7 @@
 
 .emoji-manager__remove:hover {
   background: var(--veil-2);
-  color: var(--red);
+  color: var(--danger-fg);
 }
 
 .emoji-manager__add {
@@ -2684,9 +2672,9 @@
 }
 
 .chat-panel__input-row textarea:focus {
-  border-color: var(--orange);
+  border-color: var(--accent-ink);
   /* Surface lift on focus (background is already in the transition list). */
-  background: color-mix(in srgb, var(--card) 75%, transparent);
+  background: color-mix(in srgb, var(--float) 75%, transparent);
   outline: none;
 }
 
@@ -2744,12 +2732,12 @@
 /* Danger-soft language, but OPAQUE (mixed over --card, not transparent) —
    toasts float over live video where a see-through tint would be illegible. */
 .toast {
-  background: color-mix(in srgb, var(--red) 12%, var(--card));
+  background: color-mix(in srgb, var(--red) 12%, var(--float));
   border: 1px solid color-mix(in srgb, var(--red) 45%, var(--border));
   color: var(--danger-fg);
   font-size: var(--fs-1);
   padding: var(--s-2) var(--s-4);
-  border-radius: var(--r-1);
+  border-radius: var(--r-2);
   box-shadow: var(--sh-1);
 }
 
@@ -2767,7 +2755,7 @@
 
 .transfer-card {
   width: 280px;
-  background: var(--card);
+  background: var(--float);
   border: 1px solid var(--border);
   border-radius: var(--r-2);
   box-shadow: var(--sh-1);
@@ -2906,7 +2894,7 @@
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  background: var(--card);
+  background: var(--float);
   border: 1px solid var(--border);
   border-radius: var(--r-2);
   box-shadow: var(--sh-2);
@@ -2953,7 +2941,7 @@
 
 .field-error {
   font-size: var(--fs-1);
-  color: var(--red);
+  color: var(--danger-fg);
   margin: var(--s-2) 0 0;
 }
 
@@ -2981,6 +2969,7 @@
 .icon-grid__item--active {
   background: var(--active-bg);
   border-color: var(--orange);
+  color: var(--active-text);
 }
 
 .settings-note {
@@ -3110,8 +3099,8 @@
 }
 
 .seg-btn--active {
-  border-color: var(--block-bg);
-  color: var(--bg);
+  border-color: var(--orange);
+  color: var(--on-accent);
   background: var(--orange);
   z-index: 1;
 }
@@ -3226,7 +3215,7 @@
   width: 100%;
   aspect-ratio: 16 / 9;
   object-fit: cover;
-  background: #000;
+  background: var(--media);
   border-radius: var(--r-1);
 }
 
@@ -3268,7 +3257,7 @@
   background: var(--card);
   border: 1px solid var(--red);
   border-radius: var(--r-1);
-  color: var(--red);
+  color: var(--danger-fg);
   white-space: pre-wrap;
   word-break: break-word;
   font-size: var(--fs-2);
@@ -3373,7 +3362,7 @@
 
 .space-header__name--code {
   font-family: var(--font-mono);
-  color: var(--orange);
+  color: var(--accent-ink);
   font-weight: var(--fw-2);
   letter-spacing: 0.02em;
 }
@@ -3427,7 +3416,7 @@
 }
 
 .sidebar__space-header--banner .space-header__menu .icon-btn:hover {
-  background: color-mix(in srgb, white 18%, transparent);
+  background: color-mix(in srgb, var(--on-media) 18%, transparent);
   color: var(--block-fg);
 }
 
@@ -3682,10 +3671,10 @@
   height: 594px;
   max-width: 92vw;
   max-height: 85vh;
-  background: var(--panel);
+  background: var(--float);
   border-radius: var(--r-2);
   overflow: hidden;
-  box-shadow: var(--sh-1);
+  box-shadow: var(--sh-2);
   animation: modalIn var(--dur-2) var(--ease);
   /* No transition: the panel has no interactive state changes — a blanket
      one would only catch the responsive width/height snaps (layout). */
@@ -3693,7 +3682,7 @@
 
 .settings-sidebar {
   width: 210px;
-  background: color-mix(in srgb, var(--tint) 6%, transparent);
+  background: var(--veil-1);
   padding: var(--s-6) var(--s-3) var(--s-2);
   display: flex;
   flex-direction: column;
@@ -3784,7 +3773,9 @@
   background: transparent;
   color: var(--text);
   font-weight: var(--fw-1);
-  border-left: 3px solid var(--orange);
+  /* accent-ink, not raw --orange: an active-tab INDICATOR needs 3:1 on the
+     light float surface, where #FF6700 fails. */
+  border-left: 3px solid var(--accent-ink);
   border-top-left-radius: 2px;
   border-bottom-left-radius: 2px;
 }
@@ -3840,9 +3831,12 @@
   transition: background var(--dur-1) var(--ease);
 }
 
+/* Hover/keyboard highlight — veil language (this is a hover cursor, not a
+   selected state; solid --active-bg blaze would also bury the rows' own
+   text/dim ink colors). */
 .settings-sidebar__search-result:hover,
 .settings-sidebar__search-result--highlighted {
-  background: var(--active-bg);
+  background: var(--veil-2);
 }
 
 .settings-sidebar__search-result-label {
@@ -3968,7 +3962,7 @@
 
   .settings-sidebar__item--active {
     border-left: none;
-    border-bottom: 3px solid var(--orange);
+    border-bottom: 3px solid var(--accent-ink);
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
   }
@@ -4063,7 +4057,7 @@
 .avatar-settings-preview__initial {
   font-size: var(--fs-4);
   font-weight: var(--fw-2);
-  color: var(--badge-fg);
+  color: var(--on-accent);
 }
 
 .avatar-settings-actions {
@@ -4198,7 +4192,7 @@
 /* ─── AvatarCropModal ─────────────────────────────────────────────────────── */
 
 .avatar-crop-modal {
-  background: var(--card);
+  background: var(--float);
   border: 1px solid var(--border);
   border-radius: var(--r-2);
   box-shadow: var(--sh-2);
@@ -4360,7 +4354,7 @@
   border: 1px solid var(--border);
   border-radius: var(--r-1);
   padding: var(--s-3);
-  background: color-mix(in srgb, var(--tint) 6%, transparent);
+  background: var(--veil-1);
   margin-bottom: var(--s-4);
 }
 
@@ -4385,7 +4379,7 @@
 /* ════════════ ⑥ UTILITIES / TRUMPS ════════════ */
 
 .error {
-  color: var(--red);
+  color: var(--danger-fg);
   font-size: var(--fs-2);
 }
 
