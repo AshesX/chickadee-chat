@@ -28,6 +28,7 @@ interface ChevronMenuProps {
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
   children: React.ReactNode;
+  snapToControlBar?: boolean;
 }
 
 /**
@@ -44,6 +45,7 @@ export function ChevronMenu({
   onMouseEnter,
   onMouseLeave,
   children,
+  snapToControlBar,
 }: ChevronMenuProps): React.JSX.Element {
   const [measuredWidth, setMeasuredWidth] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
@@ -57,12 +59,13 @@ export function ChevronMenu({
   const activeWidth = width !== undefined ? width : measuredWidth;
   const isMeasuring = width === undefined && measuredWidth === 0;
 
-  const { bottom, left } = computeChevronPosition(
+  const { bottom: computedBottom, left } = computeChevronPosition(
     anchorRect,
     activeWidth,
     window.innerWidth,
     window.innerHeight
   );
+  const bottom = snapToControlBar ? 76 : computedBottom;
 
   // Portaled to document.body so the fixed backdrop + menu escape `.main`'s
   // stacking context (z-index:1) — otherwise they paint beneath the sidebar

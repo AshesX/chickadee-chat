@@ -73,7 +73,7 @@ export function SoundboardPopover({ ownClips, peers, onTrigger, onClose, anchorR
   const hasAnyClips = PRESET_CLIPS.length > 0 || ownClips.length > 0 || peerCustomClips.length > 0;
 
   return (
-    <ChevronMenu anchorRect={anchorRect} onClose={onClose} className="soundboard-pop menu-surface menu-surface--frosted">
+    <ChevronMenu anchorRect={anchorRect} onClose={onClose} className="soundboard-pop menu-surface" snapToControlBar={true}>
       {!hasAnyClips && <div className="soundboard-pop__empty">No sounds yet — add some in Settings.</div>}
 
       {PRESET_CLIPS.length > 0 && (

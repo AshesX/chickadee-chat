@@ -1241,11 +1241,14 @@
   transform: scale(0.96);
 }
 
-.pill--chat,
-.pill--chat-on {
+.pill--chat {
   background: transparent;
   border-color: transparent;
   color: var(--text);
+}
+
+.pill--chat-on {
+  color: var(--orange);
 }
 
 /* Hover/active only — :focus-visible is deliberately NOT reset here, so the

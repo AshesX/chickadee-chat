@@ -65,7 +65,7 @@ export function VideoMenu({
   ];
 
   return (
-    <ChevronMenu anchorRect={anchorRect} onClose={onClose} width={240} className="audio-menu menu-surface">
+    <ChevronMenu anchorRect={anchorRect} onClose={onClose} width={240} className="audio-menu menu-surface" snapToControlBar={true}>
         <div style={{ display: 'flex', gap: 'var(--s-1)', marginBottom: 'var(--s-2)' }}>
           <button
             type="button"
