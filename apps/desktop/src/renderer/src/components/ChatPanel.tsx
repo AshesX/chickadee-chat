@@ -68,7 +68,10 @@ export function ChatPanel({
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = 'auto';
-    const newHeight = Math.min(el.scrollHeight, 120);
+    // box-sizing is border-box, but scrollHeight excludes border — add it back
+    // so the applied height has room for the content and doesn't self-overflow.
+    const borderY = el.offsetHeight - el.clientHeight;
+    const newHeight = Math.min(el.scrollHeight + borderY, 120);
     el.style.height = `${newHeight}px`;
 
     if (prevHeightRef.current && prevHeightRef.current !== newHeight) {
