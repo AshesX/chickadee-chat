@@ -28,7 +28,7 @@
   /* The accent as INK. #FF6700 is a fill/ring color; as text or a focus
      indicator on paper it fails contrast (2.3:1), so light deepens it to a
      burnt orange. Dark resolves it to raw --orange (6.7:1 on the canvas). */
-  --accent-ink: #a84300;
+  --accent-ink: #ff6700;
 
   /* Status */
   --online: #5fb81f;
