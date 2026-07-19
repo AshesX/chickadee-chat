@@ -84,6 +84,12 @@ export interface SettingsModalProps {
   /** Auto-download other peers' custom soundboard clips in the background. */
   soundboardAutoSyncEnabled: boolean;
   onChangeSoundboardAutoSyncEnabled: (on: boolean) => void;
+  /** Show/allow the bundled preset clips; off = only your own custom clips. */
+  soundboardPresetsEnabled: boolean;
+  onChangeSoundboardPresetsEnabled: (on: boolean) => void;
+  /** Don't play soundboard clips triggered by other room members; your own clips still play. */
+  soundboardMuteOthersEnabled: boolean;
+  onChangeSoundboardMuteOthersEnabled: (on: boolean) => void;
   soundboardOwnClips: SoundboardLibraryClip[];
   onAddSoundboardFiles: () => void;
   onRemoveSoundboardClip: (hash: string) => void;

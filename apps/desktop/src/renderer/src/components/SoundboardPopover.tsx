@@ -10,6 +10,7 @@ const SOUNDBOARD_COOLDOWN_MS = 1000;
 interface SoundboardPopoverProps {
   ownClips: SoundboardLibraryClip[];
   peers: Peer[];
+  presetsEnabled: boolean;
   onTrigger: (source: SoundboardClipSource, clipId: string) => void;
   onClose: () => void;
   anchorRect: DOMRect;
@@ -39,7 +40,7 @@ function collectPeerCustomClips(peers: Peer[]): PeerCustomClip[] {
  * always show as not-yet-available; once it lands, this same cache.has()
  * check will start lighting tiles up as sync completes, no changes needed here).
  */
-export function SoundboardPopover({ ownClips, peers, onTrigger, onClose, anchorRect }: SoundboardPopoverProps): React.JSX.Element {
+export function SoundboardPopover({ ownClips, peers, presetsEnabled, onTrigger, onClose, anchorRect }: SoundboardPopoverProps): React.JSX.Element {
   const peerCustomClips = useMemo(() => collectPeerCustomClips(peers), [peers]);
   const [availableHashes, setAvailableHashes] = useState<Set<string>>(new Set());
   const [cooldown, setCooldown] = useState(false);
@@ -70,13 +71,13 @@ export function SoundboardPopover({ ownClips, peers, onTrigger, onClose, anchorR
     };
   }, [peerCustomClips]);
 
-  const hasAnyClips = PRESET_CLIPS.length > 0 || ownClips.length > 0 || peerCustomClips.length > 0;
+  const hasAnyClips = (presetsEnabled && PRESET_CLIPS.length > 0) || ownClips.length > 0 || peerCustomClips.length > 0;
 
   return (
     <ChevronMenu anchorRect={anchorRect} onClose={onClose} className="soundboard-pop menu-surface" snapToControlBar={true}>
       {!hasAnyClips && <div className="soundboard-pop__empty">No sounds yet — add some in Settings.</div>}
 
-      {PRESET_CLIPS.length > 0 && (
+      {presetsEnabled && PRESET_CLIPS.length > 0 && (
         <>
           <div className="soundboard-pop__section-label">Presets</div>
           <div className="soundboard-pop__grid">

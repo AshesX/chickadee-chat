@@ -194,6 +194,10 @@ export interface PersistedSettings {
   soundboardVolume: number;
   /** Auto-download other peers' custom soundboard clips in the background. */
   soundboardAutoSyncEnabled: boolean;
+  /** Show/allow the bundled preset clips; off = only your own custom clips. */
+  soundboardPresetsEnabled: boolean;
+  /** Don't play soundboard clips triggered by other room members; your own clips still play. */
+  soundboardMuteOthersEnabled: boolean;
 }
 
 export const DEFAULT_ROOMS: Room[] = [
@@ -277,8 +281,10 @@ export function defaultSettings(): PersistedSettings {
     reactionsEnabled: true,
     autoAcceptEnabled: true,
     autoAcceptUsers: [],
-    soundboardEnabled: true,
+    soundboardEnabled: false,
     soundboardVolume: 1.0,
     soundboardAutoSyncEnabled: true,
+    soundboardPresetsEnabled: true,
+    soundboardMuteOthersEnabled: false,
   };
 }

@@ -249,6 +249,10 @@ export const store = {
   setSoundboardVolume: setter('soundboardVolume'),
   getSoundboardAutoSyncEnabled: getter('soundboardAutoSyncEnabled'),
   setSoundboardAutoSyncEnabled: setter('soundboardAutoSyncEnabled'),
+  getSoundboardPresetsEnabled: getter('soundboardPresetsEnabled'),
+  setSoundboardPresetsEnabled: setter('soundboardPresetsEnabled'),
+  getSoundboardMuteOthersEnabled: getter('soundboardMuteOthersEnabled'),
+  setSoundboardMuteOthersEnabled: setter('soundboardMuteOthersEnabled'),
 };
 
 /** Deterministic, stable avatar color for a user (hashed from their userId).

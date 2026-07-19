@@ -10,6 +10,8 @@ export interface SoundboardPlaybackArgs {
   volume: number;
   /** Live per-peer volume map (peer.id -> volume), the same one usePeerVolumes exposes; volume <= 0 means silenced. */
   volumes: Record<string, number>;
+  /** Blanket opt-out: when true, no inbound trigger plays regardless of per-peer volume. Your own clips still play. */
+  muteOthersEnabled: boolean;
 }
 
 export interface SoundboardPlayback {
@@ -34,6 +36,7 @@ export function useSoundboardPlayback({
   enabled,
   volume,
   volumes,
+  muteOthersEnabled,
 }: SoundboardPlaybackArgs): SoundboardPlayback {
   const activeVoicesRef = useRef(0);
   const lastTriggerAtByPeerRef = useRef<Record<string, number>>({});
@@ -42,9 +45,11 @@ export function useSoundboardPlayback({
   const enabledRef = useRef(enabled);
   const volumeRef = useRef(volume);
   const volumesRef = useRef(volumes);
+  const muteOthersRef = useRef(muteOthersEnabled);
   enabledRef.current = enabled;
   volumeRef.current = volume;
   volumesRef.current = volumes;
+  muteOthersRef.current = muteOthersEnabled;
 
   const play = useCallback((source: SoundboardClipSource, clipId: string) => {
     activeVoicesRef.current += 1;
@@ -56,6 +61,7 @@ export function useSoundboardPlayback({
   useEffect(() => {
     return subscribe((msg) => {
       if (msg.type !== 'soundboard-trigger' || !enabledRef.current) return;
+      if (muteOthersRef.current) return;
       if (isSenderMuted(msg.from, volumesRef.current)) return;
       if (!shouldAcceptTrigger(msg.from, Date.now(), lastTriggerAtByPeerRef.current)) return;
       lastTriggerAtByPeerRef.current[msg.from] = Date.now();

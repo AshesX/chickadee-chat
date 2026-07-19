@@ -265,6 +265,14 @@ export function App(): React.JSX.Element {
     store.getSoundboardAutoSyncEnabled,
     store.setSoundboardAutoSyncEnabled,
   );
+  const [soundboardPresetsEnabled, applySoundboardPresetsEnabled] = usePersistedState(
+    store.getSoundboardPresetsEnabled,
+    store.setSoundboardPresetsEnabled,
+  );
+  const [soundboardMuteOthersEnabled, applySoundboardMuteOthersEnabled] = usePersistedState(
+    store.getSoundboardMuteOthersEnabled,
+    store.setSoundboardMuteOthersEnabled,
+  );
   const [theme, applyTheme] = usePersistedState<ThemeName>(store.getTheme, store.setTheme);
   const [hideSpaceBanner, applyHideSpaceBanner] = usePersistedState(store.getHideSpaceBanner, store.setHideSpaceBanner);
   const [launchOnStartup, setLaunchOnStartup] = useState(() => store.getLaunchOnStartup());
@@ -827,6 +835,7 @@ export function App(): React.JSX.Element {
     enabled: soundboardEnabled,
     volume: soundboardVolume,
     volumes,
+    muteOthersEnabled: soundboardMuteOthersEnabled,
   });
   useSoundboardSync({
     peers: signaling.peers,
@@ -1508,6 +1517,7 @@ export function App(): React.JSX.Element {
               <SoundboardPopover
                 ownClips={soundboardLibrary.ownClips}
                 peers={signaling.peers}
+                presetsEnabled={soundboardPresetsEnabled}
                 onTrigger={soundboardPlayback.triggerClip}
                 onClose={menus.closeSoundboardMenu}
                 anchorRect={menus.soundboardMenuAnchor}
@@ -1847,6 +1857,10 @@ export function App(): React.JSX.Element {
           onChangeSoundboardVolume={applySoundboardVolume}
           soundboardAutoSyncEnabled={soundboardAutoSyncEnabled}
           onChangeSoundboardAutoSyncEnabled={applySoundboardAutoSyncEnabled}
+          soundboardPresetsEnabled={soundboardPresetsEnabled}
+          onChangeSoundboardPresetsEnabled={applySoundboardPresetsEnabled}
+          soundboardMuteOthersEnabled={soundboardMuteOthersEnabled}
+          onChangeSoundboardMuteOthersEnabled={applySoundboardMuteOthersEnabled}
           soundboardOwnClips={soundboardLibrary.ownClips}
           onAddSoundboardFiles={soundboardLibrary.addFiles}
           onRemoveSoundboardClip={soundboardLibrary.removeClip}

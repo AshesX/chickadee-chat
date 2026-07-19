@@ -23,6 +23,8 @@ export const SETTINGS_SEARCH_INDEX: SearchEntry[] = [
   { label: 'Enable Soundboard', description: 'Turn the Soundboard button and background sync on or off', tab: 'soundboard', keywords: ['soundboard', 'sounds', 'clips', 'button', 'enable', 'disable'] },
   { label: 'Soundboard Volume', description: 'Playback volume for triggered clips', tab: 'soundboard', keywords: ['soundboard volume', 'clip volume', 'sounds'] },
   { label: 'Auto-sync Sounds', description: "Automatically download other members' custom clips", tab: 'soundboard', keywords: ['soundboard', 'sync', 'auto', 'download', 'clips'] },
+  { label: 'Preset Sounds', description: 'Show or hide the bundled preset clips', tab: 'soundboard', keywords: ['soundboard', 'presets', 'default sounds', 'custom only'] },
+  { label: "Mute Others' Sounds", description: "Don't play soundboard clips triggered by other room members", tab: 'soundboard', keywords: ['soundboard', 'mute', 'others', 'silence'] },
   { label: 'Custom Sounds', description: 'Add or remove your own soundboard clips', tab: 'soundboard', keywords: ['soundboard', 'custom', 'add sound', 'clips', 'folder', 'inbox'] },
   { label: 'Text-to-Speech', description: 'Speaks new chat messages aloud', tab: 'chat', sectionId: 'section-chat-tts', keywords: ['tts', 'text to speech', 'read aloud', 'voice', 'speak', 'speech'] },
   { label: 'Speak Own Messages', description: 'Also reads your own sent messages', tab: 'chat', sectionId: 'section-chat-tts', keywords: ['tts', 'own', 'self', 'sent', 'my messages'] },

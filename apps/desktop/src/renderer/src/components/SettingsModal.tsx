@@ -139,6 +139,8 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
     props.onChangeBadgeNotificationsEnabled(defaults.badgeNotificationsEnabled);
     props.onChangeSoundboardEnabled(defaults.soundboardEnabled);
     props.onChangeSoundboardVolume(defaults.soundboardVolume);
+    props.onChangeSoundboardPresetsEnabled(defaults.soundboardPresetsEnabled);
+    props.onChangeSoundboardMuteOthersEnabled(defaults.soundboardMuteOthersEnabled);
     props.onChangeMicVolume(defaults.micVolume);
 
     props.onChangeCameraResolution(defaults.cameraResolution);

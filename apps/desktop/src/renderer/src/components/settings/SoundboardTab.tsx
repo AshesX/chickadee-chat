@@ -8,6 +8,8 @@ type SoundboardTabProps = Pick<
   | 'soundboardEnabled' | 'onChangeSoundboardEnabled'
   | 'soundboardVolume' | 'onChangeSoundboardVolume'
   | 'soundboardAutoSyncEnabled' | 'onChangeSoundboardAutoSyncEnabled'
+  | 'soundboardPresetsEnabled' | 'onChangeSoundboardPresetsEnabled'
+  | 'soundboardMuteOthersEnabled' | 'onChangeSoundboardMuteOthersEnabled'
   | 'soundboardOwnClips' | 'onAddSoundboardFiles' | 'onRemoveSoundboardClip' | 'onOpenSoundboardInbox'
 >;
 
@@ -18,6 +20,10 @@ export function SoundboardTab({
   onChangeSoundboardVolume,
   soundboardAutoSyncEnabled,
   onChangeSoundboardAutoSyncEnabled,
+  soundboardPresetsEnabled,
+  onChangeSoundboardPresetsEnabled,
+  soundboardMuteOthersEnabled,
+  onChangeSoundboardMuteOthersEnabled,
   soundboardOwnClips,
   onAddSoundboardFiles,
   onRemoveSoundboardClip,
@@ -57,6 +63,22 @@ export function SoundboardTab({
         hint="Automatically download other room members' custom clips in the background so they play instantly when triggered."
         value={soundboardAutoSyncEnabled}
         onChange={onChangeSoundboardAutoSyncEnabled}
+        disabled={!soundboardEnabled}
+      />
+
+      <ToggleRow
+        label="Preset sounds"
+        hint="Show the bundled preset clips. Turn off to only use your own custom sounds."
+        value={soundboardPresetsEnabled}
+        onChange={onChangeSoundboardPresetsEnabled}
+        disabled={!soundboardEnabled}
+      />
+
+      <ToggleRow
+        label="Mute others' sounds"
+        hint="Don't play soundboard clips triggered by other room members. Your own clips still play."
+        value={soundboardMuteOthersEnabled}
+        onChange={onChangeSoundboardMuteOthersEnabled}
         disabled={!soundboardEnabled}
       />
 
