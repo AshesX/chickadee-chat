@@ -16,9 +16,12 @@ import { sha256Hex } from './soundboardHash';
 import {
   STABLE_SAMPLES,
   SUPPORTED_AUDIO_EXTENSIONS,
+  addManifestSource,
   deriveClipName,
   isSizeStable,
   isSupportedAudioFile,
+  normalizeManifestEntry,
+  removeManifestSource,
 } from './soundboardLibraryLogic';
 import { transcodeClip } from './soundboardTranscode';
 
@@ -54,25 +57,15 @@ function manifestPath(): string {
   return join(app.getPath('userData'), 'soundboard-manifest.json');
 }
 
-function isValidManifestEntry(value: unknown): value is SoundboardLibraryClip {
-  const v = value as Partial<SoundboardLibraryClip> | null;
-  return (
-    !!v &&
-    typeof v === 'object' &&
-    typeof v.hash === 'string' &&
-    typeof v.name === 'string' &&
-    typeof v.durationMs === 'number' &&
-    typeof v.sizeBytes === 'number' &&
-    typeof v.sourceFile === 'string'
-  );
-}
-
 let manifest: SoundboardLibraryClip[] = [];
 
 function loadManifest(): void {
   try {
     const parsed: unknown = JSON.parse(readFileSync(manifestPath(), 'utf8'));
-    manifest = Array.isArray(parsed) ? parsed.filter(isValidManifestEntry) : [];
+    // normalizeManifestEntry also migrates the legacy `sourceFile: string` shape.
+    manifest = Array.isArray(parsed)
+      ? parsed.map(normalizeManifestEntry).filter((e): e is SoundboardLibraryClip => e !== null)
+      : [];
   } catch {
     manifest = [];
   }
@@ -118,11 +111,13 @@ function pushManifestChanged(): void {
 }
 
 function handleInboxDeletion(filename: string): void {
-  const entry = manifest.find((c) => c.sourceFile === filename);
-  if (!entry) return;
-  manifest = manifest.filter((c) => c.sourceFile !== filename);
+  // Refcounted by sourceFiles: the cached bytes only go once the LAST inbox
+  // file with this content is gone (content-identical files share one entry).
+  const { manifest: next, unlinkHash, changed } = removeManifestSource(manifest, filename);
+  if (!changed) return;
+  manifest = next;
   persistManifest();
-  void unlink(cachePath(entry.hash)).catch(() => {});
+  if (unlinkHash) void unlink(cachePath(unlinkHash)).catch(() => {});
   pushManifestChanged();
 }
 
@@ -149,14 +144,16 @@ async function processInboxFile(filename: string): Promise<void> {
     } else {
       await rename(tempOutputPath, finalPath);
     }
-    if (!manifest.some((c) => c.hash === hash)) {
-      manifest.push({
-        hash,
-        name: deriveClipName(filename),
-        durationMs: result.durationMs,
-        sizeBytes: bytes.length,
-        sourceFile: filename,
-      });
+    // One entry per hash; a content-identical file joins the existing entry's
+    // sourceFiles instead of being silently dropped (which used to orphan it
+    // when the first-named duplicate was later deleted).
+    const added = addManifestSource(
+      manifest,
+      { hash, name: deriveClipName(filename), durationMs: result.durationMs, sizeBytes: bytes.length },
+      filename,
+    );
+    if (added.changed) {
+      manifest = added.manifest;
       persistManifest();
     }
     pushToRenderer('chickadee:soundboard-transcode-done', { jobId, sourceFile: filename, hash });
@@ -243,7 +240,11 @@ export function configureSoundboard(): void {
     manifest = manifest.filter((c) => c.hash !== h);
     persistManifest();
     await unlink(cachePath(h)).catch(() => {});
-    await unlink(join(inboxDir(), entry.sourceFile)).catch(() => {});
+    // Remove EVERY inbox file that fed this clip, or the leftovers would sit
+    // invisible in the inbox (their entry is gone, their cache just unlinked).
+    for (const source of entry.sourceFiles) {
+      await unlink(join(inboxDir(), source)).catch(() => {});
+    }
     pushManifestChanged();
   });
 

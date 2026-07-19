@@ -190,7 +190,7 @@ export function SpaceSwitcher({
               // doesn't hit the same race, masking it. The `.complete` check
               // catches the case `onLoad` missed; `onLoad` still covers a
               // slower/first-ever decode.
-              ref={(el) => { if (el?.complete && el.naturalWidth > 0) setBannerLoaded(true); }}
+              ref={(el) => { if (el?.complete && el.naturalWidth > 0 && !bannerLoaded) setBannerLoaded(true); }}
               src={safeBanner}
               alt=""
               decoding="async"

@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { X, Plus } from 'lucide-react';
+import { graphemes } from '../../lib/emoji';
 
 /**
  * Editable emoji chip list used by the Chat settings tab (Favorites + Quick
@@ -18,7 +19,9 @@ export function EmojiListManager({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
-    const chars = Array.from(e.target.value.trim());
+    // Grapheme split (not Array.from): compound emoji — ZWJ families, flags,
+    // skin tones — are multiple code points and must stay whole.
+    const chars = graphemes(e.target.value).filter((c) => c.trim().length > 0);
     if (chars.length > 0) {
       onChange(Array.from(new Set([...emojis, ...chars])).slice(0, max));
     }
