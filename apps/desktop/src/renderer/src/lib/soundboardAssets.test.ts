@@ -18,9 +18,11 @@ describe('prettifyName', () => {
 });
 
 describe('PRESET_CLIPS (bundled assets/soundboard-presets/*.mp3 via import.meta.glob)', () => {
-  it('discovers the placeholder preset clips with resolved URLs, sorted by name', () => {
+  it('discovers the preset clips with resolved URLs, sorted by name', () => {
     const ids = PRESET_CLIPS.map((c) => c.id);
-    expect(ids).toEqual(expect.arrayContaining(['beep', 'buzz', 'chime', 'ding']));
+    expect(ids).toEqual(
+      expect.arrayContaining(['air-horn', 'buzzer', 'crickets', 'fart', 'sad-violin', 'trombone']),
+    );
     for (const clip of PRESET_CLIPS) {
       expect(typeof clip.url).toBe('string');
       expect(clip.url.length).toBeGreaterThan(0);
@@ -30,7 +32,7 @@ describe('PRESET_CLIPS (bundled assets/soundboard-presets/*.mp3 via import.meta.
   });
 
   it('getPresetUrl resolves a known id and returns undefined for an unknown one', () => {
-    expect(getPresetUrl('beep')).toBe(PRESET_CLIPS.find((c) => c.id === 'beep')?.url);
+    expect(getPresetUrl('air-horn')).toBe(PRESET_CLIPS.find((c) => c.id === 'air-horn')?.url);
     expect(getPresetUrl('does-not-exist')).toBeUndefined();
   });
 });
