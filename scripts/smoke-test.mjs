@@ -131,6 +131,27 @@ check('A receives C speaking-state(true)', a.events.some(fromCSpk));
 check('D receives C speaking-state(true)', d.events.some(fromCSpk));
 check('C does not receive its own speaking-state', !c.events.some((ev) => ev.type === 'speaking-state'));
 
+// Phase 2c: relink relay (mesh recovery) — directed, room-scoped like offer/answer.
+a.ws.send(JSON.stringify({ type: 'relink', to: wc.selfId }));
+await wait(200);
+check('C receives A relink with from stamped', c.events.some((ev) => ev.type === 'relink' && ev.from === wa.selfId));
+check('relink is directed — D not sent it', !d.events.some((ev) => ev.type === 'relink'));
+
+// Unknown target = silent no-op (server neither crashes nor echoes anything back).
+a.ws.send(JSON.stringify({ type: 'relink', to: 'no-such-peer' }));
+await wait(150);
+check('relink to unknown target is a silent no-op', !a.events.some((ev) => ev.type === 'relink'));
+
+// Room-scoped: a peer in another room of the same space is unreachable.
+const rlRooms = [{ id: 'relink-room', label: 'R', icon: 'sofa', type: 'hybrid' }];
+const rl = client('RelinkFar', { room: 'relink-room', userId: 'uid-relinkfar', rooms: rlRooms });
+const wrl = await rl.ready;
+a.ws.send(JSON.stringify({ type: 'relink', to: wrl.selfId }));
+await wait(200);
+check('relink NOT relayed across rooms', !rl.events.some((ev) => ev.type === 'relink'));
+rl.ws.close();
+await wait(100);
+
 // Phase 3: C turns camera on; A and D should be told, C should not echo.
 c.ws.send(JSON.stringify({ type: 'cam-state', on: true }));
 await wait(200);

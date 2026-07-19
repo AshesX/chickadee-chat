@@ -143,6 +143,11 @@ export type ClientMessage =
   | { type: 'offer'; to: PeerId; sdp: RTCSessionDescriptionInit }
   | { type: 'answer'; to: PeerId; sdp: RTCSessionDescriptionInit }
   | { type: 'ice-candidate'; to: PeerId; candidate: RTCIceCandidateInit }
+  // "Close your media-mesh link to me; my fresh offer follows on this socket."
+  // Needed because a recreated RTCPeerConnection mints a new DTLS certificate,
+  // so its offer can never be accepted by the remote's OLD connection — both
+  // sides must rebuild. Room-scoped like offer/answer (media-mesh recovery).
+  | { type: 'relink'; to: PeerId }
   // Directed file-transfer handshake, relayed SPACE-wide (unlike the room-scoped
   // offer/answer/ice-candidate above) so a transfer can cross rooms. File BYTES
   // never touch the signaling socket — they flow over a dedicated RTCDataChannel.
@@ -258,6 +263,8 @@ export type ServerMessage =
   | { type: 'offer'; from: PeerId; sdp: RTCSessionDescriptionInit }
   | { type: 'answer'; from: PeerId; sdp: RTCSessionDescriptionInit }
   | { type: 'ice-candidate'; from: PeerId; candidate: RTCIceCandidateInit }
+  // Mesh-recovery teardown request (see ClientMessage `relink`), `from` stamped.
+  | { type: 'relink'; from: PeerId }
   // Relayed file-transfer handshake (space-wide, directed), `from` stamped.
   | { type: 'file-offer'; from: PeerId; transferId: string; name: string; size: number; files?: { name: string; size: number }[] }
   | { type: 'file-answer'; from: PeerId; transferId: string; accept: boolean }

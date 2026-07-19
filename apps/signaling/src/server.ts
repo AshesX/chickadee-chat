@@ -114,7 +114,7 @@ wss.on('connection', (socket) => {
       return;
     }
 
-    if (msg.type === 'offer' || msg.type === 'answer' || msg.type === 'ice-candidate') {
+    if (msg.type === 'offer' || msg.type === 'answer' || msg.type === 'ice-candidate' || msg.type === 'relink') {
       relay(conn, msg);
     } else if (
       msg.type === 'file-offer' ||
@@ -196,6 +196,9 @@ wss.on('connection', (socket) => {
 // ws-level heartbeat: ping every client; terminate any that didn't pong since
 // the last round. Terminating fires 'close' → handleDisconnect → peer-left, so
 // dead peers are cleaned up promptly instead of lingering until TCP timeout.
+// 10s (silent death detected in 10–20s) so survivors close dead links fast;
+// safe because protocol pongs are auto-replied by the client's network stack,
+// never its (possibly busy/minimized) JS thread.
 const heartbeat = setInterval(() => {
   for (const client of wss.clients) {
     if (alive.get(client) === false) {
@@ -205,7 +208,7 @@ const heartbeat = setInterval(() => {
     alive.set(client, false);
     client.ping();
   }
-}, 20_000);
+}, 10_000);
 
 wss.on('close', () => clearInterval(heartbeat));
 

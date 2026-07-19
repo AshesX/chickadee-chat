@@ -1184,6 +1184,7 @@ export function App(): React.JSX.Element {
             cameraVideoId={media?.cameraVideoId ?? null}
             color={peer.accentColor || colors[peer.id] || SELF_COLOR}
             connectionState={media?.connectionState ?? 'new'}
+            health={media?.health ?? 'ok'}
             avatarUrl={peer.avatarDataUrl ?? null}
             volume={deafened ? 0 : (volumes[peer.id] ?? 1) * outputVolume}
             peerVolume={volumes[peer.id] ?? 1}

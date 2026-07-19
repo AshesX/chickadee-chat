@@ -81,6 +81,12 @@ export interface PeerLink {
    * `getEncoding` or before any video sender exists.
    */
   applyEncoding: () => void;
+  /**
+   * Request an in-place ICE restart (cooldown-limited; the re-gather rides the
+   * next perfect-negotiation offer). Used by the health monitor when inbound
+   * RTP stalls while the pc still claims 'connected'.
+   */
+  restartIce: () => void;
   /** Tear down the connection and detach all handlers. */
   close: () => void;
 }
@@ -336,5 +342,5 @@ export function createPeerLink(opts: PeerLinkOptions): PeerLink {
     pc.close();
   }
 
-  return { pc, handleSignal, setLocalAudioTrack, setLocalVideoTrack, setLocalScreenStream, setMediaActive, applyEncoding: reapplyAllEncodings, close };
+  return { pc, handleSignal, setLocalAudioTrack, setLocalVideoTrack, setLocalScreenStream, setMediaActive, applyEncoding: reapplyAllEncodings, restartIce: maybeRestartIce, close };
 }

@@ -1,7 +1,7 @@
 import { dirname, join } from 'node:path';
 import { existsSync, readFileSync } from 'node:fs';
 import { app } from 'electron';
-import { PUBLIC_TURN_SERVERS, STUN_SERVERS } from '@chickadee/shared';
+import { STUN_SERVERS } from '@chickadee/shared';
 
 /**
  * Minimal .env loader (no dependency): walks up looking for a `.env` file and
@@ -57,6 +57,7 @@ export function buildConfig(): AppConfig {
     process.env.VITE_SIGNALING_URL ??
     (app.isPackaged ? 'wss://chickadee-signaling.onrender.com' : 'ws://localhost:8080');
 
+  // STUN-only by default (pure P2P); a self-hosted TURN is opt-in via env.
   const iceServers: RTCIceServer[] = [...STUN_SERVERS];
   const turnUrl = process.env.CHICKADEE_TURN_URL;
   if (turnUrl) {
@@ -65,8 +66,6 @@ export function buildConfig(): AppConfig {
       username: process.env.CHICKADEE_TURN_USERNAME,
       credential: process.env.CHICKADEE_TURN_CREDENTIAL,
     });
-  } else {
-    iceServers.push(...PUBLIC_TURN_SERVERS);
   }
   // NOTE: settings are intentionally NOT passed here — they ride the synchronous
   // `chickadee:get-settings` IPC instead, because the full settings object includes

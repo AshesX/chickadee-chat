@@ -340,6 +340,9 @@ export function relay(conn: Connection, msg: ClientMessage & { to: PeerId }): vo
     case 'ice-candidate':
       send(target.socket, { type: 'ice-candidate', from: conn.peer.id, candidate: msg.candidate });
       break;
+    case 'relink':
+      send(target.socket, { type: 'relink', from: conn.peer.id });
+      break;
   }
 }
 

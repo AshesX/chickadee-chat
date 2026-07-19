@@ -105,7 +105,7 @@ The server also caps inbound frame size, rate-limits per connection, and validat
 
 ### Play over the internet
 
-Mesh P2P connects peers directly. Many home networks traverse with STUN alone (always configured), but **symmetric NAT** requires a **TURN relay** to forward media. The app falls back to a best-effort free public TURN, which is rate-limited and unreliable — for real internet play, run your own TURN (e.g. [coturn](https://github.com/coturn/coturn)) and set the `CHICKADEE_TURN_*` variables above.
+Mesh P2P connects peers directly. Most home networks traverse with STUN alone (two independent STUN providers are always configured), but a pair where both sides sit behind **symmetric NAT** needs a **TURN relay** to forward media. The app ships no TURN by default (the old free public fallback was defunct and only slowed connections) — if you need relay coverage, run your own TURN (e.g. [coturn](https://github.com/coturn/coturn)) and set the `CHICKADEE_TURN_*` variables above.
 
 ## Testing
 

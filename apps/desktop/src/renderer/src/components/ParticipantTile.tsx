@@ -27,6 +27,12 @@ export interface ParticipantTileProps {
   color: string;
   /** Connection state for remote peers; omitted for self. */
   connectionState?: RTCPeerConnectionState;
+  /**
+   * Remote only: stats-derived link health from the mesh monitor. Overrides the
+   * raw connectionState note — the pc can claim 'connected' while its media is
+   * dead ('recovering' = an automatic restart/relink is in flight).
+   */
+  health?: 'ok' | 'recovering' | 'failed';
   /** Whether this participant is currently speaking (drives the ripple); synced from the wire. */
   speaking?: boolean;
   /** Remote only: output volume 0–2 (default 1, where 2 = 200% boost). */
@@ -89,6 +95,7 @@ function ParticipantTileImpl({
   cameraVideoId,
   color,
   connectionState,
+  health = 'ok',
   speaking = false,
   volume,
   peerVolume,
@@ -144,7 +151,17 @@ function ParticipantTileImpl({
   // Watch (join) appears when this peer has video available but we haven't joined.
   const showWatch = !isSelf && !subscribed && (cameraOn || screenSharing);
 
-  const connNote = !isSelf && connectionState ? CONN_LABEL[connectionState] : undefined;
+  // Health (stats-derived) outranks the raw connectionState label: a silently
+  // stalled pc still reads 'connected', so only the monitor knows it's healing.
+  const connNote = isSelf
+    ? undefined
+    : health === 'failed'
+      ? 'connection lost'
+      : health === 'recovering'
+        ? 'reconnecting…'
+        : connectionState
+          ? CONN_LABEL[connectionState]
+          : undefined;
   const initial = displayName.trim().charAt(0).toUpperCase() || '?';
 
   // Per-listener volume control (remote peers only): a corner icon that reveals a
