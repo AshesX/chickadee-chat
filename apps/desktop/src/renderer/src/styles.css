@@ -3393,6 +3393,7 @@
   font-weight: var(--fw-1);
   font-style: italic;
   color: var(--dim);
+  font-size: var(--fs-4);
 }
 
 /* Top-right menu cluster — anchored by `right`/`top` only (no `left`), so it
