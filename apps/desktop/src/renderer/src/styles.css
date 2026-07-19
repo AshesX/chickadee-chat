@@ -3324,6 +3324,8 @@
 
 .sidebar__space-header--minimal .space-header__name {
   font-size: var(--fs-3);
+  -webkit-text-stroke: 3px var(--card);
+  paint-order: stroke fill;
 }
 
 /* No banner image means no scrim/hamburger-cluster to sit clear of — center
@@ -3359,7 +3361,8 @@
 
 .space-info-wrap {
   position: relative;
-  z-index: 1;
+  z-index: 3;
+  pointer-events: none;
   display: flex;
   align-items: flex-end;
   min-width: 0;

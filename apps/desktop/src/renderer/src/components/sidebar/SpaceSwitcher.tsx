@@ -274,7 +274,7 @@ export function SpaceSwitcher({
 
       <div className={`space-manage-panel${menuOpen ? ' space-manage-panel--open' : ''}`}>
         <div className="space-manage-panel__inner">
-          <div className="space-manage-panel__card menu-surface">
+          <div className="space-manage-panel__card">
             {otherSpaces.length > 0 && (
               <div className="space-manage-panel__list">
                 {otherSpaces.map((s) => (
