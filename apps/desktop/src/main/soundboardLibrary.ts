@@ -62,7 +62,7 @@ let manifest: SoundboardLibraryClip[] = [];
 function loadManifest(): void {
   try {
     const parsed: unknown = JSON.parse(readFileSync(manifestPath(), 'utf8'));
-    // normalizeManifestEntry also migrates the legacy `sourceFile: string` shape.
+    // normalizeManifestEntry drops entries that don't match the current schema.
     manifest = Array.isArray(parsed)
       ? parsed.map(normalizeManifestEntry).filter((e): e is SoundboardLibraryClip => e !== null)
       : [];

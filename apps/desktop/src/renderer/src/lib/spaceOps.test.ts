@@ -1,20 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { generateSpaceId, normalizeRooms, parseSpaceName } from './spaceOps';
-
-describe('normalizeRooms', () => {
-  it('maps legacy voice/video/undefined types to hybrid, preserving other fields', () => {
-    const rooms = [
-      { id: 'a', label: 'A', icon: 'i', type: 'voice' as const },
-      { id: 'b', label: 'B', icon: 'j', type: 'video' as const },
-      { id: 'c', label: 'C', icon: 'k' },
-    ];
-    expect(normalizeRooms(rooms)).toEqual([
-      { id: 'a', label: 'A', icon: 'i', type: 'hybrid' },
-      { id: 'b', label: 'B', icon: 'j', type: 'hybrid' },
-      { id: 'c', label: 'C', icon: 'k', type: 'hybrid' },
-    ]);
-  });
-});
+import { generateSpaceId, parseSpaceName } from './spaceOps';
 
 describe('generateSpaceId', () => {
   it('slugifies the name and appends a 5-char suffix', () => {

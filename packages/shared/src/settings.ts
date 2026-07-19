@@ -74,8 +74,7 @@ export interface PersistedSettings {
   peerScreenVolumes: Record<string, number>;
   /**
    * How the mic transmits: 'voice' = gated by VAD threshold, 'ptt' =
-   * push-to-talk via the hotkey. (The legacy always-live 'open' mode was
-   * removed; persisted 'open' is migrated to 'voice' in the renderer store.)
+   * push-to-talk via the hotkey.
    */
   inputMode: 'voice' | 'ptt';
   /** RMS gate level (0..1) for voice-activation mode. */

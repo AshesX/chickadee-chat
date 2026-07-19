@@ -1,11 +1,4 @@
-import { normalizeRoomType, type Room } from '@chickadee/shared';
-
 // Pure Space/room-list helpers shared by useSpaces and the space-rename flow.
-
-/** Normalize legacy 'voice'/'video' room types to the unified 'hybrid' on read. */
-export function normalizeRooms(rooms: Room[]): Room[] {
-  return rooms.map((r) => ({ ...r, type: normalizeRoomType(r.type) }));
-}
 
 /** Slugify a Space name + random suffix into a shareable, collision-resistant id. */
 export function generateSpaceId(name: string): string {
