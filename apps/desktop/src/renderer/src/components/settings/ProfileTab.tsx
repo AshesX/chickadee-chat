@@ -37,87 +37,84 @@ export function ProfileTab({
           onKeyDown={(e) => e.key === 'Enter' && commitName()}
           maxLength={32}
           autoFocus
+          style={{ maxWidth: '240px' }}
         />
       </label>
 
       <hr className="settings-divider" />
 
-      <div className="profile-settings-layout">
-        <div className="profile-settings-layout__left">
-          <SettingsSection id="section-avatar" title="Avatar" />
-          <div className="avatar-settings-row">
-            <div
-              className="avatar-settings-preview"
-              style={avatarDataUrl ? undefined : { background: selfColor }}
-            >
-              {avatarDataUrl ? (
-                <img src={avatarDataUrl} alt="Your avatar" className="avatar-settings-preview__img" />
-              ) : (
-                <span className="avatar-settings-preview__initial">
-                  {name.trim().charAt(0).toUpperCase() || '?'}
-                </span>
-              )}
-            </div>
-            <div className="avatar-settings-actions">
-              <button
-                className="seg-btn"
-                onClick={() => setCropOpen(true)}
-              >
-                {avatarDataUrl ? 'Change Avatar' : 'Set Avatar'}
-              </button>
-              {avatarDataUrl && (
-                <button
-                  className="seg-btn avatar-settings-remove"
-                  onClick={() => onChangeAvatar(null)}
-                >
-                  Remove
-                </button>
-              )}
-            </div>
-          </div>
+      <SettingsSection id="section-avatar" title="Avatar" />
+      <div className="avatar-settings-row">
+        <div
+          className="avatar-settings-preview"
+          style={avatarDataUrl ? undefined : { background: selfColor }}
+        >
+          {avatarDataUrl ? (
+            <img src={avatarDataUrl} alt="Your avatar" className="avatar-settings-preview__img" />
+          ) : (
+            <span className="avatar-settings-preview__initial">
+              {name.trim().charAt(0).toUpperCase() || '?'}
+            </span>
+          )}
         </div>
+        <div className="avatar-settings-actions">
+          <button
+            className="seg-btn"
+            onClick={() => setCropOpen(true)}
+          >
+            {avatarDataUrl ? 'Change Avatar' : 'Set Avatar'}
+          </button>
+          {avatarDataUrl && (
+            <button
+              className="seg-btn avatar-settings-remove"
+              onClick={() => onChangeAvatar(null)}
+            >
+              Remove
+            </button>
+          )}
+        </div>
+      </div>
 
-        <div className="profile-settings-layout__right">
-          <SettingsSection id="section-accent" title="Accent Color" />
-          <span className="hint">Avatar ring and speaking glow color. Auto-assigns if cleared.</span>
-          <div className="accent-swatches">
-            {USER_COLORS.map((c) => (
-              <button
-                key={c}
-                type="button"
-                className={`accent-swatch${accentColor.toLowerCase() === c.toLowerCase() ? ' accent-swatch--active' : ''}`}
-                style={{ background: c }}
-                onClick={() => onChangeAccent(c)}
-                aria-label={`Use accent color ${c}`}
-              />
-            ))}
-            {accentColor && !USER_COLORS.some((c) => c.toLowerCase() === accentColor.toLowerCase()) && (
-              <button
-                type="button"
-                className="accent-swatch accent-swatch--active"
-                style={{ background: accentColor }}
-                onClick={() => {}}
-                aria-label={`Use custom accent color ${accentColor}`}
-              />
-            )}
-            <label
-              className="accent-swatch accent-swatch--custom"
-              aria-label="Pick a custom accent color"
-            >
-              +
-              <input
-                type="color"
-                value={accentColor || selfColor}
-                onChange={(e) => onChangeAccent(e.target.value)}
-              />
-            </label>
-            {accentColor && (
-              <button type="button" className="seg-btn accent-reset" onClick={() => onChangeAccent('')}>
-                Reset to auto
-              </button>
-            )}
-          </div>
-        </div>
+      <hr className="settings-divider" />
+
+      <SettingsSection id="section-accent" title="Accent Color" />
+      <span className="hint">Avatar ring and speaking glow color. Auto-assigns if cleared.</span>
+      <div className="accent-swatches">
+        {USER_COLORS.map((c) => (
+          <button
+            key={c}
+            type="button"
+            className={`accent-swatch${accentColor.toLowerCase() === c.toLowerCase() ? ' accent-swatch--active' : ''}`}
+            style={{ background: c }}
+            onClick={() => onChangeAccent(c)}
+            aria-label={`Use accent color ${c}`}
+          />
+        ))}
+        {accentColor && !USER_COLORS.some((c) => c.toLowerCase() === accentColor.toLowerCase()) && (
+          <button
+            type="button"
+            className="accent-swatch accent-swatch--active"
+            style={{ background: accentColor }}
+            onClick={() => {}}
+            aria-label={`Use custom accent color ${accentColor}`}
+          />
+        )}
+        <label
+          className="accent-swatch accent-swatch--custom"
+          aria-label="Pick a custom accent color"
+        >
+          +
+          <input
+            type="color"
+            value={accentColor || selfColor}
+            onChange={(e) => onChangeAccent(e.target.value)}
+          />
+        </label>
+        {accentColor && (
+          <button type="button" className="seg-btn accent-reset" onClick={() => onChangeAccent('')}>
+            Reset to auto
+          </button>
+        )}
       </div>
 
       {cropOpen && (

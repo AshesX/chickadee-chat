@@ -4032,24 +4032,6 @@
 
 /* ─── Settings profile – avatar section ──────────────────────────────────── */
 
-.profile-settings-layout {
-  display: flex;
-  gap: var(--s-6);
-  align-items: flex-start;
-}
-
-@media (max-width: 640px) {
-  .profile-settings-layout {
-    flex-direction: column;
-    gap: var(--s-4);
-  }
-}
-
-.profile-settings-layout__left,
-.profile-settings-layout__right {
-  flex: 1;
-}
-
 .avatar-settings-row {
   display: flex;
   align-items: center;
