@@ -554,9 +554,9 @@
 
 /* Inset rounded "rail" rows: rows sit within the scroll padding while the
    section headers above them stay full-bleed — the headers deliberately read
-   wider than the rows. The active blaze nub (::before, left: 0) is clipped by
-   overflow: hidden and stays fully inside the straight-edge zone of the 4px
-   corner radius. */
+   wider than the rows. The hover nub (::before) is a standing rounded-rect
+   capsule flush with the pill's left inner edge — it's hidden on the active
+   row, which stays a plain solid-orange pill (see below). */
 .room-row {
   position: relative;
   overflow: visible;
@@ -602,33 +602,34 @@
 
 
 /* The animated part is transform/opacity only (compositor-safe); `height`
-   is never transitioned — the hover nub scales in at a fixed 12px, and the
-   hover→active growth is a discrete swap that lands together with the row's
-   background flip, so selection reads as one crisp state change. */
+   is never transitioned — the nub scales in at a fixed size. A standing
+   rounded-rect capsule flush against the pill's own left inner edge (left: 0)
+   — it never spills past the pill's edge. Hover-only: it's a "you could go
+   here" cue, not a state marker, so an ACTIVE row hides it entirely (opacity
+   0, no color flip) and just reads as a plain solid-orange pill. */
 .room-row__main::before {
   content: '';
   position: absolute;
   z-index: 1;
-  left: calc(-1 * var(--s-3) - 8px);
+  left: 0;
   top: 50%;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
+  width: 3px;
+  height: 20px;
+  border-radius: 2px;
   background: var(--orange);
   opacity: 0;
-  transform: translateY(-50%) scale(0.4);
+  transform: translateY(-50%) scaleY(0.3);
   transition: transform var(--dur-2) var(--ease), opacity var(--dur-2) var(--ease);
 }
 
 .room-row:hover .room-row__main::before {
   opacity: 1;
-  transform: translateY(-50%) scale(1);
+  transform: translateY(-50%) scaleY(1);
 }
 
 .room-row--active .room-row__main::before,
 .room-row--active:hover .room-row__main::before {
-  opacity: 1;
-  transform: translateY(-50%) scale(1);
+  opacity: 0;
 }
 
 .room-row__icon {
