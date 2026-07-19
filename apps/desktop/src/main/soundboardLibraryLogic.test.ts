@@ -1,5 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { deriveClipName, isSizeStable, isSupportedAudioFile } from './soundboardLibraryLogic';
+import type { SoundboardLibraryClip } from '@chickadee/shared';
+import {
+  addManifestSource,
+  deriveClipName,
+  isSizeStable,
+  isSupportedAudioFile,
+  normalizeManifestEntry,
+  removeManifestSource,
+} from './soundboardLibraryLogic';
+
+const clip = (hash: string, sourceFiles: string[]): SoundboardLibraryClip => ({
+  hash,
+  name: 'Clip',
+  durationMs: 1000,
+  sizeBytes: 80_000,
+  sourceFiles,
+});
 
 describe('isSizeStable', () => {
   it('is false with fewer than the required samples', () => {
@@ -54,5 +70,84 @@ describe('deriveClipName', () => {
   it('falls back to a generic name for an empty/symbol-only basename', () => {
     expect(deriveClipName('.mp3')).toBe('Sound');
     expect(deriveClipName('---.wav')).toBe('Sound');
+  });
+});
+
+describe('normalizeManifestEntry', () => {
+  const base = { hash: 'h1', name: 'Clip', durationMs: 1000, sizeBytes: 80_000 };
+
+  it('accepts the current sourceFiles shape and drops non-string entries', () => {
+    expect(normalizeManifestEntry({ ...base, sourceFiles: ['a.mp3', 7, ''] })).toEqual({
+      ...base,
+      sourceFiles: ['a.mp3'],
+    });
+  });
+
+  it('migrates the legacy sourceFile string shape', () => {
+    expect(normalizeManifestEntry({ ...base, sourceFile: 'a.mp3' })).toEqual({
+      ...base,
+      sourceFiles: ['a.mp3'],
+    });
+  });
+
+  it('rejects entries missing required fields or any source', () => {
+    expect(normalizeManifestEntry(null)).toBeNull();
+    expect(normalizeManifestEntry({ ...base })).toBeNull();
+    expect(normalizeManifestEntry({ ...base, sourceFiles: [] })).toBeNull();
+    expect(normalizeManifestEntry({ ...base, sourceFiles: ['a.mp3'], hash: 5 })).toBeNull();
+  });
+});
+
+describe('addManifestSource', () => {
+  const meta = { hash: 'h1', name: 'Clip', durationMs: 1000, sizeBytes: 80_000 };
+
+  it('creates a new entry for an unseen hash', () => {
+    const { manifest, changed } = addManifestSource([], meta, 'a.mp3');
+    expect(changed).toBe(true);
+    expect(manifest).toEqual([{ ...meta, sourceFiles: ['a.mp3'] }]);
+  });
+
+  it('joins a content-identical file onto the existing entry (no duplicate entry)', () => {
+    const { manifest, changed } = addManifestSource([clip('h1', ['a.mp3'])], meta, 'b.mp3');
+    expect(changed).toBe(true);
+    expect(manifest).toHaveLength(1);
+    expect(manifest[0].sourceFiles).toEqual(['a.mp3', 'b.mp3']);
+  });
+
+  it('is a no-op when the filename is already recorded (re-transcode of same file)', () => {
+    const before = [clip('h1', ['a.mp3'])];
+    const { manifest, changed } = addManifestSource(before, meta, 'a.mp3');
+    expect(changed).toBe(false);
+    expect(manifest).toBe(before);
+  });
+});
+
+describe('removeManifestSource', () => {
+  it('only surrenders the cache (unlinkHash) when the LAST source goes', () => {
+    const shared = [clip('h1', ['a.mp3', 'b.mp3'])];
+    const first = removeManifestSource(shared, 'a.mp3');
+    expect(first.changed).toBe(true);
+    expect(first.unlinkHash).toBeNull();
+    expect(first.manifest[0].sourceFiles).toEqual(['b.mp3']);
+
+    const second = removeManifestSource(first.manifest, 'b.mp3');
+    expect(second.changed).toBe(true);
+    expect(second.unlinkHash).toBe('h1');
+    expect(second.manifest).toEqual([]);
+  });
+
+  it('is a no-op for a filename no entry knows', () => {
+    const before = [clip('h1', ['a.mp3'])];
+    const { manifest, unlinkHash, changed } = removeManifestSource(before, 'zz.mp3');
+    expect(changed).toBe(false);
+    expect(unlinkHash).toBeNull();
+    expect(manifest).toBe(before);
+  });
+
+  it('leaves unrelated entries untouched', () => {
+    const before = [clip('h1', ['a.mp3']), clip('h2', ['x.mp3'])];
+    const { manifest, unlinkHash } = removeManifestSource(before, 'a.mp3');
+    expect(unlinkHash).toBe('h1');
+    expect(manifest).toEqual([clip('h2', ['x.mp3'])]);
   });
 });

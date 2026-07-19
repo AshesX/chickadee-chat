@@ -472,6 +472,11 @@ export function usePeerMesh(
    */
   const relinkPeer = useCallback(
     (peerId: PeerId) => {
+      // No health/baseline reset here: the reducer's relink transition already
+      // returned the reset state (packets 0, fresh lastAdvanceAt) and the tick
+      // stored it in healthRef BEFORE dispatching this action. Only the
+      // RECEIVER's `case 'relink'` handler resets manually — it never runs the
+      // reducer transition.
       dropLinkForRebuild(peerId);
       send({ type: 'relink', to: peerId });
       ensureLink(peerId);

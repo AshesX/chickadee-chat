@@ -1,10 +1,11 @@
 import { extname } from 'node:path';
+import type { SoundboardLibraryClip } from '@chickadee/shared';
 
 /**
- * Pure decision logic for the soundboard inbox watcher — kept free of any
- * `electron`/filesystem import (mirrors windowSize.ts/hotkeyLogic.ts) so it's
- * unit-testable without mocking Electron; soundboardLibrary.ts owns the
- * fs.watch wiring and calls into these.
+ * Pure decision logic for the soundboard inbox watcher + manifest — kept free
+ * of any `electron`/filesystem import (mirrors windowSize.ts/hotkeyLogic.ts)
+ * so it's unit-testable without mocking Electron; soundboardLibrary.ts owns
+ * the fs.watch wiring and calls into these.
  */
 
 export const SUPPORTED_AUDIO_EXTENSIONS = new Set([
@@ -36,4 +37,84 @@ export function deriveClipName(filename: string): string {
   const words = base.replace(/[_-]+/g, ' ').trim().split(/\s+/).filter(Boolean);
   if (words.length === 0) return 'Sound';
   return words.map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+}
+
+// --- Manifest decisions (one entry per content hash; sourceFiles refcount) ---
+//
+// The manifest invariant is ONE entry per hash: hashes are the clip identity
+// everywhere downstream (React keys, remove-by-hash IPC, P2P sync planning),
+// so content-identical inbox files must SHARE an entry via `sourceFiles`
+// rather than mint duplicates. Deletion only surrenders the cached bytes when
+// the last source for that hash is gone — previously a duplicate's deletion
+// unlinked the shared cache file and orphaned the survivor.
+
+/**
+ * Validate one persisted manifest entry, migrating the legacy shape
+ * (`sourceFile: string`) to `sourceFiles: string[]`. Null = drop the entry.
+ */
+export function normalizeManifestEntry(value: unknown): SoundboardLibraryClip | null {
+  const v = value as (Partial<SoundboardLibraryClip> & { sourceFile?: unknown }) | null;
+  if (
+    !v ||
+    typeof v !== 'object' ||
+    typeof v.hash !== 'string' ||
+    typeof v.name !== 'string' ||
+    typeof v.durationMs !== 'number' ||
+    typeof v.sizeBytes !== 'number'
+  ) {
+    return null;
+  }
+  const sourceFiles = Array.isArray(v.sourceFiles)
+    ? v.sourceFiles.filter((f): f is string => typeof f === 'string' && f.length > 0)
+    : typeof v.sourceFile === 'string' && v.sourceFile.length > 0
+      ? [v.sourceFile]
+      : [];
+  if (sourceFiles.length === 0) return null;
+  const { hash, name, durationMs, sizeBytes } = v;
+  return { hash, name, durationMs, sizeBytes, sourceFiles };
+}
+
+/**
+ * Record that `filename`'s transcode produced content `meta.hash`: appends the
+ * filename to the existing entry for that hash, or creates a new entry.
+ * Returns the (possibly unchanged) manifest + whether anything changed.
+ */
+export function addManifestSource(
+  manifest: SoundboardLibraryClip[],
+  meta: { hash: string; name: string; durationMs: number; sizeBytes: number },
+  filename: string,
+): { manifest: SoundboardLibraryClip[]; changed: boolean } {
+  const existing = manifest.find((c) => c.hash === meta.hash);
+  if (!existing) {
+    return { manifest: [...manifest, { ...meta, sourceFiles: [filename] }], changed: true };
+  }
+  if (existing.sourceFiles.includes(filename)) return { manifest, changed: false };
+  return {
+    manifest: manifest.map((c) =>
+      c === existing ? { ...c, sourceFiles: [...c.sourceFiles, filename] } : c,
+    ),
+    changed: true,
+  };
+}
+
+/**
+ * Remove `filename` as a source: drops it from its entry's `sourceFiles`, and
+ * drops the whole entry once no sources remain. `unlinkHash` is set ONLY in
+ * that last-source case — the caller may then delete the cached bytes.
+ */
+export function removeManifestSource(
+  manifest: SoundboardLibraryClip[],
+  filename: string,
+): { manifest: SoundboardLibraryClip[]; unlinkHash: string | null; changed: boolean } {
+  const entry = manifest.find((c) => c.sourceFiles.includes(filename));
+  if (!entry) return { manifest, unlinkHash: null, changed: false };
+  const remaining = entry.sourceFiles.filter((f) => f !== filename);
+  if (remaining.length === 0) {
+    return { manifest: manifest.filter((c) => c !== entry), unlinkHash: entry.hash, changed: true };
+  }
+  return {
+    manifest: manifest.map((c) => (c === entry ? { ...c, sourceFiles: remaining } : c)),
+    unlinkHash: null,
+    changed: true,
+  };
 }
