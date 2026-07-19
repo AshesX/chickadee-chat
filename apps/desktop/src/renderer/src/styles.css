@@ -1167,21 +1167,14 @@
 .title-bar__logo {
   width: 20px;
   height: 20px;
-  --logo-fill: var(--dim);
-}
-
-/* Light theme's --dim reads as muddy against the paper chrome — use the same
-   full-ink color as room names instead. Dark theme's --dim is light enough
-   to stay as-is. */
-:root[data-theme="light"] .title-bar__logo {
-  --logo-fill: var(--text);
+  --logo-fill: var(--text-sub);
 }
 
 .title-bar__wordmark {
   font-weight: var(--fw-2);
   font-size: var(--fs-1);
   letter-spacing: 0.05em;
-  color: var(--dim);
+  color: var(--text-sub);
   white-space: nowrap;
   overflow: hidden;
   max-width: 200px;
@@ -1189,9 +1182,6 @@
   transition: opacity var(--dur-1) var(--ease), max-width var(--dur-1) var(--ease);
 }
 
-:root[data-theme="light"] .title-bar__wordmark {
-  color: var(--text);
-}
 
 .app--compact .title-bar__wordmark {
   opacity: 0;
