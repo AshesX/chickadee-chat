@@ -1,18 +1,29 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { DEFAULT_ICE_SERVERS, capacityForType, type Room, type RoomType, type ThemeName } from '@chickadee/shared';
+import { Play } from 'lucide-react';
+import { DEFAULT_ICE_SERVERS, capacityForType, type Room, type ThemeName } from '@chickadee/shared';
 import { useSignaling } from './hooks/useSignaling';
 import { usePeerMesh } from './hooks/usePeerMesh';
 import { useRoomChat } from './hooks/useRoomChat';
 import { useSpacePresence } from './hooks/useSpacePresence';
 import { useSpaces, type AddSpaceResult } from './hooks/useSpaces';
 import { useSpaceJoin } from './hooks/useSpaceJoin';
+import { useAutoClearError } from './hooks/useAutoClearError';
 import { useControlBarMenus } from './hooks/useControlBarMenus';
 import { usePersistedState } from './hooks/usePersistedState';
 import { useKeybindSync } from './hooks/useKeybindSync';
 import { useVoiceActivation } from './hooks/useVoiceActivation';
 import { useMediaDevices } from './hooks/useMediaDevices';
 import { useSfxEvents } from './hooks/useSfxEvents';
+import { useSfxSettings } from './hooks/useSfxSettings';
 import { useTraySync } from './hooks/useTraySync';
+import { usePeerVolumes, usePeerScreenVolumes } from './hooks/usePeerVolumes';
+import { useStageSpotlight } from './hooks/useStageSpotlight';
+import { useFileTransfers } from './hooks/useFileTransfers';
+import { useSoundboardLibrary } from './hooks/useSoundboardLibrary';
+import { useSoundboardPlayback } from './hooks/useSoundboardPlayback';
+import { useSoundboardSync } from './hooks/useSoundboardSync';
+import { useWindowFocus } from './hooks/useWindowFocus';
+import { selectStage } from './lib/stageSelection';
 import { SELF_COLOR, useUserColors } from './lib/userColors';
 import { setOutputSink } from './lib/audioContext';
 import { store } from './lib/settings';
@@ -22,7 +33,11 @@ import { ControlBar } from './components/ControlBar';
 import { ParticipantTile } from './components/ParticipantTile';
 import { ScreenView } from './components/ScreenView';
 import { ChatPanel, type ChatMessage } from './components/ChatPanel';
+import { TransferTray } from './components/TransferTray';
+import { formatBytes } from './webrtc/fileTransferPolicy';
 import { ReactionPopover } from './components/ReactionPopover';
+import { SoundboardPopover } from './components/SoundboardPopover';
+import { UserContextMenu, type UserMenuTarget } from './components/UserContextMenu';
 import { AudioDeviceMenu } from './components/AudioDeviceMenu';
 import { InputModeMenu } from './components/InputModeMenu';
 import { VideoMenu } from './components/VideoMenu';
@@ -50,16 +65,8 @@ const SpaceSettingsModal = lazy(() =>
   import('./components/SpaceSettingsModal').then((m) => ({ default: m.SpaceSettingsModal })),
 );
 import { speakChatMessage, cancelSpeech } from './lib/tts';
+import { shouldSpeakChatMessage } from './lib/ttsTriggers';
 import { initVoices } from './lib/voices';
-
-interface ActiveScreen {
-  key: string;
-  displayName: string;
-  isSelf: boolean;
-  stream: MediaStream;
-  /** Stable userId of the sharer (remote only), so the viewer can leave the stream. */
-  userId?: string;
-}
 
 function slugify(label: string): string {
   return label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'room';
@@ -78,17 +85,37 @@ export function App(): React.JSX.Element {
   const [outputDeviceId, setOutputDeviceId] = useState(() => store.getOutputDeviceId());
   const [micVolume, applyMicVolume] = usePersistedState(store.getMicVolume, store.setMicVolume);
   const [outputVolume, applyOutputVolume] = usePersistedState(store.getOutputVolume, store.setOutputVolume);
-  const [cameraFeatureEnabled, applyCameraFeatureEnabled] = usePersistedState(store.getCameraFeatureEnabled, store.setCameraFeatureEnabled);
+
   const [cameraResolution, applyCameraResolution] = usePersistedState(store.getCameraResolution, store.setCameraResolution);
   const [cameraFramerate, applyCameraFramerate] = usePersistedState(store.getCameraFramerate, store.setCameraFramerate);
   const [screenResolution, applyScreenResolution] = usePersistedState(store.getScreenResolution, store.setScreenResolution);
   const [screenFramerate, applyScreenFramerate] = usePersistedState(store.getScreenFramerate, store.setScreenFramerate);
   const [videoQuality, applyVideoQuality] = usePersistedState(store.getVideoQuality, store.setVideoQuality);
+  const [audioQuality, applyAudioQuality] = usePersistedState(store.getAudioQuality, store.setAudioQuality);
+  const [uploadBudgetMbps, applyUploadBudgetMbps] = usePersistedState(store.getUploadBudgetMbps, store.setUploadBudgetMbps);
   const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(() => store.getAvatarDataUrl());
   const [localVoicePreference, setLocalVoicePreference] = useState(() => store.getVoicePreference());
   const [localAccentColor, setLocalAccentColor] = useState(() => store.getAccentColor());
+  // Our effective accent color: the chosen one, else the default self gold.
+  const selfColor = localAccentColor || SELF_COLOR;
   const userId = useMemo(() => store.getUserId(), []);
-  const mesh = usePeerMesh(signaling, iceServers, noiseSuppression, micVolume, cameraResolution, cameraFramerate, screenResolution, screenFramerate, videoQuality, echoCancellation, autoGainControl, inputDeviceId, localAvatarUrl, localVoicePreference, localAccentColor, userId);
+  // Which peers are watching OUR stage stream (their subscriptions include us) —
+  // the count drives the adaptive upload budget for the high-quality stage
+  // encoding; the names feed the "who's watching" display on the stage itself.
+  const selfWatchers = useMemo(
+    () => signaling.peers.filter((p) => p.videoSubscriptions?.includes(userId)),
+    [signaling.peers, userId],
+  );
+  const selfWatcherCount = selfWatchers.length;
+  // Which of our streams (if any) currently holds the room stage, per the
+  // server-authoritative spotlight — 'stage' encoding for that kind, thumbnails else.
+  const myStageKind: 'screen' | 'camera' | null =
+    signaling.spotlightHolderId != null && signaling.spotlightHolderId === signaling.selfId
+      ? signaling.spotlightKind
+      : null;
+  // The stage upload budget in bits/sec (0 = unlimited), from the user's Mbps setting.
+  const uploadBudgetBps = uploadBudgetMbps > 0 ? uploadBudgetMbps * 1_000_000 : 0;
+  const mesh = usePeerMesh(signaling, iceServers, noiseSuppression, micVolume, cameraResolution, cameraFramerate, screenResolution, screenFramerate, videoQuality, audioQuality, echoCancellation, autoGainControl, inputDeviceId, localAvatarUrl, localVoicePreference, localAccentColor, userId, myStageKind, selfWatcherCount, uploadBudgetBps);
   const colors = useUserColors(signaling.peers.map((p) => p.id));
 
   const [displayName, setDisplayName] = useState(() => store.getName());
@@ -97,14 +124,27 @@ export function App(): React.JSX.Element {
     signaling.joinRoom(null);
     setCurrentRoomId(null);
   }, [signaling.joinRoom]);
-  const { spaces, currentSpaceId, rooms, switchSpace, addSpace, deleteSpace, initFirstSpace, updateRooms, updateSpaceSettings } =
-    useSpaces(leaveRoom, signaling.verifySpace);
+  const {
+    spaces,
+    currentSpaceId,
+    rooms,
+    switchSpace,
+    addSpace,
+    deleteSpace,
+    initFirstSpace,
+    updateRooms,
+    updateSpaceSettings,
+    updateSpaceBanner,
+    updateSpaceOwnerId,
+    updateSpaceModeration,
+    pendingOwnerClaimSpaceId,
+    clearPendingOwnerClaim,
+  } = useSpaces(leaveRoom, signaling.verifySpace, userId);
   const spaceJoin = useSpaceJoin(addSpace);
 
   const [chatOpen, setChatOpen] = useState(() => store.getChatVisible());
   const [compactMode, setCompactMode] = useState(() => store.getCompactMode());
-  const [voiceSectionCollapsed, setVoiceSectionCollapsed] = useState(() => store.getVoiceSectionCollapsed());
-  const [videoSectionCollapsed, setVideoSectionCollapsed] = useState(() => store.getVideoSectionCollapsed());
+  const [roomsSectionCollapsed, setRoomsSectionCollapsed] = useState(() => store.getRoomsSectionCollapsed());
   // Opt-in video: stable userIds whose video/screen we've joined ("Watch").
   // Session-only (cleared on room change); broadcast to the room via sink-state.
   const [videoSubscriptions, setVideoSubscriptions] = useState<string[]>([]);
@@ -116,7 +156,6 @@ export function App(): React.JSX.Element {
     (uid: string) => setVideoSubscriptions((prev) => prev.filter((u) => u !== uid)),
     [],
   );
-  const leaveAllVideo = useCallback(() => setVideoSubscriptions([]), []);
   const [createOpen, setCreateOpen] = useState(false);
   const [renameTarget, setRenameTarget] = useState<Room | null>(null);
   const [spaceSettingsTarget, setSpaceSettingsTarget] = useState<string | null>(null);
@@ -140,86 +179,38 @@ export function App(): React.JSX.Element {
   const [chatPanelKey, applyChatPanelKey] = usePersistedState(store.getChatPanelKey, store.setChatPanelKey);
   const [ttsToggleKey, applyTtsToggleKey] = usePersistedState(store.getTtsToggleKey, store.setTtsToggleKey);
   const [ttsStopKey, applyTtsStopKey] = usePersistedState(store.getTtsStopKey, store.setTtsStopKey);
-  const [windowFocused, setWindowFocused] = useState(() => document.hasFocus());
-  // Distinct from focus: false only while minimized/hidden (signalled from main).
-  // Gates incoming video decode so frames nobody can see aren't decoded.
-  const [windowVisible, setWindowVisible] = useState(true);
-  const [volumes, setVolumes] = useState<Record<string, number>>({});
+  // SFX toggles/volume + the "mute other" cue (also threaded into usePeerVolumes).
+  const {
+    sfxEnabled,
+    applySfxEnabled,
+    sfxVolume,
+    applySfxVolume,
+    sfxJoinLeaveEnabled,
+    applySfxJoinLeaveEnabled,
+    sfxMuteEnabled,
+    applySfxMuteEnabled,
+    sfxMuteOtherEnabled,
+    applySfxMuteOtherEnabled,
+    sfxTransmitEnabled,
+    applySfxTransmitEnabled,
+    sfxChatEnabled,
+    applySfxChatEnabled,
+    sfxDeafenEnabled,
+    applySfxDeafenEnabled,
+    playMuteOtherCue,
+  } = useSfxSettings();
 
-  // Mirror peers + volumes into refs so the per-tile callbacks below can stay
-  // identity-stable (deps []). signaling.peers gets a fresh array reference on
-  // every presence update (including each peer's speaking edge), so a callback
-  // depending on it would change identity ~constantly and defeat ParticipantTile's
-  // React.memo — exactly the high-frequency churn the memo exists to skip.
-  const peersRef = useRef(signaling.peers);
-  peersRef.current = signaling.peers;
-  const volumesRef = useRef(volumes);
-  volumesRef.current = volumes;
+  // Per-peer volume + click-to-silence (silence = volume 0, persisted by userId).
+  const { volumes, handleVolumeChange, togglePeerMute, togglePeerMuteByUserId, mutedUserIds } =
+    usePeerVolumes(signaling.peers, playMuteOtherCue);
 
-  // Manual per-peer volume: update the live (peerId-keyed) map and persist by stable userId
-  // so a boost sticks across restarts/reconnects (a new peer.id is re-seeded on join below).
-  const handleVolumeChange = useCallback(
-    (peerId: string, volume: number) => {
-      setVolumes((prev) => ({ ...prev, [peerId]: volume }));
-      const uid = peersRef.current.find((p) => p.id === peerId)?.userId;
-      if (uid) store.setPeerVolume(uid, volume);
-    },
-    [],
-  );
-
-  // Click-to-silence: mute = volume 0, remembering the pre-mute level (by peer.id,
-  // session-only) so a later un-silence restores it. Reuses the volume persistence path.
-  const lastNonZeroVolumeRef = useRef<Record<string, number>>({});
-  // Live SFX config read by togglePeerMute (defined above the sfx state), so the
-  // "mute other" cue plays for both compact avatars and full-view tiles.
-  const muteOtherSfxRef = useRef({ enabled: false, on: true, volume: 0.25 });
-  const togglePeerMute = useCallback(
-    (peerId: string) => {
-      const cur = volumesRef.current[peerId] ?? 1;
-      if (cur > 0) {
-        lastNonZeroVolumeRef.current[peerId] = cur;
-        handleVolumeChange(peerId, 0);
-      } else {
-        handleVolumeChange(peerId, lastNonZeroVolumeRef.current[peerId] ?? 1);
-      }
-      const sfx = muteOtherSfxRef.current;
-      if (sfx.enabled && sfx.on) playSfx('mute-other', sfx.volume);
-    },
-    [handleVolumeChange],
-  );
-
-  // Stable userIds of peers we've silenced (volume 0) — drives the compact avatar
-  // mute overlay; plus a userId→session-id bridge so the sidebar can mute by userId.
-  const mutedUserIds = useMemo(
-    () => new Set(signaling.peers.filter((p) => (volumes[p.id] ?? 1) <= 0).map((p) => p.userId)),
-    [signaling.peers, volumes],
-  );
-  const togglePeerMuteByUserId = useCallback(
-    (uid: string) => {
-      const pid = signaling.peers.find((p) => p.userId === uid)?.id;
-      if (pid) togglePeerMute(pid);
-    },
-    [signaling.peers, togglePeerMute],
-  );
-
-  // Hydrate per-peer volume from persisted (userId-keyed) values when peers appear.
-  // Fill-missing-only so an in-session edit is never clobbered.
-  useEffect(() => {
-    const saved = store.getPeerVolumes();
-    setVolumes((prev) => {
-      let changed = false;
-      const next = { ...prev };
-      for (const p of signaling.peers) {
-        if (p.id in next) continue;
-        const v = p.userId ? saved[p.userId] : undefined;
-        if (v !== undefined) {
-          next[p.id] = v;
-          changed = true;
-        }
-      }
-      return changed ? next : prev;
-    });
-  }, [signaling.peers]);
+  // Per-peer screen-share audio volume + click-to-silence — fully independent
+  // of voice volume above (own persisted store, own live state).
+  const {
+    volumes: screenVolumes,
+    handleVolumeChange: handleScreenVolumeChange,
+    togglePeerMute: toggleScreenMute,
+  } = usePeerScreenVolumes(signaling.peers);
 
   // Output device is a single global property of the shared audio context (all
   // playback funnels through it), so set the sink once here — not per-peer tile.
@@ -231,20 +222,32 @@ export function App(): React.JSX.Element {
   const menus = useControlBarMenus();
 
   const [settingsInitialTab, setSettingsInitialTab] = useState('profile');
-  const [sfxEnabled, applySfxEnabled] = usePersistedState(store.getSfxEnabled, store.setSfxEnabled);
-  const [sfxVolume, applySfxVolume] = usePersistedState(store.getSfxVolume, store.setSfxVolume);
-  const [sfxJoinLeaveEnabled, applySfxJoinLeaveEnabled] = usePersistedState(store.getSfxJoinLeaveEnabled, store.setSfxJoinLeaveEnabled);
-  const [sfxMuteEnabled, applySfxMuteEnabled] = usePersistedState(store.getSfxMuteEnabled, store.setSfxMuteEnabled);
-  const [sfxMuteOtherEnabled, applySfxMuteOtherEnabled] = usePersistedState(store.getSfxMuteOtherEnabled, store.setSfxMuteOtherEnabled);
-  const [sfxTransmitEnabled, applySfxTransmitEnabled] = usePersistedState(store.getSfxTransmitEnabled, store.setSfxTransmitEnabled);
-  const [sfxChatEnabled, applySfxChatEnabled] = usePersistedState(store.getSfxChatEnabled, store.setSfxChatEnabled);
-  const [sfxDeafenEnabled, applySfxDeafenEnabled] = usePersistedState(store.getSfxDeafenEnabled, store.setSfxDeafenEnabled);
-  muteOtherSfxRef.current = { enabled: sfxEnabled, on: sfxMuteOtherEnabled, volume: sfxVolume };
   const [deafened, setDeafened] = useState(false);
   const lastJoinTimeRef = useRef<number>(0);
 
   const [badgeNotificationsEnabled, applyBadgeNotificationsEnabled] = usePersistedState(store.getBadgeNotificationsEnabled, store.setBadgeNotificationsEnabled);
   const [unreadCount, setUnreadCount] = useState(0);
+
+  // File-transfer trust list. The store cache is what useFileTransfers reads at
+  // offer time; this state mirror keeps the Settings list + modal checkbox live.
+  const [autoAcceptEnabled, applyAutoAcceptEnabled] = usePersistedState(store.getAutoAcceptEnabled, store.setAutoAcceptEnabled);
+  const [autoAcceptUsers, setAutoAcceptUsers] = useState(() => store.getAutoAcceptUsers());
+  const handleTrustUser = useCallback((userId: string, displayName: string) => {
+    store.addAutoAcceptUser(userId, displayName);
+    setAutoAcceptUsers(store.getAutoAcceptUsers());
+  }, []);
+  const handleRemoveTrustedUser = useCallback((userId: string) => {
+    store.removeAutoAcceptUser(userId);
+    setAutoAcceptUsers(store.getAutoAcceptUsers());
+  }, []);
+
+  // Focus/visibility (gates animations + video decode). On focus gain: clear the
+  // unread badge and stop any queued TTS backlog.
+  const handleWindowFocus = useCallback(() => {
+    setUnreadCount(0);
+    cancelSpeech();
+  }, []);
+  const { windowFocused, windowVisible } = useWindowFocus(handleWindowFocus);
   const [selfStatus, setSelfStatus] = useState<'online' | 'idle' | 'dnd'>(() => store.getStatus());
   const [uiScale, applyUiScale] = usePersistedState(store.getUiScale, store.setUiScale);
   const [chatFontScale, applyChatFontScale] = usePersistedState(store.getChatFontScale, store.setChatFontScale);
@@ -253,11 +256,29 @@ export function App(): React.JSX.Element {
   const [sidebarWidthScale, setSidebarWidthScale] = useState(() => store.getSidebarWidthScale());
   const [chatTtsEnabled, setChatTtsEnabled] = useState(() => store.getChatTtsEnabled());
   const [chatTtsSpeakName, applyChatTtsSpeakName] = usePersistedState(store.getChatTtsSpeakName, store.setChatTtsSpeakName);
+  const [chatTtsSpeakOwnMessages, applyChatTtsSpeakOwnMessages] = usePersistedState(store.getChatTtsSpeakOwnMessages, store.setChatTtsSpeakOwnMessages);
+  const [chatTtsSpeakWhenFocused, applyChatTtsSpeakWhenFocused] = usePersistedState(store.getChatTtsSpeakWhenFocused, store.setChatTtsSpeakWhenFocused);
+  const [reactionsEnabled, applyReactionsEnabled] = usePersistedState(store.getReactionsEnabled, store.setReactionsEnabled);
+  const [soundboardEnabled, applySoundboardEnabled] = usePersistedState(store.getSoundboardEnabled, store.setSoundboardEnabled);
+  const [soundboardVolume, applySoundboardVolume] = usePersistedState(store.getSoundboardVolume, store.setSoundboardVolume);
+  const [soundboardAutoSyncEnabled, applySoundboardAutoSyncEnabled] = usePersistedState(
+    store.getSoundboardAutoSyncEnabled,
+    store.setSoundboardAutoSyncEnabled,
+  );
+  const [soundboardPresetsEnabled, applySoundboardPresetsEnabled] = usePersistedState(
+    store.getSoundboardPresetsEnabled,
+    store.setSoundboardPresetsEnabled,
+  );
+  const [soundboardMuteOthersEnabled, applySoundboardMuteOthersEnabled] = usePersistedState(
+    store.getSoundboardMuteOthersEnabled,
+    store.setSoundboardMuteOthersEnabled,
+  );
   const [theme, applyTheme] = usePersistedState<ThemeName>(store.getTheme, store.setTheme);
+  const [hideSpaceBanner, applyHideSpaceBanner] = usePersistedState(store.getHideSpaceBanner, store.setHideSpaceBanner);
   const [launchOnStartup, setLaunchOnStartup] = useState(() => store.getLaunchOnStartup());
   const [closeBehavior, applyCloseBehavior] = usePersistedState<'quit' | 'tray'>(store.getCloseBehavior, store.setCloseBehavior);
   const [alwaysOnTop, setAlwaysOnTop] = useState(() => store.getAlwaysOnTop());
-  const [defaultVideoAction, applyDefaultVideoAction] = usePersistedState<'camera' | 'screen'>(store.getDefaultVideoAction, store.setDefaultVideoAction);
+  const [activeVideoMode, setActiveVideoMode] = usePersistedState<'camera' | 'screen'>(store.getDefaultVideoAction, store.setDefaultVideoAction);
 
   // Apply initial UI scale and whenever it changes
   useEffect(() => {
@@ -274,12 +295,37 @@ export function App(): React.JSX.Element {
     void window.chickadee?.setAlwaysOnTop?.(alwaysOnTop);
   }, [alwaysOnTop]);
 
+  // Read flags from the store (not React state) so these empty-deps callbacks stay stable.
   const handleNewMessage = useCallback((msg: ChatMessage) => {
-    if (document.hasFocus()) return;
-    setUnreadCount((c) => c + 1);
-    // Read the flag from the store (not React state) so this empty-deps callback stays stable.
-    if (store.getChatTtsEnabled() && !msg.isReaction) {
+    const focused = document.hasFocus();
+    if (!focused) setUnreadCount((c) => c + 1);
+    if (
+      shouldSpeakChatMessage({
+        chatTtsEnabled: store.getChatTtsEnabled(),
+        isReaction: !!msg.isReaction,
+        isSelf: false,
+        windowFocused: focused,
+        speakOwnMessages: store.getChatTtsSpeakOwnMessages(),
+        speakWhenFocused: store.getChatTtsSpeakWhenFocused(),
+      })
+    ) {
       speakChatMessage(msg.senderName, msg.text, msg.voicePreference, store.getChatTtsSpeakName());
+    }
+  }, []);
+
+  const handleSelfMessage = useCallback((msg: ChatMessage) => {
+    if (
+      shouldSpeakChatMessage({
+        chatTtsEnabled: store.getChatTtsEnabled(),
+        isReaction: false,
+        isSelf: true,
+        windowFocused: document.hasFocus(),
+        speakOwnMessages: store.getChatTtsSpeakOwnMessages(),
+        speakWhenFocused: store.getChatTtsSpeakWhenFocused(),
+      })
+    ) {
+      // Own voice preference (not msg.voicePreference, which is only populated for peers).
+      speakChatMessage(msg.senderName, msg.text, store.getVoicePreference(), store.getChatTtsSpeakName());
     }
   }, []);
 
@@ -287,8 +333,10 @@ export function App(): React.JSX.Element {
     signaling,
     displayName,
     colors,
+    selfColor,
     roomId: currentRoomId,
     onNewMessage: handleNewMessage,
+    onSelfMessage: handleSelfMessage,
   });
   // Both modes (PTT / voice activation) gate the mic, so a live mic means we're
   // transmitting — which is also exactly the local "speaking" signal driving the
@@ -309,8 +357,6 @@ export function App(): React.JSX.Element {
   const inRoom = currentRoomId !== null;
   const currentRoom = rooms.find((r) => r.id === currentRoomId) ?? null;
   const currentRoomCap = capacityForType(currentRoom?.type);
-  // Voice rooms are audio-only: hide camera/screen-share controls and ignore their keybinds.
-  const allowVideo = (currentRoom?.type ?? 'video') === 'video';
   const totalInRoom = inRoom ? signaling.peers.length + 1 : 0;
   const rawUsers = useSpacePresence(signaling, signaling.rooms);
 
@@ -358,8 +404,27 @@ export function App(): React.JSX.Element {
     [signaling.status, signaling.send],
   );
 
-  // Our effective accent color: the chosen one, else the default self gold.
-  const selfColor = localAccentColor || SELF_COLOR;
+  // Space Owner sets/clears the banner: persist locally immediately, and live-sync
+  // only while connected to that same space (the server's owner check keys off
+  // the current connection, so a sync while viewing another space would be a no-op anyway).
+  const handleSaveBanner = useCallback(
+    (spaceId: string, bannerDataUrl: string | null) => {
+      updateSpaceBanner(spaceId, bannerDataUrl);
+      if (spaceId === currentSpaceId && signaling.status === 'connected') {
+        signaling.send({ type: 'set-banner', bannerDataUrl });
+      }
+    },
+    [currentSpaceId, signaling.status, signaling.send, updateSpaceBanner],
+  );
+
+  const handleClaimOwnership = useCallback(
+    (spaceId: string) => {
+      if (spaceId === currentSpaceId && signaling.status === 'connected') {
+        signaling.send({ type: 'claim-ownership' });
+      }
+    },
+    [currentSpaceId, signaling.status, signaling.send],
+  );
 
   // Connection params for the active space — depend on these (not the whole
   // `spaces` array) so editing/deleting OTHER spaces doesn't tear down + reconnect
@@ -368,11 +433,82 @@ export function App(): React.JSX.Element {
   const activeSpaceSignalingUrl = activeSpace?.customSignalingUrl || '';
   const activeSpaceJoinSecret = activeSpace?.joinSecret || '';
 
+  // --- Moderation: local authority + action senders ---
+  // Owner (gold) is space-wide and persisted; moderator (silver) is the current
+  // room's longest-present member, known only for the room we're in (the server
+  // broadcasts moderator-state room-scoped, like the spotlight).
+  const ownerUserId = activeSpace?.ownerId ?? null;
+  const amOwner = !!userId && ownerUserId === userId;
+  const amModerator = signaling.selfId != null && signaling.moderatorId === signaling.selfId;
+  const moderatorUserId = amModerator
+    ? userId
+    : signaling.peers.find((p) => p.id === signaling.moderatorId)?.userId ?? null;
+
+  // Transient moderation notice (room-kick received, locked-room pre-block).
+  const [modNotice, setModNotice] = useAutoClearError(4000);
+  // Right-click moderation menu target (from a USERS row or a participant tile).
+  // Inert for plain members, so unauthorized right-clicks never set state (the
+  // render site re-checks the full per-target authority matrix anyway).
+  const [userMenu, setUserMenu] = useState<UserMenuTarget | null>(null);
+  const openUserMenu = useCallback(
+    (targetUserId: string, name: string, x: number, y: number) => {
+      if (!amOwner && !amModerator) return;
+      setUserMenu({ userId: targetUserId, name, x, y });
+    },
+    [amOwner, amModerator],
+  );
+
+  // Thin senders — authority is enforced server-side (canModerate); the UI only
+  // hides what the local user isn't allowed to do.
+  const kickUser = useCallback(
+    (targetUserId: string, scope: 'room' | 'space') => signaling.send({ type: 'kick-user', userId: targetUserId, scope }),
+    [signaling.send],
+  );
+  const kickFromRoom = useCallback((targetUserId: string) => kickUser(targetUserId, 'room'), [kickUser]);
+  const kickFromSpace = useCallback((targetUserId: string) => kickUser(targetUserId, 'space'), [kickUser]);
+  const banUser = useCallback(
+    (targetUserId: string) => signaling.send({ type: 'ban-user', userId: targetUserId }),
+    [signaling.send],
+  );
+  const unbanUser = useCallback(
+    (targetUserId: string) => signaling.send({ type: 'unban-user', userId: targetUserId }),
+    [signaling.send],
+  );
+  const toggleRoomLock = useCallback(
+    (roomId: string, locked: boolean) => signaling.send({ type: 'set-room-lock', room: roomId, locked }),
+    [signaling.send],
+  );
+  const toggleSpaceLock = useCallback(
+    (locked: boolean) => signaling.send({ type: 'set-space-lock', locked }),
+    [signaling.send],
+  );
+  const transferOwnership = useCallback(
+    (toUserId: string) => signaling.send({ type: 'transfer-ownership', toUserId }),
+    [signaling.send],
+  );
+
+  // Room governance: the owner manages every room; a standard member manages
+  // only the one room they created (Room.createdBy). Legacy/default rooms have
+  // no stamp → owner-managed only. Mirrors the server's evaluateRoomsUpdate.
+  const canManageRoom = useCallback(
+    (room: Room): boolean => amOwner || (!!room.createdBy && room.createdBy === userId),
+    [amOwner, userId],
+  );
+
+  // One seed per connection: once this connection confirms us as owner, restore
+  // the server's (possibly restart-emptied) ban list + space lock from our
+  // persisted copy. Idempotent server-side (apply-if-absent), so a duplicate or
+  // late send is a harmless no-op.
+  const seededModerationRef = useRef(false);
+  useEffect(() => {
+    if (signaling.status !== 'connected') seededModerationRef.current = false;
+  }, [signaling.status]);
+
   // Maintain a continuous space-level WebSocket connection to the signaling server
   useEffect(() => {
     if (currentSpaceId && displayName && userId) {
       const url = activeSpaceSignalingUrl || (window.chickadee?.signalingUrl ?? 'ws://localhost:8080');
-      signaling.join(currentSpaceId, currentRoomId, displayName, userId, rooms, selfStatus, localAvatarUrl, localVoicePreference, localAccentColor, activeSpaceJoinSecret, url);
+      signaling.join(currentSpaceId, currentRoomId, displayName, userId, rooms, selfStatus, localAvatarUrl, localVoicePreference, localAccentColor, activeSpaceJoinSecret, url, activeSpace?.bannerDataUrl ?? null);
     } else {
       signaling.leave();
     }
@@ -382,28 +518,94 @@ export function App(): React.JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentSpaceId, userId, displayName, activeSpaceSignalingUrl, activeSpaceJoinSecret]);
 
-  // Listen for space renames from other clients
+  // Listen for space renames + owner/banner/moderation sync from other clients (and our own welcome).
   useEffect(() => {
+    // Fires the one-shot moderation seed once a message confirms us as owner
+    // on this connection (welcome.ownerId or a subsequent owner-state).
+    const maybeSeedModeration = (confirmedOwnerId: string | null): void => {
+      if (!currentSpaceId || seededModerationRef.current || !userId || confirmedOwnerId !== userId) return;
+      const known = spaces.find((s) => s.id === currentSpaceId);
+      signaling.send({
+        type: 'seed-moderation',
+        bannedUsers: known?.bannedUsers ?? [],
+        locked: known?.locked ?? false,
+      });
+      seededModerationRef.current = true;
+    };
+
     const unsubscribe = signaling.subscribe((msg) => {
       if (msg.type === 'space-renamed') {
-        const { spaceId, newSpaceId, newSpaceName } = msg;
-        const exists = spaces.some((s) => s.id === spaceId);
-        if (exists) {
-          const existingSpace = spaces.find((s) => s.id === spaceId);
-          if (existingSpace) {
-            updateSpaceSettings(
-              spaceId,
-              newSpaceName,
-              existingSpace.customSignalingUrl || '',
-              existingSpace.joinSecret || '',
-              newSpaceId
-            );
+        const { spaceId, newSpaceName } = msg;
+        const existingSpace = spaces.find((s) => s.id === spaceId);
+        if (existingSpace) {
+          updateSpaceSettings(
+            spaceId,
+            newSpaceName,
+            existingSpace.customSignalingUrl || '',
+            existingSpace.joinSecret || ''
+          );
+        }
+      } else if (msg.type === 'owner-state') {
+        updateSpaceOwnerId(msg.spaceId, msg.ownerId);
+        if (msg.spaceId === currentSpaceId) maybeSeedModeration(msg.ownerId);
+      } else if (msg.type === 'banner-state') {
+        updateSpaceBanner(msg.spaceId, msg.bannerDataUrl);
+      } else if (msg.type === 'kicked') {
+        // Space-scope is terminal and handled in the reducer; room-scope just
+        // returns us to the lobby with a notice (the space connection survives).
+        if (msg.scope === 'room') {
+          leaveRoom();
+          setModNotice('You were removed from the room.');
+        }
+      } else if (msg.type === 'ban-state') {
+        if (msg.spaceId === currentSpaceId) {
+          updateSpaceModeration(msg.spaceId, { bannedUsers: msg.bannedUsers });
+        }
+      } else if (msg.type === 'space-lock-state') {
+        if (msg.spaceId === currentSpaceId) {
+          updateSpaceModeration(msg.spaceId, { locked: msg.locked });
+        }
+      } else if (msg.type === 'welcome' && currentSpaceId) {
+        // Fresh space-join only — a same-space room-switch welcome omits these
+        // fields entirely, so `!== undefined` (not `?? null`) avoids wiping known
+        // owner/banner state on ordinary room switches.
+        if (msg.ownerId !== undefined) {
+          const knownSpace = spaces.find((s) => s.id === currentSpaceId);
+          if (msg.ownerId === null && knownSpace?.ownerId === userId) {
+            // The signaling server's in-memory ownership record is gone (e.g. a
+            // restart cleared it) but we're the space's recorded owner locally —
+            // reclaim it instead of silently demoting ourselves to unowned.
+            // First-claim-wins is already the trust model and nobody else has
+            // claimed it, so this is uncontested; the resulting `owner-state`
+            // reply applies the (re)confirmed ownerId.
+            signaling.send({ type: 'claim-ownership' });
+          } else {
+            updateSpaceOwnerId(currentSpaceId, msg.ownerId);
+            maybeSeedModeration(msg.ownerId);
           }
+        }
+        if (msg.bannerDataUrl !== undefined) updateSpaceBanner(currentSpaceId, msg.bannerDataUrl);
+        // Same fresh-space-join-only convention: persist the moderation mirror
+        // every member carries (what lets a future owner re-seed post-restart).
+        if (msg.bannedUsers !== undefined || msg.spaceLocked !== undefined) {
+          updateSpaceModeration(currentSpaceId, {
+            ...(msg.bannedUsers !== undefined ? { bannedUsers: msg.bannedUsers } : {}),
+            ...(msg.spaceLocked !== undefined ? { locked: msg.spaceLocked } : {}),
+          });
         }
       }
     });
     return unsubscribe;
-  }, [signaling.subscribe, spaces, updateSpaceSettings]);
+  }, [signaling.subscribe, spaces, updateSpaceSettings, updateSpaceOwnerId, updateSpaceBanner, updateSpaceModeration, currentSpaceId, userId, signaling.send, leaveRoom, setModNotice]);
+
+  // One-shot: right after a brand-new space's first successful connection,
+  // auto-claim ownership (guaranteed to win — the space is empty at this point).
+  useEffect(() => {
+    if (signaling.status === 'connected' && pendingOwnerClaimSpaceId && pendingOwnerClaimSpaceId === currentSpaceId) {
+      signaling.send({ type: 'claim-ownership' });
+      clearPendingOwnerClaim();
+    }
+  }, [signaling.status, pendingOwnerClaimSpaceId, currentSpaceId, signaling.send, clearPendingOwnerClaim]);
 
   const applyStatus = useCallback((status: 'online' | 'idle' | 'dnd') => {
     setSelfStatus(status);
@@ -427,6 +629,13 @@ export function App(): React.JSX.Element {
       return;
     }
 
+    // Block joining a locked room (server rejects too, as a backstop — and its
+    // reject is terminal like room-full, so the pre-block is the friendly path).
+    if (signaling.lockedRooms.includes(id) && !amOwner) {
+      setModNotice('That room is locked.');
+      return;
+    }
+
     // Block joining a room that's already at capacity (server rejects too, as a backstop).
     const target = rooms.find((r) => r.id === id);
     const occupancy = users.filter((u) => u.roomId === id).length;
@@ -438,9 +647,18 @@ export function App(): React.JSX.Element {
     signaling.joinRoom(id);
   }
 
-  function createRoom(label: string, icon: string, type: RoomType): void {
+  function createRoom(label: string, icon: string): void {
+    // Belt to the onCreateRoom pre-check's suspenders: one created room per
+    // standard member (the server enforces this too and would resync us back).
+    if (!amOwner && rooms.some((r) => r.createdBy === userId)) {
+      setModNotice('You already manage a room — delete it to create another.');
+      setCreateOpen(false);
+      return;
+    }
     const id = slugify(label);
-    const next = rooms.some((r) => r.id === id) ? rooms : [...rooms, { id, label, icon, type }];
+    const next = rooms.some((r) => r.id === id)
+      ? rooms
+      : [...rooms, { id, label, icon, type: 'hybrid' as const, ...(userId ? { createdBy: userId } : {}) }];
     updateRooms(next);
     setCreateOpen(false);
     if (signaling.status === 'connected' && currentSpaceId) {
@@ -534,18 +752,27 @@ export function App(): React.JSX.Element {
     store.setChatWidthScale(scale);
   }, []);
 
-  // Unified sidebar width: drives the CSS var in full view and the OS dock width
-  // (via IPC) in compact view. Persist on commit only.
+  // Compact + chat: docked width, but the room chat panel stays visible (video
+  // grid/stage/control-bar hidden). Fully derived from existing state — no new
+  // persisted flag — so collapsing while chat is open, toggling chat while
+  // compact, and leaving the room all just fall out of this expression.
+  const showCompactChat = compactMode && chatOpen && inRoom;
+
+  // Unified sidebar width: drives the CSS var everywhere. In full view and
+  // compact+chat it's a pure splitter (the sidebar/chat flex split absorbs the
+  // change, window width untouched); in plain compact — where the sidebar IS
+  // the whole window — it also drives the OS dock width via IPC. Persist on
+  // commit only.
   const handleSidebarResize = useCallback(
     (scale: number, commit: boolean) => {
       const clamped = Math.max(1.0, Math.min(2.0, scale));
       setSidebarWidthScale(clamped);
-      if (compactMode) {
+      if (compactMode && !showCompactChat) {
         window.chickadee?.windowControls?.setWindowWidth?.(Math.round(280 * clamped));
       }
       if (commit) store.setSidebarWidthScale(clamped);
     },
-    [compactMode],
+    [compactMode, showCompactChat],
   );
 
   const cycleInputMode = useCallback(() => {
@@ -561,45 +788,138 @@ export function App(): React.JSX.Element {
     });
   }, []);
 
-  const toggleVoiceSection = useCallback(() => {
-    setVoiceSectionCollapsed((c) => {
+  const toggleRoomsSection = useCallback(() => {
+    setRoomsSectionCollapsed((c) => {
       const next = !c;
-      store.setVoiceSectionCollapsed(next);
+      store.setRoomsSectionCollapsed(next);
       return next;
     });
   }, []);
 
-  const toggleVideoSection = useCallback(() => {
-    setVideoSectionCollapsed((c) => {
-      const next = !c;
-      store.setVideoSectionCollapsed(next);
-      return next;
+  // Stage (spotlight) slot: claim/release intent, screen-share auto-claim,
+  // take-over prompt, and the reconnect re-claim.
+  const { pendingTakeover, cancelTakeover, confirmTakeover, spotlightCamera, unspotlight } =
+    useStageSpotlight({
+      status: signaling.status,
+      selfId: signaling.selfId,
+      spotlightHolderId: signaling.spotlightHolderId,
+      claimSpotlight: signaling.claimSpotlight,
+      releaseSpotlight: signaling.releaseSpotlight,
+      subscribe: signaling.subscribe,
+      sharingScreen: mesh.sharingScreen,
+      cameraEnabled: mesh.cameraEnabled,
+      currentRoomId,
+      peers: signaling.peers,
     });
-  }, []);
 
-  // Sidebar actions that open a real modal (Settings, Create/Rename Room, Space
-  // Settings, Create/Join Space) need real screen space, so expand the window
-  // first if it's currently docked to the compact sidebar-only strip.
-  const openExpanded = useCallback(
-    (action: () => void) => {
-      if (compactMode) {
-        setCompactMode(false);
-        store.setCompactMode(false);
-      }
-      action();
+  // P2P file transfers to space members (USERS-row send button + drag-drop +
+  // accept modal + the floating transfer tray).
+  const fileTransfers = useFileTransfers({
+    spacePresence: signaling.spacePresence,
+    send: signaling.send,
+    subscribe: signaling.subscribe,
+    iceServers,
+    windowFocused,
+  });
+  const { sendFilesTo } = fileTransfers;
+  const incomingOffer = fileTransfers.incomingOffer;
+
+  const soundboardLibrary = useSoundboardLibrary({
+    send: signaling.send,
+    setSoundboardClips: signaling.setSoundboardClips,
+    enabled: soundboardEnabled,
+  });
+  const soundboardPlayback = useSoundboardPlayback({
+    subscribe: signaling.subscribe,
+    send: signaling.send,
+    enabled: soundboardEnabled,
+    volume: soundboardVolume,
+    volumes,
+    muteOthersEnabled: soundboardMuteOthersEnabled,
+  });
+  useSoundboardSync({
+    peers: signaling.peers,
+    send: signaling.send,
+    subscribe: signaling.subscribe,
+    iceServers,
+    enabled: soundboardEnabled,
+    autoSyncEnabled: soundboardAutoSyncEnabled,
+  });
+
+  // Transient picker per gesture: input.click() must run synchronously inside
+  // the user's click for Chromium to open the dialog; no persistent DOM node.
+  const handleSendFileTo = useCallback(
+    (userId: string) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.multiple = true; // more than one selection becomes a batch
+      input.onchange = () => {
+        const files = Array.from(input.files ?? []);
+        if (files.length > 0) sendFilesTo(userId, files);
+      };
+      input.click();
     },
-    [compactMode],
+    [sendFilesTo],
   );
+
+  // OS files dropped on a USERS row (FriendRow validates online + Files-drag).
+  const handleDropFiles = useCallback(
+    (userId: string, files: File[]) => sendFilesTo(userId, files),
+    [sendFilesTo],
+  );
+
+  // A drop that misses a USERS row must never navigate the window (Electron's
+  // default opens the dropped file); main's will-navigate guard is the backstop.
+  useEffect(() => {
+    const prevent = (e: DragEvent): void => e.preventDefault();
+    window.addEventListener('dragover', prevent);
+    window.addEventListener('drop', prevent);
+    return () => {
+      window.removeEventListener('dragover', prevent);
+      window.removeEventListener('drop', prevent);
+    };
+  }, []);
+
+  // "Always accept files from X" checkbox on the incoming prompt; resets per offer.
+  const [trustSender, setTrustSender] = useState(false);
+  const incomingOfferId = incomingOffer?.transferId ?? null;
+  useEffect(() => setTrustSender(false), [incomingOfferId]);
+  const handleAcceptIncoming = useCallback(() => {
+    if (incomingOffer && trustSender && incomingOffer.fromUserId) {
+      handleTrustUser(incomingOffer.fromUserId, incomingOffer.fromName);
+    }
+    fileTransfers.acceptIncoming();
+  }, [incomingOffer, trustSender, handleTrustUser, fileTransfers.acceptIncoming]);
+
+  // Sidebar actions open a real modal (Settings, Create/Rename Room, Space Settings,
+  // Create/Join Space) that needs more width than the compact dock strip. Rather than
+  // leave compact mode (which would re-show the room + re-decode video behind the
+  // modal, and persist the exit), temporarily widen the OS window while any of them is
+  // open — the app stays compact and snaps back to the dock on close.
+  const overlayNeedsSpace =
+    compactMode &&
+    (settingsOpen ||
+      createOpen ||
+      renameTarget != null ||
+      spaceSettingsTarget != null ||
+      spaceJoin.createSpaceOpen ||
+      spaceJoin.joinSpaceOpen);
+
+  useEffect(() => {
+    window.chickadee?.windowControls?.setOverlayExpand?.(overlayNeedsSpace);
+  }, [overlayNeedsSpace]);
 
   useEffect(() => {
     window.chickadee?.windowControls?.setCompact?.(
       compactMode,
       Math.round(280 * sidebarWidthScale),
+      showCompactChat ? Math.round(280 * chatWidthScale) : undefined,
     );
-    // sidebarWidthScale intentionally omitted: the dock width is set on toggle and
-    // updated live via setWindowWidth in handleSidebarResize while already compact.
+    // sidebarWidthScale/chatWidthScale intentionally omitted: the dock width is
+    // set on toggle and updated live via setWindowWidth in handleSidebarResize
+    // while already compact.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [compactMode]);
+  }, [compactMode, showCompactChat]);
 
   function applyChatTtsEnabled(on: boolean): void {
     setChatTtsEnabled(on);
@@ -618,29 +938,6 @@ export function App(): React.JSX.Element {
     store.setAlwaysOnTop(on);
     void window.chickadee?.setAlwaysOnTop?.(on);
   }
-
-  // Reset unread count when window gets focus; also stop any queued TTS backlog.
-  // Track focus state too: when the window is unfocused (e.g. on a 2nd monitor
-  // while a game has focus) we freeze the per-frame CSS animations via .app--unfocused.
-  useEffect(() => {
-    const handleFocus = (): void => {
-      setWindowFocused(true);
-      setUnreadCount(0);
-      cancelSpeech();
-    };
-    const handleBlur = (): void => setWindowFocused(false);
-    window.addEventListener('focus', handleFocus);
-    window.addEventListener('blur', handleBlur);
-    return () => {
-      window.removeEventListener('focus', handleFocus);
-      window.removeEventListener('blur', handleBlur);
-    };
-  }, []);
-
-  // Track minimized/hidden state from main so we can pause incoming video decode.
-  useEffect(() => {
-    return window.chickadee?.onWindowVisibilityChange?.(setWindowVisible);
-  }, []);
 
   // Warm the TTS voice list only when read-aloud is on, so the first spoken message resolves
   // the right voice. When off, skip the getVoices() call + voiceschanged listener; re-runs
@@ -757,9 +1054,9 @@ export function App(): React.JSX.Element {
     }
   }, [signaling.rooms, signaling.status, updateRooms]);
 
-  // Reset selected room if connection hits a terminal state (closed, room-full, or error)
+  // Reset selected room if connection hits a terminal state (closed, room-full, kicked, or error)
   useEffect(() => {
-    if (signaling.status === 'room-full' || signaling.status === 'error' || signaling.status === 'closed') {
+    if (signaling.status === 'room-full' || signaling.status === 'kicked' || signaling.status === 'error' || signaling.status === 'closed') {
       setCurrentRoomId(null);
     }
   }, [signaling.status]);
@@ -812,10 +1109,9 @@ export function App(): React.JSX.Element {
     onDeafenStop: () => { if (deafened) toggleDeafen(); },
     onDeafenToggle: toggleDeafen,
     cameraKey,
-    onCameraToggle: () => { if (allowVideo && cameraFeatureEnabled) mesh.toggleCamera(); },
+    onCameraToggle: () => { mesh.toggleCamera(); },
     screenShareKey,
     onScreenShareToggle: () => {
-      if (!allowVideo) return;
       mesh.sharingScreen ? mesh.stopScreenShare() : setPickerOpen(true);
     },
     chatPanelKey,
@@ -843,8 +1139,8 @@ export function App(): React.JSX.Element {
   // "(No camera detected)" / disabled controls before enumerateDevices() returns.
   const hasCamera = !devices.scanned || devices.videoInputs.length > 0;
   // The camera is usable only when a device exists AND the feature is enabled in settings.
-  const cameraAvailable = hasCamera && cameraFeatureEnabled;
-  const defaultAction = cameraAvailable ? defaultVideoAction : 'screen';
+  const cameraAvailable = hasCamera;
+
 
   useTraySync({ currentRoomLabel: currentRoom?.label ?? null, handleToggleMic, toggleDeafen });
 
@@ -869,6 +1165,9 @@ export function App(): React.JSX.Element {
         avatarUrl={localAvatarUrl}
         screenSharing={mesh.sharingScreen}
         windowVisible={mediaVisible}
+        showSpotlightButton={mesh.cameraEnabled && myStageKind == null}
+        onSpotlight={spotlightCamera}
+        role={amOwner ? 'owner' : amModerator ? 'moderator' : null}
       />
       {signaling.peers.map((peer) => {
         const media = mesh.remote[peer.id];
@@ -885,6 +1184,7 @@ export function App(): React.JSX.Element {
             cameraVideoId={media?.cameraVideoId ?? null}
             color={peer.accentColor || colors[peer.id] || SELF_COLOR}
             connectionState={media?.connectionState ?? 'new'}
+            health={media?.health ?? 'ok'}
             avatarUrl={peer.avatarDataUrl ?? null}
             volume={deafened ? 0 : (volumes[peer.id] ?? 1) * outputVolume}
             peerVolume={volumes[peer.id] ?? 1}
@@ -899,36 +1199,64 @@ export function App(): React.JSX.Element {
             subscribed={subscribed}
             onJoinVideo={joinVideo}
             onLeaveVideo={leaveVideo}
+            role={peer.userId === ownerUserId ? 'owner' : peer.id === signaling.moderatorId ? 'moderator' : null}
+            onUserContextMenu={openUserMenu}
           />
         );
       })}
     </>
   );
 
-  // Active screen shares: ours + any peer sharing.
-  const activeScreens: ActiveScreen[] = [];
-  if (mesh.sharingScreen && mesh.localScreenStream) {
-    activeScreens.push({ key: 'self-screen', displayName, isSelf: true, stream: mesh.localScreenStream });
-  }
-  for (const peer of signaling.peers) {
-    const subscribed = videoSubscriptions.includes(peer.userId);
-    const screen = subscribed && peer.screenStreamId ? mesh.remote[peer.id]?.screenStream : null;
-    if (screen) {
-      activeScreens.push({ key: `${peer.id}-screen`, displayName: peer.displayName, isSelf: false, stream: screen, userId: peer.userId });
-    }
-  }
-  const presenting = activeScreens.length > 0;
-  // How many peers have joined our stream (their subscriptions include our userId).
-  const selfWatcherCount = signaling.peers.filter((p) => p.videoSubscriptions?.includes(userId)).length;
+  // --- Stage (spotlight) derivation: at most ONE large tile per room ---
+  // The decision (who's on stage, whether we've opted in, which stream kind) is
+  // the pure, unit-tested selectStage; here we only resolve ids back to the live
+  // Peer/MediaStream objects. Null source → large "Watch" placeholder.
+  const stageSel = selectStage({
+    myStageKind,
+    spotlightHolderId: signaling.spotlightHolderId,
+    spotlightKind: signaling.spotlightKind,
+    peers: signaling.peers,
+    subscribedUserIds: videoSubscriptions,
+  });
+  const isSelfStage = stageSel.isSelfStage;
+  const theater = stageSel.theater;
+  const stagePeer =
+    stageSel.stagePeerId != null
+      ? signaling.peers.find((p) => p.id === stageSel.stagePeerId) ?? null
+      : null;
+  const stageStream: MediaStream | null =
+    stageSel.stageSource === 'local-screen'
+      ? mesh.localScreenStream
+      : stageSel.stageSource === 'local-camera'
+        ? mesh.localStream
+        : stageSel.stageSource === 'remote-screen'
+          ? (stagePeer ? mesh.remote[stagePeer.id]?.screenStream ?? null : null)
+          : stageSel.stageSource === 'remote-camera'
+            ? (stagePeer ? mesh.remote[stagePeer.id]?.cameraStream ?? null : null)
+            : null;
+  const stageName = isSelfStage ? displayName : stagePeer?.displayName ?? '';
+  const stageUserId = stagePeer?.userId;
+  const stageAvatarUrl = isSelfStage ? localAvatarUrl : stagePeer?.avatarDataUrl ?? null;
+  // Screen-share audio gain, independent of voice volume — only meaningful for a
+  // remote peer's screen (a spotlighted camera has no separate audio track).
+  const isRemoteScreenStage = !isSelfStage && stageSel.stageSource === 'remote-screen';
+  const stageScreenAudioLevel = stagePeer ? screenVolumes[stagePeer.id] ?? 1 : 1;
+  const stageScreenAudioVolume = deafened ? 0 : stageScreenAudioLevel * outputVolume;
 
-  const errors = [mesh.micError, mesh.cameraError, mesh.screenError, signaling.error].filter(Boolean);
+  const errors = [mesh.micError, mesh.cameraError, mesh.screenError, signaling.error, modNotice].filter(Boolean);
 
   return (
     <div
-      className={`app${windowFocused ? '' : ' app--unfocused'}${compactMode ? ' app--compact' : ''}`}
+      className={`app${windowFocused ? '' : ' app--unfocused'}${compactMode ? ' app--compact' : ''}${showCompactChat ? ' app--compact-chat' : ''}`}
       style={{ '--sidebar-width-scale': sidebarWidthScale } as React.CSSProperties}
     >
-      <TitleBar chatOpen={chatOpen} onToggleChat={toggleChat} inRoom={inRoom} compact={compactMode} />
+      <TitleBar
+        chatOpen={chatOpen}
+        onToggleChat={toggleChat}
+        inRoom={inRoom}
+        compact={compactMode}
+        onToggleCompact={toggleCompactMode}
+      />
 
       <div className="app-body">
         {chat.floats.map((f) => (
@@ -941,30 +1269,39 @@ export function App(): React.JSX.Element {
           rooms={rooms}
           currentRoomId={currentRoomId}
           onSelectRoom={joinRoom}
-          onCreateRoom={() => openExpanded(() => setCreateOpen(true))}
-          onRequestRename={(room) => openExpanded(() => setRenameTarget(room))}
+          onCreateRoom={() => {
+            // One created room per standard member — say so instead of opening
+            // a modal whose submit the server would bounce.
+            if (!amOwner && rooms.some((r) => r.createdBy === userId)) {
+              setModNotice('You already manage a room — delete it to create another.');
+              return;
+            }
+            setCreateOpen(true);
+          }}
+          onRequestRename={(room) => setRenameTarget(room)}
           onRemoveRoom={removeRoom}
+          canManageRoom={canManageRoom}
+          myUserId={userId}
           users={users}
           selfName={displayName}
           selfColor={selfColor}
           selfAvatarUrl={localAvatarUrl}
           online={signaling.status === 'connected'}
-          onOpenSettings={() => openExpanded(() => setSettingsOpen(true))}
+          onOpenSettings={() => setSettingsOpen(true)}
           spaces={spaces}
           activeSpaceId={currentSpaceId}
           onSelectSpace={switchSpace}
-          onCreateSpace={() => openExpanded(spaceJoin.openCreateSpace)}
-          onJoinSpace={() => openExpanded(spaceJoin.openJoinSpace)}
+          onCreateSpace={spaceJoin.openCreateSpace}
+          onJoinSpace={spaceJoin.openJoinSpace}
           onDeleteSpace={deleteSpace}
-          onSpaceSettings={(id) => openExpanded(() => setSpaceSettingsTarget(id))}
+          onSpaceSettings={(id) => setSpaceSettingsTarget(id)}
           selfStatus={selfStatus}
           onChangeStatus={applyStatus}
-          voiceCollapsed={voiceSectionCollapsed}
-          videoCollapsed={videoSectionCollapsed}
-          onToggleVoiceSection={toggleVoiceSection}
-          onToggleVideoSection={toggleVideoSection}
+          roomsCollapsed={roomsSectionCollapsed}
+          onToggleRoomsSection={toggleRoomsSection}
+          hideSpaceBanner={hideSpaceBanner}
           compact={compactMode}
-          onToggleCompact={toggleCompactMode}
+          compactChat={showCompactChat}
           widthScale={sidebarWidthScale}
           onResize={handleSidebarResize}
           micEnabled={micButtonOn}
@@ -974,13 +1311,22 @@ export function App(): React.JSX.Element {
           onToggleDeafen={toggleDeafen}
           inputMode={inputMode}
           onCycleInputMode={cycleInputMode}
-          hasVideoSubs={videoSubscriptions.length > 0}
-          onLeaveAllVideo={leaveAllVideo}
           selfSpeaking={selfSpeaking}
           speakingUserIds={speakingUserIds}
           mutedUserIds={mutedUserIds}
           onTogglePeerMute={togglePeerMuteByUserId}
           onLeaveRoom={leaveRoom}
+          onSendFile={handleSendFileTo}
+          onDropFiles={handleDropFiles}
+          ownerUserId={ownerUserId}
+          moderatorUserId={moderatorUserId}
+          amOwner={amOwner}
+          amModerator={amModerator}
+          lockedRoomIds={signaling.lockedRooms}
+          onToggleRoomLock={signaling.status === 'connected' ? toggleRoomLock : undefined}
+          spaceLocked={signaling.spaceLocked}
+          onToggleSpaceLock={signaling.status === 'connected' ? toggleSpaceLock : undefined}
+          onUserContextMenu={openUserMenu}
         />
 
         <div className="main">
@@ -989,24 +1335,55 @@ export function App(): React.JSX.Element {
           <>
             <div className="content-area">
               {chatOpen && chatPosition === 'left' && (
-                <ChatPanel messages={chat.messages} onSend={chat.sendChat} chatFontScale={chatFontScale} chatPosition={chatPosition} chatWidthScale={chatWidthScale} onResize={handleChatResize} />
+                <ChatPanel messages={chat.messages} onSend={chat.sendChat} chatFontScale={chatFontScale} chatPosition={chatPosition} chatWidthScale={chatWidthScale} onResize={compactMode ? undefined : handleChatResize} />
               )}
 
-              {presenting ? (
+              {theater ? (
                 <div className="presentation">
-                  <div className="stage" data-count={Math.min(activeScreens.length, 4)}>
-                    {activeScreens.map((s) => (
+                  <div className="stage" data-count={1}>
+                    {stageStream ? (
                       <ScreenView
-                        key={s.key}
-                        displayName={s.displayName}
-                        isSelf={s.isSelf}
-                        stream={s.stream}
-                        outputDeviceId={outputDeviceId}
+                        key={`stage-${signaling.spotlightHolderId}`}
+                        displayName={stageName}
+                        isSelf={isSelfStage}
+                        kind={signaling.spotlightKind ?? 'screen'}
+                        stream={stageStream}
                         windowVisible={mediaVisible}
-                        watcherCount={s.isSelf ? selfWatcherCount : undefined}
-                        onLeave={s.userId ? () => leaveVideo(s.userId!) : undefined}
+                        watcherNames={isSelfStage ? selfWatchers.map((p) => p.displayName) : undefined}
+                        screenAudioVolume={isRemoteScreenStage ? stageScreenAudioVolume : undefined}
+                        screenAudioLevel={isRemoteScreenStage ? stageScreenAudioLevel : undefined}
+                        onScreenAudioVolumeChange={
+                          isRemoteScreenStage && stagePeer
+                            ? (v) => handleScreenVolumeChange(stagePeer.id, v)
+                            : undefined
+                        }
+                        onToggleScreenAudioMute={
+                          isRemoteScreenStage && stagePeer ? () => toggleScreenMute(stagePeer.id) : undefined
+                        }
+                        onLeave={!isSelfStage && stageUserId ? () => leaveVideo(stageUserId) : undefined}
+                        onUnspotlight={
+                          isSelfStage
+                            ? signaling.spotlightKind === 'screen'
+                              ? mesh.stopScreenShare
+                              : unspotlight
+                            : undefined
+                        }
                       />
-                    ))}
+                    ) : (
+                      <div className="screen stage__placeholder">
+                        <div className="stage__placeholder-body">
+                          <div className="avatar avatar--lg" style={{ background: stageAvatarUrl ? undefined : (stagePeer?.accentColor || colors[stagePeer?.id ?? ''] || SELF_COLOR) }}>
+                            {stageAvatarUrl ? <img src={stageAvatarUrl} alt={stageName} /> : (stageName.trim().charAt(0).toUpperCase() || '?')}
+                          </div>
+                          <p>{stageName} is streaming</p>
+                          {stageUserId && (
+                            <button className="btn btn--primary" onClick={() => joinVideo(stageUserId)}>
+                              <Play size={15} strokeWidth={2.5} fill="currentColor" /> Watch
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <ul className="filmstrip">{tiles}</ul>
                 </div>
@@ -1017,7 +1394,7 @@ export function App(): React.JSX.Element {
               )}
 
               {chatOpen && chatPosition === 'right' && (
-                <ChatPanel messages={chat.messages} onSend={chat.sendChat} chatFontScale={chatFontScale} chatPosition={chatPosition} chatWidthScale={chatWidthScale} onResize={handleChatResize} />
+                <ChatPanel messages={chat.messages} onSend={chat.sendChat} chatFontScale={chatFontScale} chatPosition={chatPosition} chatWidthScale={chatWidthScale} onResize={compactMode ? undefined : handleChatResize} />
               )}
             </div>
 
@@ -1026,7 +1403,6 @@ export function App(): React.JSX.Element {
               hasMic={!!mesh.localStream}
               onToggleMic={handleToggleMic}
               onInputMenu={menus.openInputMenu}
-              allowVideo={allowVideo}
               cameraEnabled={mesh.cameraEnabled}
               onToggleCamera={mesh.toggleCamera}
               sharingScreen={mesh.sharingScreen}
@@ -1036,11 +1412,14 @@ export function App(): React.JSX.Element {
                 mesh.sharingScreen ? mesh.stopScreenShare() : setPickerOpen(true);
               }}
               onVideoMenu={menus.openVideoMenu}
-              defaultAction={defaultAction}
+              activeVideoMode={activeVideoMode}
               inputMode={inputMode}
               onCycleInputMode={cycleInputMode}
               onInputModeMenu={menus.openInputModeMenu}
               onReactMenu={menus.openReactionMenu}
+              reactionsEnabled={reactionsEnabled}
+              onSoundboardMenu={menus.openSoundboardMenu}
+              soundboardEnabled={soundboardEnabled}
               onLeave={leaveRoom}
               deafened={deafened}
               onToggleDeafen={toggleDeafen}
@@ -1103,13 +1482,7 @@ export function App(): React.JSX.Element {
             )}
             {menus.videoMenuOpen && menus.videoMenuAnchor && (
               <VideoMenu
-                cameraEnabled={mesh.cameraEnabled}
-                onToggleCamera={mesh.toggleCamera}
-                sharingScreen={mesh.sharingScreen}
-                onToggleShare={() => {
-                  menus.closeVideoMenu();
-                  mesh.sharingScreen ? mesh.stopScreenShare() : setPickerOpen(true);
-                }}
+
                 cameraResolution={cameraResolution}
                 onChangeCameraResolution={applyCameraResolution}
                 cameraFramerate={cameraFramerate}
@@ -1122,6 +1495,14 @@ export function App(): React.JSX.Element {
                 onClose={menus.closeVideoMenu}
                 anchorRect={menus.videoMenuAnchor}
                 hasCamera={cameraAvailable}
+                activeVideoMode={activeVideoMode}
+                onSelectVideoMode={(mode) => {
+                  if (mode === 'camera' && !cameraAvailable) {
+                    mesh.setCameraError("No camera detected.");
+                  } else {
+                    setActiveVideoMode(mode);
+                  }
+                }}
               />
             )}
             {menus.reactionMenuOpen && menus.reactionMenuAnchor && (
@@ -1131,6 +1512,16 @@ export function App(): React.JSX.Element {
                 anchorRect={menus.reactionMenuAnchor}
                 onMouseEnter={menus.handleReactionPopoverEnter}
                 onMouseLeave={menus.startReactionCloseTimeout}
+              />
+            )}
+            {menus.soundboardMenuOpen && menus.soundboardMenuAnchor && (
+              <SoundboardPopover
+                ownClips={soundboardLibrary.ownClips}
+                peers={signaling.peers}
+                presetsEnabled={soundboardPresetsEnabled}
+                onTrigger={soundboardPlayback.triggerClip}
+                onClose={menus.closeSoundboardMenu}
+                anchorRect={menus.soundboardMenuAnchor}
               />
             )}
           </>
@@ -1153,15 +1544,29 @@ export function App(): React.JSX.Element {
           </div>
         )}
 
-        {errors.length > 0 && (
-          <div className="toasts">
+        {errors.length > 0 && (() => {
+          const activeToastAnchor =
+            (menus.videoMenuOpen && menus.videoMenuAnchor) ||
+            (menus.inputMenuOpen && menus.inputMenuAnchor) ||
+            (menus.outputMenuOpen && menus.outputMenuAnchor) ||
+            (menus.inputModeMenuOpen && menus.inputModeMenuAnchor) ||
+            (menus.reactionMenuOpen && menus.reactionMenuAnchor) ||
+            (menus.soundboardMenuOpen && menus.soundboardMenuAnchor) || null;
+
+          const toastStyle: React.CSSProperties | undefined = activeToastAnchor
+            ? { left: `${activeToastAnchor.left + activeToastAnchor.width / 2}px` }
+            : undefined;
+
+          return (
+            <div className="toasts" style={toastStyle}>
             {errors.map((e, i) => (
               <div key={i} className="toast">
                 {e}
               </div>
             ))}
           </div>
-        )}
+          );
+        })()}
       </div>
       </div>
 
@@ -1176,6 +1581,97 @@ export function App(): React.JSX.Element {
           />
         </Suspense>
       )}
+
+      {userMenu && signaling.status === 'connected' && (() => {
+        // Mirror the server's canModerate matrix so unauthorized users never
+        // see the menu (the server would silently no-op anyway).
+        const targetIsSelf = userMenu.userId === userId;
+        const targetIsOwner = ownerUserId != null && userMenu.userId === ownerUserId;
+        const targetPresence = signaling.spacePresence.find((p) => p.peer.userId === userMenu.userId);
+        const targetOnline = targetPresence != null && targetPresence.leftAt === undefined;
+        const targetInARoom = targetOnline && targetPresence.roomId != null;
+        const targetInMyRoom = inRoom && signaling.peers.some((p) => p.userId === userMenu.userId);
+        const showKickRoom =
+          !targetIsSelf && !targetIsOwner && (amOwner ? targetInARoom : amModerator && targetInMyRoom);
+        const showKickSpace = amOwner && !targetIsSelf && targetOnline;
+        const showBan = amOwner && !targetIsSelf;
+        if (!showKickRoom && !showKickSpace && !showBan) return null;
+        return (
+          <UserContextMenu
+            menu={userMenu}
+            showKickRoom={showKickRoom}
+            showKickSpace={showKickSpace}
+            showBan={showBan}
+            onKickFromRoom={kickFromRoom}
+            onKickFromSpace={kickFromSpace}
+            onBan={banUser}
+            onClose={() => setUserMenu(null)}
+          />
+        );
+      })()}
+
+      {pendingTakeover && (
+        <Modal title="Stage in use" onClose={cancelTakeover}>
+          <p style={{ marginBottom: 'var(--s-4)' }}>
+            {pendingTakeover.holderName} is streaming on the stage. Take it over?
+          </p>
+          <div style={{ display: 'flex', gap: 'var(--s-2)', justifyContent: 'flex-end' }}>
+            <button className="btn btn--ghost" onClick={cancelTakeover}>Cancel</button>
+            <button className="btn btn--primary" onClick={confirmTakeover}>Take over</button>
+          </div>
+        </Modal>
+      )}
+
+      {incomingOffer && (
+        <Modal title={incomingOffer.files ? 'Incoming files' : 'Incoming file'} onClose={fileTransfers.declineIncoming}>
+          <p style={{ marginBottom: incomingOffer.files ? 'var(--s-2)' : 'var(--s-4)' }}>
+            {incomingOffer.fromName} wants to send you{' '}
+            {incomingOffer.files ? (
+              <>
+                <strong>{incomingOffer.files.length} files</strong> ({formatBytes(incomingOffer.size)}).
+              </>
+            ) : (
+              <>
+                <strong>{incomingOffer.name}</strong> ({formatBytes(incomingOffer.size)}).
+              </>
+            )}
+          </p>
+          {incomingOffer.files && (
+            <ul className="incoming-files">
+              {incomingOffer.files.slice(0, 5).map((f, i) => (
+                <li key={i}>
+                  <span className="incoming-files__name">{f.name}</span>
+                  <span className="incoming-files__size">{formatBytes(f.size)}</span>
+                </li>
+              ))}
+              {incomingOffer.files.length > 5 && (
+                <li className="incoming-files__more">+{incomingOffer.files.length - 5} more</li>
+              )}
+            </ul>
+          )}
+          {incomingOffer.fromUserId !== '' && (
+            <label className="incoming-trust">
+              <input
+                type="checkbox"
+                checked={trustSender}
+                onChange={(e) => setTrustSender(e.target.checked)}
+              />
+              Always accept files from {incomingOffer.fromName}
+            </label>
+          )}
+          <div style={{ display: 'flex', gap: 'var(--s-2)', justifyContent: 'flex-end' }}>
+            <button className="btn btn--ghost" onClick={fileTransfers.declineIncoming}>Decline</button>
+            <button className="btn btn--primary" onClick={handleAcceptIncoming}>Accept</button>
+          </div>
+        </Modal>
+      )}
+
+      <TransferTray
+        transfers={fileTransfers.transfers}
+        onCancel={fileTransfers.cancel}
+        onDismiss={fileTransfers.dismiss}
+        onShowInFolder={fileTransfers.showInFolder}
+      />
 
       {onboardingNeeded && (
         <Suspense fallback={null}>
@@ -1260,7 +1756,6 @@ export function App(): React.JSX.Element {
             <RoomModal
               title="Create a room"
               submitLabel="Create room"
-              showTypePicker
               onSubmit={createRoom}
               onClose={() => setCreateOpen(false)}
             />
@@ -1271,7 +1766,6 @@ export function App(): React.JSX.Element {
               submitLabel="Save"
               initialLabel={renameTarget.label}
               initialIcon={renameTarget.icon}
-              initialType={renameTarget.type}
               onSubmit={(label, icon) => renameRoom(renameTarget.id, label, icon)}
               onClose={() => setRenameTarget(null)}
             />
@@ -1299,8 +1793,7 @@ export function App(): React.JSX.Element {
           onChangeInputDevice={applyInputDevice}
           outputDeviceId={outputDeviceId}
           onChangeOutputDevice={applyOutputDevice}
-          defaultVideoAction={defaultVideoAction}
-          onChangeDefaultVideoAction={applyDefaultVideoAction}
+
           inputMode={inputMode}
           onChangeInputMode={applyInputMode}
           vadThreshold={vadThreshold}
@@ -1355,12 +1848,29 @@ export function App(): React.JSX.Element {
           onChangeSfxDeafenEnabled={applySfxDeafenEnabled}
           badgeNotificationsEnabled={badgeNotificationsEnabled}
           onChangeBadgeNotificationsEnabled={applyBadgeNotificationsEnabled}
+          autoAcceptEnabled={autoAcceptEnabled}
+          onChangeAutoAcceptEnabled={applyAutoAcceptEnabled}
+          autoAcceptUsers={autoAcceptUsers}
+          onRemoveTrustedUser={handleRemoveTrustedUser}
+          soundboardEnabled={soundboardEnabled}
+          onChangeSoundboardEnabled={applySoundboardEnabled}
+          soundboardVolume={soundboardVolume}
+          onChangeSoundboardVolume={applySoundboardVolume}
+          soundboardAutoSyncEnabled={soundboardAutoSyncEnabled}
+          onChangeSoundboardAutoSyncEnabled={applySoundboardAutoSyncEnabled}
+          soundboardPresetsEnabled={soundboardPresetsEnabled}
+          onChangeSoundboardPresetsEnabled={applySoundboardPresetsEnabled}
+          soundboardMuteOthersEnabled={soundboardMuteOthersEnabled}
+          onChangeSoundboardMuteOthersEnabled={applySoundboardMuteOthersEnabled}
+          soundboardOwnClips={soundboardLibrary.ownClips}
+          onAddSoundboardFiles={soundboardLibrary.addFiles}
+          onRemoveSoundboardClip={soundboardLibrary.removeClip}
+          onOpenSoundboardInbox={soundboardLibrary.openInboxFolder}
           micVolume={micVolume}
           onChangeMicVolume={applyMicVolume}
           outputVolume={outputVolume}
           onChangeOutputVolume={applyOutputVolume}
-          cameraFeatureEnabled={cameraFeatureEnabled}
-          onChangeCameraFeatureEnabled={applyCameraFeatureEnabled}
+
           cameraResolution={cameraResolution}
           onChangeCameraResolution={applyCameraResolution}
           cameraFramerate={cameraFramerate}
@@ -1371,8 +1881,14 @@ export function App(): React.JSX.Element {
           onChangeScreenFramerate={applyScreenFramerate}
           videoQuality={videoQuality}
           onChangeVideoQuality={applyVideoQuality}
+          uploadBudgetMbps={uploadBudgetMbps}
+          onChangeUploadBudgetMbps={applyUploadBudgetMbps}
+          audioQuality={audioQuality}
+          onChangeAudioQuality={applyAudioQuality}
           uiScale={uiScale}
           onChangeUiScale={applyUiScale}
+          hideSpaceBanner={hideSpaceBanner}
+          onChangeHideSpaceBanner={applyHideSpaceBanner}
           chatFontScale={chatFontScale}
           onChangeChatFontScale={applyChatFontScale}
           chatPosition={chatPosition}
@@ -1385,6 +1901,12 @@ export function App(): React.JSX.Element {
           onChangeChatTtsEnabled={applyChatTtsEnabled}
           chatTtsSpeakName={chatTtsSpeakName}
           onChangeChatTtsSpeakName={applyChatTtsSpeakName}
+          chatTtsSpeakOwnMessages={chatTtsSpeakOwnMessages}
+          onChangeChatTtsSpeakOwnMessages={applyChatTtsSpeakOwnMessages}
+          chatTtsSpeakWhenFocused={chatTtsSpeakWhenFocused}
+          onChangeChatTtsSpeakWhenFocused={applyChatTtsSpeakWhenFocused}
+          reactionsEnabled={reactionsEnabled}
+          onChangeReactionsEnabled={applyReactionsEnabled}
           voicePreference={localVoicePreference}
           onChangeVoicePreference={applyVoicePreference}
           analyserNode={mesh.analyserNode}
@@ -1401,30 +1923,39 @@ export function App(): React.JSX.Element {
       {spaceSettingsTarget && (() => {
         const space = spaces.find((s) => s.id === spaceSettingsTarget);
         if (!space) return null;
+        // Moderation actions ride the live socket, so they're only actionable for
+        // the space we're currently connected to (same live-only rule as set-banner).
+        const isLive = spaceSettingsTarget === currentSpaceId && signaling.status === 'connected';
+        const onlineMembers = isLive
+          ? signaling.spacePresence
+              .filter((p) => p.leftAt === undefined && p.peer.userId !== userId)
+              .map((p) => ({ userId: p.peer.userId, name: p.peer.displayName }))
+          : [];
         return (
           <Suspense fallback={null}>
           <SpaceSettingsModal
             space={space}
+            myUserId={userId}
+            onSaveBanner={handleSaveBanner}
+            onClaimOwnership={handleClaimOwnership}
+            isLive={isLive}
+            spaceLocked={isLive ? signaling.spaceLocked : space.locked ?? false}
+            onToggleSpaceLock={toggleSpaceLock}
+            onlineMembers={onlineMembers}
+            onTransferOwnership={transferOwnership}
+            onUnban={unbanUser}
             onSave={(name, url, secret) => {
               const oldSpaceId = spaceSettingsTarget;
               const isRename = space.name.trim().toLowerCase() !== name.trim().toLowerCase();
 
               if (isRename && signaling.status === 'connected' && oldSpaceId === currentSpaceId) {
-                const tempSlug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'space';
-                const suffix = Math.random().toString(36).substring(2, 7);
-                const newSpaceId = `${tempSlug}-${suffix}`;
-
                 signaling.send({
                   type: 'rename-space',
                   spaceId: oldSpaceId,
-                  newSpaceId,
                   newSpaceName: name.trim()
                 });
-
-                updateSpaceSettings(oldSpaceId, name, url, secret, newSpaceId);
-              } else {
-                updateSpaceSettings(oldSpaceId, name, url, secret);
               }
+              updateSpaceSettings(oldSpaceId, name, url, secret);
               setSpaceSettingsTarget(null);
             }}
             onClose={() => setSpaceSettingsTarget(null)}

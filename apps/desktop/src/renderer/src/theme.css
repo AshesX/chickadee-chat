@@ -4,52 +4,75 @@
 
 /* ════════════ ① SETTINGS — design tokens ════════════ */
 :root {
-  /* Surfaces */
-  --bg: #e9e9e9;
-  --panel: #fdfdfc;
-  --card: #ffffff;
-  --border: #d4d4d0;
+  /* Surfaces — "Blaze on Paper": a 4-step warm-paper ladder, canvas (stage) <
+     panel (shell chrome) < card (in-shell floats) < float (overlays).
+     Shell regions separate by shade ONLY (no hairline seams), so adjacent
+     steps must stay clearly perceptible. */
+  --bg: #eae4d8;
+  --panel: #f2ede3;
+  --card: #faf7f0;
+  --float: #ffffff;
+  --border: #d8d1c2;
 
-  /* Text */
-  --dim: #5e574d;
-  --text: #1f1300;
-  --text-sub: #4a4036;
-  --fade: #807868;
+  /* Text — the poster black IS the ink (#070D0D family; AAA on every level) */
+  --dim: #4e5a57;
+  --text: #070d0d;
+  --text-sub: #333d3c;
+  --fade: #7c837d;
 
-  /* Semantic accent colors */
+  /* Semantic accent colors — Blaze Orange is THE accent, both themes */
   --green: #5fb81f;
-  --orange: #ffa400;
+  --orange: #ff6700;
   --red: #c20114;
 
+  /* The accent as INK. #FF6700 is a fill/ring color; as text or a focus
+     indicator on paper it fails contrast (2.3:1), so light deepens it to a
+     burnt orange. Dark resolves it to raw --orange (6.7:1 on the canvas). */
+  --accent-ink: #ff6700;
+
   /* Status */
-  --online: var(--green);
-  /* --idle intentionally aliases the brand --orange. Keep this token as the seam:
-     to make "Away" read distinctly later, give --idle its own value
-     (e.g. a warm amber) — do NOT replace var(--idle) usages with var(--orange). */
-  --idle: var(--orange);
+  --online: #5fb81f;
+  /* Idle is clearly YELLOW — #ffa400 read as a second accent next to blaze */
+  --idle: #ffc400;
   --offline: #b5b0a8;
 
-  /* Actions / active */
-  --gradient: linear-gradient(135deg, var(--orange), #f59000);
-  --active-bg: color-mix(in srgb, var(--dim) 16%, transparent);
-  --active-text: #1f1300;
+  /* Actions / active — solid blaze labels with near-black ink (poster style),
+     shared by both themes. Orange owns "active". */
+  --active-bg: var(--orange);
+  --active-text: var(--on-accent);
 
   /* Supporting */
-  --scrollbar: #c7c7c2;
-  --placeholder: #6e665b;
-  --glow: transparent;
+  --scrollbar: #cbc4b4;
+  --placeholder: #68736f;
+  /* Slider thumb — a deliberately theme-agnostic "physical knob" (stays white
+     in both themes, like a native OS slider); tokenized to avoid a raw hex,
+     not to vary per theme. */
+  --knob: #ffffff;
 
   /* Logo */
-  --logo-fill: #1f1300;
+  --logo-fill: var(--text);
 
   /* Structural tokens */
-  --tint: #1f1300;
-  --block-bg: #1f1300;
-  --block-fg: #e9e9e9;
-  --on-accent: #1f1300;
-  --badge-fg: #e9e9e9;
-  --scrim: rgba(31, 19, 0, 0.45);
-  --shadow-color: rgba(31, 19, 0, 0.24);
+  --tint: #070d0d;
+  --block-bg: #070d0d;
+  --block-fg: #f4efe9;
+  /* Ink on accent fills: near-black in BOTH themes (white on #FF6700 is 2.9:1
+     and must never be used). */
+  --on-accent: #070d0d;
+  --badge-fg: #f4efe9;
+  /* Tuned to carry modal focus on opacity alone — the backdrop deliberately
+     has no blur (a full-window backdrop-filter re-rasterizes live video). */
+  --scrim: rgba(7, 13, 13, 0.5);
+  /* Light elevation is a soft teal-ink shadow, not 50% black — paper surfaces
+     separate by tone; shadows only assist floating overlays. */
+  --shadow-color: rgba(7, 13, 13, 0.18);
+
+  /* Media invariants — surfaces/scrims/ink over live video & photos; these
+     never follow the theme (video is video in both). */
+  --media: #000000;
+  --on-media: #ffffff;
+  --scrim-media: rgba(0, 0, 0, 0.6);
+  --scrim-media-2: rgba(0, 0, 0, 0.72);
 
   /* ── Ultra-Lean primitives ────────────────────────────────── */
 
@@ -66,19 +89,42 @@
   --s-6: 24px;
 
   /* Type */
+  --font-base: 'Outfit', -apple-system, system-ui, sans-serif;
+
+  --font-mono: 'Outfit', -apple-system, system-ui, sans-serif;
   --fs-0: 10px;
   --fs-1: 12px;
   --fs-2: 14px;
   --fs-3: 16px;
   --fs-4: 20px;
+  --fs-5: 28px;
 
   /* Weight */
   --fw-1: 500;
   --fw-2: 700;
+  --fw-3: 900;
+
+  /* Line height */
+  --lh-1: 1.25;
+  /* tight — UI chrome: labels, names, single-line rows */
+  --lh-2: 1.5;
+  /* reading — chat messages, modal copy, notes */
 
   /* Veils */
   --veil-1: color-mix(in srgb, var(--tint) 6%, transparent);
   --veil-2: color-mix(in srgb, var(--tint) 12%, transparent);
+
+  /* Fixed dark overlay for text/icon legibility over an arbitrary photo
+     (Space banner) — deliberately not --veil-1/2 (those are theme-aware ink
+     hover/active overlays, not permanent legibility scrims). Backs the
+     banner's hamburger button + action-row hover state over a photo. */
+  --scrim-legibility: color-mix(in srgb, black 50%, transparent);
+
+  /* Softer, shorter twin of --scrim-legibility for the Space banner's bottom-
+     edge grounding fade — decorative depth, not a legibility aid. Same
+     literal-black, theme-invariant construction (photo overlays don't follow
+     --tint). */
+  --scrim-edge: color-mix(in srgb, black 40%, transparent);
 
   /* Elevation */
   --sh-1: 0 8px 28px var(--shadow-color);
@@ -86,6 +132,18 @@
 
   /* Danger surface */
   --danger-bg: color-mix(in srgb, var(--red) 16%, transparent);
+
+  /* Danger foreground — carries labels/icons sitting ON danger tints. Raw
+     --red doesn't clear contrast on tinted surfaces in either theme: light
+     deepens it toward ink, dark roses it toward white. */
+  --danger-fg: color-mix(in srgb, var(--red) 85%, black);
+
+  /* Glow — the one restrained halo for "live" moments (stage spotlight),
+     resolved from --orange so it follows the active theme. NOT used inside
+     .tile* — `--accent`/`--accent-glow` there are runtime per-peer vars
+     injected by ParticipantTile (see CLAUDE.md); reusing those names would be
+     shadowed by that inline style. */
+  --glow: color-mix(in srgb, var(--orange) 38%, transparent);
 
   /* Motion */
   --dur-1: 0.12s;
@@ -103,6 +161,51 @@
   /* tooltips — always on top */
 }
 
+/* ── Dark theme — "Blaze" ────────────────────────────────────
+   Color tokens only; the Ultra-Lean primitives above (radius/spacing/type/
+   weight/motion/z-index) are theme-agnostic and stay shared. The whole
+   surface family is a teal-tinted near-black ladder derived from the Almost
+   Black canvas (#070D0D); Blaze Orange stays the identity accent in both
+   themes (--accent-ink resolves to it raw here — it clears 4.5:1 on these
+   surfaces). Accent/active/on-accent are shared (:root) — poster
+   black-on-orange works on both themes by design. */
+:root[data-theme="dark"] {
+  --bg: #070d0d;
+  --panel: #111c1c;
+  --card: #1a2828;
+  --float: #243434;
+  --border: #263838;
+
+  --dim: #95a09c;
+  --text: #f4efe9;
+  --text-sub: #c6c4bc;
+  --fade: #5e6b68;
+
+  /* Danger lifts vs light — #c20114 melts into near-black chrome (2.7:1);
+     this clears 3.3:1 as a fill and stays hue+luminance distinct from
+     engaged-orange. */
+  --red: #d6132b;
+
+  --accent-ink: var(--orange);
+
+  --scrollbar: #2e4242;
+  --placeholder: #6e7b77;
+
+  --logo-fill: #f4efe9;
+
+  --tint: #ffffff;
+  /* Veils step up from the light theme's 6/12% — white washes that thin are
+     barely perceptible on a near-black canvas. */
+  --veil-1: color-mix(in srgb, var(--tint) 8%, transparent);
+  --veil-2: color-mix(in srgb, var(--tint) 15%, transparent);
+  --block-bg: #1a2828;
+  --block-fg: #f4efe9;
+  --scrim: rgba(0, 0, 0, 0.7);
+  --shadow-color: rgba(0, 0, 0, 0.6);
+
+  --danger-fg: color-mix(in srgb, var(--red) 45%, white);
+}
+
 /* ════════════ ② GENERIC — reset & normalize ════════════ */
 * {
   box-sizing: border-box;
@@ -117,8 +220,9 @@ body,
 }
 
 body {
-  font-family: 'Space Grotesk', 'Outfit', -apple-system, system-ui, sans-serif;
+  font-family: var(--font-base);
   font-size: var(--fs-2);
+  line-height: var(--lh-1);
   color: var(--text);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
@@ -126,16 +230,11 @@ body {
   overflow: hidden;
 }
 
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background: radial-gradient(ellipse 55% 50% at 32% 48%,
-      var(--glow) 0%,
-      transparent 70%);
-  pointer-events: none;
-  z-index: 0;
+input,
+textarea {
+  -webkit-font-smoothing: antialiased;
 }
+
 
 ::-webkit-scrollbar {
   width: 3px;
@@ -148,6 +247,11 @@ body::before {
 ::-webkit-scrollbar-thumb {
   background: var(--scrollbar);
   border-radius: var(--r-1);
+}
+
+/* No transition — unreliable on scrollbar pseudo-elements. */
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--scrollbar) 65%, var(--text));
 }
 
 input::placeholder {
@@ -174,9 +278,15 @@ input:focus-visible,
 .room-row:focus-visible,
 .pill:focus-visible,
 .ctrl-btn:focus-visible {
-  outline: 2px solid var(--orange);
+  outline: 2px solid var(--accent-ink);
   outline-offset: 0;
   border-radius: var(--r-1);
+}
+
+/* Branded text selection (inputs/chat) — blaze block, near-black ink */
+::selection {
+  background: var(--orange);
+  color: var(--on-accent);
 }
 
 /* ── Animations ───────────────────────────────────────────── */
@@ -238,17 +348,5 @@ input:focus-visible,
   to {
     opacity: 1;
     transform: translateX(0);
-  }
-}
-
-@keyframes spaceDropdownIn {
-  from {
-    opacity: 0;
-    transform: translateY(-8px) scale(0.95);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
   }
 }

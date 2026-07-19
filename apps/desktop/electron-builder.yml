@@ -11,9 +11,11 @@ files:
   - package.json
 asar: true
 # uiohook-napi ships a native .node binary that can't be loaded from inside the
-# asar archive, so unpack it to the filesystem.
+# asar archive, so unpack it to the filesystem. ffmpeg-static ships a prebuilt
+# ffmpeg.exe for the same reason — you can't spawn an executable from inside asar.
 asarUnpack:
   - "**/node_modules/uiohook-napi/**"
+  - "**/node_modules/ffmpeg-static/**"
 # uiohook-napi is N-API (ABI-stable) and ships a prebuilt binary that works under
 # Electron, so skip the native rebuild (which would need a C++ toolchain).
 npmRebuild: false

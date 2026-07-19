@@ -22,7 +22,9 @@
   line-height: 1;
   white-space: nowrap;
   cursor: pointer;
-  transition: all var(--dur-1) ease;
+  transition-property: background, color, border-color, transform, filter, opacity;
+  transition-duration: var(--dur-1);
+  transition-timing-function: var(--ease);
 }
 
 .btn:active:not(:disabled) {
@@ -36,7 +38,7 @@
 
 
 .btn--primary {
-  background: var(--gradient);
+  background: var(--orange);
   color: var(--on-accent);
   font-weight: var(--fw-2);
 }
@@ -72,7 +74,7 @@
 .btn--danger-soft {
   background: var(--danger-bg);
   border-color: color-mix(in srgb, var(--red) 20%, transparent);
-  color: var(--red);
+  color: var(--danger-fg);
 }
 
 .btn--danger-soft:hover:not(:disabled) {
@@ -88,17 +90,19 @@
 /* ── Menu surface primitive ──────────────────────────────────
  */
 .menu-surface {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--r-1);
+  background: var(--float);
+  border-radius: var(--r-2);
   box-shadow: var(--sh-1);
   animation: popIn var(--dur-1) var(--ease);
 }
 
+/* Near-opaque elevated surface. Formerly a backdrop-filter blur — removed:
+   these popovers (emoji/reactions/status) can open over the live video grid,
+   where a backdrop blur re-rasterizes every video frame. The modifier name is
+   kept so the three call sites need no churn; --sh-1 carries the depth. */
 .menu-surface--frosted {
-  background: color-mix(in srgb, var(--card) 96%, transparent);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: color-mix(in srgb, var(--float) 98%, transparent);
+  box-shadow: var(--sh-1);
 }
 
 /* ── Menu item primitive (.menu-item) ──────────────────────── */
@@ -107,11 +111,12 @@
   align-items: center;
   gap: var(--s-2);
   width: 100%;
-  padding: var(--s-2) var(--s-3);
+  padding: var(--s-1) var(--s-2);
   font-size: var(--fs-1);
+  font-weight: var(--fw-2);
   color: var(--text-sub);
   border-radius: var(--r-1);
-  transition: background var(--dur-1) ease, color var(--dur-1) ease;
+  transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
   text-align: left;
   min-width: 0;
   background: transparent;
@@ -128,16 +133,17 @@
 .menu-item--active {
   background: var(--active-bg);
   color: var(--active-text);
+  font-size: var(--fs-1);
   font-weight: var(--fw-2);
 }
 
 .menu-item--danger {
-  color: var(--red);
+  color: var(--danger-fg);
 }
 
 .menu-item--danger:hover {
   background: var(--danger-bg);
-  color: var(--red);
+  color: var(--danger-fg);
 }
 
 /* ── Avatar primitive ────────────────────────────────────────
@@ -152,7 +158,9 @@
   place-items: center;
   font-size: var(--fs-3);
   font-weight: var(--fw-2);
-  color: var(--badge-fg);
+  /* Near-black initials on the vivid identity fills — poster "label sticker"
+     look; --badge-fg stays reserved for ink on red fills. */
+  color: var(--on-accent);
 }
 
 .avatar img {
@@ -173,6 +181,7 @@
 .avatar--lg {
   width: 96px;
   height: 96px;
+  border-radius: var(--r-2);
   font-size: var(--fs-4);
 }
 
@@ -184,7 +193,7 @@
   width: 24px;
   height: 24px;
   border-radius: var(--r-1);
-  transition: all var(--dur-1) ease;
+  transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
   cursor: pointer;
 }
 
@@ -200,12 +209,11 @@
 
 .icon-btn--danger:hover {
   background: var(--danger-bg) !important;
-  color: var(--red) !important;
+  color: var(--danger-fg) !important;
 }
 
 /* ── Input primitive (.input) ──────────────────────────────── */
 .input,
-.field input,
 .welcome__input,
 .room-modal__search-input {
   background: var(--bg);
@@ -216,19 +224,91 @@
   padding: var(--s-2) var(--s-3);
 }
 
+.field input {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-1);
+  color: var(--text);
+  font-size: var(--fs-1);
+  padding: var(--s-1) var(--s-2);
+}
+
 .input:focus,
-.field input:focus,
 .welcome__input:focus,
 .room-modal__search-input:focus {
-  border-color: var(--orange);
+  border-color: var(--accent-ink);
   outline: none;
+}
+
+.field input:focus {
+  border-color: var(--accent-ink);
+  outline: none;
+}
+
+/* ── Search field primitive (icon + input + clear-X) ───────── */
+.search-field__wrap {
+  position: relative;
+}
+
+.search-field__icon {
+  position: absolute;
+  left: var(--s-2);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--dim);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.search-field__input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--veil-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-1);
+  color: var(--text);
+  font-family: inherit;
+  font-size: var(--fs-1);
+  padding: var(--s-1) var(--s-6);
+  transition: border-color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
+}
+
+.search-field__input::placeholder {
+  color: var(--dim);
+  opacity: 0.5;
+}
+
+.search-field__input:focus {
+  border-color: var(--accent-ink);
+  outline: none;
+}
+
+.search-field__clear {
+  position: absolute;
+  right: var(--s-2);
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  background: transparent;
+  border: none;
+  color: var(--dim);
+  cursor: pointer;
+  padding: var(--s-1);
+  border-radius: var(--r-1);
+  transition: color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
+}
+
+.search-field__clear:hover {
+  color: var(--text);
+  background: var(--veil-2);
 }
 
 /* ── Label primitive (.label) ──────────────────────────────── */
 .label {
-  font-size: var(--fs-1);
+  font-size: var(--fs-0);
   font-weight: var(--fw-2);
-  letter-spacing: 0.16em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text);
   margin-bottom: var(--s-2);
@@ -241,6 +321,9 @@
   -webkit-app-region: no-drag;
 }
 
+/* Opacity-only dim — no backdrop-filter: a full-window blur re-rasterizes
+   the entire app (including live video) for as long as a modal is open.
+   --scrim is tuned slightly stronger to carry the focus on its own. */
 .backdrop--scrim {
   background: var(--scrim);
   display: grid;
@@ -282,12 +365,12 @@
   bottom: 0;
   width: 2px;
   background: transparent;
-  transition: background var(--dur-1) ease;
+  transition: background var(--dur-1) var(--ease);
 }
 
 .resize-handle:hover::after,
 .resize-handle:active::after {
-  background: var(--orange);
+  background: var(--fade);
 }
 
 
@@ -301,6 +384,9 @@
   flex-direction: column;
   height: 100vh;
   overflow: hidden;
+  /* The stage canvas: the ladder's deepest level, flat by design — the shell
+     chrome (title bar / sidebar / control bar, all --panel) reads as one
+     continuous frame around it, separated by shade alone. */
   background: var(--bg);
 }
 
@@ -330,6 +416,35 @@
   width: 100%;
 }
 
+/* Compact + chat: dock widened to also show the room chat panel. Both
+   .app--compact and .app--compact-chat are on the root at once, so these
+   overrides win by source order (equal specificity). */
+.app--compact-chat .sidebar {
+  width: calc(280px * var(--sidebar-width-scale, 1));
+}
+
+.app--compact-chat .main {
+  display: flex;
+  flex: 1;
+}
+
+.app--compact-chat .content-area>.grid,
+.app--compact-chat .content-area>.presentation,
+.app--compact-chat .control-bar-dock {
+  display: none;
+}
+
+.app--compact-chat .chat-panel {
+  width: auto;
+  flex: 1;
+  min-width: 220px;
+  /* .grid/.presentation are hidden above, so the panel is no longer facing a
+     sibling that reserves its own inner-edge gap — float it symmetrically
+     regardless of which side chatPosition docks it against. */
+  margin-left: var(--s-3);
+  margin-right: var(--s-3);
+}
+
 /* ── Sidebar ──────────────────────────────────────────────── */
 .sidebar {
   position: relative;
@@ -337,7 +452,6 @@
   width: calc(280px * var(--sidebar-width-scale, 1));
   flex-shrink: 0;
   background: var(--panel);
-  border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
 }
@@ -362,34 +476,18 @@
   letter-spacing: -0.01em;
 }
 
+/* Flat poster mark — solid accent ink (blaze on the dark canvas, burnt
+   orange on paper), no gradient. */
 .sidebar__wordmark-accent {
-  background: linear-gradient(90deg, var(--orange), var(--active-text));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--accent-ink);
 }
 
 .sidebar__scroll {
   flex: 1;
-  padding: var(--s-4) var(--s-2) var(--s-3) var(--s-2);
+  padding: 0 0 var(--s-3) 0;
   overflow-y: auto;
 }
 
-
-/* Composes .icon-btn (color/center/radius/transition + veil hover); residual = size + spacing. */
-.sidebar__collapse-btn {
-  width: 24px;
-  height: 24px;
-  margin-right: var(--s-1);
-}
-
-.sidebar__collapse-icon {
-  transition: transform var(--dur-2) ease;
-}
-
-.sidebar__collapse-icon--flipped {
-  transform: rotate(180deg);
-}
 
 
 
@@ -397,28 +495,36 @@
   display: flex;
   align-items: center;
   gap: var(--s-1);
+  margin-left: 0;
+  margin-right: 0;
+  margin-bottom: var(--s-1);
   width: 100%;
-  padding: 0 var(--s-3) var(--s-1) var(--s-2);
-  font-size: var(--fs-0);
-  font-weight: var(--fw-2);
-  letter-spacing: 0.16em;
+  height: 32px;
+  padding: 0 var(--s-3);
+  font-family: var(--font-base);
+  font-size: var(--fs-1);
+  font-weight: var(--fw-1);
+  letter-spacing: 0.08em;
   color: var(--dim);
+  background: transparent;
   cursor: pointer;
-  transition: color var(--dur-1) ease;
+  position: relative;
+  transition: color var(--dur-1) var(--ease);
 }
 
+
 .sidebar__section-header:hover {
-  color: var(--text-sub);
+  color: var(--text);
 }
 
 
 .sidebar__section-header--spaced {
-  margin-top: var(--s-5);
+  margin-top: var(--s-4);
 }
 
 .sidebar__section-chevron {
   flex-shrink: 0;
-  transition: transform var(--dur-2) ease;
+  transition: transform var(--dur-2) var(--ease);
 }
 
 .sidebar__section-chevron--collapsed {
@@ -428,16 +534,16 @@
 .sidebar__section-create-btn {
   display: grid;
   place-items: center;
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   border-radius: var(--r-1);
   color: var(--dim);
-  opacity: 0;
-  transition: all var(--dur-1) ease;
+  opacity: 1;
+  transition: color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
 }
 
 .sidebar__section-header:hover .sidebar__section-create-btn {
-  opacity: 1;
+  color: var(--text);
 }
 
 .sidebar__section-create-btn:hover {
@@ -446,93 +552,84 @@
 }
 
 
+/* Inset rounded "rail" rows: rows sit within the scroll padding while the
+   section headers above them stay full-bleed — the headers deliberately read
+   wider than the rows. The hover nub (::before) is a standing rounded-rect
+   capsule flush with the pill's left inner edge — it's hidden on the active
+   row, which stays a plain solid-orange pill (see below). */
 .room-row {
   position: relative;
-  overflow: hidden;
-  margin-bottom: var(--s-1);
-  border-radius: var(--r-1);
-  border: 1px solid transparent;
+  overflow: visible;
+  margin: 0 var(--s-3) var(--s-1);
   color: var(--text);
-  transition: all var(--dur-1) ease;
+  display: flex;
+  flex-direction: column;
 }
 
 
 .room-row__main,
 .room-row--create {
+  position: relative;
   width: 100%;
-  min-height: 33px;
+  min-height: 32px;
   display: flex;
   align-items: center;
   gap: var(--s-2);
-  padding: var(--s-2) var(--s-3) var(--s-2) var(--s-3);
-  font-size: var(--fs-2);
+  /* Row padding adjusted for more breathing room from pill edges */
+  padding: 0 var(--s-2);
+  font-size: var(--fs-3);
   text-align: left;
+  /* Radius role: list rows are CONTROLS — small radius, like every button. */
+  border-radius: var(--r-1);
+  transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
 }
 
-.room-row__bg-icon {
-  position: absolute;
-  right: -24px;
-  top: 50%;
-  transform: translateY(-50%);
-  height: 150%;
-  aspect-ratio: 1 / 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0.15;
-  pointer-events: none;
-  color: inherit;
-}
 
-.room-row__bg-icon svg {
-  width: 100%;
-  height: 100%;
-}
-
-.room-row:hover {
+.room-row__main:hover,
+.room-row--create:hover {
   background: var(--veil-1);
 }
 
-.room-row__main:active,
+.room-row--active .room-row__main,
+.room-row--active .room-row__main:hover {
+  background: var(--active-bg);
+  color: var(--active-text);
+}
+
 .room-row--create:active {
   transform: scale(0.97);
 }
 
-.room-row--active,
-.room-row--active:hover {
-  background: var(--block-bg);
-  border-color: var(--block-bg);
-  color: var(--block-fg);
-  font-weight: var(--fw-2);
-}
 
-.room-row--active .room-row__icon {
-  display: none;
-}
-
-.room-row::before {
+/* The animated part is transform/opacity only (compositor-safe); `height`
+   is never transitioned — the nub scales in at a fixed size. A standing
+   rounded-rect capsule flush against the pill's own left inner edge (left: 0)
+   — it never spills past the pill's edge. Hover-only: it's a "you could go
+   here" cue, not a state marker, so an ACTIVE row hides it entirely (opacity
+   0, no color flip) and just reads as a plain solid-orange pill. */
+.room-row__main::before {
   content: '';
   position: absolute;
+  z-index: 1;
   left: 0;
   top: 50%;
-  transform: translateY(-50%);
-  width: 4px;
-  height: 0;
-  border-radius: 0 var(--r-1) var(--r-1) 0;
+  width: 3px;
+  height: 20px;
+  border-radius: 2px;
   background: var(--orange);
-  transition: height var(--dur-2) var(--ease), opacity var(--dur-2) ease;
   opacity: 0;
+  transform: translateY(-50%) scaleY(0.3);
+  transition: transform var(--dur-2) var(--ease), opacity var(--dur-2) var(--ease);
 }
 
-.room-row:hover::before {
-  height: 12px;
+.room-row:hover .room-row__main::before {
   opacity: 1;
+  transform: translateY(-50%) scaleY(1);
 }
 
-.room-row--active::before,
-.room-row--active:hover::before {
-  height: calc(100% - 12px);
-  opacity: 1;
+.room-row--active .room-row__main::before,
+.room-row--active:hover .room-row__main::before {
+  opacity: 0;
 }
 
 .room-row__icon {
@@ -540,12 +637,6 @@
   align-items: center;
   justify-content: center;
   font-size: var(--fs-3);
-  opacity: 0.85;
-  transition: opacity var(--dur-1) ease;
-}
-
-.room-row:hover .room-row__icon {
-  opacity: 1;
 }
 
 .room-row__name {
@@ -554,13 +645,19 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: var(--fw-1);
+  font-size: var(--fs-2);
 }
 
-.room-row--active .room-row__name {
-  font-weight: var(--fw-2);
-  font-size: var(--fs-3);
+
+/* Lock indicator on a locked room (moderation): quiet dimmed ink beside the name. */
+.room-row__lock {
+  flex-shrink: 0;
+  color: var(--dim);
 }
 
+.room-row--active .room-row__lock {
+  color: var(--active-text);
+}
 
 .room-row__count {
   display: inline-flex;
@@ -571,44 +668,33 @@
   padding: 0 var(--s-1);
   flex-shrink: 0;
   font-size: var(--fs-1);
-  font-weight: var(--fw-2);
+  font-weight: var(--fw-1);
   border-radius: var(--r-1);
   background: transparent;
-  border: 1px solid color-mix(in srgb, var(--orange) 30%, transparent);
-  color: var(--orange);
+  color: var(--accent-ink);
   letter-spacing: 0.02em;
 }
 
 
 .room-row__count--full {
-  border-color: color-mix(in srgb, var(--red) 45%, transparent);
-  color: var(--red);
+  color: var(--danger-fg);
 }
 
 
+/* On the solid-blaze active row the count joins the row's near-black ink —
+   accent-on-accent would vanish. */
 .room-row--active .room-row__count,
 .room-row--active .room-row__count--full {
-  border-color: color-mix(in srgb, var(--orange) 45%, transparent);
-  color: var(--orange);
+  color: var(--active-text);
 }
 
 .room-row--full .room-row__main {
   cursor: not-allowed;
 }
 
-.room-row__avatars {
-  display: flex;
-  align-items: center;
-}
-
 .room-row__avatar {
-  border: 1.5px solid var(--panel);
   margin-left: -4px;
-  transition: transform var(--dur-1) ease;
-}
-
-.room-row--active .room-row__avatar {
-  border-color: var(--block-bg);
+  transition: transform var(--dur-1) var(--ease);
 }
 
 .room-row__avatar:first-child {
@@ -627,14 +713,8 @@
   cursor: pointer;
 }
 
-/* Press feedback bounces the avatar itself; cancel the row's press-scale so the
-   whole bar doesn't bounce when you click an (inline) avatar to mute. */
 .room-row__avatar--mutable:active {
   transform: scale(0.9);
-}
-
-.room-row__main:has(.room-row__avatar--mutable:active) {
-  transform: none;
 }
 
 
@@ -643,21 +723,33 @@
   inset: 0;
   display: grid;
   place-items: center;
-  color: #fff;
-  background: color-mix(in srgb, var(--red) 100%, transparent);
+  color: var(--on-accent);
+  background: var(--orange);
 }
 
 
 .room-row__avatar-strip {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--s-1);
-  margin: var(--s-1) var(--s-2) var(--s-1) var(--s-2);
+  margin: var(--s-1) var(--s-1) var(--s-2) 40px;
+}
+
+.room-row__avatar-strip::before {
+  content: '';
+  position: absolute;
+  left: -20px;
+  top: 0;
+  width: 12px;
+  height: 12px;
+  border-left: 2px solid var(--border);
+  border-bottom: 2px solid var(--border);
+  border-bottom-left-radius: var(--r-1);
 }
 
 .room-row__avatar-strip .room-row__avatar {
   margin-left: 0;
-  border: none;
 }
 
 .room-row__avatar-strip .room-row__avatar-mute svg {
@@ -679,9 +771,9 @@
 .room-row--create-inline {
   border: 1px dashed var(--border);
   padding: var(--s-2) var(--s-3);
-  margin: var(--s-1) 0;
+  margin: var(--s-2) var(--s-4);
   cursor: pointer;
-  transition: all var(--dur-1) ease;
+  transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
   color: var(--dim);
 }
 
@@ -689,14 +781,6 @@
   background: var(--veil-1);
   border-color: var(--orange);
   color: var(--text);
-}
-
-
-.room-row__mini-controls {
-  display: flex;
-  align-items: center;
-  gap: var(--s-1);
-  margin: var(--s-1) var(--s-2) var(--s-1) var(--s-2);
 }
 
 
@@ -713,15 +797,16 @@
   flex-shrink: 0;
   border-radius: var(--r-1);
 
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.95);
-  transition: background var(--dur-1) ease, border-color var(--dur-1) ease, color var(--dur-1) ease, transform var(--dur-1) ease;
+  /* Sits on the active row, whose text color is --active-text */
+  border: 1px solid color-mix(in srgb, var(--active-text) 16%, transparent);
+  background: color-mix(in srgb, var(--active-text) 10%, transparent);
+  color: var(--active-text);
+  transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
 }
 
 .room-row__mini-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.3);
+  background: color-mix(in srgb, var(--active-text) 20%, transparent);
+  border-color: color-mix(in srgb, var(--active-text) 30%, transparent);
 }
 
 .room-row__mini-btn:active:not(:disabled) {
@@ -738,30 +823,25 @@
 .room-row__mini-btn--danger:hover:not(:disabled) {
   background: var(--red);
   border-color: var(--red);
-  color: #fff;
+  color: var(--badge-fg);
 }
 
 .room-row__mini-btn--danger:hover:not(:disabled) {
   filter: brightness(1.08);
 }
 
-
-.room-row__mini-btn--speaking {
-  color: var(--green);
-}
-
 .friend-row {
   display: flex;
   align-items: center;
   gap: var(--s-2);
-  padding: var(--s-1) var(--s-3) var(--s-1) var(--s-3);
-  margin-bottom: var(--s-1);
-  border-radius: var(--r-1);
-  transition: background var(--dur-1) ease;
+  padding: var(--s-1) var(--s-4) var(--s-1) var(--s-4);
+  margin-bottom: var(--s-2);
+  border-radius: 0;
+  transition: background var(--dur-1) var(--ease);
 }
 
 .friend-row:hover {
-  background: color-mix(in srgb, var(--tint) 5%, transparent);
+  background: var(--veil-1);
 }
 
 .friend-row__avatar-wrap {
@@ -777,15 +857,27 @@
   border: 2px solid var(--panel);
 }
 
+.avatar--sm~.presence-dot {
+  width: 8px;
+  height: 8px;
+  bottom: -1px;
+  right: -1px;
+  border-width: 1.5px;
+}
+
 .friend-row__meta {
   min-width: 0;
+  flex: 1;
 }
 
 .friend-row__name {
   font-size: var(--fs-2);
-  font-weight: var(--fw-1);
+  font-weight: var(--fw-2);
   color: var(--text);
-  line-height: 1.25;
+  line-height: var(--lh-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .friend-row__name--off {
@@ -795,7 +887,42 @@
 .friend-row__where {
   font-size: var(--fs-1);
   color: var(--dim);
-  margin-top: var(--s-1);
+  /* Un-bolds from the parent __name (fw-2). */
+  font-weight: var(--fw-1);
+  margin-left: var(--s-2);
+}
+
+/* Authority badge (gold = Space Owner via inline SELF_COLOR, silver = room
+   moderator). Inline-flex so the crown baseline-aligns inside name rows. */
+.role-star {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-left: var(--s-1);
+  vertical-align: -1px;
+}
+
+.role-star--mod {
+  color: color-mix(in srgb, var(--text) 55%, transparent);
+}
+
+/* Hover-revealed "send file" action; also surfaces on keyboard focus. */
+.friend-row__send {
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity var(--dur-1) var(--ease);
+}
+
+.friend-row:hover .friend-row__send,
+.friend-row__send:focus-visible {
+  opacity: 1;
+}
+
+/* Drop-target highlight while OS files drag over a row (outline: no layout shift). */
+.friend-row--drop {
+  outline: 1px dashed var(--orange);
+  outline-offset: -1px;
+  background: color-mix(in srgb, var(--orange) 10%, transparent);
 }
 
 .presence-dot {
@@ -826,17 +953,16 @@
 
 
 /* When the window is unfocused (e.g. on a 2nd monitor while a game has focus),
-   freeze the per-frame animations to save GPU/CPU. Static cues remain: the speaking
-   ring/glow is a static, opacity-toggled .tile__avatar::after (and a tile border for
-   camera-on tiles), and presence dots keep their solid color — only the motion stops. */
+   freeze the per-frame animations to save GPU/CPU.*/
 .sidebar__self {
   display: flex;
   align-items: center;
   gap: var(--s-2);
-  padding: var(--s-3) var(--s-3) var(--s-4);
+  padding: var(--s-3) var(--s-4) var(--s-4);
   height: 76px;
-  border-top: 1px solid var(--border);
-  background: color-mix(in srgb, var(--tint) 4%, transparent);
+  /* A flat in-chrome zone (a veil over the sidebar's --panel), not its own
+     ladder level — the footer reads as part of the frame. */
+  background: var(--veil-1);
 }
 
 
@@ -847,14 +973,14 @@
 
 .self__name {
   font-size: var(--fs-2);
-  font-weight: var(--fw-1);
+  font-weight: var(--fw-2);
   color: var(--text);
 }
 
 .self__settings {
   color: var(--dim);
   opacity: 0.55;
-  transition: all var(--dur-1) ease;
+  transition: opacity var(--dur-1) var(--ease), color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
   padding: var(--s-2);
   border-radius: var(--r-1);
   display: flex;
@@ -868,6 +994,107 @@
   background: var(--veil-1);
 }
 
+
+/* Compact mode only: mute / deafen / input-mode / settings, one quadrant each —
+   sized to match the 48px self-avatar so the footer reads as two even blocks.
+   The divider between cells is a real grid `gap` revealing the container's
+   own --border background, not a box-shadow seam between flush, differently-
+   colored (sometimes orange, e.g. muted/deafened) buttons — adjacent opaque
+   layers with a `transform` transition are prone to compositor edge
+   anti-aliasing bleed where they touch. A real gap has no shared edge to
+   bleed across. Each button also rounds only its own outer corner, so no
+   parent clip mask is needed either. */
+.self__compact-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+}
+
+.self__leave-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  border-radius: var(--r-1);
+  background: var(--red);
+  color: var(--badge-fg);
+  transition: background var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
+}
+
+.self__leave-btn:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.self__leave-btn:active:not(:disabled) {
+  transform: scale(0.9);
+}
+
+.self__mini-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  gap: 2px;
+  background: var(--border);
+}
+
+.self__mini-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--dim);
+  background: var(--veil-1);
+  transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
+}
+
+.self__mini-btn:nth-child(1) {
+  border-top-left-radius: var(--r-1);
+}
+
+.self__mini-btn:nth-child(2) {
+  border-top-right-radius: var(--r-1);
+}
+
+.self__mini-btn:nth-child(3) {
+  border-bottom-left-radius: var(--r-1);
+}
+
+.self__mini-btn:nth-child(4) {
+  border-bottom-right-radius: var(--r-1);
+}
+
+.self__mini-btn:hover:not(:disabled) {
+  color: var(--text-sub);
+  background: var(--veil-2);
+}
+
+.self__mini-btn:active:not(:disabled) {
+  transform: scale(0.9);
+}
+
+.self__mini-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.self__mini-btn--active,
+.self__mini-btn--active:hover:not(:disabled) {
+  background: var(--orange);
+  color: var(--on-accent);
+}
+
+.self__mini-btn--active:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.self__mini-btn--speaking {
+  color: var(--green);
+}
+
 .sidebar__self-avatar-btn {
   background: none;
   border: none;
@@ -877,8 +1104,12 @@
   align-items: center;
   position: relative;
   cursor: pointer;
+  border-radius: var(--r-1);
+  transition: transform var(--dur-1) var(--ease);
+}
+
+.sidebar__self-avatar-btn .avatar {
   border-radius: var(--r-2);
-  transition: transform var(--dur-1) ease;
 }
 
 .sidebar__self-avatar-btn:hover {
@@ -903,33 +1134,58 @@
 
 /* ── Title Bar ────────────────────────────────────────────── */
 .title-bar {
+  position: relative;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 var(--s-4);
-  height: 32px;
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
+  padding: 0 var(--s-4) 0 var(--s-2);
+  height: 36px;
+  /* Shell chrome — same --panel as the sidebar + control bar, so the three
+     read as ONE continuous frame around the darker stage. */
+  background: var(--panel);
   -webkit-app-region: drag;
 }
 
-.title-bar__left {
+
+.title-bar__center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
   gap: var(--s-2);
+  pointer-events: none;
+  transition: left var(--dur-2) var(--ease), transform var(--dur-2) var(--ease);
+}
+
+.app--compact .title-bar__center {
+  left: var(--s-4);
+  transform: translateX(0);
 }
 
 .title-bar__logo {
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
+  --logo-fill: var(--text-sub);
 }
 
 .title-bar__wordmark {
   font-weight: var(--fw-2);
   font-size: var(--fs-1);
   letter-spacing: 0.05em;
-  color: var(--text);
+  color: var(--text-sub);
+  white-space: nowrap;
+  overflow: hidden;
+  max-width: 200px;
+  opacity: 1;
+  transition: opacity var(--dur-1) var(--ease), max-width var(--dur-1) var(--ease);
+}
+
+
+.app--compact .title-bar__wordmark {
+  opacity: 0;
+  max-width: 0;
 }
 
 .title-bar__spacer {
@@ -939,8 +1195,32 @@
 .title-bar__right {
   display: flex;
   align-items: center;
-  gap: var(--s-2);
+  gap: var(--s-1);
   -webkit-app-region: no-drag;
+}
+
+.title-bar__collapse-btn {
+  width: 28px;
+  height: 28px;
+}
+
+.title-bar__chat-btn {
+  width: 28px;
+  height: 28px;
+}
+
+.title-bar__chat-btn--active {
+  /* Raw blaze, not the deepened --accent-ink text tone — dark theme's
+     --accent-ink already equals --orange, so this only changes light theme. */
+  color: var(--orange);
+}
+
+.title-bar__collapse-icon {
+  transition: transform var(--dur-2) var(--ease);
+}
+
+.title-bar__collapse-icon--flipped {
+  transform: rotate(180deg);
 }
 
 
@@ -957,7 +1237,7 @@
   color: var(--dim);
   font-size: var(--fs-1);
   font-weight: var(--fw-1);
-  transition: all var(--dur-1) ease;
+  transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
 }
 
 .pill:active {
@@ -965,44 +1245,39 @@
 }
 
 .pill--chat {
-  border-radius: var(--r-1);
-  font-size: var(--fs-1);
   background: transparent;
-  border-color: color-mix(in srgb, var(--text) 30%, transparent);
+  border-color: transparent;
   color: var(--text);
-}
-
-.pill--chat:hover {
-  background: color-mix(in srgb, var(--text) 8%, transparent);
-  border-color: color-mix(in srgb, var(--text) 50%, transparent);
 }
 
 .pill--chat-on {
-  background: transparent;
-  border-color: var(--orange);
-  color: var(--text);
+  color: var(--orange);
 }
 
-.pill--chat-on:hover {
-  background: color-mix(in srgb, var(--orange) 8%, transparent);
-  border-color: var(--orange);
+/* Hover/active only — :focus-visible is deliberately NOT reset here, so the
+   global accent focus ring (theme.css) stays on these keyboard stops. */
+.pill--chat:hover,
+.pill--chat:active,
+.pill--chat-on:hover,
+.pill--chat-on:active {
+  background: transparent;
+  border-color: transparent;
 }
 
 .winctl {
   -webkit-app-region: no-drag;
   display: flex;
   gap: var(--s-1);
-  margin-left: var(--s-1);
 }
 
 .winctl__btn {
-  width: 30px;
-  height: 24x;
+  width: 28px;
+  height: 28px;
   display: grid;
   place-items: center;
   border-radius: var(--r-1);
   color: var(--dim);
-  transition: all var(--dur-1) ease;
+  transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
 }
 
 .winctl__btn:hover {
@@ -1012,7 +1287,7 @@
 
 .winctl__btn--close:hover {
   background: var(--red);
-  color: #fff;
+  color: var(--badge-fg);
 }
 
 /* ── Content area / grid ──────────────────────────────────── */
@@ -1020,8 +1295,8 @@
   flex: 1;
   display: flex;
   overflow: hidden;
-  padding: var(--s-4);
-  gap: var(--s-3);
+  padding: 0;
+  gap: 0;
   min-height: 0;
 }
 
@@ -1031,6 +1306,7 @@
   list-style: none;
   display: grid;
   gap: var(--s-3);
+  padding: var(--s-3);
 }
 
 .grid[data-count='1'] {
@@ -1049,6 +1325,21 @@
   grid-template-rows: 1fr 1fr;
 }
 
+/* Hybrid rooms hold up to 8 members (self + 7). Voice Lounge / Gallery lay the
+   compact avatar/thumbnail tiles out in a 3-wide grid past 4. */
+.grid[data-count='5'],
+.grid[data-count='6'] {
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+}
+
+.grid[data-count='7'],
+.grid[data-count='8'],
+.grid[data-count='9'] {
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+}
+
 /* ── Video tile ───────────────────────────────────────────── */
 .tile {
   position: relative;
@@ -1058,16 +1349,12 @@
   min-height: 0;
   overflow: hidden;
   background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--r-1);
-  transition: border var(--dur-2), box-shadow var(--dur-2);
+  border: none;
+  border-radius: var(--r-2);
+  box-shadow: var(--sh-1);
+  transition: border var(--dur-2) var(--ease), box-shadow var(--dur-2) var(--ease);
 }
 
-.tile__ambient {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
 
 .tile__video {
   position: absolute;
@@ -1075,7 +1362,7 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  background: #000;
+  background: var(--media);
 }
 
 .tile--self .tile__video,
@@ -1103,10 +1390,10 @@
   content: '';
   position: absolute;
   inset: -2px;
-  border-radius: var(--r-2);
-  box-shadow: 0 0 0 3px var(--accent);
+  border-radius: inherit;
+  box-shadow: 0 0 0 3px var(--accent), 0 0 16px var(--accent-glow);
   opacity: 0;
-  transition: opacity var(--dur-2) ease;
+  transition: opacity var(--dur-2) var(--ease);
   pointer-events: none;
 }
 
@@ -1114,53 +1401,82 @@
   opacity: 1;
 }
 
-
-.tile--speaking {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent);
-}
-
 .tile__avatar-mute {
   position: absolute;
   /* Above the avatar speaking ring (.tile__avatar::after) so the mute/deafen badge
      is never hidden under the ring. */
   z-index: 1;
-  bottom: -3px;
-  right: -3px;
-  min-width: 20px;
-  height: 20px;
+  bottom: -2px;
+  right: -2px;
+  min-width: 24px;
+  height: 24px;
   padding: 0 var(--s-1);
-  border-radius: var(--r-2);
-  background: var(--red);
-  border: 2px solid var(--card);
+  border-radius: var(--r-1);
+  background: var(--orange);
+  outline: 2px solid var(--card);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--s-1);
-  color: #fff;
+  color: var(--on-accent);
 }
 
+/* Base badge = the VOICE-tile name: plain centered text beneath the grid-
+   centered avatar (no floating tag). The offset is avatar--lg half (48px)
+   + s-3, so it tracks the avatar at every tile size and clears the speaking
+   ring + mute chip. Video tiles override this into the bottom gradient bar. */
 .tile__badge {
   position: absolute;
-  top: 10px;
-  left: 10px;
+  top: calc(50% + 48px + var(--s-3));
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 2;
   display: flex;
   align-items: center;
   gap: var(--s-1);
-  background: rgba(0, 0, 0, 0.83);
-  border-radius: var(--r-1);
-  padding: var(--s-1) var(--s-2);
+  max-width: calc(100% - var(--s-6));
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
 }
 
 .tile__badge-name {
+  font-size: var(--fs-2);
+  font-weight: var(--fw-2);
+  color: var(--text-sub);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Video tiles: the name moves to a compact top-left pill (matching the
+   stage's .screen__info treatment) instead of a bottom scrim — that frees the
+   bottom corners entirely, so the volume pill / leave / spotlight controls
+   below no longer need video-tile-specific position overrides; they just use
+   their normal (non-video-tile) corners. */
+.tile--video .tile__badge {
+  top: 10px;
+  left: 10px;
+  right: auto;
+  bottom: auto;
+  transform: none;
+  max-width: calc(100% - 20px);
+  gap: var(--s-1);
+  padding: var(--s-1) var(--s-2);
+  background: var(--scrim-media);
+  border-radius: var(--r-1);
+}
+
+.tile--video .tile__badge-name {
   font-size: var(--fs-1);
-  font-weight: var(--fw-1);
   color: var(--badge-fg);
 }
 
 .tile__badge-mute {
-  color: var(--red);
+  /* Solid orange, matching every other mute/deafen indicator; only renders
+     on video tiles, over the badge's own dark scrim bar. */
+  color: var(--orange);
 }
 
 .tile__conn {
@@ -1168,7 +1484,7 @@
   top: 8px;
   right: 8px;
   z-index: 2;
-  background: rgba(0, 0, 0, 0.72);
+  background: var(--scrim-media-2);
   border-radius: var(--r-1);
   padding: var(--s-1) var(--s-2);
   font-size: var(--fs-1);
@@ -1177,6 +1493,12 @@
 }
 
 
+/* No backdrop-filter here: the pill sits over live video, where a backdrop
+   blur re-rasterizes every video frame. A near-opaque card surface reads as
+   an overlay without it. The expand/collapse is likewise NOT a width
+   animation — the max-width change is discrete (0s), timed so it snaps open
+   before the children fade in and snaps shut only after they've faded out;
+   the perceived motion is the children's compositor-only fade/slide. */
 .tile__volume {
   position: absolute;
   bottom: 10px;
@@ -1188,23 +1510,41 @@
   max-width: 32px;
 
   padding: var(--s-1);
-  background: color-mix(in srgb, var(--card) 90%, transparent);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: color-mix(in srgb, var(--float) 96%, transparent);
   border: 1px solid var(--border);
   border-radius: var(--r-1);
   overflow: hidden;
   opacity: 0.5;
-  transition: max-width var(--dur-2) ease, opacity var(--dur-2) ease;
+  transition: max-width 0s linear var(--dur-2), opacity var(--dur-2) var(--ease);
 }
 
 .tile:hover .tile__volume {
   opacity: 0.85;
 }
 
-.tile__volume:hover {
+.tile__volume:hover,
+.tile__volume:focus-within {
   max-width: 194px;
   opacity: 1;
+  transition: max-width 0s linear 0s, opacity var(--dur-2) var(--ease);
+}
+
+/* The revealed children: the slider (SettingsSlider's unclassed root div —
+   see TileVolumeControl.tsx) and the percentage readout. `:focus-within`
+   mirrors `:hover` so the slider is reachable by keyboard. */
+.tile__volume>div,
+.tile__volume>.tile__volume-pct {
+  opacity: 0;
+  transform: translateX(-6px);
+  transition: opacity var(--dur-2) var(--ease), transform var(--dur-2) var(--ease);
+}
+
+.tile__volume:hover>div,
+.tile__volume:hover>.tile__volume-pct,
+.tile__volume:focus-within>div,
+.tile__volume:focus-within>.tile__volume-pct {
+  opacity: 1;
+  transform: translateX(0);
 }
 
 .tile__volume-icon-btn {
@@ -1218,7 +1558,7 @@
   color: var(--text);
   cursor: pointer;
   flex-shrink: 0;
-  transition: transform var(--dur-2) ease, color var(--dur-2) ease;
+  transition: transform var(--dur-2) var(--ease), color var(--dur-2) var(--ease);
 }
 
 .tile__volume-icon-btn:hover {
@@ -1227,12 +1567,12 @@
 
 .tile__volume--boost .tile__volume-icon-btn,
 .tile__volume--boost .tile__volume-pct {
-  color: var(--orange);
+  color: var(--accent-ink);
 }
 
 .tile__volume--muted .tile__volume-icon-btn,
 .tile__volume--muted .tile__volume-pct {
-  color: var(--red);
+  color: var(--danger-fg);
 }
 
 .tile__volume-pct {
@@ -1263,8 +1603,8 @@
   border: none;
   border-radius: var(--r-1);
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
-  transition: transform var(--dur-1) ease, filter var(--dur-1) ease;
+  box-shadow: 0 4px 14px var(--shadow-color);
+  transition: transform var(--dur-1) var(--ease), filter var(--dur-1) var(--ease);
 }
 
 .tile__watch:hover {
@@ -1277,6 +1617,41 @@
 }
 
 
+/* Self-only: promote this camera to the room stage. Bottom-left, same corner
+   as the (mutually exclusive, remote-only) volume pill; bottom-right is
+   .tile__leave's corner. */
+.tile__spotlight {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  color: var(--on-accent);
+  background: var(--orange);
+  border: none;
+  border-radius: var(--r-1);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur-2) var(--ease), filter var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
+}
+
+.tile:hover .tile__spotlight {
+  opacity: 0.95;
+}
+
+.tile__spotlight:hover {
+  opacity: 1;
+  filter: brightness(1.06);
+}
+
+.tile__spotlight:active {
+  transform: scale(0.92);
+}
+
 .tile__leave {
   position: absolute;
   bottom: 10px;
@@ -1287,18 +1662,23 @@
   width: 24px;
   height: 24px;
   padding: 0;
-  color: #fff;
+  color: var(--badge-fg);
   background: var(--red);
   border: 1px solid var(--red);
   border-radius: var(--r-1);
   cursor: pointer;
   opacity: 0;
-  transition: opacity var(--dur-2) ease, background var(--dur-2) ease, transform var(--dur-1) ease;
+  transition: opacity var(--dur-2) var(--ease), background var(--dur-2) var(--ease), transform var(--dur-1) var(--ease);
 }
 
 .tile:hover .tile__leave {
   opacity: 0.9;
 }
+
+/* Volume / leave / spotlight no longer need video-tile-specific corner
+   overrides: now that the name has moved to a top-left pill (above), their
+   normal (non-video-tile) bottom-left/bottom-right positions never collide
+   with it. */
 
 .tile__leave:hover {
   opacity: 1;
@@ -1317,13 +1697,14 @@
   display: flex;
   flex-direction: column;
   gap: var(--s-3);
+  padding: var(--s-3);
 }
 
 .stage {
   flex: 1;
   min-height: 0;
   display: grid;
-  gap: var(--s-3);
+  gap: 1px;
 }
 
 .stage[data-count='1'] {
@@ -1340,61 +1721,100 @@
   grid-template-rows: 1fr 1fr;
 }
 
+/* The stage tile is the room's one "live" moment — a restrained blaze ambient
+   glow (soft, outward only; no hard ring across the video content) marks it as
+   such, whether it's an active ScreenView or the unwatched placeholder below.
+   Perf-audited: the shadow is static (never transitioned), so it paints once —
+   the playing video inside repaints independently of it. */
 .screen {
   position: relative;
   min-height: 0;
   overflow: hidden;
-  background: #000;
-  border: 1px solid var(--border);
-  border-radius: var(--r-1);
+  background: var(--media);
+  border: none;
+  border-radius: var(--r-2);
+  box-shadow: 0 0 24px var(--glow), var(--sh-1);
 }
 
 .screen__video {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  background: #000;
+  background: var(--media);
 }
 
-.screen__label {
-  position: absolute;
-  left: 10px;
-  bottom: 10px;
-  padding: var(--s-1) var(--s-3);
-  font-size: var(--fs-1);
+/* A spotlighted self camera mirrors like the tile self-preview. */
+.screen__video--mirror {
+  transform: scaleX(-1);
+}
+
+/* Large "Watch" placeholder shown on the stage when the holder is a peer we
+   haven't opted into (video stays opt-in even for the stage). */
+.stage__placeholder {
+  display: grid;
+  place-items: center;
+}
+
+.stage__placeholder-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-3);
+  color: var(--on-media);
+  text-align: center;
+}
+
+.stage__placeholder-body p {
+  margin: 0;
+  font-size: var(--fs-2);
   font-weight: var(--fw-1);
-  color: #fff;
-  background: rgba(0, 0, 0, 0.6);
-  border-radius: var(--r-1);
-  opacity: 0;
-  transition: opacity var(--dur-2) ease;
 }
 
-.screen:hover .screen__label {
-  opacity: 1;
-}
-
-
-.screen__watchers {
+/* Name + "who's watching" now live in a top-left stack instead of the name's
+   old full-width bottom scrim — that freed the bottom-left corner for the
+   screen-audio volume pill (they used to occupy the same strip). Both fade
+   in together on stage hover (opacity only, no layout-affecting properties —
+   see the video-jitter fix above for why that matters right next to this
+   <video>). */
+.screen__info {
   position: absolute;
   top: 10px;
   left: 10px;
+  right: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-1);
+  opacity: 0;
+  transition: opacity var(--dur-2) var(--ease);
+}
+
+.screen:hover .screen__info {
+  opacity: 1;
+}
+
+.screen__label,
+.screen__watchers {
   display: flex;
   align-items: center;
   gap: var(--s-1);
+  max-width: 100%;
   padding: var(--s-1) var(--s-2);
   font-size: var(--fs-1);
-  font-weight: var(--fw-2);
-  font-variant-numeric: tabular-nums;
-  color: #fff;
-  background: rgba(0, 0, 0, 0.6);
+  color: var(--on-media);
+  background: var(--scrim-media);
   border-radius: var(--r-1);
-  opacity: 0;
-  transition: opacity var(--dur-2) ease;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.screen:hover .screen__watchers {
-  opacity: 1;
+.screen__label {
+  font-weight: var(--fw-1);
+}
+
+.screen__watchers {
+  font-weight: var(--fw-2);
 }
 
 
@@ -1409,13 +1829,13 @@
   padding: var(--s-1) var(--s-3);
   font-size: var(--fs-1);
   font-weight: var(--fw-2);
-  color: #fff;
+  color: var(--badge-fg);
   background: var(--red);
   border: 1px solid var(--red);
   border-radius: var(--r-1);
   cursor: pointer;
   opacity: 0;
-  transition: opacity var(--dur-2) ease, background var(--dur-2) ease, transform var(--dur-1) ease;
+  transition: opacity var(--dur-2) var(--ease), background var(--dur-2) var(--ease), transform var(--dur-1) var(--ease);
 }
 
 .screen:hover .screen__leave {
@@ -1432,10 +1852,52 @@
   transform: scale(0.95);
 }
 
+/* Screen-share audio volume control: reuses .tile__volume, but overrides its
+   icon-collapse/hover-expand behavior (an animated `max-width`, a layout
+   property) since there's ample room on the stage anyway — show the full
+   control always and only fade its opacity (cheap, compositor-only, and
+   incidentally rules out `max-width` as a contributor to the video-jitter bug
+   fixed below), matching the reveal-on-stage-hover convention already used by
+   .screen__info/.screen__leave. Bottom-left; the stage's other corners are
+   .screen__info (name + watchers, top-left) and .screen__leave (top-right). */
+.screen .tile__volume {
+  max-width: 194px;
+  opacity: 0;
+  transition: opacity var(--dur-2) var(--ease);
+}
+
+.screen:hover .tile__volume {
+  opacity: 0.95;
+}
+
+.screen .tile__volume:hover,
+.screen .tile__volume:focus-within {
+  opacity: 1;
+}
+
+.screen .tile__volume>div,
+.screen .tile__volume>.tile__volume-pct {
+  opacity: 1;
+  transform: none;
+}
+
+/* Confirmed culprit: .tile__volume-icon-btn:hover's `transform: scale(1.08)`
+   promotes the icon to its own GPU compositing layer for as long as the
+   cursor sits over it. That layer churn, right next to the stage's large
+   (hardware-overlay-composited) <video>, forces Chromium to demote the video
+   out of direct scanout and recomposite it — a visible pixel-shift each time
+   the cursor crosses the icon's small hit area. Camera thumbnails never
+   showed this (too small to hit that code path); on the stage, skip the
+   transform entirely and rely on the pill's opacity reveal + the existing
+   boost/muted color cues for hover feedback instead. */
+.screen .tile__volume-icon-btn:hover {
+  transform: none;
+}
+
 .filmstrip {
   list-style: none;
   display: flex;
-  gap: var(--s-3);
+  gap: var(--s-2);
   height: 124px;
   overflow-x: auto;
 }
@@ -1446,32 +1908,83 @@
   aspect-ratio: 16 / 9;
 }
 
+/* Filmstrip compacts (124px-tall tiles): tighter padding for the smaller
+   top-left name pill (matches the non-video filmstrip badge's compactness
+   below). No clearance rule needed for the centered .tile__watch button or
+   the volume pill — neither shares the badge's corner anymore. */
+.filmstrip .tile--video .tile__badge {
+  padding: 2px var(--s-2);
+}
+
+/* Voice tiles in the filmstrip: the 96px avatar leaves no room below the
+   center, so the name becomes a compact scrim pill instead of free-floating
+   text — moved to the top-left corner (matching .tile--video's treatment)
+   rather than the bottom, which used to sit right on top of the bottom-left
+   volume pill in these short (124px) tiles. */
+.filmstrip .tile:not(.tile--video) .tile__badge {
+  top: var(--s-1);
+  left: var(--s-1);
+  bottom: auto;
+  transform: none;
+  padding: 2px var(--s-2);
+  background: var(--scrim-media-2);
+  border-radius: var(--r-1);
+  max-width: calc(100% - (var(--s-2) * 2));
+}
+
+.filmstrip .tile:not(.tile--video) .tile__badge-name {
+  font-size: var(--fs-1);
+  color: var(--badge-fg);
+}
+
 /* ── Control bar ──────────────────────────────────────────── */
-.control-bar {
+/* The dock spans the full available width and is the @container reference
+   (so the shrink query below measures available space, not the bar's own
+   already-shrunk-to-content width); the bar itself is a plain flex item that
+   hugs its content and floats, detached, above the window's bottom edge. */
+.control-bar-dock {
   flex-shrink: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: var(--s-2);
-  padding: var(--s-3) var(--s-5);
   height: 76px;
-  border-top: 1px solid var(--border);
-  background: color-mix(in srgb, var(--tint) 3%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  container-type: inline-size;
+  container-name: control-bar-dock;
+}
+
+.control-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  width: 100%;
+  height: 100%;
+  padding: 0 var(--s-3);
+  /* Shell chrome — one frame with the title bar + sidebar. */
+  background: var(--panel);
+  --ctrl-chevron-w: 28px;
 }
 
 .ctrl-btn {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: var(--s-1);
-  padding: var(--s-2) var(--s-1);
+  padding: var(--s-1) var(--s-1);
   height: 48px;
   width: 72px;
+  min-width: var(--ctrl-chevron-w);
+  container-type: inline-size;
+  /* Radius role: controls share --r-1 (the deck's old --r-2 was the one
+     button family with a rounder shape). */
   border-radius: var(--r-1);
-  border: 1px solid var(--border);
+  border: none;
   background: var(--veil-1);
   color: var(--text-sub);
-  transition: all var(--dur-1) ease;
+  transition-property: background, color, border-color, transform, filter, opacity, gap;
+  transition-duration: var(--dur-1);
+  transition-timing-function: var(--ease);
 }
 
 .ctrl-btn__icon--speaking {
@@ -1480,6 +1993,8 @@
 
 .ctrl-btn:hover:not(:disabled) {
   transform: translateY(-2px);
+  background: var(--veil-2);
+  color: var(--text-sub);
   filter: brightness(1.12);
 }
 
@@ -1501,26 +2016,40 @@
   overflow: hidden;
   text-overflow: ellipsis;
   text-align: center;
+  flex-shrink: 0;
+  opacity: 1;
+  max-height: 20px;
+  margin-top: 0;
+  transition: opacity var(--dur-1) var(--ease), max-height var(--dur-1) var(--ease), margin-top var(--dur-1) var(--ease);
 }
 
+/* Engaged is one solid identity color across the whole bar — mic/deafen
+   share this with camera/share; Leave gets its own red variant below. */
 .ctrl-btn--active {
   background: var(--orange);
   border-color: var(--orange);
   color: var(--on-accent);
 }
 
-.ctrl-btn--active .ctrl-btn__label {
+.ctrl-btn--active:hover:not(:disabled) {
+  background: var(--orange);
   color: var(--on-accent);
 }
 
-.ctrl-btn--danger {
+.ctrl-btn--leave {
   background: var(--red);
   border-color: var(--red);
-  color: #fff;
+  color: var(--badge-fg);
 }
 
-.ctrl-btn--danger .ctrl-btn__label {
-  color: #fff;
+.ctrl-btn--leave:hover:not(:disabled) {
+  background: var(--red);
+  color: var(--badge-fg);
+}
+
+.ctrl-btn--active .ctrl-btn__label,
+.ctrl-btn--leave .ctrl-btn__label {
+  color: inherit;
 }
 
 .ctrl-btn--fade {
@@ -1531,21 +2060,39 @@
   color: var(--fade);
 }
 
-.control-bar__divider {
-  width: 1px;
-  height: 36px;
-  background: var(--border);
-  margin: 0 var(--s-2);
-}
 
+/* Main button + its chevron read (and lift) as ONE grouped control: no gap,
+   shared outer rounding, the main button's own right border as the divider. */
 .ctrl-group {
   display: flex;
   align-items: stretch;
-  gap: var(--s-1);
+  gap: 0;
+  min-width: 0;
+  /* Syncs shrink rate: 72px standalone / 100px group basis = 0.72. This ensures 
+     the inner 72px button shrinks at the exact same absolute pixel rate as 
+     standalone buttons, hitting the 56px fade threshold simultaneously. */
+  flex-shrink: 0.72;
+  transition: transform var(--dur-1) var(--ease);
+}
+
+.ctrl-group:hover {
+  transform: translateY(-2px);
 }
 
 .ctrl-group>.ctrl-btn {
   border-radius: var(--r-1) 0 0 var(--r-1);
+  border-right: none;
+}
+
+/* Inside a group the per-button lift is disabled (the group lifts as one)… */
+.ctrl-group>.ctrl-btn:hover:not(:disabled) {
+  transform: none;
+}
+
+/* …but press feedback must be re-asserted AFTER the rule above — that
+   hover rule outranks the base .ctrl-btn:active and would eat the press. */
+.ctrl-group>.ctrl-btn:active:not(:disabled) {
+  transform: scale(0.96);
 }
 
 .ctrl-btn--chevron {
@@ -1553,13 +2100,16 @@
   align-items: center;
   justify-content: center;
   padding: var(--s-1) var(--s-1);
-  min-width: auto;
+  width: var(--ctrl-chevron-w);
+  flex-shrink: 0;
   border-radius: 0 var(--r-1) var(--r-1) 0;
-  border: 1px solid var(--border);
-  border-left: none;
+  border: none;
+  /* Explicitly draw the dividing line on the chevron's left edge — the deck's
+     own chrome color, so it reads as a gap. */
+  border-left: 1px solid var(--panel);
   background: var(--veil-1);
   color: var(--dim);
-  transition: all var(--dur-1) ease;
+  transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
 }
 
 .ctrl-btn--chevron:hover {
@@ -1569,6 +2119,15 @@
 
 .ctrl-btn--chevron:active {
   transform: scale(0.9);
+}
+
+/* Smoothly fade and collapse label as button shrinks */
+@container (max-width: 56px) {
+  .ctrl-btn__label {
+    opacity: 0;
+    max-height: 0;
+    margin-top: calc(-1 * var(--s-1));
+  }
 }
 
 /* ── Audio device menu ────────────────────────────────────── */
@@ -1584,17 +2143,17 @@
   width: 100%;
   padding: var(--s-1) var(--s-2);
   border-radius: var(--r-1);
-  border: 1px solid var(--border);
   background: var(--veil-1);
   color: var(--text);
-  font-size: var(--fs-1);
+  font-size: var(--fs-0);
 }
 
 
 
 .audio-menu__divider {
   border: none;
-  border-top: 1px solid var(--border);
+  height: 1px;
+  background: transparent;
   margin: var(--s-3) 0 var(--s-2);
 }
 
@@ -1604,7 +2163,7 @@
   gap: var(--s-1);
   font-size: var(--fs-1);
   color: var(--dim);
-  transition: color var(--dur-1) ease;
+  transition: color var(--dur-1) var(--ease);
   padding: var(--s-1) 0;
 }
 
@@ -1643,14 +2202,14 @@
   justify-content: space-between;
   gap: var(--s-2);
   width: 100%;
-  padding: var(--s-2) var(--s-3);
+  padding: var(--s-1) var(--s-2);
   border-radius: var(--r-1);
   border: 1px solid var(--border);
   background: var(--veil-1);
   color: var(--text);
   font-size: var(--fs-1);
   text-align: left;
-  transition: border-color var(--dur-1) ease, background var(--dur-1) ease;
+  transition: border-color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
   cursor: pointer;
 }
 
@@ -1677,10 +2236,6 @@
   margin: 0;
 }
 
-.settings-device-select {
-  width: auto;
-  max-width: 230px;
-}
 
 /* ── Empty lounge ─────────────────────────────────────────── */
 .empty-lounge {
@@ -1688,6 +2243,7 @@
   display: grid;
   place-items: center;
   padding: var(--s-6);
+  background: radial-gradient(480px circle at 50% 42%, color-mix(in srgb, var(--orange) 10%, transparent), transparent 70%);
 }
 
 .empty-lounge__card {
@@ -1700,37 +2256,50 @@
 }
 
 .empty-lounge__card h2 {
-  font-size: var(--fs-4);
+  font-size: var(--fs-5);
   font-weight: var(--fw-2);
-  margin-bottom: var(--s-2);
+  margin-bottom: var(--s-3);
 }
 
 .empty-lounge__card p {
   font-size: var(--fs-2);
   color: var(--dim);
-  line-height: 1.5;
+  line-height: var(--lh-2);
 }
 
 /* ── Chat panel ───────────────────────────────────────────── */
 .chat-panel {
   position: relative;
-  width: calc(290px * var(--chat-width-scale, 1));
+  width: calc(280px * var(--chat-width-scale, 1));
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   background: var(--card);
-  border: 1px solid var(--border);
+  border: none;
+  /* A fully floating tile, same as .tile: all four corners rounded, the
+     same elevation, and — since .content-area gives it zero padding of its
+     own — the same var(--s-3) gap on every side (align-items: stretch on
+     the flex row turns a plain margin into that gap on all four edges).
+     The inner edge (facing .grid/.presentation) is the exception: that
+     sibling already reserves its own var(--s-3) padding there, so a margin
+     on this side too would double the gap versus the tile-to-tile one. */
   border-radius: var(--r-2);
-  animation: slideInRight 0.2s ease;
+  box-shadow: var(--sh-1);
+  margin: var(--s-3);
+  margin-left: 0;
 }
 
 .chat-panel--left {
-  animation: slideInLeft 0.2s ease;
+  margin-left: var(--s-3);
+  margin-right: 0;
 }
 
 
 .chat-panel__resize-handle {
   left: 0;
+  /* Stop short of the rounded corners instead of running into them. */
+  top: var(--r-2);
+  bottom: var(--r-2);
 }
 
 .chat-panel--left .chat-panel__resize-handle {
@@ -1740,20 +2309,16 @@
 
 .chat-panel__resize-handle::after {
   left: -1px;
+  /* No top/bottom override here: .chat-panel__resize-handle is this
+     pseudo-element's containing block and is already shrunk by var(--r-2)
+     on both ends, so the inherited top:0/bottom:0 from .resize-handle::after
+     already matches that (shrunk) extent exactly. Re-applying var(--r-2)
+     here would inset a second time relative to the already-shrunk parent. */
 }
 
 .chat-panel--left .chat-panel__resize-handle::after {
   left: auto;
   right: -1px;
-}
-
-.chat-panel__head {
-  padding: var(--s-2) var(--s-3);
-  border-bottom: 1px solid var(--border);
-  font-size: var(--fs-1);
-  font-weight: var(--fw-2);
-  letter-spacing: 0.16em;
-  color: var(--text);
 }
 
 .chat-panel__scroll {
@@ -1771,7 +2336,7 @@
 
 .chat-msg {
   margin-bottom: var(--s-3);
-  animation: popIn 0.15s ease;
+  animation: popIn var(--dur-1) var(--ease);
 }
 
 .chat-msg__head {
@@ -1794,7 +2359,7 @@
 .chat-msg__text {
   font-size: calc(14px * var(--chat-font-scale, 1));
   color: var(--text-sub);
-  line-height: 1.5;
+  line-height: var(--lh-2);
   word-break: break-word;
 }
 
@@ -1805,18 +2370,21 @@
 .emoji-trigger-btn {
   background: transparent;
   border: none;
-  font-size: var(--fs-3);
+  font-size: 18px;
   cursor: pointer;
   display: grid;
   place-items: center;
-  padding: 0 var(--s-1);
-  transition: transform var(--dur-1) ease, color var(--dur-1) ease;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  flex-shrink: 0;
+  transition: transform var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
   color: var(--dim);
+  margin-bottom: calc((19.6px * var(--chat-font-scale, 1) - 14px) / 2);
 }
 
 .emoji-trigger-btn:hover {
   color: var(--text);
-  transform: scale(1.18);
 }
 
 .emoji-trigger-btn:active {
@@ -1827,7 +2395,7 @@
 .reaction-pop {
   position: fixed;
   z-index: var(--z-dropdown);
-  padding: var(--s-2) var(--s-4);
+  padding: var(--s-3);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -1836,7 +2404,6 @@
 .reaction-pop__grid {
   display: flex;
   gap: var(--s-2);
-  padding: var(--s-1);
 }
 
 .reaction-pop__btn {
@@ -1845,8 +2412,9 @@
   border-radius: var(--r-1);
   font-size: var(--fs-4);
   cursor: pointer;
-  transition: all var(--dur-1) ease;
-  padding: var(--s-2) var(--s-3);
+  transition: transform var(--dur-1) var(--ease), opacity var(--dur-1) var(--ease), filter var(--dur-1) var(--ease);
+  padding: var(--s-1);
+  aspect-ratio: 1;
   line-height: 1;
   display: grid;
   place-items: center;
@@ -1867,6 +2435,80 @@
   filter: grayscale(0.5);
 }
 
+/* ── Soundboard Popover ───────────────────────────────────── */
+.soundboard-pop {
+  position: fixed;
+  z-index: var(--z-dropdown);
+  padding: var(--s-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  max-width: 300px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.soundboard-pop__section-label {
+  font-size: var(--fs-1);
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-top: var(--s-2);
+}
+
+.soundboard-pop__section-label:first-child {
+  margin-top: 0;
+}
+
+.soundboard-pop__grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.soundboard-pop__tile {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--r-1);
+  font-size: var(--fs-2);
+  color: var(--text);
+  cursor: pointer;
+  transition: transform var(--dur-1) var(--ease), opacity var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
+  padding: var(--s-2) var(--s-3);
+  line-height: 1.2;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.soundboard-pop__tile:hover:not(:disabled) {
+  background: var(--veil-1);
+  transform: scale(1.04);
+}
+
+.soundboard-pop__tile:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.soundboard-pop__tile--unavailable {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.soundboard-pop__tile--cooldown {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+  filter: grayscale(0.5);
+}
+
+.soundboard-pop__empty {
+  font-size: var(--fs-2);
+  color: var(--dim);
+  padding: var(--s-2) 0;
+}
+
 /* ── Emoji Picker Popover ─────────────────────────────────── */
 .emoji-picker-pop {
   position: fixed;
@@ -1875,13 +2517,13 @@
   display: flex;
   flex-direction: column;
   gap: var(--s-3);
-  max-height: 400px;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .emoji-picker-pop__section {
   display: flex;
   flex-direction: column;
+  gap: var(--s-1);
 }
 
 .emoji-picker-pop__grid {
@@ -1899,7 +2541,7 @@
   aspect-ratio: 1;
   display: grid;
   place-items: center;
-  transition: all var(--dur-1) ease;
+  transition: background var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
   padding: var(--s-1);
 }
 
@@ -1912,14 +2554,117 @@
   transform: scale(0.92);
 }
 
+.emoji-picker-pop__scrollable {
+  max-height: 240px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding-right: var(--s-1);
+}
+
+/* Section title + empty-state reuse the .hint primitive; these hold only the residual layout. */
+.emoji-picker-pop__empty {
+  text-align: center;
+  padding: var(--s-3) 0;
+}
+
+/* ── Emoji Manager (Settings) ────────────────────────────── */
+.emoji-manager {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  margin-top: var(--s-1);
+}
+
+/* In a settings row the manager is its own bounded column so its wrapping
+   chips (up to 24 favorites) can't spill into the label/hint column. */
+.settings-row>.emoji-manager {
+  flex: 0 1 67%;
+  min-width: 0;
+  margin-top: 0;
+}
+
+/* Top-align the label against the (often tall) emoji column. */
+.settings-row:has(> .emoji-manager) {
+  align-items: flex-start;
+}
+
+.emoji-manager__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-1);
+}
+
+.emoji-manager__item {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  background: var(--veil-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-1);
+  padding: var(--s-1) var(--s-2);
+  font-size: var(--fs-3);
+}
+
+.emoji-manager__remove {
+  background: transparent;
+  border: none;
+  color: var(--dim);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border-radius: var(--r-1);
+}
+
+.emoji-manager__remove:hover {
+  background: var(--veil-2);
+  color: var(--danger-fg);
+}
+
+.emoji-manager__add {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--veil-1);
+  border: 1px dashed var(--border);
+  border-radius: var(--r-1);
+  padding: 2px 2px 2px 6px;
+  cursor: text;
+}
+
+.emoji-manager__add-icon {
+  color: var(--text-sub);
+}
+
+.emoji-manager__add input {
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: var(--fs-3);
+  width: 28px;
+  text-align: center;
+}
+
+.emoji-manager__add input:focus {
+  outline: none;
+}
+
+.emoji-manager__add input::placeholder {
+  opacity: 0.4;
+  filter: grayscale(1);
+}
+
 .chat-panel__input-row {
   display: flex;
   gap: var(--s-1);
   padding: var(--s-2) var(--s-3);
-  border-top: 1px solid var(--border);
+  align-items: flex-end;
 }
 
-.chat-panel__input-row input {
+.chat-panel__input-row textarea {
   flex: 1;
   min-width: 0;
   background: var(--veil-1);
@@ -1928,6 +2673,18 @@
   padding: var(--s-1) var(--s-2);
   color: var(--text);
   font-size: calc(14px * var(--chat-font-scale, 1));
+  font-family: inherit;
+  line-height: 1.4;
+  resize: none;
+  overflow-y: auto;
+  transition: border-color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
+}
+
+.chat-panel__input-row textarea:focus {
+  border-color: var(--accent-ink);
+  /* Surface lift on focus (background is already in the transition list). */
+  background: color-mix(in srgb, var(--float) 75%, transparent);
+  outline: none;
 }
 
 .send-btn {
@@ -1938,16 +2695,23 @@
   display: grid;
   place-items: center;
   color: var(--on-accent);
-  background: var(--gradient);
-  transition: all var(--dur-1) ease;
+  background: var(--orange);
+  transition: opacity var(--dur-1) var(--ease), transform var(--dur-1) var(--ease), filter var(--dur-1) var(--ease);
+  margin-bottom: calc((19.6px * var(--chat-font-scale, 1) - 14px) / 2);
 }
 
-.send-btn:hover {
+.send-btn:hover:not(:disabled) {
   opacity: 0.88;
 }
 
-.send-btn:active {
+.send-btn:active:not(:disabled) {
   transform: scale(0.93);
+}
+
+.send-btn:disabled {
+  filter: grayscale(1);
+  opacity: 0.45;
+  cursor: default;
 }
 
 /* ── Floating reactions ───────────────────────────────────── */
@@ -1957,29 +2721,179 @@
   font-size: var(--fs-4);
   pointer-events: none;
   z-index: 99;
+  /* One-shot decorative float — intentionally off the --dur/--ease tokens. */
   animation: floatUp 1.8s ease-out forwards;
 }
 
 /* ── Toasts ───────────────────────────────────────────────── */
 .toasts {
-  position: absolute;
+  position: fixed;
   bottom: 86px;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 40;
+  z-index: var(--z-tooltip);
   display: flex;
   flex-direction: column;
   gap: var(--s-2);
   align-items: center;
 }
 
+/* Danger-soft language, but OPAQUE (mixed over --card, not transparent) —
+   toasts float over live video where a see-through tint would be illegible. */
 .toast {
-  background: var(--danger-bg);
-  border: 1px solid color-mix(in srgb, var(--red) 40%, transparent);
-  color: var(--red);
+  background: color-mix(in srgb, var(--red) 12%, var(--float));
+  border: 1px solid color-mix(in srgb, var(--red) 45%, var(--border));
+  color: var(--danger-fg);
   font-size: var(--fs-1);
   padding: var(--s-2) var(--s-4);
+  border-radius: var(--r-2);
+  box-shadow: var(--sh-1);
+}
+
+/* ── File-transfer tray ───────────────────────────────────── */
+/* Bottom-RIGHT stack (toasts own bottom-center at the same baseline). */
+.transfer-tray {
+  position: fixed;
+  right: var(--s-4);
+  bottom: 86px;
+  z-index: var(--z-tooltip);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.transfer-card {
+  width: 280px;
+  background: var(--float);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  box-shadow: var(--sh-1);
+  padding: var(--s-3);
+  animation: popIn var(--dur-2) var(--ease);
+}
+
+.transfer-card__head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.transfer-card__dir {
+  display: inline-flex;
+  color: var(--dim);
+  flex-shrink: 0;
+}
+
+.transfer-card__name {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-2);
+  font-weight: var(--fw-2);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.transfer-card__peer {
+  font-size: var(--fs-1);
+  color: var(--dim);
+  margin: var(--s-1) 0 var(--s-2);
+}
+
+/* Same bar recipe as .mic-meter__track/__fill; width updates arrive throttled
+   (~4/s), so the linear width transition is a cheap catch-up, not a spring. */
+.transfer-card__track {
+  height: 4px;
+  background: var(--border);
   border-radius: var(--r-1);
+  overflow: hidden;
+}
+
+.transfer-card__fill {
+  height: 100%;
+  width: 0%;
+  background: var(--online);
+  border-radius: var(--r-1);
+  transition: width var(--dur-1) linear, background-color var(--dur-1) var(--ease);
+}
+
+.transfer-card__fill--error {
+  background: var(--red);
+}
+
+.transfer-card__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  margin-top: var(--s-2);
+  font-size: var(--fs-1);
+  color: var(--dim);
+  min-height: 20px;
+}
+
+.transfer-card__reveal {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: var(--fs-1);
+  font-weight: var(--fw-2);
+  color: var(--text-sub);
+  cursor: pointer;
+  transition: color var(--dur-1) var(--ease);
+}
+
+.transfer-card__reveal:hover {
+  color: var(--text);
+}
+
+/* Incoming-batch file list in the accept modal. */
+.incoming-files {
+  list-style: none;
+  margin: 0 0 var(--s-4);
+  padding: var(--s-2) var(--s-3);
+  background: var(--veil-1);
+  border-radius: var(--r-1);
+  max-height: 160px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.incoming-files li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-3);
+  font-size: var(--fs-1);
+}
+
+.incoming-files__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.incoming-files__size,
+.incoming-files__more {
+  color: var(--dim);
+  flex-shrink: 0;
+}
+
+/* "Always accept files from X" checkbox on the incoming prompt. */
+.incoming-trust {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--fs-1);
+  color: var(--text-sub);
+  margin-bottom: var(--s-4);
+  cursor: pointer;
 }
 
 /* ── Modals ───────────────────────────────────────────────── */
@@ -1989,11 +2903,11 @@
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  background: var(--card);
+  background: var(--float);
   border: 1px solid var(--border);
   border-radius: var(--r-2);
   box-shadow: var(--sh-2);
-  animation: modalIn 0.18s ease;
+  animation: modalIn var(--dur-2) var(--ease);
 }
 
 
@@ -2006,7 +2920,6 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--s-4) var(--s-4);
-  border-bottom: 1px solid var(--border);
 }
 
 .modal-panel__title {
@@ -2037,7 +2950,7 @@
 
 .field-error {
   font-size: var(--fs-1);
-  color: var(--red);
+  color: var(--danger-fg);
   margin: var(--s-2) 0 0;
 }
 
@@ -2055,7 +2968,7 @@
   border-radius: var(--r-1);
   background: var(--veil-1);
   border: 1px solid var(--border);
-  transition: all var(--dur-1) ease;
+  transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
 }
 
 .icon-grid__item:hover {
@@ -2065,12 +2978,13 @@
 .icon-grid__item--active {
   background: var(--active-bg);
   border-color: var(--orange);
+  color: var(--active-text);
 }
 
 .settings-note {
-  font-size: var(--fs-1);
+  font-size: var(--fs-0);
   color: var(--dim);
-  line-height: 1.5;
+  line-height: var(--lh-2);
 }
 
 
@@ -2092,30 +3006,18 @@
   pointer-events: none;
 }
 
-/* Native <select> styled like .input but sized to its content (settings tabs). */
-.settings-select {
-  width: auto;
-  max-width: 230px;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--r-1);
-  color: var(--text);
-  font-family: inherit;
-  font-size: var(--fs-2);
-  padding: var(--s-2) var(--s-3);
-  cursor: pointer;
-}
-
-.settings-select:focus {
-  border-color: var(--orange);
-  outline: none;
+/* Layout/dimensions for select dropdowns in settings. */
+.settings-select,
+.settings-device-select {
+  width: 220px;
 }
 
 .settings-row__label {
   display: flex;
   flex-direction: column;
   gap: var(--s-1);
-  font-size: var(--fs-2);
+  font-size: var(--fs-1);
+  font-weight: var(--fw-2);
   flex: 1;
   min-width: 0;
 }
@@ -2128,11 +3030,11 @@
   background: var(--border);
   border: 1px solid var(--border);
   position: relative;
-  transition: all var(--dur-1) ease;
+  transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
 }
 
 .switch--on {
-  background: var(--active-bg);
+  background: var(--orange);
   border-color: var(--orange);
 }
 
@@ -2144,19 +3046,20 @@
   height: 16px;
   border-radius: 50%;
   background: var(--dim);
-  transition: all var(--dur-1) ease;
+  /* Slides via transform, not `left` — the toggle animates on the compositor. */
+  transition: transform var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
 }
 
 .switch--on .switch__knob {
-  left: 18px;
-  background: var(--orange);
+  transform: translateX(16px);
+  background: var(--knob);
 }
 
 
 .rebind {
   flex-shrink: 0;
   min-width: 84px;
-  padding: var(--s-2) var(--s-3);
+  padding: var(--s-1) var(--s-3);
   border-radius: var(--r-1);
   border: 1px solid var(--border);
   background: var(--bg);
@@ -2176,10 +3079,12 @@
   display: flex;
   flex-wrap: wrap;
   flex-shrink: 0;
+  padding-right: 1px;
+  /* Prevent subpixel clipping on the right-most border */
 }
 
 .seg-btn {
-  padding: var(--s-2) var(--s-3);
+  padding: var(--s-1) var(--s-3);
   border: 1px solid var(--border);
   border-radius: var(--r-1);
   background: var(--bg);
@@ -2187,6 +3092,11 @@
   font-size: var(--fs-1);
   font-weight: var(--fw-1);
   cursor: pointer;
+  position: relative;
+}
+
+.seg-group>.seg-btn:not(:first-child) {
+  margin-left: -1px;
 }
 
 .seg-group>.seg-btn:first-child {
@@ -2195,13 +3105,13 @@
 
 .seg-group>.seg-btn:last-child {
   border-radius: 0 var(--r-1) var(--r-1) 0;
-  border-left: none;
 }
 
 .seg-btn--active {
-  border-color: var(--block-bg);
-  color: var(--block-fg);
-  background: var(--block-bg);
+  border-color: var(--orange);
+  color: var(--on-accent);
+  background: var(--orange);
+  z-index: 1;
 }
 
 .seg-btn__cap {
@@ -2303,7 +3213,7 @@
   border-radius: var(--r-1);
   text-align: left;
   color: var(--text);
-  transition: all var(--dur-1) ease;
+  transition: border-color var(--dur-1) var(--ease);
 }
 
 .srccard:hover {
@@ -2314,7 +3224,7 @@
   width: 100%;
   aspect-ratio: 16 / 9;
   object-fit: cover;
-  background: #000;
+  background: var(--media);
   border-radius: var(--r-1);
 }
 
@@ -2356,7 +3266,7 @@
   background: var(--card);
   border: 1px solid var(--red);
   border-radius: var(--r-1);
-  color: var(--red);
+  color: var(--danger-fg);
   white-space: pre-wrap;
   word-break: break-word;
   font-size: var(--fs-2);
@@ -2368,85 +3278,264 @@
   width: 100%;
 }
 
+/* Fixed 96px hero strip — identical whether or not a banner image is set (a
+   plain --panel background + centered name when there's none); ~2.9:1 over the
+   default 280px sidebar width, a wide/compact proportion rather than a taller,
+   portrait one. The banner image + scrim (rendered only when bannerDataUrl is
+   set) and the `--banner` modifier below are the *only* things that differ.
+   Keep this height in sync with SIDEBAR_HEADER_HEIGHT_PX in lib/spaceHeader.ts
+   (CSS can't import that constant, so this one stays a literal). */
 .sidebar__space-header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 var(--s-3) 0 var(--s-4);
-  height: 50px;
-  border-bottom: 1px solid var(--border);
+  align-items: stretch;
+  justify-content: flex-start;
+  height: 96px;
+  padding: 0;
+  /* Flush with the sidebar's top edge (itself flush with the title bar's
+     bottom edge — .sidebar has no top padding) so the two shell regions
+     read as aligned instead of leaving a gap above the banner. */
+  margin: 0 var(--s-3) var(--s-3);
+  border-radius: var(--r-2);
+  background: var(--card);
   position: relative;
+  overflow: hidden;
+  /* Opening the hamburger menu squares the bottom corners + collapses the
+     bottom margin so the Manage Spaces panel below reads as this same card
+     growing a drawer — see `--open` below. */
+  transition: margin-bottom var(--dur-2) var(--ease), border-radius var(--dur-2) var(--ease);
+}
+
+/* "Hide space banner image" setting: a shorter, typographic-only strip in
+   place of the 96px hero. Keep in sync with SIDEBAR_HEADER_MINIMAL_HEIGHT_PX
+   in lib/spaceHeader.ts. */
+.sidebar__space-header--minimal {
+  height: 40px;
+}
+
+.sidebar__space-header--minimal .space-header__name {
+  font-size: var(--fs-3);
+  -webkit-text-stroke: 3px var(--card);
+  paint-order: stroke fill;
+}
+
+/* No banner image means no scrim/hamburger-cluster to sit clear of — center
+   the name instead of inheriting the with-image state's bottom alignment. */
+.sidebar__space-header--minimal .space-info-wrap {
+  align-items: center;
+  padding: 0 var(--s-2);
+}
+
+.sidebar__space-header-banner-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity var(--dur-2) var(--ease);
+}
+
+.sidebar__space-header-banner-img--loaded {
+  opacity: 1;
+}
+
+.sidebar__space-header-scrim {
+  position: absolute;
+  inset: 0;
+  /* Short, light bottom-edge fade only (decorative grounding).
+     Replaces a single tall linear scrim whose
+     dark end sat at the bottom edge while fading to nothing by the
+     vertically-centered name it was meant to read against. */
+  background: linear-gradient(to top, var(--scrim-edge) 0%, transparent 30%);
 }
 
 .space-info-wrap {
+  position: relative;
+  z-index: 3;
+  pointer-events: none;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   min-width: 0;
   flex: 1;
-  margin-right: var(--s-2);
+  height: 100%;
+  padding: 0 var(--s-2) var(--s-2) var(--s-2);
 }
 
-.space-switcher-btn {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s-2);
-  cursor: pointer;
-  text-align: left;
-  width: 100%;
-}
-
-.space-switcher-btn__meta {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  flex: 1;
-}
-
-.space-switcher-btn__name {
+.space-header__name {
+  position: relative;
+  display: block;
+  font-family: var(--font-base);
   font-weight: var(--fw-2);
-  font-size: var(--fs-3);
+  font-size: var(--fs-5);
   color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  line-height: 1.25;
+  min-width: 0;
+  text-align: left;
+  line-height: var(--lh-1);
 }
 
-.space-switcher-btn__name--code {
-  background: linear-gradient(135deg, var(--orange), var(--orange));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+/* Banner-only override: light text for legibility over an arbitrary photo.
+   Uses --block-fg so it resolves to an off-white in both themes. */
+.sidebar__space-header--banner .space-header__name {
+  color: var(--block-fg);
+}
+
+.space-header__name--code {
+  font-family: var(--font-mono);
+  color: var(--accent-ink);
   font-weight: var(--fw-2);
   letter-spacing: 0.02em;
 }
 
-.space-switcher-btn__name--empty {
+.space-header__name--empty {
   font-weight: var(--fw-1);
   font-style: italic;
   color: var(--dim);
 }
 
-.space-switcher-btn__code {
-  font-size: var(--fs-1);
-  font-weight: var(--fw-1);
-  color: var(--dim);
-  opacity: 0.82;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  margin-top: var(--s-1);
+/* Top-right menu cluster — anchored by `right`/`top` only (no `left`), so it
+   shrink-wraps its content and grows LEFTWARD as the action row (or the
+   delete button's armed state) widens, rather than the hamburger jumping
+   around or eating into the name's space at the bottom of the banner. */
+.space-header__menu {
+  position: absolute;
+  top: var(--s-2);
+  right: var(--s-2);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
 }
 
-.space-switcher-btn__chevron {
-  color: var(--dim);
+.space-header__menu-btn {
   flex-shrink: 0;
-  transition: transform var(--dur-2) ease;
 }
 
-.space-switcher-btn__chevron--open {
-  transform: rotate(180deg);
+/* Active space's actions — copy/settings/lock/delete — unfold to the left
+   of the hamburger/X when the menu is open. Grouped visually as one cluster
+   (shared pill background over a banner photo) rather than individually
+   backed icons. */
+.space-header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  animation: popIn var(--dur-1) var(--ease);
+}
+
+/* Over an arbitrary photo, the whole cluster gets one shared legibility
+   scrim (a "toolbar chip") so it reads consistently regardless of what's
+   underneath, rather than each icon needing its own backing. */
+.sidebar__space-header--banner .space-header__menu {
+  background: var(--scrim-legibility);
+  border-radius: var(--r-1);
+  padding: 2px;
+}
+
+.sidebar__space-header--banner .space-header__menu .icon-btn {
+  color: var(--block-fg);
+}
+
+.sidebar__space-header--banner .space-header__menu .icon-btn:hover {
+  background: color-mix(in srgb, var(--on-media) 18%, transparent);
+  color: var(--block-fg);
+}
+
+.space-header__delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-1);
+  white-space: nowrap;
+}
+
+/* Lock Space shows the space's CURRENT state, not the action a click would
+   take (a closed padlock while unlocked read as "it's already locked" at a
+   glance) — locked = closed padlock in red for emphasis, unlocked = open
+   padlock in the cluster's normal ink color. Specificity matches the
+   banner-mode icon-color override above and is declared after it, so the
+   red wins in both plain and banner-photo headers. */
+.space-header__menu .icon-btn.space-header__lock-btn--locked,
+.space-header__menu .icon-btn.space-header__lock-btn--locked:hover {
+  color: var(--red);
+}
+
+/* Arm-then-confirm: clicking Delete/Leave once grows this button into a
+   labeled danger state instead of a native window.confirm() — a second
+   click (or letting the arm timeout lapse) resolves it. Growing leftward
+   (the cluster has no fixed width) means this never collides with the
+   banner's right edge. */
+.space-header__delete-btn--armed {
+  width: auto;
+  padding: 0 var(--s-2);
+  background: var(--danger-bg);
+  color: var(--danger-fg);
+}
+
+.sidebar__space-header--open {
+  margin-bottom: 0;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/* Manage Spaces panel — revealed below the banner in normal flow (pushes
+   ROOMS/USERS down, never overlays them), flush against the banner's now-
+   square bottom edge. A single-track CSS Grid row animates 0fr -> 1fr for a
+   smooth height reveal with no JS measuring; `overflow: hidden` +
+   `min-height: 0` on the inner wrapper let that track actually collapse to
+   zero despite the card's own content/padding. All inset spacing lives on
+   the innermost card (not this grid container, and not its immediate
+   child) so nothing pokes out while collapsed. */
+.space-manage-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--dur-2) var(--ease);
+  margin: 0 var(--s-3);
+}
+
+/* The bottom gap (before ROOMS) only applies while open — otherwise it'd
+   stack with the banner's own bottom margin and double the closed-state gap
+   even though the panel itself is collapsed to zero height. */
+.space-manage-panel--open {
+  grid-template-rows: 1fr;
+  margin-bottom: var(--s-3);
+}
+
+.space-manage-panel__inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.space-manage-panel__card {
+  background: var(--card);
+  border-top: none;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border-bottom-left-radius: var(--r-2);
+  border-bottom-right-radius: var(--r-2);
+}
+
+.space-manage-panel__list {
+  display: flex;
+  flex-direction: column;
+  padding: var(--s-1);
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.space-manage-panel__footer {
+  padding: var(--s-1);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+/* Divider only when a switch-list precedes it — otherwise (no other spaces)
+   the footer is the card's only content and a lone top border would read as
+   a stray line. */
+.space-manage-panel__footer:not(:first-child) {
+  border-top: 1px solid var(--border);
 }
 
 .settings-slider {
@@ -2484,9 +3573,9 @@
   height: 14px;
   margin-top: -4px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--knob);
   border: 2px solid var(--thumb, var(--orange));
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 1px 3px var(--shadow-color);
   cursor: pointer;
 }
 
@@ -2498,8 +3587,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--s-2);
-  width: 100%;
-  max-width: 280px;
+  width: 220px;
   flex-shrink: 0;
 }
 
@@ -2519,11 +3607,11 @@
   position: absolute;
   top: 50%;
   transform: translate(-50%, -50%);
-  width: 2px;
+  width: 1px;
   height: 12px;
   background: var(--dim);
   pointer-events: none;
-  border-radius: 1px;
+  z-index: 1;
 }
 
 .settings-slider-labels {
@@ -2556,7 +3644,6 @@
   height: 6px;
   background: var(--border);
   border-radius: var(--r-1);
-  border: 1px solid color-mix(in srgb, var(--tint) 8%, transparent);
   position: relative;
 }
 
@@ -2573,22 +3660,23 @@
   transform: translateX(-50%);
 }
 
+/* No glow shadows here: the fill's width is rewritten every rAF frame while
+   the mic is live, so a box-shadow would re-rasterize well beyond the 6px
+   track on every frame. Level is carried by fill length + the red swap. */
 .mic-meter__fill {
   height: 100%;
   width: 0%;
   background: var(--online);
   border-radius: var(--r-1);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--green) 40%, transparent);
-  transition: width var(--dur-1) linear, background-color var(--dur-1) ease, box-shadow var(--dur-1) ease;
+  transition: width var(--dur-1) linear, background-color var(--dur-1) var(--ease);
 }
 
 .mic-meter__fill--clipping {
   background: var(--red);
-  box-shadow: 0 0 12px var(--red), 0 0 20px color-mix(in srgb, var(--red) 40%, transparent);
 }
 
 .mic-meter__label {
-  font-size: var(--fs-1);
+  font-size: var(--fs-0);
   font-weight: var(--fw-2);
   color: var(--dim);
   min-width: 60px;
@@ -2601,44 +3689,60 @@
   position: relative;
   z-index: 100;
   display: flex;
-  width: 780px;
-  height: 540px;
+  width: 858px;
+  height: 594px;
   max-width: 92vw;
   max-height: 85vh;
-  background: var(--panel);
-  border: 1px solid var(--border);
+  background: var(--float);
   border-radius: var(--r-2);
   overflow: hidden;
-  box-shadow: var(--sh-1);
-  animation: modalIn 0.22s var(--ease);
-  transition: all var(--dur-1) ease;
+  box-shadow: var(--sh-2);
+  animation: modalIn var(--dur-2) var(--ease);
+  /* No transition: the panel has no interactive state changes — a blanket
+     one would only catch the responsive width/height snaps (layout). */
 }
 
 .settings-sidebar {
   width: 210px;
-  background: color-mix(in srgb, var(--tint) 3%, transparent);
-  border-right: 1px solid var(--border);
-  padding: var(--s-6) var(--s-3);
+  background: var(--veil-1);
+  padding: var(--s-6) var(--s-3) var(--s-2);
   display: flex;
   flex-direction: column;
   gap: var(--s-1);
   flex-shrink: 0;
+  min-height: 0;
+}
+
+.settings-sidebar__nav {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color var(--dur-2) var(--ease);
+}
+
+.settings-sidebar__nav:hover {
+  scrollbar-color: var(--veil-1) transparent;
 }
 
 .settings-sidebar__footer {
   margin-top: auto;
-  padding: var(--s-2) var(--s-3) 0;
+  padding: var(--s-2) 0 0;
   display: flex;
   align-items: center;
 }
 
 .settings-sidebar__version-btn {
-  font-size: var(--fs-1);
+  font-size: var(--fs-0);
   font-weight: var(--fw-1);
   color: var(--dim);
   opacity: 0.82;
   cursor: pointer;
-  transition: all var(--dur-1) ease;
+  transition: opacity var(--dur-1) var(--ease), color var(--dur-1) var(--ease), background var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
   padding: var(--s-1) var(--s-2);
   border-radius: var(--r-1);
 }
@@ -2658,13 +3762,12 @@
   font-weight: var(--fw-2);
   color: var(--text);
   text-transform: uppercase;
-  letter-spacing: 0.16em;
-  padding: var(--s-3) var(--s-3) var(--s-2);
-  border-bottom: 1px solid var(--border);
+  letter-spacing: 0.08em;
+  padding: var(--s-2) var(--s-3) var(--s-1);
 }
 
 .settings-sidebar__title:not(:first-child) {
-  margin-top: var(--s-4);
+  margin-top: var(--s-2);
 }
 
 .settings-sidebar__item {
@@ -2677,7 +3780,8 @@
   font-weight: var(--fw-1);
   color: var(--text-sub);
   border-radius: var(--r-1);
-  transition: all var(--dur-1) ease;
+  /* Deliberately excludes the active state's border-left (layout). */
+  transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
   text-align: left;
 }
 
@@ -2691,7 +3795,9 @@
   background: transparent;
   color: var(--text);
   font-weight: var(--fw-1);
-  border-left: 3px solid var(--orange);
+  /* accent-ink, not raw --orange: an active-tab INDICATOR needs 3:1 on the
+     light float surface, where #FF6700 fails. */
+  border-left: 3px solid var(--accent-ink);
   border-top-left-radius: 2px;
   border-bottom-left-radius: 2px;
 }
@@ -2702,17 +3808,16 @@
   margin: var(--s-1) 0 var(--s-1) var(--s-5);
   border-left: 2px solid var(--border);
   padding-left: var(--s-2);
-  gap: var(--s-1);
 }
 
 .settings-sidebar__sub-item {
   width: 100%;
-  padding: var(--s-1) var(--s-2);
-  font-size: var(--fs-1);
+  padding: 2px var(--s-2);
+  font-size: var(--fs-0);
   color: var(--dim);
   text-align: left;
   border-radius: var(--r-1);
-  transition: color var(--dur-1) ease, background var(--dur-1) ease;
+  transition: color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
 }
 
 .settings-sidebar__sub-item:hover {
@@ -2721,63 +3826,9 @@
 }
 
 
+/* Search box composes the .search-field__* primitive; this holds only the sidebar-specific spacing. */
 .settings-sidebar__search-wrap {
-  position: relative;
   margin-bottom: var(--s-1);
-}
-
-.settings-sidebar__search-icon {
-  position: absolute;
-  left: 9px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--dim);
-  opacity: 0.5;
-  pointer-events: none;
-}
-
-.settings-sidebar__search-input {
-  width: 100%;
-  background: var(--veil-1);
-  border: 1px solid transparent;
-  border-radius: var(--r-1);
-  color: var(--text);
-  font-size: var(--fs-1);
-  font-family: inherit;
-  padding: var(--s-2) var(--s-6);
-  transition: border-color var(--dur-1) ease, background var(--dur-1) ease;
-  box-sizing: border-box;
-}
-
-.settings-sidebar__search-input::placeholder {
-  color: var(--dim);
-  opacity: 0.5;
-}
-
-.settings-sidebar__search-input:focus {
-  border-color: var(--orange);
-  background: var(--veil-1);
-  outline: none;
-}
-
-.settings-sidebar__search-clear {
-  position: absolute;
-  right: 7px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--dim);
-  opacity: 0.55;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  padding: var(--s-1);
-  border-radius: var(--r-1);
-  transition: opacity var(--dur-1) ease;
-}
-
-.settings-sidebar__search-clear:hover {
-  opacity: 1;
-  background: var(--veil-2);
 }
 
 .settings-sidebar__search-results {
@@ -2799,12 +3850,15 @@
   flex-direction: column;
   gap: var(--s-1);
   cursor: pointer;
-  transition: background var(--dur-1) ease;
+  transition: background var(--dur-1) var(--ease);
 }
 
+/* Hover/keyboard highlight — veil language (this is a hover cursor, not a
+   selected state; solid --active-bg blaze would also bury the rows' own
+   text/dim ink colors). */
 .settings-sidebar__search-result:hover,
 .settings-sidebar__search-result--highlighted {
-  background: var(--active-bg);
+  background: var(--veil-2);
 }
 
 .settings-sidebar__search-result-label {
@@ -2842,7 +3896,6 @@
   justify-content: space-between;
   margin-bottom: var(--s-4);
   padding-bottom: var(--s-2);
-  border-bottom: 1px solid var(--border);
 }
 
 .settings-content__title {
@@ -2861,6 +3914,13 @@
   display: flex;
   flex-direction: column;
   gap: var(--s-3);
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color var(--dur-2) var(--ease);
+}
+
+.settings-content__body:hover {
+  scrollbar-color: var(--veil-1) transparent;
 }
 
 .settings-content__foot {
@@ -2870,7 +3930,11 @@
 }
 
 /* ── Responsive Styling ────────────────────────────────────── */
-@media (max-width: 800px) or (max-height: 600px) {
+@media (max-width: 900px) or (max-height: 660px) {
+  .backdrop--scrim:has(.settings-panel) {
+    padding: 0;
+  }
+
   .settings-panel {
     width: 100vw;
     height: 100vh;
@@ -2892,8 +3956,12 @@
     flex-direction: row;
     overflow-x: auto;
     padding: var(--s-3);
-    border-right: none;
-    border-bottom: 1px solid var(--border);
+  }
+
+  .settings-sidebar__nav {
+    flex-direction: row;
+    overflow-y: visible;
+    overflow-x: auto;
   }
 
   .settings-sidebar__footer {
@@ -2916,7 +3984,7 @@
 
   .settings-sidebar__item--active {
     border-left: none;
-    border-bottom: 3px solid var(--orange);
+    border-bottom: 3px solid var(--accent-ink);
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
   }
@@ -2944,7 +4012,7 @@
 
 .settings-divider {
   height: 1px;
-  background: var(--border);
+  background: transparent;
   border: none;
   margin: var(--s-2) 0;
 }
@@ -2957,8 +4025,8 @@
 
 
 .unbind-btn {
-  width: 32px;
-  height: 32px;
+  width: 22px;
+  height: 22px;
   padding: 0;
 }
 
@@ -2993,13 +4061,68 @@
 .avatar-settings-preview__initial {
   font-size: var(--fs-4);
   font-weight: var(--fw-2);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .avatar-settings-actions {
   display: flex;
   flex-direction: column;
   gap: var(--s-2);
+}
+
+.avatar-settings-actions--row {
+  flex-direction: row;
+  margin-top: var(--s-2);
+}
+
+.space-banner-settings-preview {
+  width: 100%;
+  /* Matches the sidebar's widest resizable state (560px) over its fixed hero
+     header height (96px) — see .sidebar__space-header above and
+     lib/spaceHeader.ts (the source of truth these two derive from). */
+  aspect-ratio: 560 / 96;
+  border-radius: var(--r-2);
+  overflow: hidden;
+  box-shadow: none;
+}
+
+.space-banner-settings-preview__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: var(--r-2);
+  display: block;
+}
+
+/* ─── Space Settings › Moderation (owner-gated) ──────────────────────────── */
+/* One action row: a stretching label/select + a trailing seg-btn. */
+.mod-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-top: var(--s-2);
+}
+
+.mod-row__label {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-1);
+  color: var(--dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mod-row__select {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Banned-users list: separated from the lock/transfer rows above it. */
+.mod-banlist {
+  margin-top: var(--s-3);
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--border);
 }
 
 .avatar-settings-remove {
@@ -3029,7 +4152,7 @@
   border: 1px solid var(--border);
   cursor: pointer;
   padding: 0;
-  transition: transform var(--dur-1), box-shadow var(--dur-1), border-color var(--dur-1);
+  transition: transform var(--dur-1) var(--ease), box-shadow var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
 }
 
 .accent-swatch:hover {
@@ -3042,13 +4165,16 @@
 }
 
 .accent-swatch--custom {
-  display: grid;
-  place-items: center;
-  font-size: var(--fs-4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-3);
   font-weight: var(--fw-1);
   color: var(--text-sub);
   background: transparent;
   border: 1.5px dashed var(--border);
+  line-height: 1;
+  padding-bottom: 2px;
 }
 
 .accent-swatch--custom:hover {
@@ -3070,7 +4196,7 @@
 /* ─── AvatarCropModal ─────────────────────────────────────────────────────── */
 
 .avatar-crop-modal {
-  background: var(--card);
+  background: var(--float);
   border: 1px solid var(--border);
   border-radius: var(--r-2);
   box-shadow: var(--sh-2);
@@ -3223,7 +4349,7 @@
 .room-modal__search-input {
   width: 100%;
   margin-bottom: var(--s-2);
-  transition: border-color var(--dur-1) ease;
+  transition: border-color var(--dur-1) var(--ease);
 }
 
 .room-modal__icon-container {
@@ -3232,7 +4358,7 @@
   border: 1px solid var(--border);
   border-radius: var(--r-1);
   padding: var(--s-3);
-  background: color-mix(in srgb, var(--tint) 4%, transparent);
+  background: var(--veil-1);
   margin-bottom: var(--s-4);
 }
 
@@ -3257,11 +4383,12 @@
 /* ════════════ ⑥ UTILITIES / TRUMPS ════════════ */
 
 .error {
-  color: var(--red);
+  color: var(--danger-fg);
   font-size: var(--fs-2);
 }
 
 .hint {
   color: var(--dim);
-  font-size: var(--fs-1);
+  font-size: var(--fs-0);
+  font-weight: var(--fw-1);
 }

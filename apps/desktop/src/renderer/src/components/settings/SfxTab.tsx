@@ -1,5 +1,5 @@
-import { SettingsRow } from './SettingsRow';
 import { ToggleRow } from './ToggleRow';
+import { SliderRow } from './SliderRow';
 import type { SettingsModalProps } from './types';
 
 type SfxTabProps = Pick<
@@ -90,18 +90,24 @@ export function SfxTab({
         disabled={!sfxEnabled}
       />
 
-      <SettingsRow label="SFX volume" hint="Sound effects volume.">
-        <input
-          type="range"
-          min="0"
-          max="1"
-          step="0.05"
-          value={sfxVolume}
-          disabled={!sfxEnabled}
-          onChange={(e) => onChangeSfxVolume(parseFloat(e.target.value))}
-          className="settings-slider"
-        />
-      </SettingsRow>
+      <SliderRow
+        label="SFX volume"
+        hint="Sound effects volume."
+        disabled={!sfxEnabled}
+        slider={{
+          min: 0,
+          max: 1,
+          step: 0.05,
+          value: sfxVolume,
+          onChange: onChangeSfxVolume,
+          markers: [0, 0.5, 1],
+          labels: [
+            { value: 0, text: '0%' },
+            { value: 0.5, text: '50%' },
+            { value: 1, text: '100%' },
+          ],
+        }}
+      />
     </>
   );
 }

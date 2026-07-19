@@ -34,7 +34,7 @@ export function ChatPanel({
 }: ChatPanelProps): React.JSX.Element {
   const [input, setInput] = useState('');
   const endRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerAnchor, setPickerAnchor] = useState<DOMRect | null>(null);
@@ -58,6 +58,28 @@ export function ChatPanel({
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  useEffect(() => {
+    textareaRef.current?.focus();
+  }, []);
+
+  const prevHeightRef = useRef<number>(0);
+
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    // box-sizing is border-box, but scrollHeight excludes border — add it back
+    // so the applied height has room for the content and doesn't self-overflow.
+    const borderY = el.offsetHeight - el.clientHeight;
+    const newHeight = Math.min(el.scrollHeight + borderY, 120);
+    el.style.height = `${newHeight}px`;
+
+    if (prevHeightRef.current && prevHeightRef.current !== newHeight) {
+      endRef.current?.scrollIntoView({ block: 'end' });
+    }
+    prevHeightRef.current = newHeight;
+  }, [input]);
+
   function submit(): void {
     const text = input.trim();
     if (!text) return;
@@ -66,7 +88,7 @@ export function ChatPanel({
   }
 
   function insertEmoji(emoji: string): void {
-    const el = inputRef.current;
+    const el = textareaRef.current;
     if (!el) {
       setInput((prev) => prev + emoji);
       return;
@@ -86,18 +108,18 @@ export function ChatPanel({
 
   // Drag-to-resize the chat panel width. The handle sits on the grid-facing edge
   // (left when the chat is docked right, right when docked left), so the panel
-  // grows when dragging toward the grid. base 290px maps to the 1.0–2.0 scale.
+  // grows when dragging toward the grid. base 280px maps to the 1.0–2.0 scale.
   function handleResizeStart(e: React.PointerEvent<HTMLDivElement>): void {
     if (!onResize) return;
     e.preventDefault();
     const handle = e.currentTarget;
     const startX = e.screenX;
-    const startWidth = panelRef.current?.getBoundingClientRect().width ?? 290 * (chatWidthScale ?? 1);
+    const startWidth = panelRef.current?.getBoundingClientRect().width ?? 280 * (chatWidthScale ?? 1);
     // Right-docked chat grows when dragging left (−delta); left-docked grows right (+delta).
     const sign = chatPosition === 'left' ? 1 : -1;
     handle.setPointerCapture(e.pointerId);
     const scaleFor = (ev: PointerEvent): number =>
-      Math.max(1.0, Math.min(2.0, (startWidth + sign * (ev.screenX - startX)) / 290));
+      Math.max(1.0, Math.min(2.0, (startWidth + sign * (ev.screenX - startX)) / 280));
     const onMove = (ev: PointerEvent): void => onResize(scaleFor(ev), false);
     const onUp = (ev: PointerEvent): void => {
       onResize(scaleFor(ev), true);
@@ -127,7 +149,6 @@ export function ChatPanel({
           aria-orientation="vertical"
         />
       )}
-      <div className="chat-panel__head">ROOM CHAT</div>
 
       <div className="chat-panel__scroll">
         {messages.length === 0 && <p className="chat-panel__empty">No messages yet</p>}
@@ -160,15 +181,26 @@ export function ChatPanel({
         >
           😊
         </button>
-        <input
-          ref={inputRef}
+        <textarea
+          ref={textareaRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && submit()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              submit();
+            }
+          }}
           placeholder="Message…"
           maxLength={500}
+          rows={1}
         />
-        <button className="send-btn" onClick={submit} aria-label="Send">
+        <button
+          className="send-btn"
+          onClick={submit}
+          aria-label="Send"
+          disabled={!input.trim()}
+        >
           <SendHorizontal size={14} />
         </button>
       </div>

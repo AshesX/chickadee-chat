@@ -2,6 +2,9 @@ import { CustomSelect } from '../CustomSelect';
 import { KeybindRow } from '../KeybindRow';
 import { VOICE_CATEGORIES } from '../../lib/voices';
 import { previewVoice } from '../../lib/tts';
+import { store } from '../../lib/settings';
+import { usePersistedState } from '../../hooks/usePersistedState';
+import { EmojiListManager } from './EmojiListManager';
 import { SettingsSection } from './SettingsSection';
 import { SettingsRow } from './SettingsRow';
 import { SliderRow } from './SliderRow';
@@ -15,6 +18,8 @@ type ChatTabProps = Pick<
   | 'chatPosition' | 'onChangeChatPosition'
   | 'chatTtsEnabled' | 'onChangeChatTtsEnabled'
   | 'chatTtsSpeakName' | 'onChangeChatTtsSpeakName'
+  | 'chatTtsSpeakOwnMessages' | 'onChangeChatTtsSpeakOwnMessages'
+  | 'chatTtsSpeakWhenFocused' | 'onChangeChatTtsSpeakWhenFocused'
   | 'voicePreference' | 'onChangeVoicePreference'
   | 'chatPanelKey' | 'onChangeChatPanelKey'
   | 'ttsToggleKey' | 'onChangeTtsToggleKey'
@@ -30,6 +35,10 @@ export function ChatTab({
   onChangeChatTtsEnabled,
   chatTtsSpeakName,
   onChangeChatTtsSpeakName,
+  chatTtsSpeakOwnMessages,
+  onChangeChatTtsSpeakOwnMessages,
+  chatTtsSpeakWhenFocused,
+  onChangeChatTtsSpeakWhenFocused,
   voicePreference,
   onChangeVoicePreference,
   chatPanelKey,
@@ -39,9 +48,11 @@ export function ChatTab({
   ttsStopKey,
   onChangeTtsStopKey,
 }: ChatTabProps): React.JSX.Element {
+  const [customEmojis, setCustomEmojis] = usePersistedState(store.getCustomEmojis, store.setCustomEmojis);
+
   return (
     <>
-      <SettingsSection id="section-chat-settings" title="Chat Settings" />
+      <SettingsSection id="section-chat-settings" title="Chat" />
 
       <SliderRow
         label="Chat Font Scale"
@@ -76,39 +87,67 @@ export function ChatTab({
         ]}
       />
 
+      <hr className="settings-divider" />
+      <SettingsSection id="section-chat-emojis" title="Emojis" />
+
+      <SettingsRow label="Favorite Emojis" hint="Custom emojis pinned to the top of your emoji picker.">
+        <EmojiListManager emojis={customEmojis} onChange={setCustomEmojis} max={24} />
+      </SettingsRow>
+
+      <hr className="settings-divider" />
+      <SettingsSection id="section-chat-tts" title="Text-to-Speech" />
+
       <ToggleRow
         label="Read messages aloud (Text-to-Speech)"
-        hint="Speaks new messages when app is unfocused."
+        hint="Speaks new chat messages aloud."
         value={chatTtsEnabled}
         onChange={onChangeChatTtsEnabled}
       />
 
-      <ToggleRow
-        label="Speak sender's name"
-        hint={<>Reads &quot;[name] says&quot; before messages.</>}
-        value={chatTtsSpeakName}
-        onChange={onChangeChatTtsSpeakName}
-      />
-
-      <SettingsRow
-        label="My chat voice"
-        hint="Your voice for others using TTS. Listeners match this to their closest system voice."
-      >
-        <div style={{ display: 'flex', gap: 'var(--s-2)', alignItems: 'center' }}>
-          <CustomSelect
-            value={voicePreference}
-            onChange={onChangeVoicePreference}
-            options={[
-              { value: '', label: 'System Default' },
-              ...VOICE_CATEGORIES.map((c) => ({ value: c.id, label: c.label })),
-            ]}
-            className="settings-device-select"
+      {chatTtsEnabled && (
+        <>
+          <ToggleRow
+            label="Speak own messages"
+            hint="Also reads messages you send."
+            value={chatTtsSpeakOwnMessages}
+            onChange={onChangeChatTtsSpeakOwnMessages}
           />
-          <button className="seg-btn" onClick={() => previewVoice(voicePreference)}>
-            Test
-          </button>
-        </div>
-      </SettingsRow>
+
+          <ToggleRow
+            label="Speak while focused"
+            hint="Otherwise only reads while unfocused."
+            value={chatTtsSpeakWhenFocused}
+            onChange={onChangeChatTtsSpeakWhenFocused}
+          />
+
+          <ToggleRow
+            label="Speak sender's name"
+            hint={<>Reads &quot;[name] says&quot; before messages.</>}
+            value={chatTtsSpeakName}
+            onChange={onChangeChatTtsSpeakName}
+          />
+
+          <SettingsRow
+            label="My chat voice"
+            hint="Your voice for others using TTS. Listeners match this to their closest system voice."
+          >
+            <div style={{ display: 'flex', gap: 'var(--s-2)', alignItems: 'center' }}>
+              <CustomSelect
+                value={voicePreference}
+                onChange={onChangeVoicePreference}
+                options={[
+                  { value: '', label: 'System Default' },
+                  ...VOICE_CATEGORIES.map((c) => ({ value: c.id, label: c.label })),
+                ]}
+                className="settings-device-select"
+              />
+              <button className="seg-btn" onClick={() => previewVoice(voicePreference)}>
+                Test
+              </button>
+            </div>
+          </SettingsRow>
+        </>
+      )}
 
       <hr className="settings-divider" />
       <SettingsSection id="section-chat-keybindings" title="Keybindings" />

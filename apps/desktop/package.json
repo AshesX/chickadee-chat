@@ -1,6 +1,6 @@
 {
   "name": "@chickadee/desktop",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Lightweight P2P desktop voice/video/screen-share app for small groups.",
   "author": "AshesX",
   "private": true,
@@ -15,12 +15,12 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@fontsource/space-grotesk": "^5.2.10",
+    "@fontsource/outfit": "^5.2.8",
+    "ffmpeg-static": "^5.3.0",
     "uiohook-napi": "^1.5.5"
   },
   "devDependencies": {
     "@chickadee/shared": "*",
-    "@fontsource/outfit": "^5.2.8",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^22.10.2",

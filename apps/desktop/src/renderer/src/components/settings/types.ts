@@ -1,7 +1,7 @@
-import type { ThemeName, VideoQuality } from '@chickadee/shared';
+import type { AudioQuality, SoundboardLibraryClip, ThemeName, VideoQuality } from '@chickadee/shared';
 import type { MediaDeviceOption } from '../../hooks/useMediaDevices';
 
-export type TabId = 'profile' | 'audio' | 'video' | 'sfx' | 'chat' | 'ui' | 'app' | 'keybindings';
+export type TabId = 'profile' | 'audio' | 'video' | 'sfx' | 'chat' | 'reactions' | 'ui' | 'app' | 'keybindings' | 'soundboard';
 
 export interface SearchEntry {
   label: string;
@@ -36,6 +36,9 @@ export interface SettingsModalProps {
   onChangeVadReleaseMs: (v: number) => void;
   theme: ThemeName;
   onChangeTheme: (t: ThemeName) => void;
+  /** Hide the space banner image and show a shorter, text-only header instead. */
+  hideSpaceBanner: boolean;
+  onChangeHideSpaceBanner: (on: boolean) => void;
   launchOnStartup: boolean;
   onChangeLaunchOnStartup: (on: boolean) => void;
   closeBehavior: 'quit' | 'tray';
@@ -68,17 +71,38 @@ export interface SettingsModalProps {
   onChangeSfxDeafenEnabled: (on: boolean) => void;
   badgeNotificationsEnabled: boolean;
   onChangeBadgeNotificationsEnabled: (on: boolean) => void;
+  /** File sharing: auto-accept transfers from the trusted-users list. */
+  autoAcceptEnabled: boolean;
+  onChangeAutoAcceptEnabled: (on: boolean) => void;
+  autoAcceptUsers: { userId: string; displayName: string }[];
+  onRemoveTrustedUser: (userId: string) => void;
+  /** Master switch for the whole P2P soundboard feature. */
+  soundboardEnabled: boolean;
+  onChangeSoundboardEnabled: (on: boolean) => void;
+  soundboardVolume: number;
+  onChangeSoundboardVolume: (vol: number) => void;
+  /** Auto-download other peers' custom soundboard clips in the background. */
+  soundboardAutoSyncEnabled: boolean;
+  onChangeSoundboardAutoSyncEnabled: (on: boolean) => void;
+  /** Show/allow the bundled preset clips; off = only your own custom clips. */
+  soundboardPresetsEnabled: boolean;
+  onChangeSoundboardPresetsEnabled: (on: boolean) => void;
+  /** Don't play soundboard clips triggered by other room members; your own clips still play. */
+  soundboardMuteOthersEnabled: boolean;
+  onChangeSoundboardMuteOthersEnabled: (on: boolean) => void;
+  soundboardOwnClips: SoundboardLibraryClip[];
+  onAddSoundboardFiles: () => void;
+  onRemoveSoundboardClip: (hash: string) => void;
+  onOpenSoundboardInbox: () => void;
   initialTab?: string;
   micVolume: number;
   onChangeMicVolume: (vol: number) => void;
   outputVolume: number;
   onChangeOutputVolume: (vol: number) => void;
-  cameraFeatureEnabled: boolean;
-  onChangeCameraFeatureEnabled: (on: boolean) => void;
+
   cameraResolution: string;
   onChangeCameraResolution: (res: string) => void;
-  defaultVideoAction: 'camera' | 'screen';
-  onChangeDefaultVideoAction: (action: 'camera' | 'screen') => void;
+
   cameraFramerate: string;
   onChangeCameraFramerate: (fps: string) => void;
   screenResolution: string;
@@ -87,6 +111,11 @@ export interface SettingsModalProps {
   onChangeScreenFramerate: (fps: string) => void;
   videoQuality: VideoQuality;
   onChangeVideoQuality: (q: VideoQuality) => void;
+  /** Total stage-stream upload budget in Mbps (0 = unlimited). */
+  uploadBudgetMbps: number;
+  onChangeUploadBudgetMbps: (mbps: number) => void;
+  audioQuality: AudioQuality;
+  onChangeAudioQuality: (q: AudioQuality) => void;
   uiScale: number;
   onChangeUiScale: (scale: number) => void;
   chatFontScale: number;
@@ -101,6 +130,12 @@ export interface SettingsModalProps {
   onChangeChatTtsEnabled: (on: boolean) => void;
   chatTtsSpeakName: boolean;
   onChangeChatTtsSpeakName: (on: boolean) => void;
+  chatTtsSpeakOwnMessages: boolean;
+  onChangeChatTtsSpeakOwnMessages: (on: boolean) => void;
+  chatTtsSpeakWhenFocused: boolean;
+  onChangeChatTtsSpeakWhenFocused: (on: boolean) => void;
+  reactionsEnabled: boolean;
+  onChangeReactionsEnabled: (on: boolean) => void;
   voicePreference: string;
   onChangeVoicePreference: (id: string) => void;
   analyserNode: AnalyserNode | null;

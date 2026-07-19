@@ -1,4 +1,4 @@
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, ChevronsLeft } from 'lucide-react';
 import { Logo } from './Logo';
 import { WindowControls } from './WindowControls';
 
@@ -7,16 +7,31 @@ interface TitleBarProps {
   onToggleChat: () => void;
   inRoom: boolean;
   compact: boolean;
+  onToggleCompact: () => void;
 }
 
-export function TitleBar({ chatOpen, onToggleChat, inRoom, compact }: TitleBarProps): React.JSX.Element {
+export function TitleBar({ chatOpen, onToggleChat, inRoom, compact, onToggleCompact }: TitleBarProps): React.JSX.Element {
+  const collapseBtn = (
+    <button
+      className="icon-btn title-bar__collapse-btn"
+      onClick={onToggleCompact}
+      title={compact ? 'Expand' : 'Collapse to sidebar'}
+      aria-label={compact ? 'Expand' : 'Collapse to sidebar'}
+    >
+      <ChevronsLeft
+        size={14}
+        className={`title-bar__collapse-icon${compact ? ' title-bar__collapse-icon--flipped' : ''}`}
+      />
+    </button>
+  );
+
   return (
     <header className="title-bar">
-      <div className="title-bar__left">
+      <div className="title-bar__center">
         <Logo size={16} staticLogo className="title-bar__logo" />
         <span className="title-bar__wordmark">CHICKADEE CHAT</span>
       </div>
-      
+
       <div className="title-bar__spacer" />
 
       <div className="title-bar__right">
@@ -30,6 +45,17 @@ export function TitleBar({ chatOpen, onToggleChat, inRoom, compact }: TitleBarPr
             Chat
           </button>
         )}
+        {inRoom && compact && (
+          <button
+            className={`icon-btn title-bar__chat-btn${chatOpen ? ' title-bar__chat-btn--active' : ''}`}
+            onClick={onToggleChat}
+            title={chatOpen ? 'Hide chat' : 'Show chat'}
+            aria-label={chatOpen ? 'Hide chat' : 'Show chat'}
+          >
+            <MessageSquare size={14} />
+          </button>
+        )}
+        {collapseBtn}
         <WindowControls showMaximize={!compact} />
       </div>
     </header>

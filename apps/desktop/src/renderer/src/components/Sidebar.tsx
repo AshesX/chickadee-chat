@@ -17,6 +17,12 @@ interface SidebarProps {
   onCreateRoom: () => void;
   onRequestRename: (room: Room) => void;
   onRemoveRoom: (id: string) => void;
+  /** Room governance: whether the local user may rename/remove this room
+   *  (owner: all rooms; member: only the one they created). */
+  canManageRoom: (room: Room) => boolean;
+  /** Local stable userId — drives per-space owner checks in the switcher
+   *  ("Leave Space" vs "Delete Space" labels). */
+  myUserId: string;
   users: SpaceUser[];
   selfName: string;
   selfColor: string;
@@ -32,18 +38,21 @@ interface SidebarProps {
   onSelectSpace: (id: string) => void;
   onCreateSpace: () => void;
   onJoinSpace: () => void;
-  onDeleteSpace: (id: string, name: string) => void;
+  onDeleteSpace: (id: string) => void;
   onSpaceSettings: (id: string) => void;
 
-  // Collapsible room category sections (VOICE / VIDEO)
-  voiceCollapsed: boolean;
-  videoCollapsed: boolean;
-  onToggleVoiceSection: () => void;
-  onToggleVideoSection: () => void;
+  // Collapsible ROOMS section (rooms are unified hybrid — one list).
+  roomsCollapsed: boolean;
+  onToggleRoomsSection: () => void;
+
+  /** Hide the space banner image and show a shorter, text-only header instead. */
+  hideSpaceBanner: boolean;
 
   // Compact (sidebar-only dock) mode
   compact: boolean;
-  onToggleCompact: () => void;
+  /** Compact + chat sub-mode (dock also showing the room chat panel): shows the
+   *  sidebar/chat splitter handle instead of the (redundant, window-edge-only) plain-compact resize. */
+  compactChat: boolean;
   /** Current sidebar width scale (1.0–2.0), shared between compact + full view. */
   widthScale: number;
   /** Live sidebar resize from the drag handle; commit=true on pointer release. */
@@ -55,10 +64,6 @@ interface SidebarProps {
   onToggleDeafen: () => void;
   inputMode: 'voice' | 'ptt';
   onCycleInputMode: () => void;
-  /** Whether we've joined any peer's video (drives the compact leave-video button). */
-  hasVideoSubs: boolean;
-  /** Leave all joined video streams (compact-mode control). */
-  onLeaveAllVideo: () => void;
   /** Whether our own voice is currently active (greens the compact input-mode icon). */
   selfSpeaking: boolean;
   /** Stable userIds of peers currently speaking (drives compact avatar outlines). */
@@ -69,6 +74,31 @@ interface SidebarProps {
   onTogglePeerMute: (userId: string) => void;
   /** Leave the current room (compact Leave mini-button). */
   onLeaveRoom: () => void;
+  /** Start a P2P file transfer to a space member (USERS-row hover button). */
+  onSendFile?: (userId: string) => void;
+  /** OS files dropped onto a USERS row (multiple files = one batch). */
+  onDropFiles?: (userId: string, files: File[]) => void;
+
+  // Moderation (Space Owner / Room Moderator)
+  /** Stable userId of the Space Owner (gold star), or null when unowned. */
+  ownerUserId?: string | null;
+  /** Stable userId of the current room's moderator (silver star), or null. Room-scoped —
+   *  the client only knows the moderator of its own room. */
+  moderatorUserId?: string | null;
+  /** Whether the local user owns the active Space. */
+  amOwner?: boolean;
+  /** Whether the local user is the current room's moderator. */
+  amModerator?: boolean;
+  /** Bare ids of rooms currently locked to new entrants. */
+  lockedRoomIds?: string[];
+  /** Lock/unlock a room (owner any active room; moderator their own). */
+  onToggleRoomLock?: (roomId: string, locked: boolean) => void;
+  /** Whether the active Space is locked to newcomers. */
+  spaceLocked?: boolean;
+  /** Owner-only: lock/unlock the active Space. */
+  onToggleSpaceLock?: (locked: boolean) => void;
+  /** Open the moderation context menu for a USERS-list entry (right-click). */
+  onUserContextMenu?: (userId: string, name: string, x: number, y: number) => void;
 }
 
 export function Sidebar({
@@ -78,6 +108,8 @@ export function Sidebar({
   onCreateRoom,
   onRequestRename,
   onRemoveRoom,
+  canManageRoom,
+  myUserId,
   users,
   selfName,
   selfColor,
@@ -95,13 +127,13 @@ export function Sidebar({
   onDeleteSpace,
   onSpaceSettings,
 
-  voiceCollapsed,
-  videoCollapsed,
-  onToggleVoiceSection,
-  onToggleVideoSection,
+  roomsCollapsed,
+  onToggleRoomsSection,
+
+  hideSpaceBanner,
 
   compact,
-  onToggleCompact,
+  compactChat,
   widthScale,
   onResize,
   micEnabled,
@@ -111,13 +143,22 @@ export function Sidebar({
   onToggleDeafen,
   inputMode,
   onCycleInputMode,
-  hasVideoSubs,
-  onLeaveAllVideo,
   selfSpeaking,
   speakingUserIds,
   mutedUserIds,
   onTogglePeerMute,
   onLeaveRoom,
+  onSendFile,
+  onDropFiles,
+  ownerUserId,
+  moderatorUserId,
+  amOwner = false,
+  amModerator = false,
+  lockedRoomIds,
+  onToggleRoomLock,
+  spaceLocked = false,
+  onToggleSpaceLock,
+  onUserContextMenu,
 }: SidebarProps): React.JSX.Element {
   const selfInitial = selfName.trim().charAt(0).toUpperCase() || 'Y';
   const [menu, setMenu] = useState<{ room: Room; x: number; y: number } | null>(null);
@@ -126,6 +167,14 @@ export function Sidebar({
   const { navRef, handleResizeStart } = useSidebarResize(widthScale, onResize);
 
   const activeSpace = spaces.find((s) => s.id === activeSpaceId);
+
+  // Owner may lock any ACTIVE room (the server no-ops empty ones — an
+  // ephemeral lock on an empty room would never clear); a mod only their own.
+  const roomLockable = (roomId: string): boolean =>
+    onToggleRoomLock != null &&
+    (amOwner
+      ? roomId === currentRoomId || users.some((u) => u.roomId === roomId)
+      : amModerator && roomId === currentRoomId);
 
   const renderRoomRow = (r: Room): React.JSX.Element => (
     <RoomRow
@@ -143,23 +192,14 @@ export function Sidebar({
       mutedUserIds={mutedUserIds}
       onTogglePeerMute={onTogglePeerMute}
       onSelectRoom={onSelectRoom}
-      onContextMenu={(room, x, y) => setMenu({ room, x, y })}
-      compact={compact}
-      micEnabled={micEnabled}
-      hasMic={hasMic}
-      onToggleMic={onToggleMic}
-      deafened={deafened}
-      onToggleDeafen={onToggleDeafen}
-      inputMode={inputMode}
-      onCycleInputMode={onCycleInputMode}
-      hasVideoSubs={hasVideoSubs}
-      onLeaveAllVideo={onLeaveAllVideo}
-      onLeaveRoom={onLeaveRoom}
+      onContextMenu={(room, x, y) => {
+        // Open only when at least one item would show (mirrors UserContextMenu:
+        // unauthorized users never see an empty menu shell).
+        if (canManageRoom(room) || roomLockable(room.id)) setMenu({ room, x, y });
+      }}
+      locked={lockedRoomIds?.includes(r.id) ?? false}
     />
   );
-
-  const voiceRooms = rooms.filter((r) => (r.type ?? 'video') === 'voice');
-  const videoRooms = rooms.filter((r) => (r.type ?? 'video') === 'video');
 
   return (
     <nav className="sidebar" ref={navRef}>
@@ -171,8 +211,11 @@ export function Sidebar({
         onJoinSpace={onJoinSpace}
         onDeleteSpace={onDeleteSpace}
         onSpaceSettings={onSpaceSettings}
-        compact={compact}
-        onToggleCompact={onToggleCompact}
+        hideSpaceBanner={hideSpaceBanner}
+        canLockSpace={amOwner}
+        spaceLocked={spaceLocked}
+        onToggleSpaceLock={onToggleSpaceLock}
+        myUserId={myUserId}
       />
 
       <div className="sidebar__scroll">
@@ -180,16 +223,16 @@ export function Sidebar({
           <>
             <div
               className="sidebar__section-header"
-              onClick={onToggleVoiceSection}
-              title={voiceCollapsed ? 'Expand voice rooms' : 'Collapse voice rooms'}
+              onClick={onToggleRoomsSection}
+              title={roomsCollapsed ? 'Expand rooms' : 'Collapse rooms'}
               role="button"
               tabIndex={0}
             >
               <ChevronDown
                 size={12}
-                className={`sidebar__section-chevron${voiceCollapsed ? ' sidebar__section-chevron--collapsed' : ''}`}
+                className={`sidebar__section-chevron${roomsCollapsed ? ' sidebar__section-chevron--collapsed' : ''}`}
               />
-              <span>VOICE</span>
+              <span>ROOMS</span>
               <div style={{ flex: 1 }} />
               <button
                 className="sidebar__section-create-btn"
@@ -202,35 +245,7 @@ export function Sidebar({
                 <Plus size={14} />
               </button>
             </div>
-            {!voiceCollapsed && voiceRooms.map(renderRoomRow)}
-
-            <div
-              className="sidebar__section-header sidebar__section-header--spaced"
-              onClick={onToggleVideoSection}
-              title={videoCollapsed ? 'Expand video rooms' : 'Collapse video rooms'}
-              role="button"
-              tabIndex={0}
-            >
-              <ChevronDown
-                size={12}
-                className={`sidebar__section-chevron${videoCollapsed ? ' sidebar__section-chevron--collapsed' : ''}`}
-              />
-              <span>VIDEO</span>
-              <div style={{ flex: 1 }} />
-              <button
-                className="sidebar__section-create-btn"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onCreateRoom();
-                }}
-                title="Create Room"
-              >
-                <Plus size={14} />
-              </button>
-            </div>
-            {!videoCollapsed && videoRooms.map(renderRoomRow)}
-
-
+            {!roomsCollapsed && rooms.map(renderRoomRow)}
 
             <div
               className="sidebar__section-header sidebar__section-header--spaced"
@@ -245,7 +260,17 @@ export function Sidebar({
               />
               <span>USERS</span>
             </div>
-            {!usersCollapsed && users.map((u) => <FriendRow key={u.id} user={u} />)}
+            {!usersCollapsed &&
+              users.map((u) => (
+                <FriendRow
+                  key={u.id}
+                  user={u}
+                  role={u.id === ownerUserId ? 'owner' : u.id === moderatorUserId ? 'moderator' : null}
+                  onSendFile={onSendFile}
+                  onDropFiles={onDropFiles}
+                  onContextMenu={onUserContextMenu}
+                />
+              ))}
           </>
         )}
       </div>
@@ -259,6 +284,17 @@ export function Sidebar({
         selfStatus={selfStatus}
         onChangeStatus={onChangeStatus}
         onOpenSettings={onOpenSettings}
+        compact={compact}
+        micEnabled={micEnabled}
+        hasMic={hasMic}
+        onToggleMic={onToggleMic}
+        deafened={deafened}
+        onToggleDeafen={onToggleDeafen}
+        inputMode={inputMode}
+        onCycleInputMode={onCycleInputMode}
+        selfSpeaking={selfSpeaking}
+        inRoom={currentRoomId !== null}
+        onLeaveRoom={onLeaveRoom}
       />
 
       {menu && (
@@ -267,10 +303,14 @@ export function Sidebar({
           onClose={() => setMenu(null)}
           onRequestRename={onRequestRename}
           onRemoveRoom={onRemoveRoom}
+          canManage={canManageRoom(menu.room)}
+          canLock={roomLockable(menu.room.id)}
+          locked={lockedRoomIds?.includes(menu.room.id) ?? false}
+          onToggleLock={onToggleRoomLock}
         />
       )}
 
-      {!compact && (
+      {(!compact || compactChat) && (
         <div
           className="resize-handle sidebar__resize-handle"
           onPointerDown={handleResizeStart}

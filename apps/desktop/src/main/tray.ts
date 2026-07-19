@@ -9,6 +9,13 @@ export function setTrayMainWindow(w: BrowserWindow | null): void {
   mainWindow = w;
 }
 
+function showMainWindow(): void {
+  if (!mainWindow) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+}
+
 function rebuildTrayMenu(): void {
   if (!tray) return;
   tray.setToolTip(trayRoom ? `Chickadee — ${trayRoom}` : 'Chickadee Chat');
@@ -16,12 +23,7 @@ function rebuildTrayMenu(): void {
     Menu.buildFromTemplate([
       {
         label: 'Show Chickadee',
-        click: () => {
-          if (!mainWindow) return;
-          if (mainWindow.isMinimized()) mainWindow.restore();
-          mainWindow.show();
-          mainWindow.focus();
-        },
+        click: showMainWindow,
       },
       { label: trayRoom ? `Room: ${trayRoom}` : 'Not in a room', enabled: false },
       { type: 'separator' },
@@ -40,6 +42,8 @@ export function configureTray(): void {
     else {
       tray = new Tray(image);
       rebuildTrayMenu();
+      tray.on('click', showMainWindow);
+      tray.on('double-click', showMainWindow);
     }
   });
   ipcMain.handle('chickadee:set-tray-room', (_e, label: string | null) => {

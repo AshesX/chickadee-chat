@@ -1,14 +1,36 @@
-import { useState, useEffect, useRef } from 'react';
-import { User, Mic, Volume2, Sliders, X, Video, Monitor, MessageSquare, Search, Keyboard } from 'lucide-react';
+import { Fragment, useState, useEffect, useRef } from 'react';
+import { User, Mic, Volume2, Sliders, X, Video, Monitor, MessageSquare, Search, Keyboard, Music2, Smile } from 'lucide-react';
 import { defaultSettings } from '@chickadee/shared';
 import type { SettingsModalProps, TabId } from './settings/types';
 import { SUBSECTIONS, TAB_LABELS, getSearchResults } from './settings/searchIndex';
+
+// Sidebar nav structure: two titled groups of tabs. Labels come from TAB_LABELS
+// (also used by the search breadcrumbs) so the two can't drift apart.
+const NAV_SECTIONS: { title: string; tabs: { id: TabId; icon: typeof User }[] }[] = [
+  { title: 'User Settings', tabs: [{ id: 'profile', icon: User }] },
+  {
+    title: 'App Settings',
+    tabs: [
+      { id: 'audio', icon: Mic },
+      { id: 'video', icon: Video },
+      { id: 'sfx', icon: Volume2 },
+      { id: 'soundboard', icon: Music2 },
+      { id: 'chat', icon: MessageSquare },
+      { id: 'reactions', icon: Smile },
+      { id: 'keybindings', icon: Keyboard },
+      { id: 'ui', icon: Monitor },
+      { id: 'app', icon: Sliders },
+    ],
+  },
+];
 import { useSharedMicMeter } from './settings/MicMeter';
 import { ProfileTab } from './settings/ProfileTab';
 import { AudioTab } from './settings/AudioTab';
 import { VideoTab } from './settings/VideoTab';
 import { SfxTab } from './settings/SfxTab';
+import { SoundboardTab } from './settings/SoundboardTab';
 import { ChatTab } from './settings/ChatTab';
+import { ReactionsTab } from './settings/ReactionsTab';
 import { UiTab } from './settings/UiTab';
 import { KeybindingsTab } from './settings/KeybindingsTab';
 import { AppTab } from './settings/AppTab';
@@ -25,7 +47,7 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
   const [searchFocused, setSearchFocused] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const version = window.chickadee?.appVersion || '0.3.1';
+  const version = window.chickadee?.appVersion || '0.4.0';
 
   function scrollToSection(id: string): void {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -98,6 +120,7 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
     props.onChangeVadThreshold(defaults.vadThreshold);
     props.onChangeVadReleaseMs(defaults.vadReleaseMs);
     props.onChangeTheme(defaults.theme);
+    props.onChangeHideSpaceBanner(defaults.hideSpaceBanner);
     props.onChangeLaunchOnStartup(defaults.launchOnStartup);
     props.onChangeCloseBehavior(defaults.closeBehavior);
     props.onChangeAlwaysOnTop(defaults.alwaysOnTop);
@@ -114,14 +137,19 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
     props.onChangeSfxChatEnabled(defaults.sfxChatEnabled);
     props.onChangeSfxDeafenEnabled(defaults.sfxDeafenEnabled);
     props.onChangeBadgeNotificationsEnabled(defaults.badgeNotificationsEnabled);
+    props.onChangeSoundboardEnabled(defaults.soundboardEnabled);
+    props.onChangeSoundboardVolume(defaults.soundboardVolume);
+    props.onChangeSoundboardPresetsEnabled(defaults.soundboardPresetsEnabled);
+    props.onChangeSoundboardMuteOthersEnabled(defaults.soundboardMuteOthersEnabled);
     props.onChangeMicVolume(defaults.micVolume);
-    props.onChangeCameraFeatureEnabled(defaults.cameraFeatureEnabled);
+
     props.onChangeCameraResolution(defaults.cameraResolution);
-    props.onChangeDefaultVideoAction(defaults.defaultVideoAction ?? 'screen');
     props.onChangeCameraFramerate(defaults.cameraFramerate);
     props.onChangeScreenResolution(defaults.screenResolution);
     props.onChangeScreenFramerate(defaults.screenFramerate);
     props.onChangeVideoQuality(defaults.videoQuality);
+    props.onChangeUploadBudgetMbps(defaults.uploadBudgetMbps);
+    props.onChangeAudioQuality(defaults.audioQuality);
     props.onChangeUiScale(defaults.uiScale);
     props.onChangeChatFontScale(defaults.chatFontScale);
     props.onChangeChatPosition(defaults.chatPosition);
@@ -129,6 +157,9 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
     props.onChangeSidebarWidthScale(defaults.sidebarWidthScale);
     props.onChangeChatTtsEnabled(defaults.chatTtsEnabled);
     props.onChangeChatTtsSpeakName(defaults.chatTtsSpeakName);
+    props.onChangeChatTtsSpeakOwnMessages(defaults.chatTtsSpeakOwnMessages);
+    props.onChangeChatTtsSpeakWhenFocused(defaults.chatTtsSpeakWhenFocused);
+    props.onChangeReactionsEnabled(defaults.reactionsEnabled);
     props.onChangeVoicePreference(defaults.voicePreference);
     props.onChangeDeafenKey(defaults.deafenKey);
     props.onChangeDeafenMode(defaults.deafenMode);
@@ -148,12 +179,12 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
 
         {/* Left Sidebar Menu */}
         <div className="settings-sidebar">
-          <div className="settings-sidebar__search-wrap">
-            <Search size={12} className="settings-sidebar__search-icon" />
+          <div className="search-field__wrap settings-sidebar__search-wrap">
+            <Search size={12} className="search-field__icon" />
             <input
               ref={searchInputRef}
               type="text"
-              className="settings-sidebar__search-input"
+              className="search-field__input"
               placeholder="Search settings…"
               value={searchQuery}
               onChange={(e) => { setSearchQuery(e.target.value); setHighlightedIndex(-1); }}
@@ -164,7 +195,7 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
             />
             {searchQuery && (
               <button
-                className="settings-sidebar__search-clear"
+                className="search-field__clear"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => { setSearchQuery(''); setHighlightedIndex(-1); searchInputRef.current?.focus(); }}
                 aria-label="Clear search"
@@ -198,100 +229,31 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
               </div>
             )}
           </div>
-          <div className="settings-sidebar__title">User Settings</div>
-          <button
-            className={`settings-sidebar__item${activeTab === 'profile' ? ' settings-sidebar__item--active' : ''}`}
-            onClick={() => setActiveTab('profile')}
-          >
-            <User size={15} />
-            <span>My Profile</span>
-          </button>
-          {activeTab === 'profile' && (
-            <div className="settings-sidebar__sub-items">
-              {SUBSECTIONS.profile!.map((s) => (
-                <button key={s.id} className="settings-sidebar__sub-item" onClick={() => scrollToSection(s.id)}>{s.label}</button>
+          <div className="settings-sidebar__nav">
+          {NAV_SECTIONS.map((group) => (
+            <Fragment key={group.title}>
+              <div className="settings-sidebar__title">{group.title}</div>
+              {group.tabs.map(({ id, icon: Icon }) => (
+                <Fragment key={id}>
+                  <button
+                    className={`settings-sidebar__item${activeTab === id ? ' settings-sidebar__item--active' : ''}`}
+                    onClick={() => setActiveTab(id)}
+                  >
+                    <Icon size={15} />
+                    <span>{TAB_LABELS[id]}</span>
+                  </button>
+                  {activeTab === id && SUBSECTIONS[id] && (
+                    <div className="settings-sidebar__sub-items">
+                      {SUBSECTIONS[id]!.map((s) => (
+                        <button key={s.id} className="settings-sidebar__sub-item" onClick={() => scrollToSection(s.id)}>{s.label}</button>
+                      ))}
+                    </div>
+                  )}
+                </Fragment>
               ))}
-            </div>
-          )}
-
-          <div className="settings-sidebar__title">App Settings</div>
-          <button
-            className={`settings-sidebar__item${activeTab === 'audio' ? ' settings-sidebar__item--active' : ''}`}
-            onClick={() => setActiveTab('audio')}
-          >
-            <Mic size={15} />
-            <span>Voice & Audio</span>
-          </button>
-          {activeTab === 'audio' && (
-            <div className="settings-sidebar__sub-items">
-              {SUBSECTIONS.audio!.map((s) => (
-                <button key={s.id} className="settings-sidebar__sub-item" onClick={() => scrollToSection(s.id)}>{s.label}</button>
-              ))}
-            </div>
-          )}
-          <button
-            className={`settings-sidebar__item${activeTab === 'video' ? ' settings-sidebar__item--active' : ''}`}
-            onClick={() => setActiveTab('video')}
-          >
-            <Video size={15} />
-            <span>Video & Screen Share</span>
-          </button>
-          {activeTab === 'video' && (
-            <div className="settings-sidebar__sub-items">
-              {SUBSECTIONS.video!.map((s) => (
-                <button key={s.id} className="settings-sidebar__sub-item" onClick={() => scrollToSection(s.id)}>{s.label}</button>
-              ))}
-            </div>
-          )}
-          <button
-            className={`settings-sidebar__item${activeTab === 'sfx' ? ' settings-sidebar__item--active' : ''}`}
-            onClick={() => setActiveTab('sfx')}
-          >
-            <Volume2 size={15} />
-            <span>Sound Effects</span>
-          </button>
-          <button
-            className={`settings-sidebar__item${activeTab === 'chat' ? ' settings-sidebar__item--active' : ''}`}
-            onClick={() => setActiveTab('chat')}
-          >
-            <MessageSquare size={15} />
-            <span>Chat Settings</span>
-          </button>
-          {activeTab === 'chat' && (
-            <div className="settings-sidebar__sub-items">
-              {SUBSECTIONS.chat!.map((s) => (
-                <button key={s.id} className="settings-sidebar__sub-item" onClick={() => scrollToSection(s.id)}>{s.label}</button>
-              ))}
-            </div>
-          )}
-          <button
-            className={`settings-sidebar__item${activeTab === 'keybindings' ? ' settings-sidebar__item--active' : ''}`}
-            onClick={() => setActiveTab('keybindings')}
-          >
-            <Keyboard size={15} />
-            <span>Keybindings</span>
-          </button>
-          {activeTab === 'keybindings' && (
-            <div className="settings-sidebar__sub-items">
-              {SUBSECTIONS.keybindings!.map((s) => (
-                <button key={s.id} className="settings-sidebar__sub-item" onClick={() => scrollToSection(s.id)}>{s.label}</button>
-              ))}
-            </div>
-          )}
-          <button
-            className={`settings-sidebar__item${activeTab === 'ui' ? ' settings-sidebar__item--active' : ''}`}
-            onClick={() => setActiveTab('ui')}
-          >
-            <Monitor size={15} />
-            <span>User Interface</span>
-          </button>
-          <button
-            className={`settings-sidebar__item${activeTab === 'app' ? ' settings-sidebar__item--active' : ''}`}
-            onClick={() => setActiveTab('app')}
-          >
-            <Sliders size={15} />
-            <span>App Settings</span>
-          </button>
+            </Fragment>
+          ))}
+          </div>
 
           <div className="settings-sidebar__footer">
             <button
@@ -307,16 +269,7 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
         {/* Right Content Panel */}
         <div className="settings-content">
           <div className="settings-content__head">
-            <h2 className="settings-content__title">
-              {activeTab === 'profile' && 'My Profile'}
-              {activeTab === 'audio' && 'Voice & Audio'}
-              {activeTab === 'video' && 'Video & Screen Share'}
-              {activeTab === 'sfx' && 'Sound Effects'}
-              {activeTab === 'chat' && 'Chat Settings'}
-              {activeTab === 'keybindings' && 'Keybindings'}
-              {activeTab === 'ui' && 'User Interface'}
-              {activeTab === 'app' && 'App Settings'}
-            </h2>
+            <h2 className="settings-content__title">{TAB_LABELS[activeTab]}</h2>
             <button className="icon-btn" onClick={onClose} aria-label="Close settings">
               <X size={18} />
             </button>
@@ -331,7 +284,9 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
             )}
             {activeTab === 'video' && <VideoTab {...props} />}
             {activeTab === 'sfx' && <SfxTab {...props} />}
+            {activeTab === 'soundboard' && <SoundboardTab {...props} />}
             {activeTab === 'chat' && <ChatTab {...props} />}
+            {activeTab === 'reactions' && <ReactionsTab {...props} />}
             {activeTab === 'ui' && <UiTab {...props} />}
             {activeTab === 'keybindings' && (
               <KeybindingsTab {...props} />

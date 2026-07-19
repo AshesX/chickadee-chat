@@ -1,9 +1,10 @@
 import { memo, useMemo } from 'react';
-import { MicOff, VolumeX, Play, EyeOff } from 'lucide-react';
+import { MicOff, VolumeX, Play, EyeOff, Maximize2 } from 'lucide-react';
 import { sanitizeAvatarDataUrl } from '@chickadee/shared';
 import { usePeerAudioGraph } from '../hooks/usePeerAudioGraph';
 import { withAlpha } from '../lib/userColors';
 import { TileVolumeControl } from './TileVolumeControl';
+import { RoleStar } from './RoleStar';
 
 export interface ParticipantTileProps {
   displayName: string;
@@ -26,6 +27,12 @@ export interface ParticipantTileProps {
   color: string;
   /** Connection state for remote peers; omitted for self. */
   connectionState?: RTCPeerConnectionState;
+  /**
+   * Remote only: stats-derived link health from the mesh monitor. Overrides the
+   * raw connectionState note — the pc can claim 'connected' while its media is
+   * dead ('recovering' = an automatic restart/relink is in flight).
+   */
+  health?: 'ok' | 'recovering' | 'failed';
   /** Whether this participant is currently speaking (drives the ripple); synced from the wire. */
   speaking?: boolean;
   /** Remote only: output volume 0–2 (default 1, where 2 = 200% boost). */
@@ -60,6 +67,14 @@ export interface ParticipantTileProps {
   onJoinVideo?: (userId: string) => void;
   /** Remote only: leave this peer's video (stop watching). Takes `userId` so the handler stays stable. */
   onLeaveVideo?: (userId: string) => void;
+  /** Self only: show the "Spotlight" button (promote this camera to the room stage). */
+  showSpotlightButton?: boolean;
+  /** Self only: claim the stage for this camera. */
+  onSpotlight?: () => void;
+  /** Authority badge beside the name: Space Owner (gold) / Room Moderator (silver) / none. */
+  role?: 'owner' | 'moderator' | null;
+  /** Remote only: open the moderation context menu for this user (tile right-click). */
+  onUserContextMenu?: (userId: string, name: string, x: number, y: number) => void;
 }
 
 const CONN_LABEL: Partial<Record<RTCPeerConnectionState, string>> = {
@@ -80,6 +95,7 @@ function ParticipantTileImpl({
   cameraVideoId,
   color,
   connectionState,
+  health = 'ok',
   speaking = false,
   volume,
   peerVolume,
@@ -95,6 +111,10 @@ function ParticipantTileImpl({
   subscribed = false,
   onJoinVideo,
   onLeaveVideo,
+  showSpotlightButton = false,
+  onSpotlight,
+  role = null,
+  onUserContextMenu,
 }: ParticipantTileProps): React.JSX.Element {
   // Validate peer-supplied avatar data URLs before rendering (defense in depth;
   // the server already sanitizes, but never trust an <img src> from the wire).
@@ -121,30 +141,63 @@ function ParticipantTileImpl({
   // Opt-in video: we only render a peer's camera/screen once we've joined them
   // (self always sees its own). Un-joined peers show their avatar + a Watch button.
   const showVideo = cameraOn && (isSelf || subscribed);
-  const mediaShown = showVideo || (screenSharing && (isSelf || subscribed));
-  // Two mutually-exclusive cues: tiles actually showing video/screen get the
-  // rectangular frame outline; avatar (voice-only / un-joined) tiles get the ring.
-  const showFrame = showSpeaking && mediaShown;
-  const showAvatarRing = showSpeaking && !mediaShown;
+  
+  // The speaking indicators:
+  // - If video is showing, the small badge avatar is outlined.
+  // - If video is not showing (avatar is in the center), the center avatar is outlined.
+  const showCenterAvatarRing = showSpeaking && !showVideo;
+  const showBadgeAvatarRing = showSpeaking && showVideo;
+
   // Watch (join) appears when this peer has video available but we haven't joined.
   const showWatch = !isSelf && !subscribed && (cameraOn || screenSharing);
 
-  const connNote = !isSelf && connectionState ? CONN_LABEL[connectionState] : undefined;
+  // Health (stats-derived) outranks the raw connectionState label: a silently
+  // stalled pc still reads 'connected', so only the monitor knows it's healing.
+  const connNote = isSelf
+    ? undefined
+    : health === 'failed'
+      ? 'connection lost'
+      : health === 'recovering'
+        ? 'reconnecting…'
+        : connectionState
+          ? CONN_LABEL[connectionState]
+          : undefined;
   const initial = displayName.trim().charAt(0).toUpperCase() || '?';
 
   // Per-listener volume control (remote peers only): a corner icon that reveals a
   // slider on hover. Edits this peer's raw volume factor; master/deafen apply separately.
   const showVolumeControl = !isSelf && onVolumeChange != null && peerId != null;
 
+  const renderAvatar = (size: 'sm' | 'lg', showRing: boolean, extraOverlay?: React.ReactNode) => (
+    <div
+      className={`avatar avatar--${size} tile__avatar${showRing ? ' tile__avatar--speaking' : ''}`}
+      style={{
+        background: safeAvatarUrl ? undefined : color,
+      }}
+    >
+      {safeAvatarUrl ? (
+        <img src={safeAvatarUrl} alt={displayName} />
+      ) : (
+        initial
+      )}
+      {extraOverlay}
+    </div>
+  );
+
   return (
     <li
-      className={`tile${isSelf ? ' tile--self' : ''}${showFrame ? ' tile--speaking' : ''}`}
+      className={`tile${isSelf ? ' tile--self' : ''}${showVideo ? ' tile--video' : ''}`}
       style={{ '--accent': color, '--accent-glow': withAlpha(color, 44) } as React.CSSProperties}
+      onContextMenu={
+        !isSelf && onUserContextMenu && userId != null
+          ? (e) => {
+              e.preventDefault();
+              onUserContextMenu(userId, displayName, e.clientX, e.clientY);
+            }
+          : undefined
+      }
     >
-      <div
-        className="tile__ambient"
-        style={{ background: `radial-gradient(circle at 50% 62%, ${withAlpha(color, 5)} 0%, transparent 58%)` }}
-      />
+
 
       <video
         ref={videoRef}
@@ -157,34 +210,28 @@ function ParticipantTileImpl({
 
       {!showVideo && (
         <div className="tile__center">
-          <div
-            className={`avatar avatar--lg tile__avatar${showAvatarRing ? ' tile__avatar--speaking' : ''}`}
-            style={{
-              background: safeAvatarUrl ? undefined : color,
-            }}
-          >
-            {safeAvatarUrl ? (
-              <img src={safeAvatarUrl} alt={displayName} />
-            ) : (
-              initial
-            )}
-            {(deafened || showMuteIcon) && (
+          {renderAvatar(
+            'lg',
+            showCenterAvatarRing,
+            (deafened || showMuteIcon) && (
               <span className="tile__avatar-mute">
-                {deafened && <VolumeX size={11} strokeWidth={2.5} />}
-                {showMuteIcon && <MicOff size={11} strokeWidth={2.5} />}
+                {deafened && <VolumeX size={14} strokeWidth={2.5} />}
+                {showMuteIcon && <MicOff size={14} strokeWidth={2.5} />}
               </span>
-            )}
-          </div>
+            )
+          )}
         </div>
       )}
 
       <div className="tile__badge">
+        {showVideo && renderAvatar('sm', showBadgeAvatarRing)}
         <span className="tile__badge-name">
           {displayName}
           {isSelf && ' (you)'}
         </span>
-        {deafened && showVideo && <VolumeX size={12} className="tile__badge-mute" />}
-        {showMuteIcon && showVideo && <MicOff size={12} className="tile__badge-mute" />}
+        {role && <RoleStar role={role} />}
+        {deafened && showVideo && <VolumeX size={14} className="tile__badge-mute" />}
+        {showMuteIcon && showVideo && <MicOff size={14} className="tile__badge-mute" />}
       </div>
 
       {connNote && <div className="tile__conn">{connNote}</div>}
@@ -202,6 +249,18 @@ function ParticipantTileImpl({
         <button type="button" className="tile__watch" onClick={() => onJoinVideo?.(userId)}>
           <Play size={15} strokeWidth={2.5} fill="currentColor" />
           Watch
+        </button>
+      )}
+
+      {showSpotlightButton && onSpotlight && (
+        <button
+          type="button"
+          className="tile__spotlight"
+          onClick={onSpotlight}
+          title="Spotlight your camera on the stage"
+          aria-label="Spotlight your camera on the stage"
+        >
+          <Maximize2 size={14} strokeWidth={2.5} />
         </button>
       )}
 

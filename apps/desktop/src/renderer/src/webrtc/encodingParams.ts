@@ -13,7 +13,7 @@
  * lever for this app.
  */
 
-import type { VideoQuality } from '@chickadee/shared';
+import type { AudioQuality, VideoQuality } from '@chickadee/shared';
 
 /** The subset of `RTCRtpEncodingParameters` we set, plus the top-level degradation pref. */
 export interface VideoEncoding {
@@ -72,7 +72,7 @@ const QUALITY_MULTIPLIER: Record<Exclude<VideoQuality, 'max'>, number> = {
 };
 
 /** Opus `maxaveragebitrate` (bits/sec) per quality tier; `'max'` = uncapped/stereo. */
-const AUDIO_BPS: Record<VideoQuality, number | undefined> = {
+const AUDIO_BPS: Record<AudioQuality, number | undefined> = {
   max: undefined,
   high: 48_000,
   balanced: 40_000,
@@ -80,17 +80,51 @@ const AUDIO_BPS: Record<VideoQuality, number | undefined> = {
 };
 
 /**
- * Compute the sender encoding for one video kind at a given resolution/framerate
- * and quality tier. `'max'` leaves `maxBitrate` undefined (uncapped). Unknown
- * resolutions fall back to the 720p row. Screen prefers `maintain-resolution`
- * (keep sharpness, drop framerate first); camera prefers `balanced`.
+ * A video sender's role in the golden-ratio model. Exactly one stream per room is
+ * `'stage'` (the spotlighted screen/camera — high quality); every other webcam is a
+ * `'thumbnail'` (aggressively compressed, so N thumbnails stay cheap in the mesh).
+ */
+export type VideoRole = 'stage' | 'thumbnail';
+
+/** Fixed thumbnail ceilings — uniform + tiny regardless of tier, so gallery webcams
+ *  never threaten the uplink. The bitrate cap is the hard guarantee; the downscale +
+ *  fps cap also cut encode CPU. */
+const THUMBNAIL_BPS = 200_000;
+const THUMBNAIL_FPS = 15;
+const THUMBNAIL_SCALE = 3;
+
+/**
+ * Total outbound bitrate (bits/sec) the single stage stream may consume across ALL
+ * its subscribers combined. In a full mesh, upload = perViewerBitrate × viewers, so
+ * setting perViewerBitrate = budget / viewers bounds total stage upload at ~this
+ * budget no matter how many watch (quality degrades gracefully as more subscribe).
+ * A hard ceiling even for the `'max'` tier — the mesh-safety lever for 8-user rooms.
+ */
+export const STAGE_UPLOAD_BUDGET_BPS = 12_000_000;
+
+/**
+ * Compute the sender encoding for one video kind at a given resolution/framerate,
+ * quality tier, and role. A `'thumbnail'` returns fixed tiny ceilings (bitrate +
+ * downscale + low fps) independent of tier — every non-stage webcam is compressed.
+ * A `'stage'` returns the tier-based ceiling (`'max'` leaves `maxBitrate` undefined —
+ * see `applyUploadBudget`, which still bounds it). Unknown resolutions fall back to
+ * the 720p row. Screen prefers `maintain-resolution`; camera prefers `balanced`.
  */
 export function computeVideoEncoding(
   kind: 'camera' | 'screen',
   resolution: string,
   framerate: string,
   quality: VideoQuality,
+  role: VideoRole = 'stage',
 ): VideoEncoding {
+  if (role === 'thumbnail') {
+    return {
+      maxBitrate: THUMBNAIL_BPS,
+      maxFramerate: THUMBNAIL_FPS,
+      scaleResolutionDownBy: THUMBNAIL_SCALE,
+      degradationPreference: 'balanced',
+    };
+  }
   const base = kind === 'camera' ? CAMERA_BASE_BPS : SCREEN_BASE_BPS;
   const baseBps = base[resolution] ?? base['720p'];
   const maxBitrate =
@@ -103,8 +137,27 @@ export function computeVideoEncoding(
   };
 }
 
+/**
+ * Clamp a stage encoding to the per-viewer share of the upload budget:
+ * `min(tierCap, floor(budget / viewers))`. The budget applies even to the `'max'`
+ * tier (uncapped `maxBitrate`), so total stage upload stays bounded at ~`budget`
+ * regardless of how many peers subscribe. `viewers` is floored at 1. A non-finite
+ * or `<= 0` budget means "unlimited" — the encoding is returned unchanged (the
+ * tier cap, if any, still applies; `'max'` stays uncapped).
+ */
+export function applyUploadBudget(
+  enc: VideoEncoding,
+  viewers: number,
+  budget: number = STAGE_UPLOAD_BUDGET_BPS,
+): VideoEncoding {
+  if (!Number.isFinite(budget) || budget <= 0) return enc;
+  const perViewer = Math.floor(budget / Math.max(1, viewers));
+  const capped = enc.maxBitrate == null ? perViewer : Math.min(enc.maxBitrate, perViewer);
+  return { ...enc, maxBitrate: capped };
+}
+
 /** Compute the Opus audio target for a quality tier (mono + bitrate cap below `'max'`). */
-export function computeAudioEncoding(quality: VideoQuality): AudioEncoding {
+export function computeAudioEncoding(quality: AudioQuality): AudioEncoding {
   return { maxAverageBitrate: AUDIO_BPS[quality], mono: quality !== 'max' };
 }
 
@@ -123,17 +176,29 @@ export function formatBitrate(bps?: number): string {
   return `${Math.round(bps / 1000)} kbps`;
 }
 
-/** Build the full mesh encoding config from the current video settings + quality tier. */
+/**
+ * Build the full mesh encoding config from the current settings + quality tiers,
+ * given which of our streams (if any) currently holds the room stage and how many
+ * peers are watching it. The spotlighted kind is `'stage'` (tier cap clamped by the
+ * upload budget); the other kind, if published, is a compressed `'thumbnail'`. With
+ * `stageKind = null` (we don't hold the stage) both camera + screen are thumbnails.
+ */
 export function computeMeshEncoding(
   cameraResolution: string,
   cameraFramerate: string,
   screenResolution: string,
   screenFramerate: string,
-  quality: VideoQuality,
+  videoQuality: VideoQuality,
+  audioQuality: AudioQuality,
+  stageKind: 'screen' | 'camera' | null = null,
+  watcherCount = 0,
+  budget: number = STAGE_UPLOAD_BUDGET_BPS,
 ): MeshEncoding {
-  return {
-    camera: computeVideoEncoding('camera', cameraResolution, cameraFramerate, quality),
-    screen: computeVideoEncoding('screen', screenResolution, screenFramerate, quality),
-    audio: computeAudioEncoding(quality),
-  };
+  const cameraRole: VideoRole = stageKind === 'camera' ? 'stage' : 'thumbnail';
+  const screenRole: VideoRole = stageKind === 'screen' ? 'stage' : 'thumbnail';
+  let camera = computeVideoEncoding('camera', cameraResolution, cameraFramerate, videoQuality, cameraRole);
+  let screen = computeVideoEncoding('screen', screenResolution, screenFramerate, videoQuality, screenRole);
+  if (cameraRole === 'stage') camera = applyUploadBudget(camera, watcherCount, budget);
+  if (screenRole === 'stage') screen = applyUploadBudget(screen, watcherCount, budget);
+  return { camera, screen, audio: computeAudioEncoding(audioQuality) };
 }

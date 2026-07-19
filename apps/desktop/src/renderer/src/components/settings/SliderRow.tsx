@@ -13,7 +13,7 @@ export function SliderRow({
   hint,
   slider,
   meter,
-  constrained = false,
+  constrained = true,
   disabled,
 }: {
   label: React.ReactNode;

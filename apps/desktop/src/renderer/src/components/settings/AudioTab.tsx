@@ -1,8 +1,11 @@
+import type { AudioQuality } from '@chickadee/shared';
 import { CustomSelect } from '../CustomSelect';
 import { KeybindRow } from '../KeybindRow';
 import { GATE_THRESHOLD_MIN, GATE_THRESHOLD_MAX } from '../../lib/audioGate';
+import { computeAudioEncoding, formatBitrate } from '../../webrtc/encodingParams';
 import { SettingsSection } from './SettingsSection';
 import { SettingsRow } from './SettingsRow';
+import { SelectRow } from './SelectRow';
 import { SliderRow } from './SliderRow';
 import { SegmentedRow } from './SegmentedRow';
 import { ToggleRow } from './ToggleRow';
@@ -24,6 +27,7 @@ type AudioTabProps = Pick<
   | 'echoCancellation' | 'onChangeEchoCancellation'
   | 'autoGainControl' | 'onChangeAutoGainControl'
   | 'normalizeVoices' | 'onChangeNormalizeVoices'
+  | 'audioQuality' | 'onChangeAudioQuality'
   | 'analyserNode'
 > & {
   micBars: React.MutableRefObject<Set<HTMLDivElement>>;
@@ -58,6 +62,8 @@ export function AudioTab({
   onChangeAutoGainControl,
   normalizeVoices,
   onChangeNormalizeVoices,
+  audioQuality,
+  onChangeAudioQuality,
   analyserNode,
   micBars,
 }: AudioTabProps): React.JSX.Element {
@@ -229,6 +235,38 @@ export function AudioTab({
         value={normalizeVoices}
         onChange={onChangeNormalizeVoices}
       />
+
+      <hr className="settings-divider" />
+      <SettingsSection id="section-voice-quality" title="Voice Quality" />
+
+      <SelectRow
+        label="Quality"
+        hint="Caps outbound Opus bitrate for your voice. Lower tiers save bandwidth in busy rooms."
+        value={audioQuality}
+        onChange={(v) => onChangeAudioQuality(v as AudioQuality)}
+        options={[
+          { value: 'max', label: 'Maximum (stereo, uncapped)' },
+          { value: 'high', label: 'High' },
+          { value: 'balanced', label: 'Balanced' },
+          { value: 'saver', label: 'Data saver' },
+        ]}
+      />
+
+      {(() => {
+        const enc = computeAudioEncoding(audioQuality);
+        const label = enc.maxAverageBitrate == null ? 'Uncapped' : formatBitrate(enc.maxAverageBitrate);
+        return (
+          <SettingsRow
+            label="What this sends"
+            hint={
+              <>
+                Voice: <strong>{label}</strong> · {enc.mono ? 'mono' : 'stereo'}<br />
+                <em>Maximum</em> sends stereo Opus at full quality; lower tiers use mono to halve audio bandwidth.
+              </>
+            }
+          />
+        );
+      })()}
     </>
   );
 }

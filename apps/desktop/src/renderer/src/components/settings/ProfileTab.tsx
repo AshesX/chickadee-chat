@@ -27,6 +27,22 @@ export function ProfileTab({
 
   return (
     <>
+      <SettingsSection id="section-display-name" title="Display Name" />
+      <label className="field">
+        <span>Display name</span>
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onBlur={commitName}
+          onKeyDown={(e) => e.key === 'Enter' && commitName()}
+          maxLength={32}
+          autoFocus
+          style={{ maxWidth: '240px' }}
+        />
+      </label>
+
+      <hr className="settings-divider" />
+
       <SettingsSection id="section-avatar" title="Avatar" />
       <div className="avatar-settings-row">
         <div
@@ -60,20 +76,7 @@ export function ProfileTab({
       </div>
 
       <hr className="settings-divider" />
-      <SettingsSection id="section-display-name" title="Display Name" />
-      <label className="field">
-        <span>Display name</span>
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onBlur={commitName}
-          onKeyDown={(e) => e.key === 'Enter' && commitName()}
-          maxLength={32}
-          autoFocus
-        />
-      </label>
 
-      <hr className="settings-divider" />
       <SettingsSection id="section-accent" title="Accent Color" />
       <span className="hint">Avatar ring and speaking glow color. Auto-assigns if cleared.</span>
       <div className="accent-swatches">

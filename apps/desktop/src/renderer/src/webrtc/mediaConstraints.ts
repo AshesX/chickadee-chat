@@ -21,6 +21,40 @@ export const RESOLUTION_MAP: Record<string, { width: number; height: number }> =
   '4K': { width: 3840, height: 2160 },
 };
 
+/** The mic getUserMedia audio constraints for a device + the user's DSP toggles. */
+export function buildMicAudioConstraints(
+  deviceId: string,
+  echoCancellation: boolean,
+  autoGainControl: boolean,
+  noiseSuppression: boolean,
+): MediaTrackConstraints {
+  return {
+    deviceId: deviceId ? { exact: deviceId } : undefined,
+    echoCancellation,
+    autoGainControl,
+    noiseSuppression,
+  };
+}
+
+/**
+ * The camera/screen video capture constraints for a resolution preset +
+ * framerate setting, falling back to `fallback` (a RESOLUTION_MAP key) for an
+ * unknown preset and 30 fps for an unparsable framerate.
+ */
+export function buildVideoCaptureConstraints(
+  resolution: string,
+  framerate: string,
+  fallback: string,
+): MediaTrackConstraints {
+  const res = RESOLUTION_MAP[resolution] || RESOLUTION_MAP[fallback];
+  const fps = parseInt(framerate, 10) || 30;
+  return {
+    width: { ideal: res.width },
+    height: { ideal: res.height },
+    frameRate: { ideal: fps },
+  };
+}
+
 const MIC_ANALYSER_FFT_SIZE = 256;
 
 /**

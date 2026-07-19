@@ -1,20 +1,46 @@
 # Chickadee Chat
 
-Lightweight P2P desktop **voice / video / screen-share** app — a "Discord Lite" for small groups of **up to 4 people per room**. Built to call friends and share a game screen. Windows-first.
+Lightweight peer-to-peer desktop **voice / video / screen-share** app — a "Discord Lite" for small groups of **up to 8 people per room**. Built for calling friends and sharing a game screen: no accounts, no media server — audio and video flow directly between peers over WebRTC. **Windows-first.**
 
-> Architecture, conventions, and detailed status live in [CLAUDE.md](CLAUDE.md).
+Electron + React + TypeScript, with a minimal Bun WebSocket signaling server that only brokers the handshake.
 
-## Key Features
+> Architecture, conventions, and detailed project status live in [CLAUDE.md](CLAUDE.md).
 
-- **P2P Audio & Video**: Direct WebRTC full-mesh connections (no media relay server) supporting up to 4 users per room.
-- **Screen Share with Loopback Audio**: Native system and game audio loopback that automatically filters out incoming peer voices (`restrictOwnAudio`).
-- **Global Hotkeys**: Push-to-Talk and Mute hotkeys that work system-wide even when the application is minimized or out-of-focus (powered by `uiohook-napi`).
-- **Advanced Audio Controls**: Per-peer volume controls (0–200%) and "Normalize voices" (listener-side automatic volume leveling).
-- **Customizable Avatars**: In-app crop tool with avatars synchronized space-wide over the signaling connection.
-- **Chat Text-to-Speech (TTS)**: Web Speech API-driven read-aloud support for incoming room chat, with synchronized voice category preferences.
-- **Resizable Layout & Compact Mode**: Drag-resizable sidebar and room chat panels, alongside a toggleable compact sidebar-dock.
-- **SVG Room Icons**: In-app icon browser and filter for customizable room SVGs.
+## Features
 
+### Calls & video
+
+- **Full-mesh P2P media** — every peer connects directly to every other peer (up to 8 per room); the signaling server never touches media.
+- **Hybrid rooms** — every room carries voice, cameras, and screen share; flow between them without switching rooms.
+- **Stage spotlight** — one high-quality "stage" stream per room (a spotlighted screen *or* camera) while other cameras stay compressed thumbnails, so an 8-way call stays smooth on home connections. The layout adapts with it: **Voice Lounge** → **Gallery** → **Theater**.
+- **Opt-in viewing & upload budget** — video only streams to people who click **Watch**, and outbound stage bitrate is capped by a configurable upload budget (Settings → Video) so a full room can't saturate your uplink.
+
+### Screen share
+
+- **Game & system audio** — Windows loopback capture shares what you hear, and `restrictOwnAudio` keeps your friends' own voices out of the share (no echo for them).
+- **In-app source picker** — window/screen thumbnails with audio, resolution, and framerate options.
+
+### Voice & audio
+
+- **Voice activation or Push-to-Talk**, with global **PTT / mute / deafen hotkeys** (hold or toggle) that work system-wide — in-game and minimized.
+- **Noise suppression**, mic volume + boost with a live meter.
+- **Per-peer volume (0–200%)** with click-to-silence, "Normalize voices" auto-leveling, deafen, and output-device selection.
+
+### Spaces, rooms & moderation
+
+- **Spaces** group rooms and are shareable by invite code — optionally pointing at your own signaling server with a join secret.
+- **Moderation** — a transferable **Space Owner** can kick, ban/unban, and lock rooms or the whole Space; an automatic **Room Moderator** (the longest-present member) covers kicks and room locks while the owner is away. All authority is enforced server-side.
+- **Room governance** — the owner manages every room; each member can create one room of their own, validated by the server.
+
+### Chat & file sharing
+
+- **Room chat** with emoji reactions, unread taskbar badges, and desktop notifications — plus optional **text-to-speech read-aloud** with synced per-user voice preferences.
+- **P2P file transfer** — send files to any online Space member from the sidebar (hover button or drag-and-drop), including multi-file batches (up to 32) behind a single accept prompt. Transfers stream over a dedicated WebRTC DataChannel: 2 GB+ files at flat memory, live progress cards (rate, cancel, "Show in folder"), and an optional auto-accept trust list that saves straight to Downloads.
+
+### Identity & shell
+
+- **Avatars** (in-app crop tool, synced space-wide), **accent colors**, and manual status (Online / Idle / DND).
+- **Frameless lounge UI** — light/dark themes, system tray, compact sidebar-dock mode, drag-resizable sidebar and chat panels, and custom SVG room icons. Settings persist locally.
 
 ## Quick start (development)
 
@@ -25,7 +51,7 @@ npm run dev     # signaling server (ws://localhost:8080) + desktop app together
 
 Other scripts: `npm run dev:desktop`, `npm run dev:signaling`, `npm run build`, `npm run typecheck`, `npm test`.
 
-> **npm 11 note:** dependency install scripts are allow-listed in `package.json` (`allowScripts`), so `npm install` automatically downloads Electron's binary. If you bump Electron or `uiohook-napi` and the app won't launch, re-approve with `npm approve-scripts <pkg> --allow-scripts-pin`.
+> **npm 11 note:** dependency install scripts are allow-listed in `package.json` (`allowScripts`), so `npm install` automatically downloads Electron's binary and builds `uiohook-napi`. If you bump either package and the app won't launch, re-approve with `npm approve-scripts <pkg> --allow-scripts-pin`.
 
 ## Build a Windows `.exe`
 
@@ -64,6 +90,8 @@ To use a different server, override the URL with **either**:
   CHICKADEE_TURN_CREDENTIAL=pass
   ```
 
+Individual Spaces can also point at their own server (URL + join secret) from inside the app, in the Space's settings.
+
 To self-host, deploy from `apps/signaling/` (a `Dockerfile` is provided — build from the repo root; runs on Bun). See [.env.example](.env.example) for all supported keys.
 
 ### Security & access model
@@ -73,14 +101,14 @@ The signaling server only brokers the WebRTC handshake and presence — it never
 - `CHICKADEE_JOIN_SECRET` — require every client to present a matching shared secret in its `join` (clients read it from the same `.env` / `CHICKADEE_JOIN_SECRET`). Mismatches are rejected.
 - `CHICKADEE_ALLOWED_ORIGINS` — comma-separated `Origin` allowlist (the desktop client sends none, so an empty value allows all).
 
-The server also caps inbound frame size and rate-limits per connection to blunt resource-abuse, and validates/clamps all client-supplied fields (names, avatars, etc.). These mitigations reduce abuse but are **not** end-to-end encryption or authentication — treat a public signaling deployment accordingly.
+The server also caps inbound frame size, rate-limits per connection, and validates/clamps all client-supplied fields (names, avatars, room lists, file-offer metadata, and so on). Moderation authority (kicks, bans, locks) is checked server-side too. These mitigations reduce abuse but are **not** end-to-end encryption or authentication — treat a public signaling deployment accordingly.
 
 ### Play over the internet
 
-Mesh P2P connects peers directly. Many home networks traverse with STUN alone (always configured), but **symmetric NAT** requires a **TURN relay** to forward media. The app falls back to a best-effort free public TURN, which is rate-limited and unreliable — for real internet play, run your own TURN (e.g. [coturn](https://github.com/coturn/coturn)) and set the `CHICKADEE_TURN_*` variables above.
+Mesh P2P connects peers directly. Most home networks traverse with STUN alone (two independent STUN providers are always configured), but a pair where both sides sit behind **symmetric NAT** needs a **TURN relay** to forward media. The app ships no TURN by default (the old free public fallback was defunct and only slowed connections) — if you need relay coverage, run your own TURN (e.g. [coturn](https://github.com/coturn/coturn)) and set the `CHICKADEE_TURN_*` variables above.
 
 ## Testing
 
-- **Unit Tests**: Run `npm test` to execute the Vitest suite covering pure offline logic (audio gates, keybind string conversion, SDP munging, voice preferences, and WebRTC mesh logic).
-- **Signaling Smoke Test**: Run `node scripts/smoke-test.mjs` to exercise the signaling protocol (start the server first).
-- **Manual Verification**: WebRTC media is verified manually with two instances in the same room (use headphones so each mic doesn't re-capture the other peer's voice from your speakers). Screen sharing with system audio no longer relays peers' voices back to them — the loopback capture sets `restrictOwnAudio` to drop our own output (requires Chromium 141+, i.e. Electron 39+).
+- **Unit tests** — `npm test` runs the Vitest suites in every workspace, covering the pure logic: WebRTC mesh and encoding decisions, signaling arbitration and moderation authority, sanitizers, settings migrations, file-transfer flow control, and more.
+- **Signaling smoke test** — `node scripts/smoke-test.mjs` exercises the live protocol end-to-end (start the server first; the moderation phases expect a freshly-started server).
+- **Manual media check** — WebRTC audio/video can't be verified headlessly. Run two app instances in the same room, with headphones so speakers don't feed back into microphones.

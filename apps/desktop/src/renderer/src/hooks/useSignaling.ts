@@ -1,13 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   parseServerMessage,
+  type BannedUser,
   type ClientMessage,
   type Peer,
   type PeerId,
   type Room,
   type ServerMessage,
+  type SoundboardClipMeta,
   type SpacePresence,
 } from '@chickadee/shared';
+import {
+  PING_INTERVAL_MS,
+  heartbeatExpired,
+  reconnectDelayMs,
+  reconnectExhausted,
+} from '../lib/reconnectPolicy';
+import { verifySpace, type SpaceVerifyResult } from '../lib/verifySpace';
 
 /** A listener invoked for every inbound server message (used by the WebRTC layer). */
 export type MessageListener = (message: ServerMessage) => void;
@@ -18,6 +27,9 @@ export type ConnectionStatus =
   | 'connected'
   | 'reconnecting'
   | 'room-full'
+  // Terminal, like room-full: kicked/banned from the Space, or a join was
+  // denied by a moderation gate (banned / space-locked / room-locked).
+  | 'kicked'
   | 'error'
   | 'closed';
 
@@ -32,22 +44,44 @@ export interface SignalingState {
   rooms: Room[];
   /** Synced space presence. */
   spacePresence: SpacePresence[];
+  /** The peer id currently holding the room's single "stage" slot, or null if free. */
+  spotlightHolderId: PeerId | null;
+  /** What the stage holder is spotlighting ('screen' | 'camera'), or null if free. */
+  spotlightKind: 'screen' | 'camera' | null;
+  /** Session id of the current room's moderator (longest-present member), or null outside a room. */
+  moderatorId: PeerId | null;
+  /** Bare ids of this Space's rooms currently locked to new entrants. */
+  lockedRooms: string[];
+  /** Whether this Space is locked to newcomers. */
+  spaceLocked: boolean;
+  /** The Space's ban list (mirrored to every member; persisted for owner re-seeding). */
+  bannedUsers: BannedUser[];
 }
 
 export interface Signaling extends SignalingState {
-  join: (spaceId: string, room: string | null, displayName: string, userId: string, rooms: Room[], status: 'online' | 'idle' | 'dnd', avatarDataUrl?: string | null, voicePreference?: string, accentColor?: string, joinSecret?: string, signalingUrl?: string) => void;
+  join: (spaceId: string, room: string | null, displayName: string, userId: string, rooms: Room[], status: 'online' | 'idle' | 'dnd', avatarDataUrl?: string | null, voicePreference?: string, accentColor?: string, joinSecret?: string, signalingUrl?: string, bannerDataUrl?: string | null, soundboardClips?: SoundboardClipMeta[]) => void;
   leave: () => void;
   joinRoom: (room: string | null) => void;
   /** Send a message to the server (used by WebRTC negotiation + mic-state). */
   send: (message: ClientMessage) => void;
   /**
    * Non-mutating existence probe over a throwaway socket (independent of the
-   * persistent connection). Resolves 'exists'/'not-found' from the server, or
-   * 'unreachable' if the server can't be reached within the timeout.
+   * persistent connection) — see lib/verifySpace.ts.
    */
-  verifySpace: (spaceId: string, signalingUrl: string, secret?: string) => Promise<'exists' | 'not-found' | 'unreachable'>;
+  verifySpace: (spaceId: string, signalingUrl: string, secret?: string) => Promise<SpaceVerifyResult>;
   /** Subscribe to raw inbound server messages; returns an unsubscribe fn. */
   subscribe: (listener: MessageListener) => () => void;
+  /** Claim the room's stage for a screen/camera; `force` takes it over from the current holder. */
+  claimSpotlight: (kind: 'screen' | 'camera', force?: boolean) => void;
+  /** Release the stage if this client holds it. */
+  releaseSpotlight: () => void;
+  /**
+   * Keep the join-payload ref fresh so a future reconnect's `join` message
+   * carries the current custom-clip library (mirrors how avatar/accent stay
+   * current — no separate reannounce path needed since the manifest already
+   * rides `join` directly, unlike media state).
+   */
+  setSoundboardClips: (clips: SoundboardClipMeta[]) => void;
 }
 
 const INITIAL: SignalingState = {
@@ -57,7 +91,25 @@ const INITIAL: SignalingState = {
   error: null,
   rooms: [],
   spacePresence: [],
+  spotlightHolderId: null,
+  spotlightKind: null,
+  moderatorId: null,
+  lockedRooms: [],
+  spaceLocked: false,
+  bannedUsers: [],
 };
+
+/** The user-facing message for each moderation join-denial reason. */
+function joinDeniedMessage(reason: 'banned' | 'space-locked' | 'room-locked'): string {
+  switch (reason) {
+    case 'banned':
+      return 'You are banned from this Space.';
+    case 'space-locked':
+      return 'This Space is locked.';
+    case 'room-locked':
+      return 'That room is locked.';
+  }
+}
 
 /** Pure reducer: maps an inbound server message to a new SignalingState. Exported for unit tests. */
 export function applyPresenceUpdate(state: SignalingState, msg: ServerMessage): SignalingState {
@@ -70,6 +122,14 @@ export function applyPresenceUpdate(state: SignalingState, msg: ServerMessage): 
         selfId: msg.selfId,
         peers: msg.peers,
         rooms: msg.rooms || state.rooms,
+        spotlightHolderId: msg.spotlightHolderId ?? null,
+        spotlightKind: msg.spotlightKind ?? null,
+        // Room-scoped like the spotlight: absent (lobby welcome) = no moderator.
+        moderatorId: msg.moderatorId ?? null,
+        // Space-scoped: omitted on a room-switch welcome, so omit-means-keep.
+        lockedRooms: msg.lockedRooms ?? state.lockedRooms,
+        spaceLocked: msg.spaceLocked ?? state.spaceLocked,
+        bannedUsers: msg.bannedUsers ?? state.bannedUsers,
       };
     case 'space-presence':
       return { ...state, spacePresence: msg.presence };
@@ -93,8 +153,53 @@ export function applyPresenceUpdate(state: SignalingState, msg: ServerMessage): 
       return state.peers.some((p) => p.id === msg.peer.id)
         ? state
         : { ...state, peers: [...state.peers, msg.peer] };
-    case 'peer-left':
-      return { ...state, peers: state.peers.filter((p) => p.id !== msg.peerId) };
+    case 'peer-left': {
+      // If the leaver held the stage, free it locally too (the server also
+      // broadcasts spotlight-state null, but clearing here avoids a stuck theater
+      // if that message is missed). Same belt-and-suspenders for the moderator —
+      // the server's moderator-state follow-up names the successor.
+      const heldStage = state.spotlightHolderId === msg.peerId;
+      return {
+        ...state,
+        peers: state.peers.filter((p) => p.id !== msg.peerId),
+        spotlightHolderId: heldStage ? null : state.spotlightHolderId,
+        spotlightKind: heldStage ? null : state.spotlightKind,
+        moderatorId: state.moderatorId === msg.peerId ? null : state.moderatorId,
+      };
+    }
+    case 'spotlight-state':
+      return { ...state, spotlightHolderId: msg.holderId, spotlightKind: msg.kind };
+    case 'moderator-state':
+      return { ...state, moderatorId: msg.holderId };
+    case 'room-lock-state': {
+      const others = state.lockedRooms.filter((id) => id !== msg.room);
+      return { ...state, lockedRooms: msg.locked ? [...others, msg.room] : others };
+    }
+    case 'space-lock-state':
+      return { ...state, spaceLocked: msg.locked };
+    case 'ban-state':
+      return { ...state, bannedUsers: msg.bannedUsers };
+    case 'kicked':
+      // Room-scope is handled by App (leaveRoom + notice); only a space-scope
+      // kick/ban ends the session (room-full shape — terminal).
+      return msg.scope === 'space'
+        ? {
+            ...INITIAL,
+            status: 'kicked',
+            error:
+              msg.reason === 'banned'
+                ? 'You were banned from this Space.'
+                : 'You were removed from this Space.',
+            rooms: state.rooms,
+          }
+        : state;
+    case 'join-denied':
+      return {
+        ...INITIAL,
+        status: 'kicked',
+        error: joinDeniedMessage(msg.reason),
+        rooms: state.rooms,
+      };
     case 'mic-state':
       return {
         ...state,
@@ -150,6 +255,13 @@ export function applyPresenceUpdate(state: SignalingState, msg: ServerMessage): 
           p.id === msg.from ? { ...p, accentColor: msg.accentColor } : p,
         ),
       };
+    case 'soundboard-manifest-state':
+      return {
+        ...state,
+        peers: state.peers.map((p) =>
+          p.id === msg.from ? { ...p, soundboardClips: msg.clips } : p,
+        ),
+      };
     case 'sink-state':
       return {
         ...state,
@@ -163,20 +275,13 @@ export function applyPresenceUpdate(state: SignalingState, msg: ServerMessage): 
       return {
         ...INITIAL,
         status: 'room-full',
-        error: `Room "${msg.room}" is full (max 4).`,
+        error: `Room "${msg.room}" is full.`,
         rooms: state.rooms,
       };
     default:
       return state;
   }
 }
-
-// Reconnection + heartbeat tuning.
-const PING_INTERVAL_MS = 15_000;
-const PONG_TIMEOUT_MS = 35_000;
-const BASE_RECONNECT_MS = 1_000;
-const MAX_RECONNECT_MS = 10_000;
-const MAX_RECONNECT_ATTEMPTS = 10;
 
 /**
  * Manages the WebSocket connection to the signaling server and the room's
@@ -197,6 +302,8 @@ export function useSignaling(): Signaling {
   const roomsRef = useRef<Room[]>([]);
   const statusRef = useRef<'online' | 'idle' | 'dnd'>('online');
   const avatarDataUrlRef = useRef<string | null>(null);
+  const bannerDataUrlRef = useRef<string | null>(null);
+  const soundboardClipsRef = useRef<SoundboardClipMeta[]>([]);
   const voicePreferenceRef = useRef<string>('');
   const accentColorRef = useRef<string>('');
   const joinSecretRef = useRef<string>('');
@@ -240,7 +347,7 @@ export function useSignaling(): Signaling {
 
   const scheduleReconnect = useCallback(() => {
     attemptsRef.current += 1;
-    if (attemptsRef.current > MAX_RECONNECT_ATTEMPTS) {
+    if (reconnectExhausted(attemptsRef.current)) {
       shouldReconnectRef.current = false;
       setState((prev) => ({
         ...INITIAL,
@@ -251,8 +358,10 @@ export function useSignaling(): Signaling {
       return;
     }
     setState((prev) => ({ ...prev, status: 'reconnecting' }));
-    const delay = Math.min(BASE_RECONNECT_MS * 2 ** (attemptsRef.current - 1), MAX_RECONNECT_MS);
-    reconnectTimerRef.current = setTimeout(() => connectRef.current(), delay);
+    reconnectTimerRef.current = setTimeout(
+      () => connectRef.current(),
+      reconnectDelayMs(attemptsRef.current),
+    );
   }, []);
 
   const connect = useCallback(() => {
@@ -274,12 +383,14 @@ export function useSignaling(): Signaling {
           accentColor: accentColorRef.current,
           // Use space-specific secret if provided, else fallback to global.
           secret: joinSecretRef.current || (window.chickadee?.joinSecret ?? ''),
+          bannerDataUrl: bannerDataUrlRef.current,
+          soundboardClips: soundboardClipsRef.current,
         }),
       );
       // Heartbeat: ping periodically; if pongs stop, force-close → reconnect.
       lastPongRef.current = Date.now();
       pingTimerRef.current = setInterval(() => {
-        if (Date.now() - lastPongRef.current > PONG_TIMEOUT_MS) {
+        if (heartbeatExpired(lastPongRef.current, Date.now())) {
           socket.close();
           return;
         }
@@ -308,8 +419,13 @@ export function useSignaling(): Signaling {
       // 4. Apply the presence state update.
       setState((prev) => applyPresenceUpdate(prev, msg));
 
-      // 5. Side effects for terminal cases: room-full ends the session.
-      if (msg.type === 'room-full') {
+      // 5. Side effects for terminal cases: room-full, a moderation join
+      // denial, and a space-scope kick/ban all end the session (no reconnect).
+      if (
+        msg.type === 'room-full' ||
+        msg.type === 'join-denied' ||
+        (msg.type === 'kicked' && msg.scope === 'space')
+      ) {
         shouldReconnectRef.current = false;
         clearTimers();
         closeSocket();
@@ -329,7 +445,7 @@ export function useSignaling(): Signaling {
         scheduleReconnect();
       } else {
         setState((prev) =>
-          prev.status === 'room-full' || prev.status === 'error'
+          prev.status === 'room-full' || prev.status === 'kicked' || prev.status === 'error'
             ? prev
             : { ...INITIAL, status: 'closed' },
         );
@@ -343,7 +459,7 @@ export function useSignaling(): Signaling {
   }, [connect]);
 
   const join = useCallback(
-    (spaceId: string, room: string | null, displayName: string, userId: string, roomsList: Room[], status: 'online' | 'idle' | 'dnd', avatarDataUrl?: string | null, voicePreference?: string, accentColor?: string, joinSecret?: string, signalingUrl?: string) => {
+    (spaceId: string, room: string | null, displayName: string, userId: string, roomsList: Room[], status: 'online' | 'idle' | 'dnd', avatarDataUrl?: string | null, voicePreference?: string, accentColor?: string, joinSecret?: string, signalingUrl?: string, bannerDataUrl?: string | null, soundboardClips?: SoundboardClipMeta[]) => {
       closeSocket();
       clearTimers();
       shouldReconnectRef.current = true;
@@ -359,58 +475,12 @@ export function useSignaling(): Signaling {
       accentColorRef.current = accentColor ?? '';
       joinSecretRef.current = joinSecret ?? '';
       if (signalingUrl) signalingUrlRef.current = signalingUrl;
+      bannerDataUrlRef.current = bannerDataUrl ?? null;
+      soundboardClipsRef.current = soundboardClips ?? [];
       setState({ ...INITIAL, status: 'connecting', rooms: roomsList });
       connect();
     },
     [closeSocket, clearTimers, connect],
-  );
-
-  const verifySpace = useCallback(
-    (spaceId: string, signalingUrl: string, secret?: string): Promise<'exists' | 'not-found' | 'unreachable'> => {
-      return new Promise((resolve) => {
-        let settled = false;
-        let probe: WebSocket;
-        const finish = (result: 'exists' | 'not-found' | 'unreachable'): void => {
-          if (settled) return;
-          settled = true;
-          clearTimeout(timer);
-          // Detach handlers before closing so a late close/error can't re-resolve.
-          probe.onopen = null;
-          probe.onmessage = null;
-          probe.onerror = null;
-          probe.onclose = null;
-          try {
-            probe.close();
-          } catch {
-            /* already closing */
-          }
-          resolve(result);
-        };
-
-        const timer = setTimeout(() => finish('unreachable'), 8_000);
-
-        try {
-          probe = new WebSocket(signalingUrl);
-        } catch {
-          clearTimeout(timer);
-          resolve('unreachable');
-          return;
-        }
-
-        probe.onopen = () => {
-          probe.send(JSON.stringify({ type: 'check-space', spaceId, secret: secret || (window.chickadee?.joinSecret ?? '') }));
-        };
-        probe.onmessage = (event) => {
-          const msg = parseServerMessage(String(event.data));
-          if (msg && msg.type === 'space-status' && msg.spaceId === spaceId) {
-            finish(msg.exists ? 'exists' : 'not-found');
-          }
-        };
-        probe.onerror = () => finish('unreachable');
-        probe.onclose = () => finish('unreachable');
-      });
-    },
-    [],
   );
 
   const send = useCallback((message: ClientMessage) => {
@@ -428,6 +498,21 @@ export function useSignaling(): Signaling {
     [send],
   );
 
+  const claimSpotlight = useCallback(
+    (kind: 'screen' | 'camera', force?: boolean) => {
+      send({ type: 'claim-spotlight', kind, force });
+    },
+    [send],
+  );
+
+  const releaseSpotlight = useCallback(() => {
+    send({ type: 'release-spotlight' });
+  }, [send]);
+
+  const setSoundboardClips = useCallback((clips: SoundboardClipMeta[]) => {
+    soundboardClipsRef.current = clips;
+  }, []);
+
   const leave = useCallback(() => {
     shouldReconnectRef.current = false;
     clearTimers();
@@ -444,5 +529,16 @@ export function useSignaling(): Signaling {
     };
   }, [clearTimers, closeSocket]);
 
-  return { ...state, join, leave, joinRoom, send, subscribe, verifySpace };
+  return {
+    ...state,
+    join,
+    leave,
+    joinRoom,
+    send,
+    subscribe,
+    verifySpace,
+    claimSpotlight,
+    releaseSpotlight,
+    setSoundboardClips,
+  };
 }

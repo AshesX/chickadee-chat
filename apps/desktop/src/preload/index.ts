@@ -4,6 +4,7 @@ import {
   defaultSettings,
   type PersistedSettings,
   type ScreenSource,
+  type SoundboardLibraryClip,
 } from '@chickadee/shared';
 
 interface AppConfig {
@@ -31,6 +32,28 @@ function readConfig(): AppConfig {
 }
 
 const config = readConfig();
+
+/**
+ * A parameterless main→renderer event subscription: invokes `cb` on every
+ * message on `channel`, returns an unsubscribe fn. All the hotkey/tray events
+ * share this shape.
+ */
+function subscription(channel: string): (cb: () => void) => () => void {
+  return (cb) => {
+    const listener = (): void => cb();
+    ipcRenderer.on(channel, listener);
+    return () => ipcRenderer.removeListener(channel, listener);
+  };
+}
+
+/** Like `subscription()`, but for main→renderer events that carry a payload. */
+function payloadSubscription<T>(channel: string): (cb: (payload: T) => void) => () => void {
+  return (cb) => {
+    const listener = (_e: unknown, payload: T): void => cb(payload);
+    ipcRenderer.on(channel, listener);
+    return () => ipcRenderer.removeListener(channel, listener);
+  };
+}
 
 /**
  * Minimal, safe API surface exposed to the renderer over the context bridge.
@@ -66,15 +89,98 @@ const api = {
   /** Record the chosen source just before calling getDisplayMedia(). */
   setShareSource: (sourceId: string, audio: boolean): Promise<void> =>
     ipcRenderer.invoke('chickadee:set-share-source', sourceId, audio),
+  /**
+   * Receiver-side file-transfer disk IO. Write streams, the Save dialog, and
+   * all filesystem paths live in main; the renderer only moves opaque transfer
+   * ids and chunk bytes. Each writeChunk resolves once the chunk is flushed —
+   * awaiting it is the receive loop's backpressure.
+   */
+  fileTransfer: {
+    /** Show "Save As" and open a .part write stream. Resolves the chosen path, or null = declined. */
+    beginSave: (transferId: string, suggestedName: string): Promise<string | null> =>
+      ipcRenderer.invoke('chickadee:begin-file-save', transferId, suggestedName),
+    writeChunk: (transferId: string, chunk: Uint8Array): Promise<void> =>
+      ipcRenderer.invoke('chickadee:write-file-chunk', transferId, chunk),
+    /** Finish the stream and rename .part to the real filename. */
+    endSave: (transferId: string): Promise<string> =>
+      ipcRenderer.invoke('chickadee:end-file-save', transferId),
+    /** Destroy the stream and delete the .part file. */
+    abortSave: (transferId: string): Promise<void> =>
+      ipcRenderer.invoke('chickadee:abort-file-save', transferId),
+    /** Reveal a completed transfer's file in Explorer. */
+    showInFolder: (transferId: string): Promise<void> =>
+      ipcRenderer.invoke('chickadee:show-file-in-folder', transferId),
+    /** Pick ONE folder for a whole batch; per-file streams open lazily against it. */
+    beginBatchSave: (batchId: string): Promise<string | null> =>
+      ipcRenderer.invoke('chickadee:begin-batch-save', batchId),
+    /** Trusted sender: authorize Downloads as the batch folder, no dialog. */
+    authorizeAutoBatch: (batchId: string): Promise<string | null> =>
+      ipcRenderer.invoke('chickadee:authorize-auto-batch', batchId),
+    /** Trusted sender, single file: dialog-less save into Downloads (collision-suffixed). */
+    beginAutoSave: (transferId: string, suggestedName: string): Promise<string | null> =>
+      ipcRenderer.invoke('chickadee:begin-auto-save', transferId, suggestedName),
+    /** Open one batch file's .part stream inside the authorized folder; resolves the (suffixed) name. */
+    beginBatchFileSave: (batchId: string, fileTransferId: string, suggestedName: string): Promise<string | null> =>
+      ipcRenderer.invoke('chickadee:begin-batch-file-save', batchId, fileTransferId, suggestedName),
+    /** Batch settled: drop its folder authorization. */
+    releaseBatch: (batchId: string): Promise<void> =>
+      ipcRenderer.invoke('chickadee:release-batch', batchId),
+  },
+  /**
+   * Soundboard local library + cache. Ingest (inbox watch, ffmpeg transcode,
+   * hashing) runs entirely in main; the renderer only sees clip metadata and
+   * moves opaque hash-keyed bytes for both local-ingest output and P2P sync.
+   */
+  soundboard: {
+    /** Open a native multi-select file picker and copy the chosen files into the inbox. */
+    addFiles: (): Promise<void> => ipcRenderer.invoke('chickadee:soundboard-add-files'),
+    /** Reveal the inbox folder in Explorer (drag-and-drop entry point). */
+    openInbox: (): Promise<void> => ipcRenderer.invoke('chickadee:soundboard-open-inbox'),
+    /** Snapshot of this user's own (already-ingested) clips. */
+    listClips: (): Promise<SoundboardLibraryClip[]> => ipcRenderer.invoke('chickadee:soundboard-list-clips'),
+    /** Remove one of this user's own clips (inbox source + cache + manifest entry). */
+    removeClip: (hash: string): Promise<void> => ipcRenderer.invoke('chickadee:soundboard-remove-clip', hash),
+    /** Fired whenever the own-clip library changes (ingest complete, or a clip removed). */
+    onManifestChanged: payloadSubscription<SoundboardLibraryClip[]>('chickadee:soundboard-manifest-changed'),
+    /** Ingest progress for a file currently being transcoded (0..1). */
+    onTranscodeProgress: payloadSubscription<{ jobId: string; sourceFile: string; ratio: number }>(
+      'chickadee:soundboard-transcode-progress',
+    ),
+    /** Ingest of a file finished successfully. */
+    onTranscodeDone: payloadSubscription<{ jobId: string; sourceFile: string; hash: string }>(
+      'chickadee:soundboard-transcode-done',
+    ),
+    /** Ingest of a file failed (corrupt/unsupported source, ffmpeg error, etc.). */
+    onTranscodeError: payloadSubscription<{ jobId: string; sourceFile: string; message: string }>(
+      'chickadee:soundboard-transcode-error',
+    ),
+    cache: {
+      /** Whether a clip with this content hash is already cached locally. */
+      has: (hash: string): Promise<boolean> => ipcRenderer.invoke('chickadee:soundboard-cache-has', hash),
+      /** Read a cached clip's whole bytes (playback decode, or as a P2P-sync send source). */
+      read: (hash: string): Promise<Uint8Array | null> => ipcRenderer.invoke('chickadee:soundboard-cache-read', hash),
+      /** Open a `.part` write stream for a hash a P2P sync is about to receive. */
+      beginWrite: (hash: string): Promise<boolean> => ipcRenderer.invoke('chickadee:soundboard-cache-begin-write', hash),
+      writeChunk: (hash: string, chunk: Uint8Array): Promise<void> =>
+        ipcRenderer.invoke('chickadee:soundboard-cache-write-chunk', hash, chunk),
+      /** Finish the stream; re-hashes and verifies against `hash` before renaming .part into the cache. */
+      endWrite: (hash: string): Promise<void> => ipcRenderer.invoke('chickadee:soundboard-cache-end-write', hash),
+      abortWrite: (hash: string): Promise<void> => ipcRenderer.invoke('chickadee:soundboard-cache-abort-write', hash),
+    },
+  },
   /** Frameless-window title-bar controls. */
   windowControls: {
     minimize: (): void => ipcRenderer.send('chickadee:window-minimize'),
     toggleMaximize: (): void => ipcRenderer.send('chickadee:window-maximize-toggle'),
     close: (): void => ipcRenderer.send('chickadee:window-close'),
-    setCompact: (compact: boolean, compactWidth?: number): void =>
-      ipcRenderer.send('chickadee:window-set-compact', compact, compactWidth),
+    setCompact: (compact: boolean, compactWidth?: number, chatWidth?: number): void =>
+      ipcRenderer.send('chickadee:window-set-compact', compact, compactWidth, chatWidth),
     /** Live width-only resize of the docked compact window (no-op when not compact). */
     setWindowWidth: (px: number): void => ipcRenderer.send('chickadee:window-set-width', px),
+    /** Temporarily widen the docked window to host a modal, then restore. Stays in
+     *  compact mode; no-op when not compact. */
+    setOverlayExpand: (expand: boolean): void =>
+      ipcRenderer.send('chickadee:window-set-overlay-expand', expand),
   },
   /**
    * Subscribe to window-visibility changes (false when minimized/hidden, true
@@ -89,117 +195,50 @@ const api = {
   /** Register/unregister the global push-to-talk hotkey in main. */
   setPushToTalk: (opts: { enabled: boolean; key: string; mode: 'hold' | 'toggle' }): Promise<void> =>
     ipcRenderer.invoke('chickadee:set-ptt', opts),
-  /** Subscribe to PTT toggle events (toggle mode). Returns an unsubscribe fn. */
-  onPushToTalk: (cb: () => void): (() => void) => {
-    const listener = (): void => cb();
-    ipcRenderer.on('chickadee:ptt-toggle', listener);
-    return () => ipcRenderer.removeListener('chickadee:ptt-toggle', listener);
-  },
-  /** Subscribe to PTT key-down (hold mode: mic on). Returns an unsubscribe fn. */
-  onPttStart: (cb: () => void): (() => void) => {
-    const listener = (): void => cb();
-    ipcRenderer.on('chickadee:ptt-start', listener);
-    return () => ipcRenderer.removeListener('chickadee:ptt-start', listener);
-  },
-  /** Subscribe to PTT key-up (hold mode: mic off). Returns an unsubscribe fn. */
-  onPttStop: (cb: () => void): (() => void) => {
-    const listener = (): void => cb();
-    ipcRenderer.on('chickadee:ptt-stop', listener);
-    return () => ipcRenderer.removeListener('chickadee:ptt-stop', listener);
-  },
+  /** PTT toggle events (toggle mode). */
+  onPushToTalk: subscription('chickadee:ptt-toggle'),
+  /** PTT key-down (hold mode: mic on). */
+  onPttStart: subscription('chickadee:ptt-start'),
+  /** PTT key-up (hold mode: mic off). */
+  onPttStop: subscription('chickadee:ptt-stop'),
   /** Register/unregister the global mute mic hotkey in main. */
   setMuteKeybind: (opts: { enabled: boolean; key: string; mode: 'hold' | 'toggle' }): Promise<void> =>
     ipcRenderer.invoke('chickadee:set-mute-keybind', opts),
-  /** Subscribe to Mute toggle events. Returns an unsubscribe fn. */
-  onMuteToggle: (cb: () => void): (() => void) => {
-    const listener = (): void => cb();
-    ipcRenderer.on('chickadee:mute-toggle', listener);
-    return () => ipcRenderer.removeListener('chickadee:mute-toggle', listener);
-  },
-  /** Subscribe to Mute hold start. Returns an unsubscribe fn. */
-  onMuteStart: (cb: () => void): (() => void) => {
-    const listener = (): void => cb();
-    ipcRenderer.on('chickadee:mute-start', listener);
-    return () => ipcRenderer.removeListener('chickadee:mute-start', listener);
-  },
-  /** Subscribe to Mute hold stop. Returns an unsubscribe fn. */
-  onMuteStop: (cb: () => void): (() => void) => {
-    const listener = (): void => cb();
-    ipcRenderer.on('chickadee:mute-stop', listener);
-    return () => ipcRenderer.removeListener('chickadee:mute-stop', listener);
-  },
+  onMuteToggle: subscription('chickadee:mute-toggle'),
+  onMuteStart: subscription('chickadee:mute-start'),
+  onMuteStop: subscription('chickadee:mute-stop'),
   /** Register/unregister the global deafen hotkey in main. */
   setDeafenKeybind: (opts: { enabled: boolean; key: string; mode: 'hold' | 'toggle' }): Promise<void> =>
     ipcRenderer.invoke('chickadee:set-deafen-keybind', opts),
-  onDeafenToggle: (cb: () => void): (() => void) => {
-    const listener = (): void => cb();
-    ipcRenderer.on('chickadee:deafen-toggle', listener);
-    return () => ipcRenderer.removeListener('chickadee:deafen-toggle', listener);
-  },
-  onDeafenStart: (cb: () => void): (() => void) => {
-    const listener = (): void => cb();
-    ipcRenderer.on('chickadee:deafen-start', listener);
-    return () => ipcRenderer.removeListener('chickadee:deafen-start', listener);
-  },
-  onDeafenStop: (cb: () => void): (() => void) => {
-    const listener = (): void => cb();
-    ipcRenderer.on('chickadee:deafen-stop', listener);
-    return () => ipcRenderer.removeListener('chickadee:deafen-stop', listener);
-  },
+  onDeafenToggle: subscription('chickadee:deafen-toggle'),
+  onDeafenStart: subscription('chickadee:deafen-start'),
+  onDeafenStop: subscription('chickadee:deafen-stop'),
   /** Register/unregister the camera toggle hotkey in main. */
   setCameraKeybind: (opts: { enabled: boolean; key: string; mode: 'toggle' }): Promise<void> =>
     ipcRenderer.invoke('chickadee:set-camera-keybind', opts),
-  onCameraToggle: (cb: () => void): (() => void) => {
-    const listener = (): void => cb();
-    ipcRenderer.on('chickadee:camera-toggle', listener);
-    return () => ipcRenderer.removeListener('chickadee:camera-toggle', listener);
-  },
+  onCameraToggle: subscription('chickadee:camera-toggle'),
   /** Register/unregister the screen share toggle hotkey in main. */
   setScreenShareKeybind: (opts: { enabled: boolean; key: string; mode: 'toggle' }): Promise<void> =>
     ipcRenderer.invoke('chickadee:set-screen-share-keybind', opts),
-  onScreenShareToggle: (cb: () => void): (() => void) => {
-    const listener = (): void => cb();
-    ipcRenderer.on('chickadee:screen-share-toggle', listener);
-    return () => ipcRenderer.removeListener('chickadee:screen-share-toggle', listener);
-  },
+  onScreenShareToggle: subscription('chickadee:screen-share-toggle'),
   /** Register/unregister the chat panel toggle hotkey in main. */
   setChatPanelKeybind: (opts: { enabled: boolean; key: string; mode: 'toggle' }): Promise<void> =>
     ipcRenderer.invoke('chickadee:set-chat-panel-keybind', opts),
-  onChatPanelToggle: (cb: () => void): (() => void) => {
-    const listener = (): void => cb();
-    ipcRenderer.on('chickadee:chat-panel-toggle', listener);
-    return () => ipcRenderer.removeListener('chickadee:chat-panel-toggle', listener);
-  },
+  onChatPanelToggle: subscription('chickadee:chat-panel-toggle'),
   /** Register/unregister the TTS toggle hotkey in main. */
   setTtsToggleKeybind: (opts: { enabled: boolean; key: string; mode: 'toggle' }): Promise<void> =>
     ipcRenderer.invoke('chickadee:set-tts-toggle-keybind', opts),
-  onTtsToggle: (cb: () => void): (() => void) => {
-    const listener = (): void => cb();
-    ipcRenderer.on('chickadee:tts-toggle', listener);
-    return () => ipcRenderer.removeListener('chickadee:tts-toggle', listener);
-  },
+  onTtsToggle: subscription('chickadee:tts-toggle'),
   /** Register/unregister the TTS stop hotkey in main. */
   setTtsStopKeybind: (opts: { enabled: boolean; key: string; mode: 'toggle' }): Promise<void> =>
     ipcRenderer.invoke('chickadee:set-tts-stop-keybind', opts),
-  onTtsStop: (cb: () => void): (() => void) => {
-    const listener = (): void => cb();
-    ipcRenderer.on('chickadee:tts-stop', listener);
-    return () => ipcRenderer.removeListener('chickadee:tts-stop', listener);
-  },
+  onTtsStop: subscription('chickadee:tts-stop'),
   /** Tray: set its icon (data URL), current room label, and mute-from-tray. */
   setTrayIcon: (dataUrl: string): Promise<void> => ipcRenderer.invoke('chickadee:set-tray-icon', dataUrl),
   setTrayRoom: (label: string | null): Promise<void> =>
     ipcRenderer.invoke('chickadee:set-tray-room', label),
-  onTrayMute: (cb: () => void): (() => void) => {
-    const listener = (): void => cb();
-    ipcRenderer.on('chickadee:tray-mute', listener);
-    return () => ipcRenderer.removeListener('chickadee:tray-mute', listener);
-  },
-  onTrayDeafen: (cb: () => void): (() => void) => {
-    const listener = (): void => cb();
-    ipcRenderer.on('chickadee:tray-deafen', listener);
-    return () => ipcRenderer.removeListener('chickadee:tray-deafen', listener);
-  },
+  onTrayMute: subscription('chickadee:tray-mute'),
+  onTrayDeafen: subscription('chickadee:tray-deafen'),
   setBadge: (count: number, dataUrl: string | null): Promise<void> =>
     ipcRenderer.invoke('chickadee:set-badge', count, dataUrl),
   /** Adjust the UI zoom factor */

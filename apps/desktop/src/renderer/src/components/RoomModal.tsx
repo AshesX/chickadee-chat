@@ -1,8 +1,5 @@
 import { useState } from 'react';
-import { Mic, Video } from 'lucide-react';
-import { capacityForType, type RoomType } from '@chickadee/shared';
 import { Modal } from './Modal';
-import { SegmentedGroup } from './SegmentedGroup';
 import { ROOM_ICONS, RoomIcon } from './RoomIcon';
 
 interface RoomModalProps {
@@ -10,26 +7,21 @@ interface RoomModalProps {
   submitLabel: string;
   initialLabel?: string;
   initialIcon?: string;
-  initialType?: RoomType;
-  /** Show the Voice/Video segmented picker (create only; type is fixed on rename). */
-  showTypePicker?: boolean;
-  onSubmit: (label: string, icon: string, type: RoomType) => void;
+  onSubmit: (label: string, icon: string) => void;
   onClose: () => void;
 }
 
-/** Create-or-rename a room: optional type picker + name input + SVG icon search picker. */
+/** Create-or-rename a room: name input + SVG icon search picker. (Rooms are unified
+ *  hybrid — audio + optional golden-ratio video — so there's no type picker.) */
 export function RoomModal({
   title,
   submitLabel,
   initialLabel = '',
   initialIcon = '',
-  initialType = 'voice',
-  showTypePicker = false,
   onSubmit,
   onClose,
 }: RoomModalProps): React.JSX.Element {
   const [label, setLabel] = useState(initialLabel);
-  const [type, setType] = useState<RoomType>(initialType);
 
   // Clean default: if initialIcon is not in the list of custom SVGs (e.g. legacy emoji), fall back to ROOM_ICONS[0]
   const defaultIcon = ROOM_ICONS.includes(initialIcon) ? initialIcon : ROOM_ICONS[0];
@@ -38,7 +30,7 @@ export function RoomModal({
 
   function submit(): void {
     const trimmed = label.trim();
-    if (trimmed) onSubmit(trimmed, icon, type);
+    if (trimmed) onSubmit(trimmed, icon);
   }
 
   const filteredIcons = ROOM_ICONS.filter((name) =>
@@ -47,27 +39,6 @@ export function RoomModal({
 
   return (
     <Modal title={title} onClose={onClose}>
-      {showTypePicker && (
-        <div className="field" style={{ marginBottom: 'var(--s-4)' }}>
-          <span>Room type</span>
-          <SegmentedGroup
-            className="seg-group--room-type"
-            value={type}
-            onChange={setType}
-            options={[
-              {
-                value: 'voice',
-                label: <><Mic size={13} /> Voice <span className="seg-btn__cap"> (max {capacityForType('voice')} users)</span></>,
-              },
-              {
-                value: 'video',
-                label: <><Video size={13} /> Video <span className="seg-btn__cap"> (max {capacityForType('video')} users)</span></>,
-              },
-            ]}
-          />
-        </div>
-      )}
-
       <label className="field" style={{ marginBottom: 'var(--s-4)' }}>
         <span>Room name</span>
         <input
@@ -101,7 +72,7 @@ export function RoomModal({
               onClick={() => setIcon(name)}
               title={name.replace(/-/g, ' ')}
             >
-              <RoomIcon name={name} size={20} />
+              <RoomIcon name={name} size={32} />
             </button>
           ))}
           {filteredIcons.length === 0 && (

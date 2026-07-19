@@ -9,6 +9,8 @@ type AppTabProps = Pick<
   | 'closeBehavior' | 'onChangeCloseBehavior'
   | 'alwaysOnTop' | 'onChangeAlwaysOnTop'
   | 'badgeNotificationsEnabled' | 'onChangeBadgeNotificationsEnabled'
+  | 'autoAcceptEnabled' | 'onChangeAutoAcceptEnabled'
+  | 'autoAcceptUsers' | 'onRemoveTrustedUser'
 > & {
   onResetSettings: () => void;
 };
@@ -22,6 +24,10 @@ export function AppTab({
   onChangeAlwaysOnTop,
   badgeNotificationsEnabled,
   onChangeBadgeNotificationsEnabled,
+  autoAcceptEnabled,
+  onChangeAutoAcceptEnabled,
+  autoAcceptUsers,
+  onRemoveTrustedUser,
   onResetSettings,
 }: AppTabProps): React.JSX.Element {
   return (
@@ -57,6 +63,39 @@ export function AppTab({
         value={badgeNotificationsEnabled}
         onChange={onChangeBadgeNotificationsEnabled}
       />
+
+      <hr className="settings-divider" />
+
+      <ToggleRow
+        label="Auto-accept files from trusted users"
+        hint="Transfers from trusted users skip the prompt and save straight to your Downloads folder."
+        value={autoAcceptEnabled}
+        onChange={onChangeAutoAcceptEnabled}
+      />
+
+      <SettingsRow
+        label="Trusted users"
+        hint={
+          autoAcceptUsers.length > 0
+            ? 'Files from these users are accepted automatically.'
+            : 'Tick "Always accept" on an incoming-file prompt to trust someone.'
+        }
+      >
+        {autoAcceptUsers.length > 0 ? (
+          <div className="mod-banlist">
+            {autoAcceptUsers.map((u) => (
+              <div key={u.userId} className="mod-row">
+                <span className="mod-row__label" title={u.userId}>
+                  {u.displayName || u.userId}
+                </span>
+                <button className="seg-btn" onClick={() => onRemoveTrustedUser(u.userId)}>
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </SettingsRow>
 
       <hr className="settings-divider" />
 

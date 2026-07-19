@@ -1,5 +1,4 @@
-import { dirname, join } from 'node:path';
-import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   app,
   BrowserWindow,
@@ -10,15 +9,28 @@ import {
   session,
   shell,
 } from 'electron';
-import {
-  PUBLIC_TURN_SERVERS,
-  STUN_SERVERS,
-  type PersistedSettings,
-} from '@chickadee/shared';
+import { type PersistedSettings } from '@chickadee/shared';
 import { loadSettings, saveSettings, getSettings } from './settings';
+import { loadDotEnv, buildConfig } from './config';
+import {
+  COMPACT_MAX_WIDTH,
+  COMPACT_MIN_HEIGHT,
+  COMPACT_MIN_WIDTH,
+  COMPACT_WIDTH,
+  COMPACT_CHAT_MAX_WIDTH,
+  COMPACT_CHAT_MIN_WIDTH,
+  DEFAULT_FULL_WIDTH,
+  DEFAULT_HEIGHT,
+  NORMAL_MIN_HEIGHT,
+  NORMAL_MIN_WIDTH,
+  OVERLAY_EXPAND_WIDTH,
+  clampCompactWidth,
+} from './windowSize';
 import { registerPushToTalk, handleBeforeInput, setHotkeyMainWindow, stopHotkeys } from './hotkeys';
 import { configureTray, setTrayMainWindow, destroyTray } from './tray';
 import { configureScreenShare } from './screenShare';
+import { configureFileTransfer, setFileTransferMainWindow } from './fileTransfer';
+import { configureSoundboard, setSoundboardMainWindow } from './soundboardLibrary';
 
 // In dev, override userData per "instance slot" (default 0) so settings persist
 // across restarts (a fixed dir) while two instances stay isolated — run a second
@@ -29,85 +41,11 @@ if (!app.isPackaged) {
   app.setPath('userData', join(app.getPath('temp'), `chickadee-dev-${slot}`));
 }
 
-/**
- * Minimal .env loader (no dependency): walks up looking for a `.env` file and
- * sets any KEY=VALUE lines into process.env without overwriting existing vars.
- * Lets users configure signaling/TURN with a file in dev — or, for a packaged
- * (portable) build, by dropping a `.env` next to the `.exe`.
- */
-function loadDotEnv(): void {
-  // A portable exe runs from a temp extraction dir, so process.cwd() won't see a
-  // `.env` placed beside the exe. Search the portable launch dir and the exe's
-  // own dir (when packaged) first, then fall back to cwd (dev). First file wins.
-  const bases = [
-    process.env.PORTABLE_EXECUTABLE_DIR,
-    app.isPackaged ? dirname(app.getPath('exe')) : undefined,
-    process.cwd(),
-  ].filter((d): d is string => Boolean(d));
-
-  for (const base of bases) {
-    let dir = base;
-    for (let i = 0; i < 4; i++) {
-      const candidate = join(dir, '.env');
-      if (existsSync(candidate)) {
-        for (const line of readFileSync(candidate, 'utf8').split(/\r?\n/)) {
-          const match = /^\s*([A-Za-z0-9_]+)\s*=\s*(.*?)\s*$/.exec(line);
-          if (!match || line.trimStart().startsWith('#')) continue;
-          const [, key, raw] = match;
-          if (process.env[key] !== undefined) continue;
-          const value = raw.replace(/^["']|["']$/g, '');
-          process.env[key] = value;
-        }
-        return;
-      }
-      const parent = dirname(dir);
-      if (parent === dir) break;
-      dir = parent;
-    }
-  }
-}
-
-interface AppConfig {
-  signalingUrl: string;
-  iceServers: RTCIceServer[];
-  appVersion: string;
-  /** Optional shared join secret for private signaling deployments ('' = none). */
-  joinSecret: string;
-}
-
-function buildConfig(): AppConfig {
-  // Packaged builds default to the hosted signaling server; dev defaults to a
-  // local server (npm run dev). Either can be overridden via env / a .env file.
-  const signalingUrl =
-    process.env.CHICKADEE_SIGNALING_URL ??
-    process.env.VITE_SIGNALING_URL ??
-    (app.isPackaged ? 'wss://chickadee-signaling.onrender.com' : 'ws://localhost:8080');
-
-  const iceServers: RTCIceServer[] = [...STUN_SERVERS];
-  const turnUrl = process.env.CHICKADEE_TURN_URL;
-  if (turnUrl) {
-    iceServers.push({
-      urls: turnUrl.split(',').map((u) => u.trim()).filter(Boolean),
-      username: process.env.CHICKADEE_TURN_USERNAME,
-      credential: process.env.CHICKADEE_TURN_CREDENTIAL,
-    });
-  } else {
-    iceServers.push(...PUBLIC_TURN_SERVERS);
-  }
-  // NOTE: settings are intentionally NOT passed here — they ride the synchronous
-  // `chickadee:get-settings` IPC instead, because the full settings object includes
-  // the base64 avatar and argv has a hard length limit (~32 KB on Windows).
-  return {
-    signalingUrl,
-    iceServers,
-    appVersion: app.getVersion(),
-    joinSecret: process.env.CHICKADEE_JOIN_SECRET ?? '',
-  };
-}
-
 loadDotEnv();
 
-const GRANTED_PERMISSIONS = new Set(['media', 'display-capture']);
+// 'notifications' powers the renderer's transfer toasts (auto-accepts + offers
+// while unfocused); without it the deny-by-default handler silently blocks them.
+const GRANTED_PERMISSIONS = new Set(['media', 'display-capture', 'notifications']);
 
 function configureMediaPermissions(): void {
   session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
@@ -118,27 +56,24 @@ function configureMediaPermissions(): void {
   );
 }
 
-const NORMAL_MIN_WIDTH = 760;
-const NORMAL_MIN_HEIGHT = 520;
-const COMPACT_WIDTH = 280;
-const COMPACT_MIN_WIDTH = 280;
-const COMPACT_MAX_WIDTH = COMPACT_WIDTH * 2; // 200% — matches the sidebar width scale cap.
-const COMPACT_MIN_HEIGHT = 360;
-
-/** Clamp a requested compact-dock width to the allowed range. */
-function clampCompactWidth(px: number): number {
-  return Math.max(COMPACT_MIN_WIDTH, Math.min(COMPACT_MAX_WIDTH, Math.round(px)));
-}
-
 // Sidebar-only "compact mode" (dock-style window): tracked here so the resize
 // handler and createWindow()'s initial sizing branch agree on the current state.
 let isCompact = false;
+// Compact + chat: dock widened to also show the room chat panel (see
+// App.tsx showCompactChat). Widens the dock's min/max width bounds.
+let isCompactChat = false;
 // Full-view width remembered on entering compact, so expanding restores the
 // wide layout. Height is intentionally NOT saved — it stays continuous across
 // the compact↔full transition (full view adopts whatever height the user left
 // the dock at).
 let savedFullWidth: number | null = null;
 let wasMaximized = false;
+// A sidebar modal (Settings, etc.) needs more width than the dock strip provides,
+// so while one is open the docked window temporarily widens WITHOUT leaving compact
+// mode. Distinct from the compact↔full transition above: compactMode never flips, so
+// the docked layout + detached video stay put and this restores the exact dock width.
+let overlayExpanded = false;
+let savedCompactWidth: number | null = null;
 
 function registerWindowControls(): void {
   ipcMain.on('chickadee:window-minimize', (e) => BrowserWindow.fromWebContents(e.sender)?.minimize());
@@ -149,52 +84,98 @@ function registerWindowControls(): void {
     else win.maximize();
   });
   ipcMain.on('chickadee:window-close', (e) => BrowserWindow.fromWebContents(e.sender)?.close());
-  ipcMain.on('chickadee:window-set-compact', (e, compact: boolean, compactWidth?: number) => {
-    const win = BrowserWindow.fromWebContents(e.sender);
-    if (!win || compact === isCompact) return;
-    isCompact = compact;
-    if (compact) {
-      wasMaximized = win.isMaximized();
-      if (wasMaximized) win.unmaximize();
-      const bounds = win.getBounds();
-      savedFullWidth = bounds.width;
-      // Dock is resizable (height + width), but width is capped at 200%.
-      // NOTE: the window is already resizable (constructor) and we never toggle
-      // it — calling setResizable() here would silently reset the min/max size on
-      // Windows, leaving OS-edge drag unconstrained (infinite horizontal stretch).
-      // So apply the size constraints and do NOT call setResizable.
-      win.setMaximizable(false);
-      win.setMinimumSize(COMPACT_MIN_WIDTH, COMPACT_MIN_HEIGHT);
-      win.setMaximumSize(COMPACT_MAX_WIDTH, 0);
-      win.setBounds({
-        x: bounds.x,
-        y: bounds.y,
-        width: clampCompactWidth(compactWidth ?? COMPACT_WIDTH),
-        height: bounds.height, // keep current height — continuous across the transition
-      });
-    } else {
-      // Lift the dock's width cap, restore the wide layout, but keep the height.
-      // (No setResizable here either — see the note above; it would reset min/max.)
-      win.setMaximizable(true);
-      win.setMaximumSize(0, 0);
-      win.setMinimumSize(NORMAL_MIN_WIDTH, NORMAL_MIN_HEIGHT);
-      const bounds = win.getBounds();
-      win.setBounds({
-        x: bounds.x,
-        y: bounds.y,
-        width: savedFullWidth ?? 1100,
-        height: bounds.height,
-      });
-      if (wasMaximized) win.maximize();
-      savedFullWidth = null;
-    }
-  });
+  ipcMain.on(
+    'chickadee:window-set-compact',
+    (e, compact: boolean, compactWidth?: number, chatWidth?: number) => {
+      const win = BrowserWindow.fromWebContents(e.sender);
+      if (!win) return;
+      // Skip only when neither the compact flag nor the chat sub-mode changed —
+      // a chat toggle while already compact still needs to re-apply the wider
+      // bounds below, so it can't share the old "compact === isCompact" bail-out.
+      const hasChat = chatWidth != null;
+      if (compact === isCompact && (!compact || hasChat === isCompactChat)) return;
+      // A real compact enter/exit supersedes any overlay expansion — drop its saved
+      // state so it can't strand the width cap or restore a stale dock width.
+      overlayExpanded = false;
+      savedCompactWidth = null;
+      if (compact) {
+        if (!isCompact) {
+          wasMaximized = win.isMaximized();
+          if (wasMaximized) win.unmaximize();
+          savedFullWidth = win.getBounds().width;
+        }
+        isCompact = true;
+        isCompactChat = hasChat;
+        const minWidth = hasChat ? COMPACT_CHAT_MIN_WIDTH : COMPACT_MIN_WIDTH;
+        const maxWidth = hasChat ? COMPACT_CHAT_MAX_WIDTH : COMPACT_MAX_WIDTH;
+        // Dock is resizable (height + width), but width is capped.
+        // NOTE: the window is already resizable (constructor) and we never toggle
+        // it — calling setResizable() here would silently reset the min/max size on
+        // Windows, leaving OS-edge drag unconstrained (infinite horizontal stretch).
+        // So apply the size constraints and do NOT call setResizable.
+        win.setMaximizable(false);
+        win.setMinimumSize(minWidth, COMPACT_MIN_HEIGHT);
+        win.setMaximumSize(maxWidth, 0);
+        const bounds = win.getBounds();
+        win.setBounds({
+          x: bounds.x,
+          y: bounds.y,
+          width: clampCompactWidth((compactWidth ?? COMPACT_WIDTH) + (chatWidth ?? 0), hasChat),
+          height: bounds.height, // keep current height — continuous across the transition
+        });
+      } else {
+        // Lift the dock's width cap, restore the wide layout, but keep the height.
+        // (No setResizable here either — see the note above; it would reset min/max.)
+        win.setMaximizable(true);
+        win.setMaximumSize(0, 0);
+        win.setMinimumSize(NORMAL_MIN_WIDTH, NORMAL_MIN_HEIGHT);
+        const bounds = win.getBounds();
+        win.setBounds({
+          x: bounds.x,
+          y: bounds.y,
+          width: savedFullWidth ?? DEFAULT_FULL_WIDTH,
+          height: bounds.height,
+        });
+        if (wasMaximized) win.maximize();
+        savedFullWidth = null;
+        isCompact = false;
+        isCompactChat = false;
+      }
+    },
+  );
   // Live width-only resize while docked (in-app sidebar drag handle + slider).
   ipcMain.on('chickadee:window-set-width', (e, px: number) => {
     const win = BrowserWindow.fromWebContents(e.sender);
-    if (!win || !isCompact) return;
+    if (!win || !isCompact || overlayExpanded) return;
     const bounds = win.getBounds();
-    win.setBounds({ x: bounds.x, y: bounds.y, width: clampCompactWidth(px), height: bounds.height });
+    win.setBounds({
+      x: bounds.x,
+      y: bounds.y,
+      width: clampCompactWidth(px, isCompactChat),
+      height: bounds.height,
+    });
+  });
+  // Temporarily widen the docked window to host a modal, then restore. Keeps the
+  // app in compact mode (compactMode never flips), so only the window size changes —
+  // no room-view flash, no video re-decode, no persisted exit.
+  ipcMain.on('chickadee:window-set-overlay-expand', (e, expand: boolean) => {
+    const win = BrowserWindow.fromWebContents(e.sender);
+    if (!win) return;
+    if (expand) {
+      if (!isCompact || overlayExpanded) return;
+      overlayExpanded = true;
+      const b = win.getBounds();
+      savedCompactWidth = b.width;
+      win.setMaximumSize(0, 0); // lift the compact cap so the overlay gets room
+      win.setBounds({ x: b.x, y: b.y, width: OVERLAY_EXPAND_WIDTH, height: b.height });
+    } else {
+      if (!overlayExpanded) return;
+      overlayExpanded = false;
+      win.setMaximumSize(isCompactChat ? COMPACT_CHAT_MAX_WIDTH : COMPACT_MAX_WIDTH, 0);
+      const b = win.getBounds();
+      win.setBounds({ x: b.x, y: b.y, width: savedCompactWidth ?? COMPACT_WIDTH, height: b.height });
+      savedCompactWidth = null;
+    }
   });
 }
 
@@ -213,8 +194,8 @@ function createWindow(): void {
   const startCompactWidth = clampCompactWidth(COMPACT_WIDTH * (getSettings().sidebarWidthScale ?? 1));
 
   const window = new BrowserWindow({
-    width: startCompact ? startCompactWidth : 1100,
-    height: 720,
+    width: startCompact ? startCompactWidth : DEFAULT_FULL_WIDTH,
+    height: DEFAULT_HEIGHT,
     minWidth: startCompact ? COMPACT_MIN_WIDTH : NORMAL_MIN_WIDTH,
     minHeight: startCompact ? COMPACT_MIN_HEIGHT : NORMAL_MIN_HEIGHT,
     maxWidth: startCompact ? COMPACT_MAX_WIDTH : undefined,
@@ -260,8 +241,8 @@ function createWindow(): void {
   // (edge drag, Aero snap, double-click-maximize). setMaximumSize covers normal
   // edge drags, but snap/maximize can bypass it; clamp the requested bounds here.
   window.on('will-resize', (e, newBounds) => {
-    if (!isCompact) return;
-    const clamped = clampCompactWidth(newBounds.width);
+    if (!isCompact || overlayExpanded) return;
+    const clamped = clampCompactWidth(newBounds.width, isCompactChat);
     if (clamped !== newBounds.width) {
       e.preventDefault();
     }
@@ -310,6 +291,13 @@ function createWindow(): void {
     return { action: 'deny' };
   });
 
+  // The app never navigates after load (programmatic loadURL/loadFile don't
+  // emit this). Blocks e.g. a stray OS file drop navigating to file:// —
+  // belt-and-suspenders under the renderer's own dragover/drop preventDefault.
+  window.webContents.on('will-navigate', (event) => {
+    event.preventDefault();
+  });
+
   if (process.env['ELECTRON_RENDERER_URL']) {
     void window.loadURL(process.env['ELECTRON_RENDERER_URL']);
   } else {
@@ -321,10 +309,14 @@ function createWindow(): void {
     if (mainWindow === window) mainWindow = null;
     setHotkeyMainWindow(null);
     setTrayMainWindow(null);
+    setFileTransferMainWindow(null);
+    setSoundboardMainWindow(null);
   });
 
   setHotkeyMainWindow(window);
   setTrayMainWindow(window);
+  setFileTransferMainWindow(window);
+  setSoundboardMainWindow(window);
 }
 
 app.on('render-process-gone', (_e, _wc, details) => {
@@ -378,6 +370,8 @@ app.whenReady().then(() => {
 
   configureMediaPermissions();
   configureScreenShare();
+  configureFileTransfer();
+  configureSoundboard();
   registerWindowControls();
   registerPushToTalk();
   configureTray();

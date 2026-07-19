@@ -1,6 +1,7 @@
 import { SettingsRow } from './SettingsRow';
+import { CustomSelect } from '../CustomSelect';
 
-/** A settings row whose control is a native `<select>` (styled via `.settings-select`). */
+/** A settings row whose control is a CustomSelect (styled via `.settings-select`). */
 export function SelectRow<T extends string>({
   label,
   hint,
@@ -18,13 +19,12 @@ export function SelectRow<T extends string>({
 }): React.JSX.Element {
   return (
     <SettingsRow label={label} hint={hint} disabled={disabled}>
-      <select className="settings-select" value={value} onChange={(e) => onChange(e.target.value as T)}>
-        {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
-      </select>
+      <CustomSelect
+        value={value}
+        onChange={(val) => onChange(val as T)}
+        options={options}
+        className="settings-select"
+      />
     </SettingsRow>
   );
 }

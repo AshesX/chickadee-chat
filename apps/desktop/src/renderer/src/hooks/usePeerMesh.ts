@@ -1,11 +1,27 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { PeerId, VideoQuality } from '@chickadee/shared';
+import type { AudioQuality, PeerId, VideoQuality } from '@chickadee/shared';
 import { createPeerLink, type PeerLink } from '../webrtc/peerLink';
 import type { MessageListener, Signaling } from './useSignaling';
 import { getSharedAudioContext } from '../lib/audioContext';
-import { RESOLUTION_MAP, createMicProcessingGraph, type ScreenAudioConstraints } from '../webrtc/mediaConstraints';
+import {
+  buildMicAudioConstraints,
+  buildVideoCaptureConstraints,
+  createMicProcessingGraph,
+  type ScreenAudioConstraints,
+} from '../webrtc/mediaConstraints';
 import { deriveWants, classifyPeerStreams } from '../webrtc/meshLogic';
 import { computeMeshEncoding, type MeshEncoding } from '../webrtc/encodingParams';
+import {
+  HEALTH_TICK_MS,
+  deriveHealthUi,
+  evaluateHealth,
+  initialHealth,
+  reconcileMesh,
+  sumInboundAudioPackets,
+  type HealthPhase,
+  type HealthUi,
+  type LinkHealth,
+} from '../webrtc/connectionHealthPolicy';
 import { useAutoClearError } from './useAutoClearError';
 
 export interface RemoteMedia {
@@ -22,6 +38,12 @@ export interface RemoteMedia {
   /** The peer's screen-share stream (screen video + optional system audio). */
   screenStream: MediaStream | null;
   connectionState: RTCPeerConnectionState;
+  /**
+   * Stats-derived link health from the monitor (connectionState can claim
+   * 'connected' while RTP is dead): 'recovering' while a restart/relink is in
+   * flight, 'failed' after the escalation ladder gives up.
+   */
+  health: HealthUi;
 }
 
 export interface PeerMesh {
@@ -61,6 +83,7 @@ export interface PeerMesh {
   stopScreenShare: () => void;
   analyserNode: AnalyserNode | null;
   teardown: () => void;
+  setCameraError: (error: string | null) => void;
 }
 
 const TERMINAL_STATUSES = new Set(['idle', 'closed', 'error', 'room-full']);
@@ -80,6 +103,7 @@ export function usePeerMesh(
   screenResolution: string,
   screenFramerate: string,
   videoQuality: VideoQuality,
+  audioQuality: AudioQuality,
   echoCancellation: boolean,
   autoGainControl: boolean,
   inputDeviceId: string,
@@ -87,8 +111,20 @@ export function usePeerMesh(
   localVoicePreference: string,
   localAccentColor: string,
   localUserId: string,
+  /** Which of our streams (if any) currently holds the room stage — its encoding
+   *  becomes high-quality (budget-clamped); everything else is a thumbnail. */
+  stageKind: 'screen' | 'camera' | null,
+  /** How many peers are subscribed to our stage stream (drives the adaptive budget). */
+  stageWatcherCount: number,
+  /** Total outbound budget (bits/sec) for the stage stream across all viewers; 0 = unlimited. */
+  uploadBudgetBps: number,
 ): PeerMesh {
-  const { subscribe, send, status } = signaling;
+  const { subscribe, send, status, peers } = signaling;
+
+  // Presence mirror for the health monitor's reconciliation backstop (the
+  // stable tick callback must read the latest roster without re-subscribing).
+  const peersRef = useRef(peers);
+  peersRef.current = peers;
 
   // Our stable userId, used to decide whether a viewer's subscription set
   // includes us (so we should send them video/screen-audio). In a ref so the
@@ -115,7 +151,7 @@ export function usePeerMesh(
   // peerLink reads the latest via getEncoding without being recreated, and so a
   // live quality change is picked up on the next apply/negotiation.
   const encodingRef = useRef<MeshEncoding>(
-    computeMeshEncoding(cameraResolution, cameraFramerate, screenResolution, screenFramerate, videoQuality),
+    computeMeshEncoding(cameraResolution, cameraFramerate, screenResolution, screenFramerate, videoQuality, audioQuality),
   );
   encodingRef.current = computeMeshEncoding(
     cameraResolution,
@@ -123,6 +159,10 @@ export function usePeerMesh(
     screenResolution,
     screenFramerate,
     videoQuality,
+    audioQuality,
+    stageKind,
+    stageWatcherCount,
+    uploadBudgetBps,
   );
 
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -174,6 +214,14 @@ export function usePeerMesh(
   const peerMediaWantsRef = useRef<Map<PeerId, { video: boolean; screenAudio: boolean }>>(new Map());
   /** peerId -> (streamId -> received MediaStream), to (re)classify on demand. */
   const remoteStreamsRef = useRef<Map<PeerId, Map<string, MediaStream>>>(new Map());
+  /** peerId -> health-reducer state for the monitor tick (survives relinks so
+   * the escalation ladder's attempt count can't reset by relinking). */
+  const healthRef = useRef<Map<PeerId, LinkHealth>>(new Map());
+  /** Last UI signal published per peer, so the 2s tick only patches React state
+   * on actual transitions. */
+  const lastHealthUiRef = useRef<Map<PeerId, HealthUi>>(new Map());
+  /** Pending link↔presence mismatches for reconcileMesh (first-seen stamps). */
+  const reconcilePendingRef = useRef<Record<string, number>>({});
   const disposedRef = useRef(false);
 
   const ensureLocalStream = useCallback((): Promise<MediaStream | null> => {
@@ -182,12 +230,7 @@ export function usePeerMesh(
 
     const promise = navigator.mediaDevices
       .getUserMedia({
-        audio: {
-          deviceId: inputDeviceIdRef.current ? { exact: inputDeviceIdRef.current } : undefined,
-          echoCancellation: ecRef.current,
-          autoGainControl: agcRef.current,
-          noiseSuppression: nsRef.current,
-        },
+        audio: buildMicAudioConstraints(inputDeviceIdRef.current, ecRef.current, agcRef.current, nsRef.current),
         video: false,
       })
       .then((stream) => {
@@ -258,12 +301,13 @@ export function usePeerMesh(
   }, [micVolume]);
 
   // Re-apply video bitrate/framerate caps to every live sender when the quality
-  // tier or capture resolution/framerate changes. (encodingRef already holds the
-  // fresh config; this pushes it to existing senders without renegotiation. The
-  // Opus target applies on the next negotiation via tuneOpusSdp.)
+  // tier / capture resolution/framerate changes, OR when our stage role or the
+  // number of stage watchers changes (both shift the effective caps: stage vs
+  // thumbnail role, and the adaptive per-viewer budget). encodingRef already holds
+  // the fresh config; this pushes it to existing senders without renegotiation.
   useEffect(() => {
     for (const link of linksRef.current.values()) link.applyEncoding();
-  }, [videoQuality, cameraResolution, cameraFramerate, screenResolution, screenFramerate]);
+  }, [videoQuality, audioQuality, cameraResolution, cameraFramerate, screenResolution, screenFramerate, stageKind, stageWatcherCount, uploadBudgetBps]);
 
   const prepareMedia = useCallback(() => {
     void ensureLocalStream();
@@ -276,6 +320,7 @@ export function usePeerMesh(
         cameraVideoId: null,
         screenStream: null,
         connectionState: 'new' as const,
+        health: 'ok' as const,
       };
       return { ...prev, [peerId]: { ...current, ...patch } };
     });
@@ -350,6 +395,9 @@ export function usePeerMesh(
 
       linksRef.current.set(peerId, link);
       patchRemote(peerId, { connectionState: link.pc.connectionState });
+      // Seed the health entry only when absent: a relink carries the previous
+      // entry (and its attempt count) forward so the ladder can't loop forever.
+      if (!healthRef.current.has(peerId)) healthRef.current.set(peerId, initialHealth(Date.now()));
 
       // Apply this peer's current media wants (what they've opted into) before
       // applying tracks, so a peer already subscribed to us gets the first frame
@@ -380,6 +428,8 @@ export function usePeerMesh(
     }
     remoteStreamsRef.current.delete(peerId);
     screenIdsRef.current.delete(peerId);
+    healthRef.current.delete(peerId);
+    lastHealthUiRef.current.delete(peerId);
     setRemote((prev) => {
       if (!(peerId in prev)) return prev;
       const next = { ...prev };
@@ -387,6 +437,59 @@ export function usePeerMesh(
       return next;
     });
   }, []);
+
+  /**
+   * Scoped teardown of ONE link for a rebuild, keeping the peer's announced
+   * state (screenIdsRef — their share is still live; peerMediaWantsRef — their
+   * opt-ins still hold; healthRef — the ladder's attempt count must survive).
+   * The old pc's streams are dead, so the remote snapshot resets to let the
+   * fresh pc's ontrack repopulate it.
+   */
+  const dropLinkForRebuild = useCallback(
+    (peerId: PeerId) => {
+      const link = linksRef.current.get(peerId);
+      if (link) {
+        link.close();
+        linksRef.current.delete(peerId);
+      }
+      remoteStreamsRef.current.delete(peerId);
+      patchRemote(peerId, {
+        cameraStream: null,
+        cameraVideoId: null,
+        screenStream: null,
+        connectionState: 'new',
+      });
+    },
+    [patchRemote],
+  );
+
+  /**
+   * Initiator side of a relink: tear down our link, tell the peer to do the
+   * same (a fresh pc mints a new DTLS certificate, so its offer can never be
+   * accepted by the peer's OLD pc — both sides must rebuild), then recreate.
+   * The relink message goes out before ensureLink so it precedes our fresh
+   * offer in the socket's FIFO order.
+   */
+  const relinkPeer = useCallback(
+    (peerId: PeerId) => {
+      dropLinkForRebuild(peerId);
+      send({ type: 'relink', to: peerId });
+      ensureLink(peerId);
+    },
+    [dropLinkForRebuild, send, ensureLink],
+  );
+
+  /** Push a health transition into the remote snapshot (only on change — the
+   * monitor ticks every 2s and must not re-render tiles per tick). */
+  const publishHealth = useCallback(
+    (peerId: PeerId, phase: HealthPhase) => {
+      const ui = deriveHealthUi(phase);
+      if ((lastHealthUiRef.current.get(peerId) ?? 'ok') === ui) return;
+      lastHealthUiRef.current.set(peerId, ui);
+      patchRemote(peerId, { health: ui });
+    },
+    [patchRemote],
+  );
 
   const teardown = useCallback(() => {
     disposedRef.current = true;
@@ -420,6 +523,9 @@ export function usePeerMesh(
     screenIdsRef.current.clear();
     peerMediaWantsRef.current.clear();
     remoteStreamsRef.current.clear();
+    healthRef.current.clear();
+    lastHealthUiRef.current.clear();
+    reconcilePendingRef.current = {};
     setRemote({});
     setLocalStream(null);
     setLocalScreenStream(null);
@@ -488,12 +594,7 @@ export function usePeerMesh(
     void (async () => {
       try {
         const newRaw = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            deviceId: deviceId ? { exact: deviceId } : undefined,
-            echoCancellation: ecRef.current,
-            autoGainControl: agcRef.current,
-            noiseSuppression: nsRef.current,
-          },
+          audio: buildMicAudioConstraints(deviceId, ecRef.current, agcRef.current, nsRef.current),
           video: false,
         });
         if (disposedRef.current) {
@@ -571,14 +672,8 @@ export function usePeerMesh(
     setCameraError(null);
     void (async () => {
       try {
-        const res = RESOLUTION_MAP[cameraResolution] || RESOLUTION_MAP['720p'];
-        const fps = parseInt(cameraFramerate, 10) || 30;
-        const camStream = await navigator.mediaDevices.getUserMedia({ 
-          video: { 
-            width: { ideal: res.width }, 
-            height: { ideal: res.height }, 
-            frameRate: { ideal: fps } 
-          } 
+        const camStream = await navigator.mediaDevices.getUserMedia({
+          video: buildVideoCaptureConstraints(cameraResolution, cameraFramerate, '720p'),
         });
         const videoTrack = camStream.getVideoTracks()[0];
         if (!videoTrack) return;
@@ -653,15 +748,9 @@ export function usePeerMesh(
               : true
             : false;
 
+          const videoConstraints = buildVideoCaptureConstraints(screenResolution, screenFramerate, '1080p');
           let screen: MediaStream;
           try {
-            const res = RESOLUTION_MAP[screenResolution] || RESOLUTION_MAP['1080p'];
-            const fps = parseInt(screenFramerate, 10) || 30;
-            const videoConstraints = {
-              width: { ideal: res.width },
-              height: { ideal: res.height },
-              frameRate: { ideal: fps }
-            };
             screen = await navigator.mediaDevices.getDisplayMedia({
               video: videoConstraints,
               audio: audioConstraints,
@@ -671,15 +760,9 @@ export function usePeerMesh(
             // System-audio capture can fail (e.g. some window shares); retry video-only.
             console.warn('screen audio capture failed, retrying video-only', audioErr);
             await window.chickadee.setShareSource(sourceId, false);
-            const res = RESOLUTION_MAP[screenResolution] || RESOLUTION_MAP['1080p'];
-            const fps = parseInt(screenFramerate, 10) || 30;
-            screen = await navigator.mediaDevices.getDisplayMedia({ 
-              video: {
-                width: { ideal: res.width },
-                height: { ideal: res.height },
-                frameRate: { ideal: fps }
-              }, 
-              audio: false 
+            screen = await navigator.mediaDevices.getDisplayMedia({
+              video: videoConstraints,
+              audio: false,
             });
           }
 
@@ -749,6 +832,9 @@ export function usePeerMesh(
           linksRef.current.clear();
           remoteStreamsRef.current.clear();
           screenIdsRef.current.clear();
+          healthRef.current.clear();
+          lastHealthUiRef.current.clear();
+          reconcilePendingRef.current = {};
           setRemote({});
           peerMediaWantsRef.current.clear();
           for (const peer of msg.peers) {
@@ -782,6 +868,28 @@ export function usePeerMesh(
         case 'ice-candidate':
           void ensureLink(msg.from).handleSignal(msg);
           break;
+        case 'relink': {
+          // The peer is rebuilding our pair: drop our side and wait — its fresh
+          // offer follows on this socket (FIFO) and the offer case above
+          // recreates the link. Reset the packet baseline: the fresh pc's
+          // counters restart at zero, and against the old baseline the monitor
+          // would misread flowing packets as a stall. If the offer got lost
+          // too, the reconcile backstop recreates the link from our side.
+          dropLinkForRebuild(msg.from);
+          const h = healthRef.current.get(msg.from);
+          if (h) {
+            // createdAt resets too: the pair build starts anew, so the
+            // connect-timeout clock must not count the old link's lifetime.
+            healthRef.current.set(msg.from, {
+              ...h,
+              packets: 0,
+              lastAdvanceAt: Date.now(),
+              degradedAt: null,
+              createdAt: Date.now(),
+            });
+          }
+          break;
+        }
         case 'screen-state':
           if (msg.streamId) screenIdsRef.current.set(msg.from, msg.streamId);
           else screenIdsRef.current.delete(msg.from);
@@ -799,7 +907,67 @@ export function usePeerMesh(
       }
     };
     return subscribe(handle);
-  }, [subscribe, ensureLocalStream, ensureLink, closeLink, recomputeRemote, reannounceLocalState, computeWants]);
+  }, [subscribe, ensureLocalStream, ensureLink, closeLink, dropLinkForRebuild, recomputeRemote, reannounceLocalState, computeWants]);
+
+  // Health monitor: the one interval in this hook (setInterval, never rAF — it
+  // must keep firing while minimized; backgroundThrottling:false protects it).
+  // Each tick polls every link's getStats() for inbound-audio packet counts and
+  // runs the pure escalation ladder (evaluateHealth): silent stalls the ICE
+  // layer never reports → restartIce → relink → give up. Gated on 'connected':
+  // during a signaling drop the mesh idles by design (restart/relink need the
+  // relay anyway; P2P media itself survives the blip), and the re-welcome
+  // rebuilds everything fresh.
+  useEffect(() => {
+    if (status !== 'connected') return;
+    let cancelled = false;
+    const timer = setInterval(() => {
+      void (async () => {
+        const sampled = await Promise.all(
+          [...linksRef.current.entries()].map(async ([peerId, link]) => {
+            try {
+              const report = await link.pc.getStats();
+              return [peerId, link, sumInboundAudioPackets([...report.values()])] as const;
+            } catch {
+              // Stats unavailable (pc closing): report the old count = "frozen".
+              return [peerId, link, healthRef.current.get(peerId)?.packets ?? 0] as const;
+            }
+          }),
+        );
+        if (cancelled) return;
+        const now = Date.now();
+        for (const [peerId, link, packetsNow] of sampled) {
+          // The link may have been torn down while getStats was in flight.
+          if (linksRef.current.get(peerId) !== link) continue;
+          const h = healthRef.current.get(peerId) ?? initialHealth(now);
+          const { next, action } = evaluateHealth(h, link.pc.connectionState, packetsNow, now);
+          healthRef.current.set(peerId, next);
+          publishHealth(peerId, next.phase);
+          if (action === 'restart-ice') link.restartIce();
+          else if (action === 'relink') relinkPeer(peerId);
+        }
+        // Reconciliation backstop: a link whose peer is gone (missed peer-left)
+        // closes; a peer left linkless (lost relink offer) gets a fresh link.
+        const { close, create, nextPending } = reconcileMesh(
+          [...linksRef.current.keys()],
+          peersRef.current.map((p) => p.id),
+          reconcilePendingRef.current,
+          now,
+        );
+        reconcilePendingRef.current = nextPending;
+        for (const id of close) closeLink(id);
+        for (const id of create) {
+          const peer = peersRef.current.find((p) => p.id === id);
+          if (!peer) continue;
+          peerMediaWantsRef.current.set(id, computeWants(peer.videoSubscriptions, peer.wantsVideo));
+          ensureLink(id);
+        }
+      })();
+    }, HEALTH_TICK_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [status, publishHealth, relinkPeer, closeLink, ensureLink, computeWants]);
 
   // Tear everything down when the call ends (leave / disconnect / error).
   useEffect(() => {
@@ -831,5 +999,6 @@ export function usePeerMesh(
     stopScreenShare,
     analyserNode,
     teardown,
+    setCameraError,
   };
 }

@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron';
 import type { BrowserWindow, Input } from 'electron';
 import { uIOhook, UiohookKey } from 'uiohook-napi';
+import { acceleratorToInputCode, acceleratorToKeyCode, hotkeyKeyDown, hotkeyKeyUp } from './hotkeyLogic';
 
 interface HotkeyState {
   keyCode: number | null;
@@ -30,28 +31,6 @@ export function setHotkeyMainWindow(w: BrowserWindow | null): void {
   mainWindow = w;
 }
 
-function acceleratorToUiohookCode(accel: string): number | null {
-  const arrowMap: Record<string, number> = {
-    Up: UiohookKey.ArrowUp,
-    Down: UiohookKey.ArrowDown,
-    Left: UiohookKey.ArrowLeft,
-    Right: UiohookKey.ArrowRight,
-  };
-  if (accel in arrowMap) return arrowMap[accel]!;
-  const code = (UiohookKey as unknown as Record<string, number | undefined>)[accel];
-  return code ?? null;
-}
-
-function acceleratorToInputCode(accel: string): string {
-  if (/^[A-Z]$/.test(accel)) return `Key${accel}`;
-  if (/^[0-9]$/.test(accel)) return `Digit${accel}`;
-  if (accel === 'Up') return 'ArrowUp';
-  if (accel === 'Down') return 'ArrowDown';
-  if (accel === 'Left') return 'ArrowLeft';
-  if (accel === 'Right') return 'ArrowRight';
-  return accel; // F1-F24, Space, Tab, Insert, Delete, Home, End match as-is
-}
-
 function updateUiohookState(): void {
   const needsUiohook = Object.values(hotkeys).some((hk) => hk.keyCode !== null);
   if (needsUiohook && !uiohookRunning) {
@@ -75,21 +54,20 @@ export function registerPushToTalk(): void {
   // Listeners are registered once.
   uIOhook.on('keydown', (e) => {
     for (const hk of Object.values(hotkeys)) {
-      if (hk.keyCode !== null && e.keycode === hk.keyCode && !hk.isHeld) {
-        hk.isHeld = true; // suppress OS key-repeat
-        const eventName = hk.mode === 'hold' && hk.onStart ? hk.onStart : hk.onToggle;
-        mainWindow?.webContents.send(eventName);
+      if (hk.keyCode !== null && e.keycode === hk.keyCode) {
+        const { emit, isHeld } = hotkeyKeyDown(hk);
+        hk.isHeld = isHeld; // suppress OS key-repeat
+        if (emit) mainWindow?.webContents.send(emit);
       }
     }
   });
 
   uIOhook.on('keyup', (e) => {
     for (const hk of Object.values(hotkeys)) {
-      if (hk.keyCode !== null && e.keycode === hk.keyCode && hk.isHeld) {
-        hk.isHeld = false;
-        if (hk.mode === 'hold' && hk.onStop) {
-          mainWindow?.webContents.send(hk.onStop);
-        }
+      if (hk.keyCode !== null && e.keycode === hk.keyCode) {
+        const { emit, isHeld } = hotkeyKeyUp(hk);
+        hk.isHeld = isHeld;
+        if (emit) mainWindow?.webContents.send(emit);
       }
     }
   });
@@ -99,7 +77,9 @@ export function registerPushToTalk(): void {
       channel,
       (_e, opts: { enabled: boolean; key: string; mode?: 'hold' | 'toggle' }) => {
         const hk = hotkeys[key];
-        hk.keyCode = opts.enabled ? acceleratorToUiohookCode(opts.key) : null;
+        hk.keyCode = opts.enabled
+          ? acceleratorToKeyCode(opts.key, UiohookKey as unknown as Record<string, number | undefined>)
+          : null;
         hk.inputCode = opts.enabled ? acceleratorToInputCode(opts.key) : null;
         hk.mode = opts.mode ?? defaultMode;
         hk.isHeld = false;
@@ -125,17 +105,14 @@ export function handleBeforeInput(window: BrowserWindow, input: Input): void {
   for (const hk of Object.values(hotkeys)) {
     if (hk.inputCode && input.code === hk.inputCode) {
       if (input.type === 'keyDown') {
-        if (hk.isHeld) continue;
         if (input.isAutoRepeat) continue;
-        hk.isHeld = true;
-        const eventName = hk.mode === 'hold' && hk.onStart ? hk.onStart : hk.onToggle;
-        window.webContents.send(eventName);
+        const { emit, isHeld } = hotkeyKeyDown(hk);
+        hk.isHeld = isHeld;
+        if (emit) window.webContents.send(emit);
       } else if (input.type === 'keyUp') {
-        if (!hk.isHeld) continue;
-        hk.isHeld = false;
-        if (hk.mode === 'hold' && hk.onStop) {
-          window.webContents.send(hk.onStop);
-        }
+        const { emit, isHeld } = hotkeyKeyUp(hk);
+        hk.isHeld = isHeld;
+        if (emit) window.webContents.send(emit);
       }
     }
   }
