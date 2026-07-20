@@ -5,10 +5,12 @@ interface ModalProps {
   title: string;
   onClose: () => void;
   children: ReactNode;
+  /** Use the wider panel variant (780px) for content-heavier dialogs. */
+  wide?: boolean;
 }
 
 /** Base modal: dim overlay + centered glass panel, closes on overlay/Escape. */
-export function Modal({ title, onClose, children }: ModalProps): React.JSX.Element {
+export function Modal({ title, onClose, children, wide }: ModalProps): React.JSX.Element {
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') onClose();
@@ -19,7 +21,7 @@ export function Modal({ title, onClose, children }: ModalProps): React.JSX.Eleme
 
   return (
     <div className="backdrop backdrop--scrim backdrop--modal" onClick={onClose}>
-      <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
+      <div className={`modal-panel${wide ? ' modal-panel--wide' : ''}`} onClick={(e) => e.stopPropagation()}>
         <div className="modal-panel__head">
           <h2 className="modal-panel__title">{title}</h2>
           <button className="icon-btn" onClick={onClose} aria-label="Close">

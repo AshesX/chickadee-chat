@@ -1,6 +1,8 @@
-import { MessageSquare, ChevronsLeft } from 'lucide-react';
+import { useState } from 'react';
+import { MessageSquare, ChevronsLeft, Info, Scale, CircleHelp, Settings } from 'lucide-react';
 import { Logo } from './Logo';
 import { WindowControls } from './WindowControls';
+import { ChevronMenu } from './ChevronMenu';
 
 interface TitleBarProps {
   chatOpen: boolean;
@@ -8,9 +10,26 @@ interface TitleBarProps {
   inRoom: boolean;
   compact: boolean;
   onToggleCompact: () => void;
+  onOpenAbout: () => void;
+  onOpenLegal: () => void;
+  onOpenHelp: () => void;
+  onOpenSettings: () => void;
 }
 
-export function TitleBar({ chatOpen, onToggleChat, inRoom, compact, onToggleCompact }: TitleBarProps): React.JSX.Element {
+export function TitleBar({
+  chatOpen,
+  onToggleChat,
+  inRoom,
+  compact,
+  onToggleCompact,
+  onOpenAbout,
+  onOpenLegal,
+  onOpenHelp,
+  onOpenSettings,
+}: TitleBarProps): React.JSX.Element {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuAnchor, setMenuAnchor] = useState<DOMRect | null>(null);
+
   const collapseBtn = (
     <button
       className="icon-btn title-bar__collapse-btn"
@@ -28,8 +47,45 @@ export function TitleBar({ chatOpen, onToggleChat, inRoom, compact, onToggleComp
   return (
     <header className="title-bar">
       <div className="title-bar__center">
-        <Logo size={16} staticLogo className="title-bar__logo" />
-        <span className="title-bar__wordmark">CHICKADEE CHAT</span>
+        <button
+          className="title-bar__brand"
+          onClick={(e) => {
+            setMenuAnchor(e.currentTarget.getBoundingClientRect());
+            setMenuOpen((v) => !v);
+          }}
+          title="Chickadee Chat menu"
+          aria-label="Chickadee Chat menu"
+        >
+          <Logo size={16} staticLogo className="title-bar__logo" />
+          <span className="title-bar__wordmark">CHICKADEE CHAT</span>
+        </button>
+        {menuOpen && menuAnchor && (
+          <ChevronMenu
+            anchorRect={menuAnchor}
+            onClose={() => setMenuOpen(false)}
+            placement="below"
+            width={200}
+            className="brand-menu menu-surface"
+          >
+            <button className="menu-item" onClick={() => { onOpenAbout(); setMenuOpen(false); }}>
+              <Info size={16} />
+              <span>About</span>
+            </button>
+            <button className="menu-item" onClick={() => { onOpenLegal(); setMenuOpen(false); }}>
+              <Scale size={16} />
+              <span>Legal Information</span>
+            </button>
+            <button className="menu-item" onClick={() => { onOpenHelp(); setMenuOpen(false); }}>
+              <CircleHelp size={16} />
+              <span>Help</span>
+            </button>
+            <hr className="brand-menu__divider" />
+            <button className="menu-item" onClick={() => { onOpenSettings(); setMenuOpen(false); }}>
+              <Settings size={16} />
+              <span>Settings</span>
+            </button>
+          </ChevronMenu>
+        )}
       </div>
 
       <div className="title-bar__spacer" />

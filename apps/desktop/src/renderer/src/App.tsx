@@ -64,6 +64,9 @@ const SettingsModal = lazy(() =>
 const SpaceSettingsModal = lazy(() =>
   import('./components/SpaceSettingsModal').then((m) => ({ default: m.SpaceSettingsModal })),
 );
+import { AboutModal } from './components/AboutModal';
+import { LegalModal } from './components/LegalModal';
+import { HelpModal } from './components/HelpModal';
 import { speakChatMessage, cancelSpeech } from './lib/tts';
 import { shouldSpeakChatMessage } from './lib/ttsTriggers';
 import { initVoices } from './lib/voices';
@@ -160,6 +163,9 @@ export function App(): React.JSX.Element {
   const [renameTarget, setRenameTarget] = useState<Room | null>(null);
   const [spaceSettingsTarget, setSpaceSettingsTarget] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
+  const [legalOpen, setLegalOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [inputMode, applyInputMode] = usePersistedState<'voice' | 'ptt'>(store.getInputMode, store.setInputMode);
   const [vadThreshold, applyVadThreshold] = usePersistedState(store.getVadThreshold, store.setVadThreshold);
@@ -903,7 +909,10 @@ export function App(): React.JSX.Element {
       renameTarget != null ||
       spaceSettingsTarget != null ||
       spaceJoin.createSpaceOpen ||
-      spaceJoin.joinSpaceOpen);
+      spaceJoin.joinSpaceOpen ||
+      aboutOpen ||
+      legalOpen ||
+      helpOpen);
 
   useEffect(() => {
     window.chickadee?.windowControls?.setOverlayExpand?.(overlayNeedsSpace);
@@ -1256,6 +1265,10 @@ export function App(): React.JSX.Element {
         inRoom={inRoom}
         compact={compactMode}
         onToggleCompact={toggleCompactMode}
+        onOpenAbout={() => setAboutOpen(true)}
+        onOpenLegal={() => setLegalOpen(true)}
+        onOpenHelp={() => setHelpOpen(true)}
+        onOpenSettings={() => setSettingsOpen(true)}
       />
 
       <div className="app-body">
@@ -1772,6 +1785,9 @@ export function App(): React.JSX.Element {
           )}
         </Suspense>
       )}
+      {aboutOpen && <AboutModal onClose={() => setAboutOpen(false)} />}
+      {legalOpen && <LegalModal onClose={() => setLegalOpen(false)} />}
+      {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}
       {settingsOpen && (
         <Suspense fallback={null}>
         <SettingsModal

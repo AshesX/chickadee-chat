@@ -1,6 +1,7 @@
 import { Fragment, useState, useEffect, useRef } from 'react';
 import { User, Mic, Volume2, Sliders, X, Video, Monitor, MessageSquare, Search, Keyboard, Music2, Smile } from 'lucide-react';
 import { defaultSettings } from '@chickadee/shared';
+import { getAppVersion } from '../lib/appInfo';
 import type { SettingsModalProps, TabId } from './settings/types';
 import { SUBSECTIONS, TAB_LABELS, getSearchResults } from './settings/searchIndex';
 
@@ -47,7 +48,7 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
   const [searchFocused, setSearchFocused] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const version = window.chickadee?.appVersion || '0.4.0';
+  const version = getAppVersion();
 
   function scrollToSection(id: string): void {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
