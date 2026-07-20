@@ -83,7 +83,7 @@ The **installer build** (not the portable exe) auto-updates in place via [electr
 
 Installed apps check for updates ~10s after launch and every 4 hours, prompting **"Update available — Download?"** before pulling any bytes; a manual **Check for Updates** button lives in the title-bar → About dialog. Portable-exe users aren't offered auto-update (there's no installed app for it to replace) and should just grab the newer portable `.exe` from Releases by hand.
 
-To build a release locally instead of via CI: `npm run release` (needs a `GH_TOKEN` env var with repo write access).
+To build a release locally instead of via CI: `npm run release` (needs a `GH_TOKEN` env var with repo write access), then `gh release edit v<version> --draft=false` — electron-builder's `releaseType: release` config is unreliable in practice and can still leave the release as a draft, which electron-updater silently ignores.
 
 ## Connecting to a signaling server
 

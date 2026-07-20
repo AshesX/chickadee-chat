@@ -42,3 +42,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run release
+
+      # electron-builder's own `releaseType: release` config (electron-builder.yml)
+      # is unreliable here — it still leaves the release in draft form (observed
+      # in practice), and electron-updater's GitHub provider ignores drafts
+      # entirely. Un-draft explicitly rather than trust electron-builder's
+      # internal publish-target resolution.
+      - name: Publish the release (un-draft)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "${{ github.ref_name }}" --draft=false

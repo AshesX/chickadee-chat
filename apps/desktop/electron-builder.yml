@@ -13,6 +13,11 @@ publish:
   provider: github
   owner: AshesX
   repo: chickadee-chat
+  # Publish directly as a real release, not electron-builder's draft default —
+  # electron-updater's GitHub provider ignores draft releases entirely, so a
+  # release left in draft form is invisible to every installed app checking
+  # for updates.
+  releaseType: release
 files:
   - out/**
   - package.json
