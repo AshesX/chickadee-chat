@@ -1,7 +1,7 @@
 import { Fragment, useState, useEffect, useRef } from 'react';
 import { User, Mic, Volume2, Sliders, X, Video, Monitor, MessageSquare, Search, Keyboard, Music2, Smile } from 'lucide-react';
 import { defaultSettings } from '@chickadee/shared';
-import { getAppVersion } from '../lib/appInfo';
+
 import type { SettingsModalProps, TabId } from './settings/types';
 import { SUBSECTIONS, TAB_LABELS, getSearchResults } from './settings/searchIndex';
 
@@ -43,12 +43,10 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
 
   const [name, setName] = useState(displayName);
   const [activeTab, setActiveTab] = useState<TabId>((initialTab as TabId) ?? 'profile');
-  const [versionCopied, setVersionCopied] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const version = getAppVersion();
 
   function scrollToSection(id: string): void {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -82,15 +80,7 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
     }
   }
 
-  function copyVersion(): void {
-    if (window.chickadee?.writeClipboard) {
-      void window.chickadee.writeClipboard(version);
-    } else {
-      void navigator.clipboard.writeText(version);
-    }
-    setVersionCopied(true);
-    setTimeout(() => setVersionCopied(false), 1500);
-  }
+
 
   // One shared analyser reader feeds every mic-level bar (see useSharedMicMeter).
   const micBars = useRef<Set<HTMLDivElement>>(new Set());
@@ -261,15 +251,6 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
           ))}
           </div>
 
-          <div className="settings-sidebar__footer">
-            <button
-              className="settings-sidebar__version-btn"
-              onClick={copyVersion}
-              title="Copy Version"
-            >
-              {versionCopied ? 'Copied!' : `v${version}`}
-            </button>
-          </div>
         </div>
 
         {/* Right Content Panel */}
