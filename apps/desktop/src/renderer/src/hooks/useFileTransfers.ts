@@ -89,6 +89,8 @@ export interface FileTransfersArgs {
   iceServers: RTCIceServer[];
   /** Gates the incoming-offer notification (only fired while unfocused). */
   windowFocused: boolean;
+  /** Fired once per transfer/batch reaching a terminal status (for the done/failed SFX cue). */
+  onSettled?: (status: TransferStatus) => void;
 }
 
 export interface FileTransfers {
@@ -130,7 +132,9 @@ export interface FileTransfers {
  * point of the dedicated connection.
  */
 export function useFileTransfers(args: FileTransfersArgs): FileTransfers {
-  const { send, subscribe, iceServers } = args;
+  const { send, subscribe, iceServers, onSettled } = args;
+  const onSettledRef = useRef(onSettled);
+  onSettledRef.current = onSettled;
 
   const [transfers, setTransfers] = useState<TransferCard[]>([]);
   const [offerQueue, setOfferQueue] = useState<IncomingOffer[]>([]);
@@ -232,6 +236,7 @@ export function useFileTransfers(args: FileTransfersArgs): FileTransfers {
       if (card && isTerminalStatus(card.status)) return; // already settled
       cleanupTransfer(id);
       patch(id, { ...extra, status });
+      onSettledRef.current?.(status);
       const delay = dismissDelayMs(status, card?.direction ?? 'send');
       if (delay > 0) scheduleTimer(id, delay, () => dismiss(id));
     },

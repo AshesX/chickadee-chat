@@ -5,6 +5,8 @@ import {
   ROSTER_SETTLE_MS,
   decideMuteCue,
   decideRoomPeerCue,
+  decideScreenShareCue,
+  decideSpotlightCue,
   decideTransmitCue,
 } from './sfxTriggers';
 
@@ -131,5 +133,69 @@ describe('decideTransmitCue', () => {
     expect(decideTransmitCue(true, { ...txCtx, transmitEnabled: false })).toBeNull();
     expect(decideTransmitCue(true, { ...txCtx, inRoom: false })).toBeNull();
     expect(decideTransmitCue(true, { ...txCtx, msSinceRoomChange: 100 })).toBeNull();
+  });
+});
+
+const screenBase = {
+  sfxEnabled: true,
+  screenShareEnabled: true,
+  inRoom: true,
+  sharingIds: '',
+  prevSharingIds: '',
+  now: 100_000,
+  lastRoomChangeAt: 0,
+};
+
+describe('decideScreenShareCue', () => {
+  it('plays start/stop on a count change', () => {
+    expect(decideScreenShareCue({ ...screenBase, sharingIds: 'p1', prevSharingIds: '' })).toBe('screen-share-start');
+    expect(decideScreenShareCue({ ...screenBase, sharingIds: '', prevSharingIds: 'p1' })).toBe('screen-share-stop');
+  });
+
+  it('is silent when the count is unchanged (a swap)', () => {
+    expect(decideScreenShareCue({ ...screenBase, sharingIds: 'p2', prevSharingIds: 'p1' })).toBeNull();
+  });
+
+  it('is silent when disabled, out of room, or inside the roster-settle window', () => {
+    expect(decideScreenShareCue({ ...screenBase, sharingIds: 'p1', screenShareEnabled: false })).toBeNull();
+    expect(decideScreenShareCue({ ...screenBase, sharingIds: 'p1', sfxEnabled: false })).toBeNull();
+    expect(decideScreenShareCue({ ...screenBase, sharingIds: 'p1', inRoom: false })).toBeNull();
+    expect(
+      decideScreenShareCue({ ...screenBase, sharingIds: 'p1', lastRoomChangeAt: screenBase.now - ROSTER_SETTLE_MS + 50 }),
+    ).toBeNull();
+  });
+});
+
+const spotlightBase = {
+  sfxEnabled: true,
+  spotlightEnabled: true,
+  prevHolderId: null as string | null,
+  prevKind: null as 'screen' | 'camera' | null,
+  holderId: null as string | null,
+  kind: null as 'screen' | 'camera' | null,
+};
+
+describe('decideSpotlightCue', () => {
+  it('plays a claim cue when a peer camera-spotlights', () => {
+    expect(decideSpotlightCue({ ...spotlightBase, holderId: 'p1', kind: 'camera' })).toBe('spotlight-claim');
+  });
+
+  it('plays a lose cue when the camera holder releases or is taken over', () => {
+    const held = { ...spotlightBase, prevHolderId: 'p1', prevKind: 'camera' as const };
+    expect(decideSpotlightCue({ ...held, holderId: null, kind: null })).toBe('spotlight-lose');
+    expect(decideSpotlightCue({ ...held, holderId: 'p2', kind: 'camera' })).toBe('spotlight-claim');
+  });
+
+  it('is silent for screen-kind changes (screen-share cue covers those)', () => {
+    expect(decideSpotlightCue({ ...spotlightBase, holderId: 'p1', kind: 'screen' })).toBeNull();
+    const held = { ...spotlightBase, prevHolderId: 'p1', prevKind: 'screen' as const };
+    expect(decideSpotlightCue({ ...held, holderId: null, kind: null })).toBeNull();
+  });
+
+  it('is silent when unchanged or disabled', () => {
+    const held = { ...spotlightBase, prevHolderId: 'p1', prevKind: 'camera' as const, holderId: 'p1', kind: 'camera' as const };
+    expect(decideSpotlightCue(held)).toBeNull();
+    expect(decideSpotlightCue({ ...spotlightBase, holderId: 'p1', kind: 'camera', spotlightEnabled: false })).toBeNull();
+    expect(decideSpotlightCue({ ...spotlightBase, holderId: 'p1', kind: 'camera', sfxEnabled: false })).toBeNull();
   });
 });

@@ -69,6 +69,16 @@ export interface SettingsModalProps {
   onChangeSfxChatEnabled: (on: boolean) => void;
   sfxDeafenEnabled: boolean;
   onChangeSfxDeafenEnabled: (on: boolean) => void;
+  sfxModerationEnabled: boolean;
+  onChangeSfxModerationEnabled: (on: boolean) => void;
+  sfxSpotlightEnabled: boolean;
+  onChangeSfxSpotlightEnabled: (on: boolean) => void;
+  sfxScreenShareEnabled: boolean;
+  onChangeSfxScreenShareEnabled: (on: boolean) => void;
+  sfxTransferEnabled: boolean;
+  onChangeSfxTransferEnabled: (on: boolean) => void;
+  sfxConnectionEnabled: boolean;
+  onChangeSfxConnectionEnabled: (on: boolean) => void;
   badgeNotificationsEnabled: boolean;
   onChangeBadgeNotificationsEnabled: (on: boolean) => void;
   /** File sharing: auto-accept transfers from the trusted-users list. */

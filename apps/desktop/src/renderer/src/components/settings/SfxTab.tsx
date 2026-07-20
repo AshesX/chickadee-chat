@@ -11,6 +11,11 @@ type SfxTabProps = Pick<
   | 'sfxTransmitEnabled' | 'onChangeSfxTransmitEnabled'
   | 'sfxChatEnabled' | 'onChangeSfxChatEnabled'
   | 'sfxDeafenEnabled' | 'onChangeSfxDeafenEnabled'
+  | 'sfxModerationEnabled' | 'onChangeSfxModerationEnabled'
+  | 'sfxSpotlightEnabled' | 'onChangeSfxSpotlightEnabled'
+  | 'sfxScreenShareEnabled' | 'onChangeSfxScreenShareEnabled'
+  | 'sfxTransferEnabled' | 'onChangeSfxTransferEnabled'
+  | 'sfxConnectionEnabled' | 'onChangeSfxConnectionEnabled'
   | 'sfxVolume' | 'onChangeSfxVolume'
 >;
 
@@ -29,6 +34,16 @@ export function SfxTab({
   onChangeSfxChatEnabled,
   sfxDeafenEnabled,
   onChangeSfxDeafenEnabled,
+  sfxModerationEnabled,
+  onChangeSfxModerationEnabled,
+  sfxSpotlightEnabled,
+  onChangeSfxSpotlightEnabled,
+  sfxScreenShareEnabled,
+  onChangeSfxScreenShareEnabled,
+  sfxTransferEnabled,
+  onChangeSfxTransferEnabled,
+  sfxConnectionEnabled,
+  onChangeSfxConnectionEnabled,
   sfxVolume,
   onChangeSfxVolume,
 }: SfxTabProps): React.JSX.Element {
@@ -51,7 +66,7 @@ export function SfxTab({
       />
       <ToggleRow
         label="Mic mute / unmute"
-        hint="Plays when toggling mic mute."
+        hint="Plays when toggling mic mute, or pressing Push-to-Talk while muted."
         value={sfxMuteEnabled}
         onChange={onChangeSfxMuteEnabled}
         nested
@@ -86,6 +101,46 @@ export function SfxTab({
         hint="Plays when toggling deafen."
         value={sfxDeafenEnabled}
         onChange={onChangeSfxDeafenEnabled}
+        nested
+        disabled={!sfxEnabled}
+      />
+      <ToggleRow
+        label="Moderation & Space events"
+        hint="Plays when kicked/banned, a room or Space locks or unlocks, or ownership is transferred to you."
+        value={sfxModerationEnabled}
+        onChange={onChangeSfxModerationEnabled}
+        nested
+        disabled={!sfxEnabled}
+      />
+      <ToggleRow
+        label="Stage spotlight"
+        hint="Plays when someone claims or loses the camera stage spotlight."
+        value={sfxSpotlightEnabled}
+        onChange={onChangeSfxSpotlightEnabled}
+        nested
+        disabled={!sfxEnabled}
+      />
+      <ToggleRow
+        label="Screen sharing"
+        hint="Plays when a screen share starts or stops."
+        value={sfxScreenShareEnabled}
+        onChange={onChangeSfxScreenShareEnabled}
+        nested
+        disabled={!sfxEnabled}
+      />
+      <ToggleRow
+        label="File transfers"
+        hint="Plays when a file transfer finishes or fails."
+        value={sfxTransferEnabled}
+        onChange={onChangeSfxTransferEnabled}
+        nested
+        disabled={!sfxEnabled}
+      />
+      <ToggleRow
+        label="Connection health"
+        hint="Plays when a peer's connection degrades, fails, or recovers."
+        value={sfxConnectionEnabled}
+        onChange={onChangeSfxConnectionEnabled}
         nested
         disabled={!sfxEnabled}
       />

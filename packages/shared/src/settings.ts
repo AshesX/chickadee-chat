@@ -97,6 +97,11 @@ export interface PersistedSettings {
   sfxTransmitEnabled: boolean;
   sfxChatEnabled: boolean;
   sfxDeafenEnabled: boolean;
+  sfxModerationEnabled: boolean;
+  sfxSpotlightEnabled: boolean;
+  sfxScreenShareEnabled: boolean;
+  sfxTransferEnabled: boolean;
+  sfxConnectionEnabled: boolean;
   badgeNotificationsEnabled: boolean;
   status: 'online' | 'idle' | 'dnd';
   micVolume: number;
@@ -234,6 +239,11 @@ export function defaultSettings(): PersistedSettings {
     sfxTransmitEnabled: false,
     sfxChatEnabled: true,
     sfxDeafenEnabled: true,
+    sfxModerationEnabled: true,
+    sfxSpotlightEnabled: true,
+    sfxScreenShareEnabled: true,
+    sfxTransferEnabled: true,
+    sfxConnectionEnabled: true,
     badgeNotificationsEnabled: true,
     status: 'online',
     micVolume: 1.0,

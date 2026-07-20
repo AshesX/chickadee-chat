@@ -1,6 +1,6 @@
 {
   "name": "@chickadee/desktop",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Lightweight P2P desktop voice/video/screen-share app for small groups.",
   "author": "AshesX",
   "private": true,

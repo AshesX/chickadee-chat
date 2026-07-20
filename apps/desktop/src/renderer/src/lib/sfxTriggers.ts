@@ -105,3 +105,51 @@ export function decideTransmitCue(
   if (ctx.msSinceRoomChange <= POST_ROOM_CHANGE_SUPPRESS_MS) return null;
   return micEnabled ? 'transmit-open' : 'transmit-close';
 }
+
+export interface ScreenShareCueInput {
+  sfxEnabled: boolean;
+  screenShareEnabled: boolean;
+  inRoom: boolean;
+  /** Comma-joined sorted ids (peers + a self sentinel) currently sharing their screen. */
+  sharingIds: string;
+  prevSharingIds: string;
+  now: number;
+  lastRoomChangeAt: number;
+}
+
+/**
+ * Screen-share start/stop cue (self or any peer in the room), derived from a
+ * count change in who's currently sharing. Suppressed during the roster-settle
+ * window so joining a room where a share is already live doesn't fire a cue.
+ */
+export function decideScreenShareCue(i: ScreenShareCueInput): 'screen-share-start' | 'screen-share-stop' | null {
+  if (!i.sfxEnabled || !i.screenShareEnabled || !i.inRoom) return null;
+  if (i.now - i.lastRoomChangeAt <= ROSTER_SETTLE_MS) return null;
+  const prevCount = i.prevSharingIds ? i.prevSharingIds.split(',').filter(Boolean).length : 0;
+  const count = i.sharingIds ? i.sharingIds.split(',').filter(Boolean).length : 0;
+  if (count === prevCount) return null;
+  return count > prevCount ? 'screen-share-start' : 'screen-share-stop';
+}
+
+export interface SpotlightCueInput {
+  sfxEnabled: boolean;
+  spotlightEnabled: boolean;
+  prevHolderId: string | null;
+  prevKind: 'screen' | 'camera' | null;
+  holderId: string | null;
+  kind: 'screen' | 'camera' | null;
+}
+
+/**
+ * Camera-stage spotlight claim/lose cue. Screen-kind stage changes are
+ * intentionally silent here — decideScreenShareCue already covers that case
+ * (a screen share auto-claims the stage), so this only reacts to the manual
+ * camera-spotlight path and takeovers, avoiding a double cue on every share.
+ */
+export function decideSpotlightCue(i: SpotlightCueInput): 'spotlight-claim' | 'spotlight-lose' | null {
+  if (!i.sfxEnabled || !i.spotlightEnabled) return null;
+  if (i.holderId === i.prevHolderId && i.kind === i.prevKind) return null;
+  if (i.kind === 'camera' && i.holderId !== i.prevHolderId) return 'spotlight-claim';
+  if (i.prevKind === 'camera' && i.prevHolderId != null && i.holderId !== i.prevHolderId) return 'spotlight-lose';
+  return null;
+}

@@ -118,7 +118,47 @@ export function App(): React.JSX.Element {
       : null;
   // The stage upload budget in bits/sec (0 = unlimited), from the user's Mbps setting.
   const uploadBudgetBps = uploadBudgetMbps > 0 ? uploadBudgetMbps * 1_000_000 : 0;
-  const mesh = usePeerMesh(signaling, iceServers, noiseSuppression, micVolume, cameraResolution, cameraFramerate, screenResolution, screenFramerate, videoQuality, audioQuality, echoCancellation, autoGainControl, inputDeviceId, localAvatarUrl, localVoicePreference, localAccentColor, userId, myStageKind, selfWatcherCount, uploadBudgetBps);
+  // SFX toggles/volume + the "mute other" cue (also threaded into usePeerVolumes).
+  // Read ahead of usePeerMesh so its onHealthChange callback below can use them.
+  const {
+    sfxEnabled,
+    applySfxEnabled,
+    sfxVolume,
+    applySfxVolume,
+    sfxJoinLeaveEnabled,
+    applySfxJoinLeaveEnabled,
+    sfxMuteEnabled,
+    applySfxMuteEnabled,
+    sfxMuteOtherEnabled,
+    applySfxMuteOtherEnabled,
+    sfxTransmitEnabled,
+    applySfxTransmitEnabled,
+    sfxChatEnabled,
+    applySfxChatEnabled,
+    sfxDeafenEnabled,
+    applySfxDeafenEnabled,
+    sfxModerationEnabled,
+    applySfxModerationEnabled,
+    sfxSpotlightEnabled,
+    applySfxSpotlightEnabled,
+    sfxScreenShareEnabled,
+    applySfxScreenShareEnabled,
+    sfxTransferEnabled,
+    applySfxTransferEnabled,
+    sfxConnectionEnabled,
+    applySfxConnectionEnabled,
+    playMuteOtherCue,
+  } = useSfxSettings();
+  const onLinkHealthChange = useCallback(
+    (_peerId: string, health: 'ok' | 'recovering' | 'failed') => {
+      if (!sfxEnabled || !sfxConnectionEnabled) return;
+      if (health === 'recovering') playSfx('connection-warn', sfxVolume);
+      else if (health === 'failed') playSfx('connection-lost', sfxVolume);
+      else playSfx('connection-restored', sfxVolume);
+    },
+    [sfxEnabled, sfxConnectionEnabled, sfxVolume],
+  );
+  const mesh = usePeerMesh(signaling, iceServers, noiseSuppression, micVolume, cameraResolution, cameraFramerate, screenResolution, screenFramerate, videoQuality, audioQuality, echoCancellation, autoGainControl, inputDeviceId, localAvatarUrl, localVoicePreference, localAccentColor, userId, myStageKind, selfWatcherCount, uploadBudgetBps, onLinkHealthChange);
   const colors = useUserColors(signaling.peers.map((p) => p.id));
 
   const [displayName, setDisplayName] = useState(() => store.getName());
@@ -185,26 +225,6 @@ export function App(): React.JSX.Element {
   const [chatPanelKey, applyChatPanelKey] = usePersistedState(store.getChatPanelKey, store.setChatPanelKey);
   const [ttsToggleKey, applyTtsToggleKey] = usePersistedState(store.getTtsToggleKey, store.setTtsToggleKey);
   const [ttsStopKey, applyTtsStopKey] = usePersistedState(store.getTtsStopKey, store.setTtsStopKey);
-  // SFX toggles/volume + the "mute other" cue (also threaded into usePeerVolumes).
-  const {
-    sfxEnabled,
-    applySfxEnabled,
-    sfxVolume,
-    applySfxVolume,
-    sfxJoinLeaveEnabled,
-    applySfxJoinLeaveEnabled,
-    sfxMuteEnabled,
-    applySfxMuteEnabled,
-    sfxMuteOtherEnabled,
-    applySfxMuteOtherEnabled,
-    sfxTransmitEnabled,
-    applySfxTransmitEnabled,
-    sfxChatEnabled,
-    applySfxChatEnabled,
-    sfxDeafenEnabled,
-    applySfxDeafenEnabled,
-    playMuteOtherCue,
-  } = useSfxSettings();
 
   // Per-peer volume + click-to-silence (silence = volume 0, persisted by userId).
   const { volumes, handleVolumeChange, togglePeerMute, togglePeerMuteByUserId, mutedUserIds } =
@@ -552,11 +572,17 @@ export function App(): React.JSX.Element {
           );
         }
       } else if (msg.type === 'owner-state') {
+        // A real transfer-in (not our own creation/reclaim confirming) — the
+        // locally-known owner wasn't already us.
+        if (msg.ownerId === userId && spaces.find((s) => s.id === msg.spaceId)?.ownerId !== userId) {
+          if (sfxEnabled && sfxModerationEnabled) playSfx('ownership', sfxVolume);
+        }
         updateSpaceOwnerId(msg.spaceId, msg.ownerId);
         if (msg.spaceId === currentSpaceId) maybeSeedModeration(msg.ownerId);
       } else if (msg.type === 'banner-state') {
         updateSpaceBanner(msg.spaceId, msg.bannerDataUrl);
       } else if (msg.type === 'kicked') {
+        if (sfxEnabled && sfxModerationEnabled) playSfx('kicked', sfxVolume);
         // Space-scope is terminal and handled in the reducer; room-scope just
         // returns us to the lobby with a notice (the space connection survives).
         if (msg.scope === 'room') {
@@ -567,9 +593,14 @@ export function App(): React.JSX.Element {
         if (msg.spaceId === currentSpaceId) {
           updateSpaceModeration(msg.spaceId, { bannedUsers: msg.bannedUsers });
         }
+      } else if (msg.type === 'room-lock-state') {
+        if (msg.spaceId === currentSpaceId && msg.room === currentRoomId && sfxEnabled && sfxModerationEnabled) {
+          playSfx(msg.locked ? 'locked' : 'unlocked', sfxVolume);
+        }
       } else if (msg.type === 'space-lock-state') {
         if (msg.spaceId === currentSpaceId) {
           updateSpaceModeration(msg.spaceId, { locked: msg.locked });
+          if (sfxEnabled && sfxModerationEnabled) playSfx(msg.locked ? 'locked' : 'unlocked', sfxVolume);
         }
       } else if (msg.type === 'welcome' && currentSpaceId) {
         // Fresh space-join only — a same-space room-switch welcome omits these
@@ -602,7 +633,7 @@ export function App(): React.JSX.Element {
       }
     });
     return unsubscribe;
-  }, [signaling.subscribe, spaces, updateSpaceSettings, updateSpaceOwnerId, updateSpaceBanner, updateSpaceModeration, currentSpaceId, userId, signaling.send, leaveRoom, setModNotice]);
+  }, [signaling.subscribe, spaces, updateSpaceSettings, updateSpaceOwnerId, updateSpaceBanner, updateSpaceModeration, currentSpaceId, currentRoomId, userId, signaling.send, leaveRoom, setModNotice, sfxEnabled, sfxModerationEnabled, sfxVolume]);
 
   // One-shot: right after a brand-new space's first successful connection,
   // auto-claim ownership (guaranteed to win — the space is empty at this point).
@@ -826,6 +857,11 @@ export function App(): React.JSX.Element {
     subscribe: signaling.subscribe,
     iceServers,
     windowFocused,
+    onSettled: (status) => {
+      if (!sfxEnabled || !sfxTransferEnabled) return;
+      if (status === 'done') playSfx('transfer-done', sfxVolume);
+      else if (status === 'error') playSfx('transfer-failed', sfxVolume);
+    },
   });
   const { sendFilesTo } = fileTransfers;
   const incomingOffer = fileTransfers.incomingOffer;
@@ -1072,19 +1108,54 @@ export function App(): React.JSX.Element {
 
   const peerIdsStr = useMemo(() => signaling.peers.map((p) => p.id).sort().join(','), [signaling.peers]);
 
-  useSfxEvents({ sfxEnabled, sfxVolume, sfxJoinLeaveEnabled, sfxMuteEnabled, sfxTransmitEnabled, currentRoomId, peerIdsStr, micEnabled: mesh.micEnabled, micButtonOn, inputMode, inRoom });
+  // Comma-joined ids currently sharing their screen (a '_self' sentinel plus
+  // any peer with a live screenStreamId), for the screen-share start/stop cue.
+  const sharingScreenIdsStr = useMemo(() => {
+    const ids = signaling.peers.filter((p) => p.screenStreamId).map((p) => p.id);
+    if (mesh.sharingScreen) ids.push('_self');
+    return ids.sort().join(',');
+  }, [signaling.peers, mesh.sharingScreen]);
 
+  useSfxEvents({
+    sfxEnabled,
+    sfxVolume,
+    sfxJoinLeaveEnabled,
+    sfxMuteEnabled,
+    sfxTransmitEnabled,
+    sfxScreenShareEnabled,
+    sfxSpotlightEnabled,
+    currentRoomId,
+    peerIdsStr,
+    micEnabled: mesh.micEnabled,
+    micButtonOn,
+    inputMode,
+    inRoom,
+    sharingIds: sharingScreenIdsStr,
+    spotlightHolderId: signaling.spotlightHolderId,
+    spotlightKind: signaling.spotlightKind,
+  });
+
+  // The PTT key is a no-op while manually muted — mute is the master switch and
+  // must survive a stray key press, not just the mode-change gating effect.
   const onPttStart = useCallback(() => {
+    if (micMuted) {
+      if (sfxEnabled && sfxMuteEnabled) playSfx('ptt-blocked', sfxVolume);
+      return;
+    }
     mesh.setMicEnabled(true);
-  }, [mesh.setMicEnabled]);
+  }, [micMuted, sfxEnabled, sfxMuteEnabled, sfxVolume, mesh.setMicEnabled]);
 
   const onPttStop = useCallback(() => {
     mesh.setMicEnabled(false);
   }, [mesh.setMicEnabled]);
 
   const onPttToggle = useCallback(() => {
+    if (micMuted) {
+      if (sfxEnabled && sfxMuteEnabled) playSfx('ptt-blocked', sfxVolume);
+      return;
+    }
     mesh.toggleMic();
-  }, [mesh.toggleMic]);
+  }, [micMuted, sfxEnabled, sfxMuteEnabled, sfxVolume, mesh.toggleMic]);
 
   const onMuteStart = useCallback(() => {
     setMicMuted(true);
@@ -1862,6 +1933,16 @@ export function App(): React.JSX.Element {
           onChangeSfxChatEnabled={applySfxChatEnabled}
           sfxDeafenEnabled={sfxDeafenEnabled}
           onChangeSfxDeafenEnabled={applySfxDeafenEnabled}
+          sfxModerationEnabled={sfxModerationEnabled}
+          onChangeSfxModerationEnabled={applySfxModerationEnabled}
+          sfxSpotlightEnabled={sfxSpotlightEnabled}
+          onChangeSfxSpotlightEnabled={applySfxSpotlightEnabled}
+          sfxScreenShareEnabled={sfxScreenShareEnabled}
+          onChangeSfxScreenShareEnabled={applySfxScreenShareEnabled}
+          sfxTransferEnabled={sfxTransferEnabled}
+          onChangeSfxTransferEnabled={applySfxTransferEnabled}
+          sfxConnectionEnabled={sfxConnectionEnabled}
+          onChangeSfxConnectionEnabled={applySfxConnectionEnabled}
           badgeNotificationsEnabled={badgeNotificationsEnabled}
           onChangeBadgeNotificationsEnabled={applyBadgeNotificationsEnabled}
           autoAcceptEnabled={autoAcceptEnabled}
