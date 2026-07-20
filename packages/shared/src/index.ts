@@ -8,9 +8,11 @@
  *   protocol.ts  Peer/Room + the ClientMessage/ServerMessage unions + parsers
  *   settings.ts  PersistedSettings schema + defaults (client-only)
  *   ice.ts       default STUN/TURN sets
+ *   sfxSlots.ts  the 11 customizable local-SFX slot ids (client-only)
  */
 export * from './capacity';
 export * from './sanitize';
 export * from './protocol';
 export * from './settings';
 export * from './ice';
+export * from './sfxSlots';

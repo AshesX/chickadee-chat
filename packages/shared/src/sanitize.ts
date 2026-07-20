@@ -2,6 +2,7 @@
  * Input bounds + sanitizers (enforced server-side; reused client-side for
  * defense in depth). Everything here is pure and side-effect free.
  */
+import { CUSTOM_SFX_SLOTS, type CustomSfxSlot } from './sfxSlots';
 
 /** Max length of a chat message / reaction. */
 export const CHAT_MAX_LEN = 500;
@@ -273,6 +274,15 @@ export function sanitizeSoundboardTriggerSource(value: unknown): SoundboardTrigg
   return SOUNDBOARD_TRIGGER_SOURCES.includes(value as SoundboardTriggerSource)
     ? (value as SoundboardTriggerSource)
     : null;
+}
+
+/**
+ * Narrow an untrusted value to a CustomSfxSlot, or null if invalid. Used by
+ * main's custom-SFX IPC handlers before the value ever touches a filesystem
+ * path (path-traversal defense, same role as sanitizeSoundboardHash).
+ */
+export function sanitizeCustomSfxSlot(value: unknown): CustomSfxSlot | null {
+  return CUSTOM_SFX_SLOTS.includes(value as CustomSfxSlot) ? (value as CustomSfxSlot) : null;
 }
 
 /** The valid presence statuses. */

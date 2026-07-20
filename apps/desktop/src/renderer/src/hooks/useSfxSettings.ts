@@ -20,6 +20,16 @@ export interface SfxSettings {
   applySfxChatEnabled: (on: boolean) => void;
   sfxDeafenEnabled: boolean;
   applySfxDeafenEnabled: (on: boolean) => void;
+  sfxModerationEnabled: boolean;
+  applySfxModerationEnabled: (on: boolean) => void;
+  sfxSpotlightEnabled: boolean;
+  applySfxSpotlightEnabled: (on: boolean) => void;
+  sfxScreenShareEnabled: boolean;
+  applySfxScreenShareEnabled: (on: boolean) => void;
+  sfxTransferEnabled: boolean;
+  applySfxTransferEnabled: (on: boolean) => void;
+  sfxConnectionEnabled: boolean;
+  applySfxConnectionEnabled: (on: boolean) => void;
   playMuteOtherCue: () => void;
 }
 
@@ -34,6 +44,11 @@ export function useSfxSettings(): SfxSettings {
   const [sfxTransmitEnabled, applySfxTransmitEnabled] = usePersistedState(store.getSfxTransmitEnabled, store.setSfxTransmitEnabled);
   const [sfxChatEnabled, applySfxChatEnabled] = usePersistedState(store.getSfxChatEnabled, store.setSfxChatEnabled);
   const [sfxDeafenEnabled, applySfxDeafenEnabled] = usePersistedState(store.getSfxDeafenEnabled, store.setSfxDeafenEnabled);
+  const [sfxModerationEnabled, applySfxModerationEnabled] = usePersistedState(store.getSfxModerationEnabled, store.setSfxModerationEnabled);
+  const [sfxSpotlightEnabled, applySfxSpotlightEnabled] = usePersistedState(store.getSfxSpotlightEnabled, store.setSfxSpotlightEnabled);
+  const [sfxScreenShareEnabled, applySfxScreenShareEnabled] = usePersistedState(store.getSfxScreenShareEnabled, store.setSfxScreenShareEnabled);
+  const [sfxTransferEnabled, applySfxTransferEnabled] = usePersistedState(store.getSfxTransferEnabled, store.setSfxTransferEnabled);
+  const [sfxConnectionEnabled, applySfxConnectionEnabled] = usePersistedState(store.getSfxConnectionEnabled, store.setSfxConnectionEnabled);
 
   // Live config read through a ref so the cue callback stays identity-stable
   // (deps []) — it's threaded into per-tile callbacks that must not churn.
@@ -61,6 +76,16 @@ export function useSfxSettings(): SfxSettings {
     applySfxChatEnabled,
     sfxDeafenEnabled,
     applySfxDeafenEnabled,
+    sfxModerationEnabled,
+    applySfxModerationEnabled,
+    sfxSpotlightEnabled,
+    applySfxSpotlightEnabled,
+    sfxScreenShareEnabled,
+    applySfxScreenShareEnabled,
+    sfxTransferEnabled,
+    applySfxTransferEnabled,
+    sfxConnectionEnabled,
+    applySfxConnectionEnabled,
     playMuteOtherCue,
   };
 }

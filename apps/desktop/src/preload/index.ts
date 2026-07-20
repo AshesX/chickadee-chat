@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer, webFrame } from 'electron';
 import {
   DEFAULT_ICE_SERVERS,
   defaultSettings,
+  type CustomSfxSlot,
   type PersistedSettings,
   type ScreenSource,
   type SoundboardLibraryClip,
@@ -167,6 +168,23 @@ const api = {
       endWrite: (hash: string): Promise<void> => ipcRenderer.invoke('chickadee:soundboard-cache-end-write', hash),
       abortWrite: (hash: string): Promise<void> => ipcRenderer.invoke('chickadee:soundboard-cache-abort-write', hash),
     },
+  },
+  /**
+   * Local per-cue SFX customization (Settings → Sound Effects). Purely local —
+   * never synced to peers — so unlike `soundboard` there are no push events:
+   * every state change here is renderer-initiated (a user picking/resetting a
+   * file), so plain request/response IPC is enough.
+   */
+  customSfx: {
+    /** Open a native single-file picker, ffmpeg-process the pick (trim/normalize, same pipeline as Soundboard), and store it for this slot. Null = dialog cancelled. */
+    choose: (slot: CustomSfxSlot): Promise<{ durationMs: number } | { error: string } | null> =>
+      ipcRenderer.invoke('chickadee:custom-sfx-choose', slot),
+    /** Delete this slot's custom sound, reverting it to the built-in synthesized cue. */
+    reset: (slot: CustomSfxSlot): Promise<void> => ipcRenderer.invoke('chickadee:custom-sfx-reset', slot),
+    /** Which slots currently have a custom sound set. */
+    listSlots: (): Promise<CustomSfxSlot[]> => ipcRenderer.invoke('chickadee:custom-sfx-list'),
+    /** Read one slot's processed audio bytes, for renderer-side decode + playback. */
+    read: (slot: CustomSfxSlot): Promise<Uint8Array | null> => ipcRenderer.invoke('chickadee:custom-sfx-read', slot),
   },
   /** Frameless-window title-bar controls. */
   windowControls: {

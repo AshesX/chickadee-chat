@@ -137,6 +137,11 @@ export function SettingsModal(props: SettingsModalProps): React.JSX.Element {
     props.onChangeSfxTransmitEnabled(defaults.sfxTransmitEnabled);
     props.onChangeSfxChatEnabled(defaults.sfxChatEnabled);
     props.onChangeSfxDeafenEnabled(defaults.sfxDeafenEnabled);
+    props.onChangeSfxModerationEnabled(defaults.sfxModerationEnabled);
+    props.onChangeSfxSpotlightEnabled(defaults.sfxSpotlightEnabled);
+    props.onChangeSfxScreenShareEnabled(defaults.sfxScreenShareEnabled);
+    props.onChangeSfxTransferEnabled(defaults.sfxTransferEnabled);
+    props.onChangeSfxConnectionEnabled(defaults.sfxConnectionEnabled);
     props.onChangeBadgeNotificationsEnabled(defaults.badgeNotificationsEnabled);
     props.onChangeSoundboardEnabled(defaults.soundboardEnabled);
     props.onChangeSoundboardVolume(defaults.soundboardVolume);

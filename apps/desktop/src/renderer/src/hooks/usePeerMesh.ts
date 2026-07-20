@@ -118,8 +118,13 @@ export function usePeerMesh(
   stageWatcherCount: number,
   /** Total outbound budget (bits/sec) for the stage stream across all viewers; 0 = unlimited. */
   uploadBudgetBps: number,
+  /** Notified on every per-link health transition (for the connection SFX cue). */
+  onHealthChange?: (peerId: PeerId, health: HealthUi) => void,
 ): PeerMesh {
   const { subscribe, send, status, peers } = signaling;
+
+  const onHealthChangeRef = useRef(onHealthChange);
+  onHealthChangeRef.current = onHealthChange;
 
   // Presence mirror for the health monitor's reconciliation backstop (the
   // stable tick callback must read the latest roster without re-subscribing).
@@ -492,6 +497,7 @@ export function usePeerMesh(
       if ((lastHealthUiRef.current.get(peerId) ?? 'ok') === ui) return;
       lastHealthUiRef.current.set(peerId, ui);
       patchRemote(peerId, { health: ui });
+      onHealthChangeRef.current?.(peerId, ui);
     },
     [patchRemote],
   );

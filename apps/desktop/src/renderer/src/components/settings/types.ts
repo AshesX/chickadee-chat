@@ -1,4 +1,4 @@
-import type { AudioQuality, SoundboardLibraryClip, ThemeName, VideoQuality } from '@chickadee/shared';
+import type { AudioQuality, CustomSfxSlot, SoundboardLibraryClip, ThemeName, VideoQuality } from '@chickadee/shared';
 import type { MediaDeviceOption } from '../../hooks/useMediaDevices';
 
 export type TabId = 'profile' | 'audio' | 'video' | 'sfx' | 'chat' | 'reactions' | 'ui' | 'app' | 'keybindings' | 'soundboard';
@@ -69,6 +69,25 @@ export interface SettingsModalProps {
   onChangeSfxChatEnabled: (on: boolean) => void;
   sfxDeafenEnabled: boolean;
   onChangeSfxDeafenEnabled: (on: boolean) => void;
+  sfxModerationEnabled: boolean;
+  onChangeSfxModerationEnabled: (on: boolean) => void;
+  sfxSpotlightEnabled: boolean;
+  onChangeSfxSpotlightEnabled: (on: boolean) => void;
+  sfxScreenShareEnabled: boolean;
+  onChangeSfxScreenShareEnabled: (on: boolean) => void;
+  sfxTransferEnabled: boolean;
+  onChangeSfxTransferEnabled: (on: boolean) => void;
+  sfxConnectionEnabled: boolean;
+  onChangeSfxConnectionEnabled: (on: boolean) => void;
+  /** Which of the 11 toggle-group slots currently play a local custom sound instead of the built-in cue. */
+  customSfxSlots: CustomSfxSlot[];
+  /** Slot with an in-flight "Choose file" pick. */
+  customSfxBusySlot: CustomSfxSlot | null;
+  /** Transient error from a failed pick (auto-clears). */
+  customSfxError: string | null;
+  onChooseCustomSfx: (slot: CustomSfxSlot) => void;
+  onResetCustomSfx: (slot: CustomSfxSlot) => void;
+  onPreviewCustomSfx: (slot: CustomSfxSlot) => void;
   badgeNotificationsEnabled: boolean;
   onChangeBadgeNotificationsEnabled: (on: boolean) => void;
   /** File sharing: auto-accept transfers from the trusted-users list. */
