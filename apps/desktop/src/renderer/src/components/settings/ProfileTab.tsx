@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AvatarCropModal } from '../AvatarCropModal';
-import { USER_COLORS } from '../../lib/userColors';
+import { USER_COLORS, contrastInk, randomAccentColor } from '../../lib/userColors';
 import { SettingsSection } from './SettingsSection';
 import type { SettingsModalProps } from './types';
 
@@ -52,7 +52,7 @@ export function ProfileTab({
           {avatarDataUrl ? (
             <img src={avatarDataUrl} alt="Your avatar" className="avatar-settings-preview__img" />
           ) : (
-            <span className="avatar-settings-preview__initial">
+            <span className="avatar-settings-preview__initial" style={{ color: contrastInk(selfColor) }}>
               {name.trim().charAt(0).toUpperCase() || '?'}
             </span>
           )}
@@ -78,7 +78,7 @@ export function ProfileTab({
       <hr className="settings-divider" />
 
       <SettingsSection id="section-accent" title="Accent Color" />
-      <span className="hint">Avatar ring and speaking glow color. Auto-assigns if cleared.</span>
+      <span className="hint">Avatar ring and speaking glow color. Randomly generated until you pick one.</span>
       <div className="accent-swatches">
         {USER_COLORS.map((c) => (
           <button
@@ -110,11 +110,9 @@ export function ProfileTab({
             onChange={(e) => onChangeAccent(e.target.value)}
           />
         </label>
-        {accentColor && (
-          <button type="button" className="seg-btn accent-reset" onClick={() => onChangeAccent('')}>
-            Reset to auto
-          </button>
-        )}
+        <button type="button" className="seg-btn accent-reset" onClick={() => onChangeAccent(randomAccentColor())}>
+          Random
+        </button>
       </div>
 
       {cropOpen && (

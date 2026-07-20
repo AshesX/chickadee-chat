@@ -1,6 +1,6 @@
 import type { Room } from '@chickadee/shared';
 import type { Signaling } from './useSignaling';
-import { userColor } from '../lib/settings';
+import { userColor } from '../lib/userColors';
 
 export interface SpaceUser {
   id: string; // The peer's stable userId

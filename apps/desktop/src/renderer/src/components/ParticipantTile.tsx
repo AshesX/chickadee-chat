@@ -2,7 +2,7 @@ import { memo, useMemo } from 'react';
 import { MicOff, VolumeX, Play, EyeOff, Maximize2 } from 'lucide-react';
 import { sanitizeAvatarDataUrl } from '@chickadee/shared';
 import { usePeerAudioGraph } from '../hooks/usePeerAudioGraph';
-import { withAlpha } from '../lib/userColors';
+import { contrastInk, withAlpha } from '../lib/userColors';
 import { TileVolumeControl } from './TileVolumeControl';
 import { RoleStar } from './RoleStar';
 
@@ -171,9 +171,9 @@ function ParticipantTileImpl({
   const renderAvatar = (size: 'sm' | 'lg', showRing: boolean, extraOverlay?: React.ReactNode) => (
     <div
       className={`avatar avatar--${size} tile__avatar${showRing ? ' tile__avatar--speaking' : ''}`}
-      style={{
-        background: safeAvatarUrl ? undefined : color,
-      }}
+      style={
+        safeAvatarUrl ? undefined : { background: color, color: contrastInk(color) }
+      }
     >
       {safeAvatarUrl ? (
         <img src={safeAvatarUrl} alt={displayName} />

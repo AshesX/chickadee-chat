@@ -6,8 +6,6 @@ import {
   type SpaceInfo,
 } from '@chickadee/shared';
 
-import { USER_COLORS } from './userColors';
-
 export type { Room, SpaceInfo };
 export { DEFAULT_ROOMS };
 
@@ -256,12 +254,3 @@ export const store = {
   getSoundboardMuteOthersEnabled: getter('soundboardMuteOthersEnabled'),
   setSoundboardMuteOthersEnabled: setter('soundboardMuteOthersEnabled'),
 };
-
-/** Deterministic, stable avatar color for a user (hashed from their userId).
- *  Hashes over the one canonical identity palette (lib/userColors.ts) — this
- *  file used to carry its own divergent 8-color list. */
-export function userColor(seed: string): string {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-  return USER_COLORS[h % USER_COLORS.length];
-}

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Peer, PeerId } from '@chickadee/shared';
+import type { Peer } from '@chickadee/shared';
 import type { ChatMessage } from '../components/ChatPanel';
-import { SELF_COLOR } from '../lib/userColors';
+import { SELF_COLOR, resolveAccentColor } from '../lib/userColors';
 import type { MessageListener, Signaling } from './useSignaling';
 import { playSfx } from '../lib/sfx';
 import { store } from '../lib/settings';
@@ -15,8 +15,7 @@ export interface FloatReaction {
 interface UseRoomChatArgs {
   signaling: Signaling;
   displayName: string;
-  colors: Record<PeerId, string>;
-  /** Local user's effective accent color (chosen, else the default self gold). */
+  /** Local user's effective accent color (chosen, else the deterministic auto color). */
   selfColor: string;
   /** Current room id; chat is ephemeral and clears when it changes. */
   roomId: string | null;
@@ -44,7 +43,7 @@ function nowTime(): string {
  * sender's name + accent color, and reactions also spawn a floating emoji.
  * Chat is ephemeral — cleared whenever the room changes.
  */
-export function useRoomChat({ signaling, displayName, colors, selfColor, roomId, onNewMessage, onSelfMessage }: UseRoomChatArgs): RoomChat {
+export function useRoomChat({ signaling, displayName, selfColor, roomId, onNewMessage, onSelfMessage }: UseRoomChatArgs): RoomChat {
   const { subscribe, send } = signaling;
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -53,8 +52,6 @@ export function useRoomChat({ signaling, displayName, colors, selfColor, roomId,
   // Latest values for the stable inbound handler.
   const peersRef = useRef<Peer[]>(signaling.peers);
   peersRef.current = signaling.peers;
-  const colorsRef = useRef(colors);
-  colorsRef.current = colors;
   const selfColorRef = useRef(selfColor);
   selfColorRef.current = selfColor;
   const nameRef = useRef(displayName);
@@ -96,7 +93,7 @@ export function useRoomChat({ signaling, displayName, colors, selfColor, roomId,
         const message: ChatMessage = {
           id: nextId(),
           senderName: peer?.displayName ?? 'Someone',
-          color: peer?.accentColor || colorsRef.current[msg.from] || SELF_COLOR,
+          color: peer ? resolveAccentColor(peer.accentColor, peer.userId) : SELF_COLOR,
           text: msg.text,
           time: nowTime(),
           // Look up the sender's synced voice preference so TTS reads them in their chosen voice.

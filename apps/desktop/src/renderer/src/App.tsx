@@ -26,7 +26,7 @@ import { useSoundboardSync } from './hooks/useSoundboardSync';
 import { useWindowFocus } from './hooks/useWindowFocus';
 import { useAppUpdate } from './hooks/useAppUpdate';
 import { selectStage } from './lib/stageSelection';
-import { SELF_COLOR, useUserColors } from './lib/userColors';
+import { contrastInk, resolveAccentColor } from './lib/userColors';
 import { setOutputSink } from './lib/audioContext';
 import { store } from './lib/settings';
 import { Sidebar } from './components/Sidebar';
@@ -102,9 +102,10 @@ export function App(): React.JSX.Element {
   const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(() => store.getAvatarDataUrl());
   const [localVoicePreference, setLocalVoicePreference] = useState(() => store.getVoicePreference());
   const [localAccentColor, setLocalAccentColor] = useState(() => store.getAccentColor());
-  // Our effective accent color: the chosen one, else the default self gold.
-  const selfColor = localAccentColor || SELF_COLOR;
   const userId = useMemo(() => store.getUserId(), []);
+  // Our effective accent color: the chosen one, else a deterministic hash of our userId —
+  // the same rule every peer applies to us, so self and remote views always agree.
+  const selfColor = resolveAccentColor(localAccentColor, userId);
   // Which peers are watching OUR stage stream (their subscriptions include us) —
   // the count drives the adaptive upload budget for the high-quality stage
   // encoding; the names feed the "who's watching" display on the stage itself.
@@ -163,7 +164,6 @@ export function App(): React.JSX.Element {
     [sfxEnabled, sfxConnectionEnabled, sfxVolume],
   );
   const mesh = usePeerMesh(signaling, iceServers, noiseSuppression, micVolume, cameraResolution, cameraFramerate, screenResolution, screenFramerate, videoQuality, audioQuality, echoCancellation, autoGainControl, inputDeviceId, localAvatarUrl, localVoicePreference, localAccentColor, userId, myStageKind, selfWatcherCount, uploadBudgetBps, onLinkHealthChange);
-  const colors = useUserColors(signaling.peers.map((p) => p.id));
 
   const [displayName, setDisplayName] = useState(() => store.getName());
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(null);
@@ -362,7 +362,6 @@ export function App(): React.JSX.Element {
   const chat = useRoomChat({
     signaling,
     displayName,
-    colors,
     selfColor,
     roomId: currentRoomId,
     onNewMessage: handleNewMessage,
@@ -1269,7 +1268,7 @@ export function App(): React.JSX.Element {
             cameraOn={peer.cameraOn}
             cameraStream={media?.cameraStream ?? null}
             cameraVideoId={media?.cameraVideoId ?? null}
-            color={peer.accentColor || colors[peer.id] || SELF_COLOR}
+            color={resolveAccentColor(peer.accentColor, peer.userId)}
             connectionState={media?.connectionState ?? 'new'}
             health={media?.health ?? 'ok'}
             avatarUrl={peer.avatarDataUrl ?? null}
@@ -1311,6 +1310,7 @@ export function App(): React.JSX.Element {
     stageSel.stagePeerId != null
       ? signaling.peers.find((p) => p.id === stageSel.stagePeerId) ?? null
       : null;
+  const stagePlaceholderColor = stagePeer ? resolveAccentColor(stagePeer.accentColor, stagePeer.userId) : selfColor;
   const stageStream: MediaStream | null =
     stageSel.stageSource === 'local-screen'
       ? mesh.localScreenStream
@@ -1463,7 +1463,7 @@ export function App(): React.JSX.Element {
                     ) : (
                       <div className="screen stage__placeholder">
                         <div className="stage__placeholder-body">
-                          <div className="avatar avatar--lg" style={{ background: stageAvatarUrl ? undefined : (stagePeer?.accentColor || colors[stagePeer?.id ?? ''] || SELF_COLOR) }}>
+                          <div className="avatar avatar--lg" style={stageAvatarUrl ? undefined : { background: stagePlaceholderColor, color: contrastInk(stagePlaceholderColor) }}>
                             {stageAvatarUrl ? <img src={stageAvatarUrl} alt={stageName} /> : (stageName.trim().charAt(0).toUpperCase() || '?')}
                           </div>
                           <p>{stageName} is streaming</p>

@@ -1,4 +1,5 @@
 import { sanitizeAvatarDataUrl } from '@chickadee/shared';
+import { contrastInk } from '../lib/userColors';
 
 /**
  * Avatar (image or initial fallback) with a presence dot in the corner — the
@@ -23,7 +24,7 @@ export function AvatarBadge({
   const safe = sanitizeAvatarDataUrl(avatarUrl);
   return (
     <div className="friend-row__avatar-wrap">
-      <div className={`avatar${size ? ` avatar--${size}` : ''}`} style={safe ? undefined : { background: color }}>
+      <div className={`avatar${size ? ` avatar--${size}` : ''}`} style={safe ? undefined : { background: color, color: contrastInk(color) }}>
         {safe ? <img src={safe} alt={name} /> : initial}
       </div>
       <span className={`presence-dot presence-dot--${status}`} />

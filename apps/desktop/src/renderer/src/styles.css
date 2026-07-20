@@ -4362,6 +4362,12 @@
 .accent-swatch--custom input[type='color'] {
   position: absolute;
   inset: 0;
+  /* The native color input has its own intrinsic min-width (larger than this
+     24px swatch), which otherwise wins over `inset: 0` and lets its invisible
+     hit area spill out past the visible dashed box. */
+  width: 100%;
+  height: 100%;
+  min-width: 0;
   opacity: 0;
   cursor: pointer;
 }

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Modal } from './Modal';
 import { AdvancedConnectionSettings } from './AdvancedConnectionSettings';
 import { AvatarCropModal } from './AvatarCropModal';
-import { userColor } from '../lib/settings';
+import { userColor } from '../lib/userColors';
 import { SIDEBAR_HEADER_HEIGHT_PX, SIDEBAR_MAX_WIDTH_PX } from '../lib/spaceHeader';
 import { MAX_BANNER_DATA_URL_LEN, sanitizeBannerDataUrl, type SpaceInfo } from '@chickadee/shared';
 
