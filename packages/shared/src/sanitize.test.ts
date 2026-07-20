@@ -18,6 +18,7 @@ import {
   sanitizeAvatarDataUrl,
   sanitizeBannedUsers,
   sanitizeBannerDataUrl,
+  sanitizeCustomSfxSlot,
   sanitizeFileOfferFiles,
   sanitizeFileOfferMeta,
   sanitizeSaveFileName,
@@ -405,6 +406,21 @@ describe('sanitizeSoundboardFetchHashes', () => {
 
     const many = Array.from({ length: MAX_SOUNDBOARD_FETCH_HASHES + 10 }, (_, i) => i.toString().padStart(64, '0'));
     expect(sanitizeSoundboardFetchHashes(many)).toHaveLength(MAX_SOUNDBOARD_FETCH_HASHES);
+  });
+});
+
+describe('sanitizeCustomSfxSlot', () => {
+  it('accepts every known slot id', () => {
+    expect(sanitizeCustomSfxSlot('joinLeave')).toBe('joinLeave');
+    expect(sanitizeCustomSfxSlot('connection')).toBe('connection');
+  });
+
+  it('rejects anything else', () => {
+    expect(sanitizeCustomSfxSlot('join')).toBeNull();
+    expect(sanitizeCustomSfxSlot('')).toBeNull();
+    expect(sanitizeCustomSfxSlot(null)).toBeNull();
+    expect(sanitizeCustomSfxSlot(undefined)).toBeNull();
+    expect(sanitizeCustomSfxSlot('../../etc/passwd')).toBeNull();
   });
 });
 

@@ -10,8 +10,8 @@ import { shouldWipe } from './versionGateLogic';
  * There are deliberately no read-time schema migrations anywhere; this wipe is
  * the one mechanism that handles stale persisted shapes. Runs inside
  * app.whenReady() (the session API needs ready) but BEFORE loadSettings() /
- * configureSoundboard() / createWindow(), so nothing — including the
- * renderer's synchronous get-settings — can observe pre-wipe state.
+ * configureSoundboard() / configureCustomSfx() / createWindow(), so nothing —
+ * including the renderer's synchronous get-settings — can observe pre-wipe state.
  */
 
 /**
@@ -30,6 +30,7 @@ function wipeTargets(): string[] {
     join(userData, 'soundboard-manifest.json'),
     join(userData, 'soundboard-cache'),
     join(userData, 'soundboard-inbox'),
+    join(userData, 'custom-sfx'),
   ];
 }
 

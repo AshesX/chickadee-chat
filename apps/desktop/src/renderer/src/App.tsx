@@ -15,6 +15,7 @@ import { useVoiceActivation } from './hooks/useVoiceActivation';
 import { useMediaDevices } from './hooks/useMediaDevices';
 import { useSfxEvents } from './hooks/useSfxEvents';
 import { useSfxSettings } from './hooks/useSfxSettings';
+import { useCustomSfx } from './hooks/useCustomSfx';
 import { useTraySync } from './hooks/useTraySync';
 import { usePeerVolumes, usePeerScreenVolumes } from './hooks/usePeerVolumes';
 import { useStageSpotlight } from './hooks/useStageSpotlight';
@@ -149,6 +150,7 @@ export function App(): React.JSX.Element {
     applySfxConnectionEnabled,
     playMuteOtherCue,
   } = useSfxSettings();
+  const { customSfxSlots, customSfxBusySlot, customSfxError, chooseFile: chooseCustomSfxFile, resetSlot: resetCustomSfxSlot, previewSlot: previewCustomSfxSlot } = useCustomSfx();
   const onLinkHealthChange = useCallback(
     (_peerId: string, health: 'ok' | 'recovering' | 'failed') => {
       if (!sfxEnabled || !sfxConnectionEnabled) return;
@@ -1943,6 +1945,12 @@ export function App(): React.JSX.Element {
           onChangeSfxTransferEnabled={applySfxTransferEnabled}
           sfxConnectionEnabled={sfxConnectionEnabled}
           onChangeSfxConnectionEnabled={applySfxConnectionEnabled}
+          customSfxSlots={customSfxSlots}
+          customSfxBusySlot={customSfxBusySlot}
+          customSfxError={customSfxError}
+          onChooseCustomSfx={chooseCustomSfxFile}
+          onResetCustomSfx={resetCustomSfxSlot}
+          onPreviewCustomSfx={(slot) => previewCustomSfxSlot(slot, sfxVolume)}
           badgeNotificationsEnabled={badgeNotificationsEnabled}
           onChangeBadgeNotificationsEnabled={applyBadgeNotificationsEnabled}
           autoAcceptEnabled={autoAcceptEnabled}

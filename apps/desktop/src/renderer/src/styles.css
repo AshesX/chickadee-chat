@@ -3147,6 +3147,20 @@
   pointer-events: none;
 }
 
+/* A nested row with a `leading` control cluster (SfxCueRow's per-cue custom-
+   sound buttons) trades the plain inset for real interactive space. */
+.settings-row--wide {
+  padding-left: 0;
+}
+
+.settings-row__leading {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  flex-shrink: 0;
+  min-width: 84px;
+}
+
 /* Layout/dimensions for select dropdowns in settings. */
 .settings-select,
 .settings-device-select {

@@ -1,3 +1,4 @@
+import type { CustomSfxSlot } from '@chickadee/shared';
 import { getSharedAudioContext, getMasterBus } from './audioContext';
 
 export type SfxType =
@@ -141,6 +142,56 @@ const RECIPES: Record<SfxType, Tone[]> = {
   ],
 };
 
+/**
+ * Which cues each customizable Settings → Sound Effects toggle-group row
+ * covers — one local custom sound file (see lib/customSfxPlayer.ts) can
+ * replace every cue in its group at once. Must cover every SfxType exactly
+ * once (checked in sfx.test.ts) so a future cue addition can't silently fall
+ * outside all slots.
+ */
+export const SFX_SLOTS: Record<CustomSfxSlot, SfxType[]> = {
+  joinLeave: ['join', 'leave'],
+  mute: ['mute', 'unmute', 'ptt-blocked'],
+  muteOther: ['mute-other'],
+  transmit: ['transmit-open', 'transmit-close'],
+  chat: ['chat'],
+  deafen: ['deafen', 'undeafen'],
+  moderation: ['kicked', 'locked', 'unlocked', 'ownership'],
+  spotlight: ['spotlight-claim', 'spotlight-lose'],
+  screenShare: ['screen-share-start', 'screen-share-stop'],
+  transfer: ['transfer-done', 'transfer-failed'],
+  connection: ['connection-warn', 'connection-lost', 'connection-restored'],
+};
+
+/** The inverse of SFX_SLOTS, derived once so the two can never drift apart. */
+export const CUE_TO_SLOT: Record<SfxType, CustomSfxSlot> = Object.fromEntries(
+  Object.entries(SFX_SLOTS).flatMap(([slot, cues]) => cues.map((cue) => [cue, slot])),
+) as Record<SfxType, CustomSfxSlot>;
+
+/**
+ * Decoded custom-sound buffers, keyed by slot — populated by
+ * hooks/useCustomSfx.ts (which owns the IPC read + decode). At most 11
+ * entries by construction, so no LRU eviction is needed. A slot with no
+ * entry (never set, reset, or still decoding) transparently falls back to
+ * the synthesized RECIPES tone below — a cue always plays.
+ */
+const customBuffers = new Map<CustomSfxSlot, AudioBuffer>();
+
+export function setCustomSfxBuffer(slot: CustomSfxSlot, buffer: AudioBuffer | null): void {
+  if (buffer) customBuffers.set(slot, buffer);
+  else customBuffers.delete(slot);
+}
+
+function playBuffer(ctx: AudioContext, buffer: AudioBuffer, volume: number): void {
+  const src = ctx.createBufferSource();
+  src.buffer = buffer;
+  const gainNode = ctx.createGain();
+  gainNode.gain.setValueAtTime(Math.max(0, volume), ctx.currentTime);
+  src.connect(gainNode);
+  gainNode.connect(getMasterBus() ?? ctx.destination);
+  src.start();
+}
+
 function playTone(ctx: AudioContext, out: AudioNode, now: number, tone: Tone): void {
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
@@ -166,6 +217,12 @@ function playTone(ctx: AudioContext, out: AudioNode, now: number, tone: Tone): v
 export function playSfx(type: SfxType, volume: number): void {
   const ctx = getSharedAudioContext();
   if (!ctx) return;
+
+  const customBuffer = customBuffers.get(CUE_TO_SLOT[type]);
+  if (customBuffer) {
+    playBuffer(ctx, customBuffer, volume);
+    return;
+  }
 
   const now = ctx.currentTime;
 
