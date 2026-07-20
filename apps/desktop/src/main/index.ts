@@ -234,9 +234,15 @@ function createWindow(): void {
 
   window.on('ready-to-show', () => {
     window.show();
-    // Portable/packaged Windows launches can inherit a STARTUPINFO show-flag that
-    // Windows honors on the FIRST ShowWindow, opening us minimized. Detect and undo.
+    // Portable/packaged Windows launches (notably via the Start Menu search host)
+    // can inherit a STARTUPINFO show-flag that Windows honors on the FIRST
+    // ShowWindow call for this window, overriding what we just requested — that
+    // can mean minimized OR fully hidden (isMinimized() still false). Only that
+    // first call is affected, so a follow-up show()/restore() goes through
+    // untouched. Without the isVisible() check, a hidden launch left only the
+    // tray icon visible with no window to click into.
     if (window.isMinimized()) window.restore();
+    if (!window.isVisible()) window.show();
     window.focus();
   });
 
