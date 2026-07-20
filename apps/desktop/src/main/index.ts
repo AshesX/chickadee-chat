@@ -46,6 +46,17 @@ if (!app.isPackaged) {
 
 loadDotEnv();
 
+// Single-instance lock: without it, a launch attempt while the app is already
+// running (e.g. the user double-clicking again because nothing appeared to
+// happen — see the 'ready-to-show' fallback below) silently spawns a second,
+// independently-hidden instance instead of surfacing the existing one,
+// compounding the confusion. Scoped to userData (set above), so the dev
+// per-CHICKADEE_INSTANCE-slot workflow (two isolated dev instances) is
+// unaffected — only relaunching the SAME slot/packaged install conflicts.
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+}
+
 // 'notifications' powers the renderer's transfer toasts (auto-accepts + offers
 // while unfocused); without it the deny-by-default handler silently blocks them.
 const GRANTED_PERMISSIONS = new Set(['media', 'display-capture', 'notifications']);
@@ -232,19 +243,23 @@ function createWindow(): void {
     },
   });
 
-  window.on('ready-to-show', () => {
-    window.show();
-    // Portable/packaged Windows launches (notably via the Start Menu search host)
-    // can inherit a STARTUPINFO show-flag that Windows honors on the FIRST
-    // ShowWindow call for this window, overriding what we just requested — that
-    // can mean minimized OR fully hidden (isMinimized() still false). Only that
-    // first call is affected, so a follow-up show()/restore() goes through
-    // untouched. Without the isVisible() check, a hidden launch left only the
-    // tray icon visible with no window to click into.
+  const revealWindow = (): void => {
+    if (window.isDestroyed()) return;
     if (window.isMinimized()) window.restore();
     if (!window.isVisible()) window.show();
     window.focus();
-  });
+  };
+
+  window.on('ready-to-show', revealWindow);
+
+  // Fallback: on some cold starts 'ready-to-show' stalls indefinitely (observed
+  // in practice — a compositor/first-frame hiccup, not consistently
+  // reproducible) and never fires at all, leaving the window permanently
+  // invisible with only the tray icon to click. If that happens, force it
+  // visible anyway after a few seconds rather than trust 'ready-to-show' alone
+  // — a rare, brief unstyled flash beats an app stuck invisible forever.
+  const readyToShowFallback = setTimeout(revealWindow, 4000);
+  window.once('ready-to-show', () => clearTimeout(readyToShowFallback));
 
   // Belt-and-suspenders: enforce the compact width cap on any user resize path
   // (edge drag, Aero snap, double-click-maximize). setMaximumSize covers normal
@@ -315,6 +330,7 @@ function createWindow(): void {
 
   mainWindow = window;
   window.on('closed', () => {
+    clearTimeout(readyToShowFallback);
     if (mainWindow === window) mainWindow = null;
     setHotkeyMainWindow(null);
     setTrayMainWindow(null);
@@ -334,6 +350,13 @@ function createWindow(): void {
 
 app.on('render-process-gone', (_e, _wc, details) => {
   console.error('render-process-gone', details);
+});
+
+app.on('second-instance', () => {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  if (!mainWindow.isVisible()) mainWindow.show();
+  mainWindow.focus();
 });
 
 app.whenReady().then(async () => {
