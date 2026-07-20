@@ -56,6 +56,25 @@ export function SfxTab({
         onChange={onChangeSfxEnabled}
       />
 
+      <SliderRow
+        label="SFX volume"
+        hint="Sound effects volume."
+        disabled={!sfxEnabled}
+        slider={{
+          min: 0,
+          max: 1,
+          step: 0.05,
+          value: sfxVolume,
+          onChange: onChangeSfxVolume,
+          markers: [0, 0.5, 1],
+          labels: [
+            { value: 0, text: '0%' },
+            { value: 0.5, text: '50%' },
+            { value: 1, text: '100%' },
+          ],
+        }}
+      />
+
       <ToggleRow
         label="Room join / leave"
         hint="Plays when someone joins or leaves."
@@ -145,24 +164,6 @@ export function SfxTab({
         disabled={!sfxEnabled}
       />
 
-      <SliderRow
-        label="SFX volume"
-        hint="Sound effects volume."
-        disabled={!sfxEnabled}
-        slider={{
-          min: 0,
-          max: 1,
-          step: 0.05,
-          value: sfxVolume,
-          onChange: onChangeSfxVolume,
-          markers: [0, 0.5, 1],
-          labels: [
-            { value: 0, text: '0%' },
-            { value: 0.5, text: '50%' },
-            { value: 1, text: '100%' },
-          ],
-        }}
-      />
     </>
   );
 }

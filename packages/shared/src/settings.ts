@@ -291,7 +291,7 @@ export function defaultSettings(): PersistedSettings {
     autoAcceptEnabled: true,
     autoAcceptUsers: [],
     soundboardEnabled: false,
-    soundboardVolume: 1.0,
+    soundboardVolume: 0.5,
     soundboardAutoSyncEnabled: true,
     soundboardPresetsEnabled: true,
     soundboardMuteOthersEnabled: false,
