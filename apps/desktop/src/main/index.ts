@@ -32,6 +32,7 @@ import { configureScreenShare } from './screenShare';
 import { configureFileTransfer, setFileTransferMainWindow } from './fileTransfer';
 import { configureSoundboard, setSoundboardMainWindow } from './soundboardLibrary';
 import { configureCustomSfx, setCustomSfxMainWindow } from './customSfx';
+import { configureAutoUpdate, setAutoUpdateMainWindow } from './autoUpdate';
 import { runVersionGate } from './versionGate';
 
 // In dev, override userData per "instance slot" (default 0) so settings persist
@@ -314,6 +315,7 @@ function createWindow(): void {
     setFileTransferMainWindow(null);
     setSoundboardMainWindow(null);
     setCustomSfxMainWindow(null);
+    setAutoUpdateMainWindow(null);
   });
 
   setHotkeyMainWindow(window);
@@ -321,6 +323,7 @@ function createWindow(): void {
   setFileTransferMainWindow(window);
   setSoundboardMainWindow(window);
   setCustomSfxMainWindow(window);
+  setAutoUpdateMainWindow(window);
 }
 
 app.on('render-process-gone', (_e, _wc, details) => {
@@ -382,6 +385,7 @@ app.whenReady().then(async () => {
   configureFileTransfer();
   configureSoundboard();
   configureCustomSfx();
+  configureAutoUpdate();
   registerWindowControls();
   registerPushToTalk();
   configureTray();

@@ -2893,6 +2893,21 @@
   color: var(--text);
 }
 
+/* Update notification — same .transfer-card shell, own fixed slot (top-right)
+   so it can never collide with the file-transfer tray (bottom-right). */
+.update-card-tray {
+  position: fixed;
+  /* Clears the 36px title bar (+ its own window-control buttons) below it. */
+  top: calc(36px + var(--s-3));
+  right: var(--s-4);
+  z-index: var(--z-tooltip);
+}
+
+.update-card__action {
+  padding: var(--s-1) var(--s-3);
+  width: 100%;
+}
+
 /* Incoming-batch file list in the accept modal. */
 .incoming-files {
   list-style: none;
@@ -3002,6 +3017,12 @@
   font-size: var(--fs-1);
   line-height: var(--lh-2);
   max-width: 320px;
+}
+
+.about-modal__update-status {
+  color: var(--dim);
+  font-size: var(--fs-1);
+  margin: 0;
 }
 
 /* ── Legal Information modal ─────────────────────────────── */

@@ -1,0 +1,44 @@
+name: Release
+
+# Tag-triggered: push a version tag (e.g. `v0.4.2`, matching the version you
+# just bumped apps/desktop/package.json to) and this builds the Windows
+# installer + portable exe and publishes them to a GitHub Release. That
+# release is what apps/desktop/src/main/autoUpdate.ts (electron-updater)
+# checks against — this workflow is what makes in-app auto-update work.
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # Full install (not --ignore-scripts) — packaging needs Electron's
+      # binary download, uiohook-napi's native build, and ffmpeg-static.
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      # electron-builder's GitHub publisher reads GH_TOKEN (not GITHUB_TOKEN)
+      # and needs `contents: write` (granted above) to create/update the
+      # release and upload assets — no extra secret to configure.
+      - name: Build & publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run release

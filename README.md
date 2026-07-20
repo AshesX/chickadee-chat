@@ -73,6 +73,18 @@ Notes:
 - Both builds are **unsigned**, so on first launch Windows SmartScreen shows a warning → click **More info → Run anyway**. (Code signing needs a certificate and is not set up.)
 - The app icon is generated from `apps/desktop/src/renderer/src/assets/chickadee-logo.svg` into `apps/desktop/resources/icon.ico` (committed to the repo). To regenerate it after changing the logo: `npm run icons --workspace @chickadee/desktop`.
 
+## Releasing & auto-update
+
+The **installer build** (not the portable exe) auto-updates in place via [electron-updater](https://www.electron.build/auto-update), checking GitHub Releases on this repo. To ship a release:
+
+1. Bump `apps/desktop/package.json` `version` (arms the [beta version-gate wipe](CLAUDE.md) too) and merge to `main`.
+2. Tag that commit `v<version>` (e.g. `v0.4.2`) and push the tag.
+3. `.github/workflows/release.yml` builds both Windows artifacts and publishes them to a GitHub Release with `latest.yml` — the file electron-updater reads to detect a newer version.
+
+Installed apps check for updates ~10s after launch and every 4 hours, prompting **"Update available — Download?"** before pulling any bytes; a manual **Check for Updates** button lives in the title-bar → About dialog. Portable-exe users aren't offered auto-update (there's no installed app for it to replace) and should just grab the newer portable `.exe` from Releases by hand.
+
+To build a release locally instead of via CI: `npm run release` (needs a `GH_TOKEN` env var with repo write access).
+
 ## Connecting to a signaling server
 
 The desktop app needs a signaling server to broker the WebRTC handshake (it never relays media):

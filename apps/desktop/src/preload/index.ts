@@ -267,6 +267,29 @@ const api = {
   /** Pin/unpin the window above all other apps. */
   setAlwaysOnTop: (on: boolean): Promise<void> =>
     ipcRenderer.invoke('chickadee:set-always-on-top', on),
+  /**
+   * electron-updater against GitHub releases (NSIS-installed builds only —
+   * main is a silent no-op for portable/dev, so these calls/events just never
+   * fire there). Prompt-before-download: checking never pulls bytes on its
+   * own, only `download()` does.
+   */
+  update: {
+    /** Manually trigger a check (Settings/About "Check for Updates"). */
+    check: (): Promise<void> => ipcRenderer.invoke('chickadee:check-for-updates'),
+    download: (): Promise<void> => ipcRenderer.invoke('chickadee:download-update'),
+    /** Quits and installs the already-downloaded update. */
+    install: (): Promise<void> => ipcRenderer.invoke('chickadee:install-update'),
+    /** Manual-check-only feedback: fires right after a manual check() call. */
+    onChecking: subscription('chickadee:update-checking'),
+    /** Fires for both silent and manual checks whenever a newer version exists. */
+    onAvailable: payloadSubscription<{ version: string }>('chickadee:update-available'),
+    /** Manual-check-only: no newer version found. */
+    onNotAvailable: subscription('chickadee:update-not-available'),
+    /** Manual-check-only: the check or download failed. */
+    onError: payloadSubscription<string>('chickadee:update-error'),
+    onDownloadProgress: payloadSubscription<{ percent: number }>('chickadee:update-download-progress'),
+    onDownloaded: payloadSubscription<{ version: string }>('chickadee:update-downloaded'),
+  },
 };
 
 contextBridge.exposeInMainWorld('chickadee', api);

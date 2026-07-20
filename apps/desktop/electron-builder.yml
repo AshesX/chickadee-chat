@@ -6,6 +6,13 @@ productName: Chickadee Chat
 electronVersion: 42.4.1
 directories:
   output: release
+# electron-updater (NSIS-installed builds only — see main/autoUpdate.ts) reads
+# this to find releases. Populated by `npm run release`, which publishes here
+# with GH_TOKEN; a plain `npm run dist` never touches GitHub.
+publish:
+  provider: github
+  owner: AshesX
+  repo: chickadee-chat
 files:
   - out/**
   - package.json

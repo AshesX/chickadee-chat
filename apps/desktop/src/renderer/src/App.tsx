@@ -24,6 +24,7 @@ import { useSoundboardLibrary } from './hooks/useSoundboardLibrary';
 import { useSoundboardPlayback } from './hooks/useSoundboardPlayback';
 import { useSoundboardSync } from './hooks/useSoundboardSync';
 import { useWindowFocus } from './hooks/useWindowFocus';
+import { useAppUpdate } from './hooks/useAppUpdate';
 import { selectStage } from './lib/stageSelection';
 import { SELF_COLOR, useUserColors } from './lib/userColors';
 import { setOutputSink } from './lib/audioContext';
@@ -35,6 +36,7 @@ import { ParticipantTile } from './components/ParticipantTile';
 import { ScreenView } from './components/ScreenView';
 import { ChatPanel, type ChatMessage } from './components/ChatPanel';
 import { TransferTray } from './components/TransferTray';
+import { UpdateCard } from './components/UpdateCard';
 import { formatBytes } from './webrtc/fileTransferPolicy';
 import { ReactionPopover } from './components/ReactionPopover';
 import { SoundboardPopover } from './components/SoundboardPopover';
@@ -867,6 +869,9 @@ export function App(): React.JSX.Element {
   });
   const { sendFilesTo } = fileTransfers;
   const incomingOffer = fileTransfers.incomingOffer;
+
+  // electron-updater bridge (NSIS-installed builds only — no-op on portable/dev).
+  const appUpdate = useAppUpdate();
 
   const soundboardLibrary = useSoundboardLibrary({
     send: signaling.send,
@@ -1759,6 +1764,16 @@ export function App(): React.JSX.Element {
         onShowInFolder={fileTransfers.showInFolder}
       />
 
+      <UpdateCard
+        status={appUpdate.status}
+        version={appUpdate.version}
+        percent={appUpdate.percent}
+        error={appUpdate.error}
+        onDownload={appUpdate.download}
+        onInstall={appUpdate.install}
+        onDismiss={appUpdate.dismiss}
+      />
+
       {onboardingNeeded && (
         <Suspense fallback={null}>
           <WelcomeWizard onSubmit={handleOnboardingSubmit} />
@@ -1858,7 +1873,15 @@ export function App(): React.JSX.Element {
           )}
         </Suspense>
       )}
-      {aboutOpen && <AboutModal onClose={() => setAboutOpen(false)} />}
+      {aboutOpen && (
+        <AboutModal
+          onClose={() => setAboutOpen(false)}
+          updateStatus={appUpdate.status}
+          updateVersion={appUpdate.version}
+          updateError={appUpdate.error}
+          onCheckForUpdates={appUpdate.check}
+        />
+      )}
       {legalOpen && <LegalModal onClose={() => setLegalOpen(false)} />}
       {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}
       {settingsOpen && (
