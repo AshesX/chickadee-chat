@@ -53,21 +53,24 @@ Other scripts: `npm run dev:desktop`, `npm run dev:signaling`, `npm run build`, 
 
 > **npm 11 note:** dependency install scripts are allow-listed in `package.json` (`allowScripts`), so `npm install` automatically downloads Electron's binary and builds `uiohook-napi`. If you bump either package and the app won't launch, re-approve with `npm approve-scripts <pkg> --allow-scripts-pin`.
 
-## Build a Windows `.exe`
+## Build for Windows
 
-Produces a **portable single executable** (no installer — double-click to run) via [electron-builder](https://www.electron.build/):
+Produces both a portable single executable and an NSIS installer via [electron-builder](https://www.electron.build/):
 
 ```bash
 npm run dist                    # from the repo root
 # or, from apps/desktop:        npm run dist:win
 ```
 
-Output: `apps/desktop/release/Chickadee Chat-<version>-portable.exe`.
+Output:
+
+- `apps/desktop/release/Chickadee Chat-<version>-installer.exe` — classic wizard: pick the install directory, get Start Menu + Desktop shortcuts, includes an uninstaller. Installs per-user by default (no admin/UAC prompt).
+- `apps/desktop/release/Chickadee Chat-<version>-portable.exe` — no installer, double-click to run.
 
 Notes:
 
 - **Windows only.** The app relies on Windows-specific features (system-audio loopback for screen share, the global push-to-talk hook).
-- The build is **unsigned**, so on first launch Windows SmartScreen shows a warning → click **More info → Run anyway**. (Code signing needs a certificate and is not set up.)
+- Both builds are **unsigned**, so on first launch Windows SmartScreen shows a warning → click **More info → Run anyway**. (Code signing needs a certificate and is not set up.)
 - The app icon is generated from `apps/desktop/src/renderer/src/assets/chickadee-logo.svg` into `apps/desktop/resources/icon.ico` (committed to the repo). To regenerate it after changing the logo: `npm run icons --workspace @chickadee/desktop`.
 
 ## Connecting to a signaling server

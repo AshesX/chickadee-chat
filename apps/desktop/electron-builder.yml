@@ -20,6 +20,16 @@ asarUnpack:
 # Electron, so skip the native rebuild (which would need a C++ toolchain).
 npmRebuild: false
 win:
-  target: portable
+  target:
+    - nsis
+    - portable
   icon: resources/icon.ico
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  artifactName: ${productName}-${version}-installer.${ext}
+portable:
   artifactName: ${productName}-${version}-portable.${ext}
