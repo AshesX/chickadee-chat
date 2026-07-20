@@ -31,6 +31,7 @@ import { configureTray, setTrayMainWindow, destroyTray } from './tray';
 import { configureScreenShare } from './screenShare';
 import { configureFileTransfer, setFileTransferMainWindow } from './fileTransfer';
 import { configureSoundboard, setSoundboardMainWindow } from './soundboardLibrary';
+import { runVersionGate } from './versionGate';
 
 // In dev, override userData per "instance slot" (default 0) so settings persist
 // across restarts (a fixed dir) while two instances stay isolated — run a second
@@ -323,7 +324,12 @@ app.on('render-process-gone', (_e, _wc, details) => {
   console.error('render-process-gone', details);
 });
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  // Beta wipe on any version change — MUST complete before loadSettings() and
+  // configureSoundboard() read the files it deletes, and before createWindow()
+  // (whose preload synchronously pulls settings into the renderer).
+  await runVersionGate();
+
   loadSettings();
 
   // Required on Windows for toast notifications + taskbar overlay badges to work in

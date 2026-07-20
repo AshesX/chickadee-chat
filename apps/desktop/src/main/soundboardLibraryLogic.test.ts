@@ -83,16 +83,11 @@ describe('normalizeManifestEntry', () => {
     });
   });
 
-  it('migrates the legacy sourceFile string shape', () => {
-    expect(normalizeManifestEntry({ ...base, sourceFile: 'a.mp3' })).toEqual({
-      ...base,
-      sourceFiles: ['a.mp3'],
-    });
-  });
-
   it('rejects entries missing required fields or any source', () => {
     expect(normalizeManifestEntry(null)).toBeNull();
     expect(normalizeManifestEntry({ ...base })).toBeNull();
+    // The pre-refcount `sourceFile: string` shape is no longer migrated — it drops.
+    expect(normalizeManifestEntry({ ...base, sourceFile: 'a.mp3' })).toBeNull();
     expect(normalizeManifestEntry({ ...base, sourceFiles: [] })).toBeNull();
     expect(normalizeManifestEntry({ ...base, sourceFiles: ['a.mp3'], hash: 5 })).toBeNull();
   });

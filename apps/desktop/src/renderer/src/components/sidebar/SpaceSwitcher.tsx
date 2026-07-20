@@ -147,7 +147,8 @@ export function SpaceSwitcher({
     cancelMenuClose();
   }
 
-  function copySpaceCode(): void {
+  function copySpaceCode(e: React.MouseEvent): void {
+    e.stopPropagation();
     if (!activeSpace) return;
     if (window.chickadee?.writeClipboard) {
       void window.chickadee.writeClipboard(activeSpace.id);
@@ -158,7 +159,8 @@ export function SpaceSwitcher({
     setTimeout(() => setCopied(false), 1500);
   }
 
-  function handleDeleteClick(): void {
+  function handleDeleteClick(e: React.MouseEvent): void {
+    e.stopPropagation();
     if (!activeSpace) return;
     if (deleteArmed) {
       cancelArmDelete();
@@ -223,7 +225,10 @@ export function SpaceSwitcher({
               {canLockSpace && onToggleSpaceLock && (
                 <button
                   className={`icon-btn icon-btn--sm${spaceLocked ? ' space-header__lock-btn--locked' : ''}`}
-                  onClick={() => onToggleSpaceLock(!spaceLocked)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleSpaceLock(!spaceLocked);
+                  }}
                   title={spaceLocked ? 'Unlock Space' : 'Lock Space'}
                 >
                   {spaceLocked ? <Lock size={12} /> : <LockOpen size={12} />}
@@ -240,7 +245,8 @@ export function SpaceSwitcher({
               </button>
               <button
                 className="icon-btn icon-btn--sm"
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   onSpaceSettings(activeSpace.id);
                   setMenuOpen(false);
                 }}
@@ -261,7 +267,7 @@ export function SpaceSwitcher({
 
         <div className="space-info-wrap">
           <span className={`space-header__name${!activeSpace ? ' space-header__name--empty' : ''}`}>
-            {copied ? (
+            {deleteArmed ? null : copied ? (
               <span className="space-header__name--code" style={{ color: 'var(--green)' }}>copied</span>
             ) : hovered && typedCode ? (
               <span className="space-header__name--code">{typedCode}</span>

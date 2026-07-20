@@ -1164,6 +1164,48 @@
   transform: translateX(0);
 }
 
+.title-bar__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  pointer-events: auto;
+  -webkit-app-region: no-drag;
+  background: none;
+  border: none;
+  padding: var(--s-1) var(--s-2);
+  margin: calc(var(--s-1) * -1) calc(var(--s-2) * -1);
+  border-radius: var(--r-1);
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: background var(--dur-1) var(--ease), gap var(--dur-1) var(--ease);
+}
+
+.title-bar__brand:hover {
+  background: var(--veil-1);
+}
+
+/* The wordmark collapses to max-width:0 in compact mode but stays in the flex
+   flow (for its own opacity/max-width transition), so the gap before it must
+   collapse too — otherwise it leaves dead space to the right of the logo,
+   throwing off centering. */
+.app--compact .title-bar__brand {
+  gap: 0;
+}
+
+.brand-menu {
+  position: fixed;
+  z-index: var(--z-dropdown);
+  padding: var(--s-1);
+}
+
+.brand-menu__divider {
+  border: none;
+  height: 1px;
+  background: transparent;
+  margin: var(--s-3) 0 var(--s-2);
+}
+
 .title-bar__logo {
   width: 20px;
   height: 20px;
@@ -2935,6 +2977,105 @@
   gap: var(--s-4);
 }
 
+/* ── About modal ─────────────────────────────────────────── */
+.about-modal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--s-2);
+  padding: var(--s-2) 0;
+}
+
+.about-modal__name {
+  font-size: var(--fs-3);
+  font-weight: var(--fw-2);
+}
+
+.about-modal__version {
+  color: var(--dim);
+  font-size: var(--fs-1);
+}
+
+.about-modal__tagline {
+  color: var(--text-sub);
+  font-size: var(--fs-1);
+  line-height: var(--lh-2);
+  max-width: 320px;
+}
+
+/* ── Legal Information modal ─────────────────────────────── */
+.legal-modal__intro {
+  color: var(--text-sub);
+  font-size: var(--fs-1);
+  line-height: var(--lh-2);
+}
+
+.legal-modal__list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: 0;
+  margin: 0;
+}
+
+.legal-modal__entry {
+  padding-bottom: var(--s-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.legal-modal__entry:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.legal-modal__entry-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+.legal-modal__entry-name {
+  font-weight: var(--fw-2);
+}
+
+.legal-modal__entry-head a,
+.legal-modal__entry-source {
+  color: var(--accent-ink);
+  font-size: var(--fs-1);
+  white-space: nowrap;
+}
+
+.legal-modal__entry-head a:hover,
+.legal-modal__entry-source:hover {
+  text-decoration: underline;
+}
+
+.legal-modal__entry-note {
+  margin: var(--s-1) 0 0;
+}
+
+.legal-modal__entry-source {
+  display: inline-block;
+  margin-top: var(--s-1);
+  font-size: var(--fs-0);
+}
+
+/* ── Help modal ───────────────────────────────────────────── */
+.help-modal__list {
+  list-style: disc;
+  padding-left: var(--s-5);
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  color: var(--text-sub);
+  font-size: var(--fs-1);
+  line-height: var(--lh-2);
+}
+
 .field {
   display: flex;
   flex-direction: column;
@@ -3393,6 +3534,7 @@
   font-weight: var(--fw-1);
   font-style: italic;
   color: var(--dim);
+  font-size: var(--fs-4);
 }
 
 /* Top-right menu cluster — anchored by `right`/`top` only (no `left`), so it

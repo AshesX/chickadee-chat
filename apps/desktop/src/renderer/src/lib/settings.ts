@@ -1,11 +1,9 @@
 import {
   DEFAULT_ROOMS,
   defaultSettings,
-  normalizeRoomType,
   type PersistedSettings,
   type Room,
   type SpaceInfo,
-  type ThemeName,
 } from '@chickadee/shared';
 
 import { USER_COLORS } from './userColors';
@@ -74,7 +72,9 @@ function setter<K extends keyof PersistedSettings>(key: K): (value: PersistedSet
 }
 
 // Plain key-mirroring accessors come from the getter/setter factory; anything
-// with derivation, migration, or clamping stays hand-written below it.
+// with derivation (rooms-from-active-space, keyed-map writes) stays hand-written
+// below it. There are deliberately NO read-time schema migrations here — schema
+// changes ride the main process's version-gated wipe (versionGate.ts).
 export const store = {
   getUserId: (): string => cache.userId,
   getName: getter('displayName'),
@@ -85,9 +85,7 @@ export const store = {
   setActiveSpaceId: setter('activeSpaceId'),
   getRooms: (): Room[] => {
     const active = cache.spaces.find((s) => s.id === cache.activeSpaceId);
-    // Normalize legacy 'voice'/'video'/undefined room types to the unified 'hybrid'
-    // so persisted rooms render in the single sidebar list at 8-cap.
-    return active ? active.rooms.map((r) => ({ ...r, type: normalizeRoomType(r.type) })) : [];
+    return active ? active.rooms : [];
   },
   setRooms: (rooms: Room[]): void => {
     const nextSpaces = cache.spaces.map((s) =>
@@ -121,9 +119,7 @@ export const store = {
   },
   removeAutoAcceptUser: (userId: string): void =>
     persist({ autoAcceptUsers: (cache.autoAcceptUsers ?? []).filter((u) => u.userId !== userId) }),
-  // Coerce here so a profile persisted with the removed 'open' mode (or a missing
-  // value) migrates to 'voice' transparently; it re-persists as 'voice' on next save.
-  getInputMode: (): 'voice' | 'ptt' => (cache.inputMode === 'ptt' ? 'ptt' : 'voice'),
+  getInputMode: getter('inputMode'),
   setInputMode: setter('inputMode'),
   getVadThreshold: getter('vadThreshold'),
   setVadThreshold: setter('vadThreshold'),
@@ -157,8 +153,7 @@ export const store = {
   setBadgeNotificationsEnabled: setter('badgeNotificationsEnabled'),
   getStatus: getter('status'),
   setStatus: setter('status'),
-  // Clamped: pre-cap profiles could hold >200% mic boost.
-  getMicVolume: (): number => Math.min(2, cache.micVolume ?? DEFAULTS.micVolume),
+  getMicVolume: getter('micVolume'),
   setMicVolume: setter('micVolume'),
   getOutputVolume: getter('outputVolume'),
   setOutputVolume: setter('outputVolume'),
@@ -202,9 +197,7 @@ export const store = {
   setCloseBehavior: setter('closeBehavior'),
   getAlwaysOnTop: getter('alwaysOnTop'),
   setAlwaysOnTop: setter('alwaysOnTop'),
-  // Any legacy/unrecognized persisted value (midnight, oled, …) collapses to
-  // the 'dark' default rather than widening ThemeName further.
-  getTheme: (): ThemeName => (cache.theme === 'light' ? 'light' : 'dark'),
+  getTheme: getter('theme'),
   setTheme: setter('theme'),
   getChatFontScale: getter('chatFontScale'),
   setChatFontScale: setter('chatFontScale'),
@@ -244,8 +237,7 @@ export const store = {
   setReactionsEnabled: setter('reactionsEnabled'),
   getSoundboardEnabled: getter('soundboardEnabled'),
   setSoundboardEnabled: setter('soundboardEnabled'),
-  // Clamped: matches getMicVolume's precedent (0-200% boost range).
-  getSoundboardVolume: (): number => Math.min(2, cache.soundboardVolume ?? DEFAULTS.soundboardVolume),
+  getSoundboardVolume: getter('soundboardVolume'),
   setSoundboardVolume: setter('soundboardVolume'),
   getSoundboardAutoSyncEnabled: getter('soundboardAutoSyncEnabled'),
   setSoundboardAutoSyncEnabled: setter('soundboardAutoSyncEnabled'),

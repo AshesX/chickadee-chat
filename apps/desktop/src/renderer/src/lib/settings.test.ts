@@ -4,13 +4,14 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 // The store reads window.chickadee at module load, so stub the bridge (the real
 // production path — jsdom's localStorage is unusable here anyway) BEFORE the
 // dynamic import. The bridge snapshot deliberately omits most keys to exercise
-// the schema-default fallbacks, and carries legacy values to exercise migration.
+// the schema-default fallbacks (there are no read-time migrations — stale
+// schemas are handled by the main process's version-gated wipe).
 let store: typeof import('./settings').store;
 const saveSettings = vi.fn();
 
 beforeAll(async () => {
   window.chickadee = {
-    settings: { userId: 'u-test', inputMode: 'open', theme: 'midnight', micVolume: 5 },
+    settings: { userId: 'u-test', inputMode: 'ptt', micVolume: 1.5 },
     saveSettings,
   } as unknown as typeof window.chickadee;
   ({ store } = await import('./settings'));
@@ -29,10 +30,10 @@ describe('settings store (bridge path)', () => {
     expect(store.getUserId()).toBe('u-test');
   });
 
-  it('migrates legacy values on read', () => {
-    expect(store.getInputMode()).toBe('voice'); // removed 'open' mode → 'voice'
-    expect(store.getTheme()).toBe('dark'); // unknown theme collapses to 'dark'
-    expect(store.getMicVolume()).toBe(2); // pre-cap boost clamped to 200%
+  it('returns persisted values as-is (no read-time migration)', () => {
+    expect(store.getInputMode()).toBe('ptt');
+    expect(store.getMicVolume()).toBe(1.5);
+    expect(store.getTheme()).toBe('dark'); // omitted key → schema default
   });
 
   it('roundtrips writes through the factory accessors and saves over IPC', () => {
@@ -49,9 +50,9 @@ describe('settings store (bridge path)', () => {
     expect(saveSettings).toHaveBeenCalledWith({ peerScreenVolumes: { u1: 0.5 } });
   });
 
-  it('derives rooms from the active space, normalizing legacy types to hybrid', () => {
+  it('derives rooms from the active space', () => {
     store.setSpaces([
-      { id: 's1', name: 'S', rooms: [{ id: 'r', label: 'R', icon: 'i', type: 'voice' }] },
+      { id: 's1', name: 'S', rooms: [{ id: 'r', label: 'R', icon: 'i', type: 'hybrid' }] },
     ]);
     store.setActiveSpaceId('s1');
     expect(store.getRooms()).toEqual([{ id: 'r', label: 'R', icon: 'i', type: 'hybrid' }]);

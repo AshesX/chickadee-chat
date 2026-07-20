@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { DEFAULT_ROOMS, type BannedUser, type SpaceInfo, type Room } from '@chickadee/shared';
 import { store } from '../lib/settings';
-import { generateSpaceId, normalizeRooms, parseSpaceName } from '../lib/spaceOps';
+import { generateSpaceId, parseSpaceName } from '../lib/spaceOps';
 
 /** Result of a create/join attempt. `'not-found'`/`'unreachable'` only occur for new-id joins. */
 export type AddSpaceResult = { ok: true } | { ok: false; reason: 'not-found' | 'unreachable' };
@@ -56,7 +56,7 @@ export function useSpaces(
     store.setActiveSpaceId(spaceId);
     setCurrentSpaceId(spaceId);
     const active = store.getSpaces().find((s) => s.id === spaceId);
-    setRooms(active ? normalizeRooms(active.rooms) : []);
+    setRooms(active ? active.rooms : []);
   }
 
   async function addSpace(val: string, type: 'create' | 'join', customSignalingUrl?: string, joinSecret?: string): Promise<AddSpaceResult> {

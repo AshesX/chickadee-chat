@@ -49,26 +49,24 @@ export function deriveClipName(filename: string): string {
 // unlinked the shared cache file and orphaned the survivor.
 
 /**
- * Validate one persisted manifest entry, migrating the legacy shape
- * (`sourceFile: string`) to `sourceFiles: string[]`. Null = drop the entry.
+ * Validate one persisted manifest entry against the current schema.
+ * Null = drop the entry (no read-time migration — old shapes are handled by
+ * the version-gated wipe, see main/versionGate.ts).
  */
 export function normalizeManifestEntry(value: unknown): SoundboardLibraryClip | null {
-  const v = value as (Partial<SoundboardLibraryClip> & { sourceFile?: unknown }) | null;
+  const v = value as Partial<SoundboardLibraryClip> | null;
   if (
     !v ||
     typeof v !== 'object' ||
     typeof v.hash !== 'string' ||
     typeof v.name !== 'string' ||
     typeof v.durationMs !== 'number' ||
-    typeof v.sizeBytes !== 'number'
+    typeof v.sizeBytes !== 'number' ||
+    !Array.isArray(v.sourceFiles)
   ) {
     return null;
   }
-  const sourceFiles = Array.isArray(v.sourceFiles)
-    ? v.sourceFiles.filter((f): f is string => typeof f === 'string' && f.length > 0)
-    : typeof v.sourceFile === 'string' && v.sourceFile.length > 0
-      ? [v.sourceFile]
-      : [];
+  const sourceFiles = v.sourceFiles.filter((f): f is string => typeof f === 'string' && f.length > 0);
   if (sourceFiles.length === 0) return null;
   const { hash, name, durationMs, sizeBytes } = v;
   return { hash, name, durationMs, sizeBytes, sourceFiles };

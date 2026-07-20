@@ -39,9 +39,10 @@ export function capacityForType(_type: RoomType | undefined): number {
 }
 
 /**
- * Normalize a possibly-legacy room type to the unified 'hybrid'. All rooms are
- * hybrid now; this keeps persisted 'voice'/'video'/undefined rooms rendering in
- * the single sidebar list. Applied on load (the client is the room-list writer).
+ * Normalize a possibly-legacy room type to the unified 'hybrid'. Applied
+ * server-side only (`sanitizeRoomList` wire sanitization) — clients on old
+ * builds may still send 'voice'/'video'. Local persistence never migrates;
+ * stale client state is handled by the desktop's version-gated wipe.
  */
 export function normalizeRoomType(_type: RoomType | undefined): RoomType {
   return 'hybrid';

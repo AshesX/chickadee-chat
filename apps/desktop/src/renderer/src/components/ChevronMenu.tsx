@@ -2,20 +2,22 @@ import { useState, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 
 /**
- * Centers a popover above its anchor button, clamped to stay 8px inside the
- * viewport. Pure (viewport dims passed in) so it's unit-testable in node.
+ * Centers a popover over its anchor button (above by default, or below when
+ * `placement: 'below'`), clamped to stay 8px inside the viewport. Pure
+ * (viewport dims passed in) so it's unit-testable in node.
  */
 export function computeChevronPosition(
   anchorRect: DOMRect,
   width: number,
   viewportWidth: number,
   viewportHeight: number,
-): { bottom: number; left: number } {
+  placement: 'above' | 'below' = 'above',
+): { left: number; top?: number; bottom?: number } {
   const gap = 8;
-  const bottom = viewportHeight - anchorRect.top + gap;
   const rawLeft = anchorRect.left + anchorRect.width / 2 - width / 2;
   const left = Math.max(8, Math.min(rawLeft, viewportWidth - width - 8));
-  return { bottom, left };
+  if (placement === 'below') return { left, top: anchorRect.bottom + gap };
+  return { left, bottom: viewportHeight - anchorRect.top + gap };
 }
 
 interface ChevronMenuProps {
@@ -23,12 +25,20 @@ interface ChevronMenuProps {
   onClose: () => void;
   /** Menu width in px (optional). If omitted, the menu automatically scales to fit its content. */
   width?: number;
-  /** The menu's own class, kept so each popover's existing CSS still applies. */
+  /**
+   * The menu's own class, kept so each popover's existing CSS still applies.
+   * Must itself set `position: fixed` + `z-index: var(--z-dropdown)` (e.g. `.audio-menu`) —
+   * `.menu-surface` only supplies visual styling (background/shadow/radius), not positioning,
+   * so without this the computed top/left/bottom offsets below are inert and the menu silently
+   * renders in normal document flow instead of anchored near the trigger.
+   */
   className: string;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
   children: React.ReactNode;
   snapToControlBar?: boolean;
+  /** Which side of the anchor the menu opens toward. Defaults to 'above' (control-bar popovers). */
+  placement?: 'above' | 'below';
 }
 
 /**
@@ -46,6 +56,7 @@ export function ChevronMenu({
   onMouseLeave,
   children,
   snapToControlBar,
+  placement = 'above',
 }: ChevronMenuProps): React.JSX.Element {
   const [measuredWidth, setMeasuredWidth] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
@@ -59,11 +70,12 @@ export function ChevronMenu({
   const activeWidth = width !== undefined ? width : measuredWidth;
   const isMeasuring = width === undefined && measuredWidth === 0;
 
-  const { bottom: computedBottom, left } = computeChevronPosition(
+  const { top, bottom: computedBottom, left } = computeChevronPosition(
     anchorRect,
     activeWidth,
     window.innerWidth,
-    window.innerHeight
+    window.innerHeight,
+    placement,
   );
   const bottom = snapToControlBar ? 76 : computedBottom;
 
@@ -77,7 +89,8 @@ export function ChevronMenu({
         ref={ref}
         className={className}
         style={{
-          bottom,
+          top,
+          bottom: top === undefined ? bottom : undefined,
           left,
           width: width !== undefined ? width : 'max-content',
           visibility: isMeasuring ? 'hidden' : 'visible',
