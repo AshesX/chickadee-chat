@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  COOLDOWN_RECONNECT_MS,
   MAX_RECONNECT_ATTEMPTS,
   MAX_RECONNECT_MS,
+  ONLINE_PROBE_TIMEOUT_MS,
   PONG_TIMEOUT_MS,
   heartbeatExpired,
   reconnectDelayMs,
@@ -41,5 +43,15 @@ describe('heartbeatExpired', () => {
     const t0 = 100_000;
     expect(heartbeatExpired(t0, t0 + PONG_TIMEOUT_MS)).toBe(false);
     expect(heartbeatExpired(t0, t0 + PONG_TIMEOUT_MS + 1)).toBe(true);
+  });
+});
+
+describe('cooldown + online-probe constants', () => {
+  it('the post-exhaustion cooldown is well beyond the fast-burst cap', () => {
+    expect(COOLDOWN_RECONNECT_MS).toBeGreaterThan(MAX_RECONNECT_MS);
+  });
+
+  it('the online-event probe is meaningfully faster than the passive heartbeat wait', () => {
+    expect(ONLINE_PROBE_TIMEOUT_MS).toBeLessThan(PONG_TIMEOUT_MS);
   });
 });

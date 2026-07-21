@@ -1330,7 +1330,9 @@ export function App(): React.JSX.Element {
   const stageScreenAudioLevel = stagePeer ? screenVolumes[stagePeer.id] ?? 1 : 1;
   const stageScreenAudioVolume = deafened ? 0 : stageScreenAudioLevel * outputVolume;
 
-  const errors = [mesh.micError, mesh.cameraError, mesh.screenError, signaling.error, modNotice].filter(Boolean);
+  const errors = [mesh.micError, mesh.cameraError, mesh.screenError, modNotice].filter(Boolean);
+  const showReconnecting = signaling.status === 'reconnecting';
+  const showConnError = signaling.status === 'error' && !!signaling.error;
 
   return (
     <div
@@ -1635,7 +1637,7 @@ export function App(): React.JSX.Element {
           </div>
         )}
 
-        {errors.length > 0 && (() => {
+        {(errors.length > 0 || showReconnecting || showConnError) && (() => {
           const activeToastAnchor =
             (menus.videoMenuOpen && menus.videoMenuAnchor) ||
             (menus.inputMenuOpen && menus.inputMenuAnchor) ||
@@ -1650,6 +1652,15 @@ export function App(): React.JSX.Element {
 
           return (
             <div className="toasts" style={toastStyle}>
+            {showConnError && (
+              <div className="toast toast--conn">
+                <span>{signaling.error}</span>
+                <button type="button" className="btn btn--primary toast__action" onClick={signaling.reconnect}>
+                  Reconnect
+                </button>
+              </div>
+            )}
+            {showReconnecting && <div className="toast toast--info">Reconnecting…</div>}
             {errors.map((e, i) => (
               <div key={i} className="toast">
                 {e}

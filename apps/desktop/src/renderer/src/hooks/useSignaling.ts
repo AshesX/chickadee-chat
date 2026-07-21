@@ -11,6 +11,8 @@ import {
   type SpacePresence,
 } from '@chickadee/shared';
 import {
+  COOLDOWN_RECONNECT_MS,
+  ONLINE_PROBE_TIMEOUT_MS,
   PING_INTERVAL_MS,
   heartbeatExpired,
   reconnectDelayMs,
@@ -62,6 +64,13 @@ export interface Signaling extends SignalingState {
   join: (spaceId: string, room: string | null, displayName: string, userId: string, rooms: Room[], status: 'online' | 'idle' | 'dnd', avatarDataUrl?: string | null, voicePreference?: string, accentColor?: string, joinSecret?: string, signalingUrl?: string, bannerDataUrl?: string | null, soundboardClips?: SoundboardClipMeta[]) => void;
   leave: () => void;
   joinRoom: (room: string | null) => void;
+  /**
+   * Skip the current backoff/cooldown wait and retry immediately. No-op if
+   * there's no session to reconnect (e.g. after `leave()`, `kicked`, or
+   * `room-full`). Doesn't reset the attempt counter — a manual retry should
+   * skip the wait, not re-arm the fast exponential burst.
+   */
+  reconnect: () => void;
   /** Send a message to the server (used by WebRTC negotiation + mic-state). */
   send: (message: ClientMessage) => void;
   /**
@@ -348,13 +357,16 @@ export function useSignaling(): Signaling {
   const scheduleReconnect = useCallback(() => {
     attemptsRef.current += 1;
     if (reconnectExhausted(attemptsRef.current)) {
-      shouldReconnectRef.current = false;
+      // Fast burst exhausted — keep retrying forever at a slow cadence rather
+      // than giving up permanently (shouldReconnectRef stays true, so every
+      // later onclose re-enters this same branch for an indefinite loop).
       setState((prev) => ({
         ...INITIAL,
         status: 'error',
-        error: 'Lost connection to the signaling server.',
+        error: 'Lost connection to the signaling server. Retrying…',
         rooms: prev.rooms,
       }));
+      reconnectTimerRef.current = setTimeout(() => connectRef.current(), COOLDOWN_RECONNECT_MS);
       return;
     }
     setState((prev) => ({ ...prev, status: 'reconnecting' }));
@@ -520,6 +532,16 @@ export function useSignaling(): Signaling {
     setState(INITIAL);
   }, [clearTimers, closeSocket]);
 
+  const reconnect = useCallback(() => {
+    if (!shouldReconnectRef.current) return;
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+    setState((prev) => ({ ...prev, status: 'reconnecting' }));
+    connect();
+  }, [connect]);
+
   // Clean up timers + socket if the component unmounts mid-call.
   useEffect(() => {
     return () => {
@@ -529,10 +551,41 @@ export function useSignaling(): Signaling {
     };
   }, [clearTimers, closeSocket]);
 
+  // Proactively recover on an OS-reported network transition instead of only
+  // passively waiting out the heartbeat. If we're mid-backoff/cooldown, skip
+  // the wait. If a socket looks open, probe it first rather than blindly
+  // tearing it down — some platforms fire spurious `online` events with no
+  // real outage, and closing a healthy socket would just add a new disconnect
+  // vector. The probe reuses the existing ping/pong heartbeat, just faster.
+  useEffect(() => {
+    const handleOnline = (): void => {
+      if (!shouldReconnectRef.current) return;
+      const socket = socketRef.current;
+      if (!socket || socket.readyState !== WebSocket.OPEN) {
+        if (reconnectTimerRef.current) {
+          clearTimeout(reconnectTimerRef.current);
+          reconnectTimerRef.current = null;
+        }
+        connect();
+        return;
+      }
+      const pongAtProbe = lastPongRef.current;
+      socket.send(JSON.stringify({ type: 'ping' }));
+      setTimeout(() => {
+        if (socketRef.current === socket && lastPongRef.current === pongAtProbe) {
+          socket.close();
+        }
+      }, ONLINE_PROBE_TIMEOUT_MS);
+    };
+    window.addEventListener('online', handleOnline);
+    return () => window.removeEventListener('online', handleOnline);
+  }, [connect]);
+
   return {
     ...state,
     join,
     leave,
+    reconnect,
     joinRoom,
     send,
     subscribe,

@@ -2792,6 +2792,29 @@
   box-shadow: var(--sh-1);
 }
 
+/* Neutral variant for a passive, non-error notice (auto-retry in progress) —
+   same opaque-over-video treatment as .toast, tinted with --idle instead of
+   --red since nothing has failed yet. */
+.toast--info {
+  background: color-mix(in srgb, var(--idle) 12%, var(--float));
+  border-color: color-mix(in srgb, var(--idle) 45%, var(--border));
+  color: var(--text);
+  animation: popIn var(--dur-1) var(--ease);
+}
+
+.toast--conn {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  animation: popIn var(--dur-1) var(--ease);
+}
+
+.toast__action {
+  flex-shrink: 0;
+  padding: var(--s-1) var(--s-3);
+  font-size: var(--fs-1);
+}
+
 /* ── File-transfer tray ───────────────────────────────────── */
 /* Bottom-RIGHT stack (toasts own bottom-center at the same baseline). */
 .transfer-tray {

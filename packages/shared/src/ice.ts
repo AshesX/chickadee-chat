@@ -6,10 +6,22 @@
  * can't sink candidate gathering for a pair that would connect fine directly.
  * Candidates trickle, so extra servers never delay the first offer — but each
  * one adds parallel binding chatter per negotiation, so keep the list short.
+ *
+ * The third entry (port 443) is a single community operator, not a major
+ * anycast provider like the two above — it only helps candidate-gathering
+ * survive networks that block arbitrary UDP ports (some corporate/school
+ * Wi-Fi), and only for that first step: the actual P2P media then negotiates
+ * arbitrary high UDP ports, which the same restrictive networks typically
+ * also block regardless of STUN reachability. It does nothing for mid-call
+ * drops. A real fix for fully-restrictive networks needs a TURN relay over
+ * 443/TCP, which this project deliberately doesn't ship by default (see
+ * DEFAULT_ICE_SERVERS below). Re-verify reachability before relying on it —
+ * public STUN endpoints can disappear without notice.
  */
 export const STUN_SERVERS: RTCIceServer[] = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun.cloudflare.com:3478' },
+  { urls: 'stun:stun.nextcloud.com:443' },
 ];
 
 /**
