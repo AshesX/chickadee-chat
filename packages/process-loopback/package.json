@@ -1,0 +1,32 @@
+{
+  "name": "@chickadee/process-loopback",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Windows-only native module: per-process WASAPI loopback audio capture (AUDIOCLIENT_ACTIVATION_TYPE_PROCESS_LOOPBACK), used to capture only a shared window's own audio instead of the whole system mix.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "gypfile": true,
+  "scripts": {
+    "install": "node-gyp-build",
+    "prebuild": "prebuildify --napi",
+    "build-ts": "tsc"
+  },
+  "files": [
+    "dist",
+    "binding.gyp",
+    "src",
+    "prebuilds"
+  ],
+  "dependencies": {
+    "node-addon-api": "^8.3.0",
+    "node-gyp-build": "^4.8.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "prebuildify": "^6.0.1",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">= 18"
+  }
+}

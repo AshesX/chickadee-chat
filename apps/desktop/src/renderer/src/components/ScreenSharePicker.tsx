@@ -64,7 +64,7 @@ export function ScreenSharePicker({ onPick, onClose }: ScreenSharePickerProps): 
 
           {sources && (
             <>
-              {renderGroup('Screens', screens, withAudio, onPick)}
+              {renderGroup('Screens', screens, withAudio, onPick, withAudio && screens.length > 0)}
               {renderGroup('Windows', windows, withAudio, onPick)}
               {sources.length === 0 && <p className="hint">No shareable sources found.</p>}
             </>
@@ -80,11 +80,17 @@ function renderGroup(
   list: ScreenSource[],
   withAudio: boolean,
   onPick: (id: string, withAudio: boolean) => void,
+  showFullScreenAudioWarning?: boolean,
 ): React.JSX.Element | null {
   if (list.length === 0) return null;
   return (
     <section className="srcgroup">
       <h3 className="srcgroup__title">{title}</h3>
+      {showFullScreenAudioWarning && (
+        <p className="hint">
+          Sharing a full screen shares all system audio, including voice chat — sharing a single window avoids this.
+        </p>
+      )}
       <div className="srcgroup__grid">
         {list.map((source) => (
           <button

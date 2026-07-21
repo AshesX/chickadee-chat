@@ -17,7 +17,7 @@ Electron + React + TypeScript, with a minimal Bun WebSocket signaling server tha
 
 ### Screen share
 
-- **Game & system audio** — Windows loopback capture shares what you hear, and `restrictOwnAudio` keeps your friends' own voices out of the share (no echo for them).
+- **Game & window audio** — sharing a window captures only that app's own audio (native WASAPI process-loopback), so your friends' voices never echo back through the share; sharing a full screen falls back to whole-system audio.
 - **In-app source picker** — window/screen thumbnails with audio, resolution, and framerate options.
 
 ### Voice & audio

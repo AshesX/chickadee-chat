@@ -28,7 +28,7 @@ import {
 } from './windowSize';
 import { registerPushToTalk, handleBeforeInput, setHotkeyMainWindow, stopHotkeys } from './hotkeys';
 import { configureTray, setTrayMainWindow, destroyTray } from './tray';
-import { configureScreenShare } from './screenShare';
+import { configureScreenShare, setScreenShareMainWindow } from './screenShare';
 import { configureFileTransfer, setFileTransferMainWindow } from './fileTransfer';
 import { configureSoundboard, setSoundboardMainWindow } from './soundboardLibrary';
 import { configureCustomSfx, setCustomSfxMainWindow } from './customSfx';
@@ -338,6 +338,7 @@ function createWindow(): void {
     setSoundboardMainWindow(null);
     setCustomSfxMainWindow(null);
     setAutoUpdateMainWindow(null);
+    setScreenShareMainWindow(null);
   });
 
   setHotkeyMainWindow(window);
@@ -346,6 +347,7 @@ function createWindow(): void {
   setSoundboardMainWindow(window);
   setCustomSfxMainWindow(window);
   setAutoUpdateMainWindow(window);
+  setScreenShareMainWindow(window);
 }
 
 app.on('render-process-gone', (_e, _wc, details) => {

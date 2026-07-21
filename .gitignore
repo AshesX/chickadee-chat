@@ -7,6 +7,11 @@ out/
 release/
 .vite/
 build/
+# @chickadee/process-loopback has no npm-registry download to fall back on (it's
+# a first-party native module) — its compiled JS wrapper and prebuilt Windows
+# binary must be committed so a fresh clone works without a C++ toolchain.
+!packages/process-loopback/dist/
+!packages/process-loopback/prebuilds/
 
 # logs
 *.log

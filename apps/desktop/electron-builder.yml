@@ -25,11 +25,17 @@ asar: true
 # uiohook-napi ships a native .node binary that can't be loaded from inside the
 # asar archive, so unpack it to the filesystem. ffmpeg-static ships a prebuilt
 # ffmpeg.exe for the same reason — you can't spawn an executable from inside asar.
+# @chickadee/process-loopback (per-app screen-share audio capture) is the same
+# deal: its prebuilt .node binary (packages/process-loopback/prebuilds/) can't
+# load from inside asar either.
 asarUnpack:
   - "**/node_modules/uiohook-napi/**"
   - "**/node_modules/ffmpeg-static/**"
+  - "**/node_modules/@chickadee/process-loopback/**"
 # uiohook-napi is N-API (ABI-stable) and ships a prebuilt binary that works under
 # Electron, so skip the native rebuild (which would need a C++ toolchain).
+# @chickadee/process-loopback is also N-API with its own prebuildify prebuild
+# (see packages/process-loopback/package.json) — same reasoning applies.
 npmRebuild: false
 win:
   target:

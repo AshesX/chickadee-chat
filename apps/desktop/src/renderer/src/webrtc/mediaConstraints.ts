@@ -4,15 +4,6 @@
  * anywhere.
  */
 
-/**
- * `restrictOwnAudio` (Chromium 141+) tells the display-capture pipeline to drop
- * audio that originates from our own document — i.e. the incoming peer voices we
- * play through the Web Audio graph — from the captured system audio, so screen
- * sharing no longer echoes everyone's voice back to them. It's experimental and
- * not yet in the lib.dom typings, so we extend the constraint type locally.
- */
-export type ScreenAudioConstraints = MediaTrackConstraints & { restrictOwnAudio?: ConstrainBoolean };
-
 export const RESOLUTION_MAP: Record<string, { width: number; height: number }> = {
   '480p': { width: 854, height: 480 },
   '720p': { width: 1280, height: 720 },

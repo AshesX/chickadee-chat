@@ -87,9 +87,20 @@ const api = {
   /** List the shareable screens and windows for the screen-share picker. */
   getScreenSources: (): Promise<ScreenSource[]> =>
     ipcRenderer.invoke('chickadee:get-screen-sources'),
-  /** Record the chosen source just before calling getDisplayMedia(). */
-  setShareSource: (sourceId: string, audio: boolean): Promise<void> =>
+  /**
+   * Record the chosen source just before calling getDisplayMedia(), and (for
+   * a window share with audio) start native per-process audio capture.
+   * Resolves with which audio path will actually be used: 'process' (audio
+   * arrives separately via onScreenAudioFrame — the renderer builds its own
+   * track), 'system' (the returned getDisplayMedia() stream carries a normal
+   * whole-system-loopback audio track), or 'none'.
+   */
+  setShareSource: (sourceId: string, audio: boolean): Promise<'process' | 'system' | 'none'> =>
     ipcRenderer.invoke('chickadee:set-share-source', sourceId, audio),
+  /** Stop native per-process screen-audio capture (mirrors stopScreenShare()). */
+  stopScreenAudioCapture: (): Promise<void> => ipcRenderer.invoke('chickadee:stop-screen-audio-capture'),
+  /** Raw PCM frames (16-bit stereo 48kHz) from native per-process audio capture. */
+  onScreenAudioFrame: payloadSubscription<Uint8Array>('chickadee:screen-audio-frame'),
   /**
    * Receiver-side file-transfer disk IO. Write streams, the Save dialog, and
    * all filesystem paths live in main; the renderer only moves opaque transfer

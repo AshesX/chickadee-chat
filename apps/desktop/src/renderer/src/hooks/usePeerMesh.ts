@@ -3,12 +3,7 @@ import type { AudioQuality, PeerId, VideoQuality } from '@chickadee/shared';
 import { createPeerLink, type PeerLink } from '../webrtc/peerLink';
 import type { MessageListener, Signaling } from './useSignaling';
 import { getSharedAudioContext } from '../lib/audioContext';
-import {
-  buildMicAudioConstraints,
-  buildVideoCaptureConstraints,
-  createMicProcessingGraph,
-  type ScreenAudioConstraints,
-} from '../webrtc/mediaConstraints';
+import { buildMicAudioConstraints, buildVideoCaptureConstraints, createMicProcessingGraph } from '../webrtc/mediaConstraints';
 import { deriveWants, classifyPeerStreams } from '../webrtc/meshLogic';
 import { computeMeshEncoding, type MeshEncoding } from '../webrtc/encodingParams';
 import {
@@ -209,6 +204,12 @@ export function usePeerMesh(
   // wire id a restart would announce a new id that never matches what's on the wire.
   const screenWireStreamRef = useRef<MediaStream | null>(null);
   const sharingScreenRef = useRef(false);
+  // Native per-process screen audio (see startScreenShare): a MediaStreamTrackGenerator
+  // fed from main-process PCM frames, plus the writer + IPC unsubscribe needed to tear it down.
+  const screenAudioGeneratorRef = useRef<MediaStreamTrackGenerator<AudioData> | null>(null);
+  const screenAudioWriterRef = useRef<WritableStreamDefaultWriter<AudioData> | null>(null);
+  const screenAudioUnsubscribeRef = useRef<(() => void) | null>(null);
+  const screenAudioTimestampUsRef = useRef(0);
   /** peerId -> the MediaStream id that peer is using for its screen share. */
   const screenIdsRef = useRef<Map<PeerId, string>>(new Map());
   /**
@@ -529,7 +530,14 @@ export function usePeerMesh(
     if (stream) for (const track of stream.getTracks()) track.stop();
     const screen = screenStreamRef.current;
     if (screen) for (const track of screen.getTracks()) track.stop();
-    
+    screenAudioUnsubscribeRef.current?.();
+    screenAudioUnsubscribeRef.current = null;
+    screenAudioWriterRef.current?.close().catch(() => {});
+    screenAudioWriterRef.current = null;
+    screenAudioGeneratorRef.current?.stop();
+    screenAudioGeneratorRef.current = null;
+    void window.chickadee?.stopScreenAudioCapture?.();
+
     // Disconnect mic processing nodes but do not close the shared AudioContext —
     // it is owned by lib/audioContext.ts and shared with sfx.ts across join/leave cycles.
     if (gainNodeRef.current) { gainNodeRef.current.disconnect(); gainNodeRef.current = null; }
@@ -733,20 +741,37 @@ export function usePeerMesh(
     })();
   }, [send, ensureLocalStream, stopCamera]);
 
+  // Tears down the native-process-audio track built in startScreenShare (see
+  // there for why it exists): stop listening for PCM frames, close the
+  // generator's writer/track, and tell main to stop the WASAPI capture.
+  const stopScreenAudioGenerator = useCallback(() => {
+    screenAudioUnsubscribeRef.current?.();
+    screenAudioUnsubscribeRef.current = null;
+    const writer = screenAudioWriterRef.current;
+    screenAudioWriterRef.current = null;
+    if (writer) writer.close().catch(() => {});
+    const generator = screenAudioGeneratorRef.current;
+    screenAudioGeneratorRef.current = null;
+    if (generator) generator.stop();
+    void window.chickadee?.stopScreenAudioCapture?.();
+  }, []);
+
   const stopScreenShare = useCallback(() => {
     for (const link of linksRef.current.values()) link.setLocalScreenStream(null);
     const screen = screenStreamRef.current;
     if (screen) for (const track of screen.getTracks()) track.stop();
     // Empty the wire stream but keep the wrapper so the next share reuses its id
-    // (stable msid across stop/restart). Tracks are the same objects stopped above.
+    // (stable msid across stop/restart). Tracks are the same objects stopped above
+    // (except the process-audio generator track, stopped by stopScreenAudioGenerator).
     const wire = screenWireStreamRef.current;
     if (wire) for (const track of wire.getTracks()) wire.removeTrack(track);
+    stopScreenAudioGenerator();
     screenStreamRef.current = null;
     sharingScreenRef.current = false;
     setSharingScreen(false);
     setLocalScreenStream(null);
     send({ type: 'screen-state', streamId: null });
-  }, [send]);
+  }, [send, stopScreenAudioGenerator]);
 
   const startScreenShare = useCallback(
     (sourceId: string, withAudio: boolean) => {
@@ -760,32 +785,27 @@ export function usePeerMesh(
 
       void (async () => {
         try {
-          // Tell main which source the picker chose; the main process's
-          // setDisplayMediaRequestHandler fulfils the getDisplayMedia request
-          // with it (and Windows loopback audio when requested).
-          await window.chickadee.setShareSource(sourceId, withAudio);
-
-          // When capturing system audio, ask Chromium to exclude our own document's
-          // audio (the peer voices we play locally) so peers don't hear themselves.
-          // Feature-detect — on builds without restrictOwnAudio, fall back to plain
-          // loopback audio (the pre-existing, echo-prone behavior).
-          const restrictOwnAudioSupported =
-            'restrictOwnAudio' in navigator.mediaDevices.getSupportedConstraints();
-          const audioConstraints: boolean | ScreenAudioConstraints = withAudio
-            ? restrictOwnAudioSupported
-              ? { restrictOwnAudio: true }
-              : true
-            : false;
+          // Tell main which source the picker chose; for a window share with audio
+          // this also starts native per-process WASAPI capture (main resolves the
+          // window's owning process and captures only ITS audio — architecturally
+          // excluding our own locally-played peer voices, unlike whole-system
+          // loopback, which bakes them back in and echoes everyone to everyone).
+          // audioMode reports which path actually won: 'process' (audio arrives
+          // separately as PCM frames, built into a track below), 'system' (the
+          // getDisplayMedia() stream below carries a normal loopback audio track —
+          // the only option for a full-display share, or if process capture failed),
+          // or 'none'.
+          const audioMode = await window.chickadee.setShareSource(sourceId, withAudio);
 
           const videoConstraints = buildVideoCaptureConstraints(screenResolution, screenFramerate, '1080p');
           let screen: MediaStream;
           try {
             screen = await navigator.mediaDevices.getDisplayMedia({
               video: videoConstraints,
-              audio: audioConstraints,
+              audio: audioMode === 'system',
             });
           } catch (audioErr) {
-            if (!withAudio) throw audioErr;
+            if (audioMode !== 'system') throw audioErr;
             // System-audio capture can fail (e.g. some window shares); retry video-only.
             console.warn('screen audio capture failed, retrying video-only', audioErr);
             await window.chickadee.setShareSource(sourceId, false);
@@ -813,6 +833,41 @@ export function usePeerMesh(
           const wire = (screenWireStreamRef.current ??= new MediaStream());
           for (const track of wire.getTracks()) wire.removeTrack(track);
           for (const track of screen.getTracks()) wire.addTrack(track);
+
+          if (audioMode === 'process') {
+            // Synthesize a real MediaStreamTrack from the raw PCM frames main pushes
+            // over IPC (WebCodecs Insertable Streams) — sample-accurate timestamps
+            // derived from cumulative frame count, not wall clock, so IPC delivery
+            // jitter can't cause glitches.
+            const generator = new MediaStreamTrackGenerator<AudioData>({ kind: 'audio' });
+            const writer = generator.writable.getWriter();
+            screenAudioGeneratorRef.current = generator;
+            screenAudioWriterRef.current = writer;
+            screenAudioTimestampUsRef.current = 0;
+            screenAudioUnsubscribeRef.current = window.chickadee.onScreenAudioFrame((chunk) => {
+              const BYTES_PER_FRAME = 4; // 16-bit stereo
+              const numberOfFrames = Math.floor(chunk.byteLength / BYTES_PER_FRAME);
+              if (numberOfFrames === 0) return;
+              try {
+                const audioData = new AudioData({
+                  format: 's16',
+                  sampleRate: 48000,
+                  numberOfFrames,
+                  numberOfChannels: 2,
+                  timestamp: screenAudioTimestampUsRef.current,
+                  // IPC delivers a plain ArrayBuffer-backed Uint8Array; TS's stricter
+                  // typed-array generics just don't know that statically.
+                  data: chunk as unknown as BufferSource,
+                });
+                screenAudioTimestampUsRef.current += Math.round((numberOfFrames / 48000) * 1e6);
+                void writer.write(audioData).catch(() => {});
+              } catch {
+                // Writer/generator already torn down (stop() raced an in-flight frame).
+              }
+            });
+            wire.addTrack(generator);
+          }
+
           for (const link of linksRef.current.values()) link.setLocalScreenStream(wire);
           // The OS "Stop sharing" affordance / closing the source ends the track.
           const videoTrack = screen.getVideoTracks()[0];
