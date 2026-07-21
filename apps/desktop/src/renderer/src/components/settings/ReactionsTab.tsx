@@ -8,12 +8,14 @@ import type { SettingsModalProps } from './types';
 
 type ReactionsTabProps = Pick<
   SettingsModalProps,
-  'reactionsEnabled' | 'onChangeReactionsEnabled'
+  'reactionsEnabled' | 'onChangeReactionsEnabled' | 'reactionsButtonEnabled' | 'onChangeReactionsButtonEnabled'
 >;
 
 export function ReactionsTab({
   reactionsEnabled,
   onChangeReactionsEnabled,
+  reactionsButtonEnabled,
+  onChangeReactionsButtonEnabled,
 }: ReactionsTabProps): React.JSX.Element {
   const [quickReactions, setQuickReactions] = usePersistedState(store.getQuickReactions, store.setQuickReactions);
 
@@ -23,9 +25,17 @@ export function ReactionsTab({
 
       <ToggleRow
         label="Enable reactions"
-        hint="Show floating emoji reactions from others and the control-bar React button."
+        hint="See floating emoji reactions from others and send your own."
         value={reactionsEnabled}
         onChange={onChangeReactionsEnabled}
+      />
+
+      <ToggleRow
+        label="Show React button"
+        hint="Show the React button in the control bar. Turn off if you'd rather not send reactions yourself but still want to see others'."
+        value={reactionsButtonEnabled}
+        onChange={onChangeReactionsButtonEnabled}
+        disabled={!reactionsEnabled}
       />
 
       <SettingsRow label="Quick Reactions" hint="Exactly 6 emojis shown in the quick reaction popover.">

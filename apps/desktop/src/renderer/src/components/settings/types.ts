@@ -100,19 +100,19 @@ export interface SettingsModalProps {
   onChangeSoundboardEnabled: (on: boolean) => void;
   soundboardVolume: number;
   onChangeSoundboardVolume: (vol: number) => void;
-  /** Auto-download other peers' custom soundboard clips in the background. */
-  soundboardAutoSyncEnabled: boolean;
-  onChangeSoundboardAutoSyncEnabled: (on: boolean) => void;
+  /** Show the control-bar Soundboard button; ANDed with soundboardEnabled. */
+  soundboardButtonEnabled: boolean;
+  onChangeSoundboardButtonEnabled: (on: boolean) => void;
   /** Show/allow the bundled preset clips; off = only your own custom clips. */
   soundboardPresetsEnabled: boolean;
   onChangeSoundboardPresetsEnabled: (on: boolean) => void;
-  /** Don't play soundboard clips triggered by other room members; your own clips still play. */
-  soundboardMuteOthersEnabled: boolean;
-  onChangeSoundboardMuteOthersEnabled: (on: boolean) => void;
+  /** Custom (user-added) clips specifically — playing, hearing, adding, and syncing all gate on this; presets unaffected. */
+  soundboardCustomEnabled: boolean;
+  onChangeSoundboardCustomEnabled: (on: boolean) => void;
   soundboardOwnClips: SoundboardLibraryClip[];
   onAddSoundboardFiles: () => void;
   onRemoveSoundboardClip: (hash: string) => void;
-  onOpenSoundboardInbox: () => void;
+  soundboardAddError: string | null;
   initialTab?: string;
   micVolume: number;
   onChangeMicVolume: (vol: number) => void;
@@ -155,6 +155,9 @@ export interface SettingsModalProps {
   onChangeChatTtsSpeakWhenFocused: (on: boolean) => void;
   reactionsEnabled: boolean;
   onChangeReactionsEnabled: (on: boolean) => void;
+  /** Show the control-bar React button; ANDed with reactionsEnabled. */
+  reactionsButtonEnabled: boolean;
+  onChangeReactionsButtonEnabled: (on: boolean) => void;
   voicePreference: string;
   onChangeVoicePreference: (id: string) => void;
   analyserNode: AnalyserNode | null;

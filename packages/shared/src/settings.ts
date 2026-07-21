@@ -174,11 +174,18 @@ export interface PersistedSettings {
   /** Exactly 6 emojis used for quick reactions in the UI. */
   quickReactions: string[];
   /**
-   * Show floating emoji reactions in the room and the control-bar "React"
-   * button. false = hide incoming reactions from other users AND the React
-   * button (the button's flanking divider collapses too).
+   * Master switch for emoji reactions. Does NOT alone control the
+   * control-bar "React" button's visibility anymore (see
+   * `reactionsButtonEnabled`) — off still hides it (the button requires
+   * both), but on alone isn't sufficient either.
    */
   reactionsEnabled: boolean;
+  /**
+   * Show the control-bar "React" button. ANDed with `reactionsEnabled` — the
+   * button only shows when both are on. Lets a user hide their own reaction
+   * UI while still seeing floating reactions others trigger.
+   */
+  reactionsButtonEnabled: boolean;
   /** Master switch for the file-transfer trust list (pause without clearing it). */
   autoAcceptEnabled: boolean;
   /**
@@ -189,19 +196,31 @@ export interface PersistedSettings {
    */
   autoAcceptUsers: { userId: string; displayName: string }[];
   /**
-   * Master switch for the whole P2P soundboard feature: the control-bar
-   * button, background manifest sync, playback, and the local ingest watcher
-   * all gate on this (off = no ffmpeg spawns, not just a hidden button).
+   * Master switch for the whole P2P soundboard feature: background manifest
+   * sync, playback, and the local ingest ffmpeg pipeline all gate on this.
+   * Does NOT alone control the control-bar button's visibility anymore (see
+   * `soundboardButtonEnabled`) — off still hides it (the button requires
+   * both), but on alone isn't sufficient either.
    */
   soundboardEnabled: boolean;
   /** Soundboard clip playback volume (0-2) — separate from sfxVolume since these are full-fidelity user clips, not UI chimes. */
   soundboardVolume: number;
-  /** Auto-download other peers' custom soundboard clips in the background. */
-  soundboardAutoSyncEnabled: boolean;
+  /**
+   * Show the control-bar Soundboard button. ANDed with `soundboardEnabled` —
+   * the button only shows when both are on, so it can never open a popover
+   * for a fully-disabled feature. Lets a user hide their own trigger UI while
+   * still hearing sounds others trigger.
+   */
+  soundboardButtonEnabled: boolean;
   /** Show/allow the bundled preset clips; off = only your own custom clips. */
   soundboardPresetsEnabled: boolean;
-  /** Don't play soundboard clips triggered by other room members; your own clips still play. */
-  soundboardMuteOthersEnabled: boolean;
+  /**
+   * Custom (user-added) clips specifically — playing your own, hearing
+   * others', adding new ones, and background sync all gate on this. Off does
+   * NOT delete clips you've already added; it just stops them syncing out
+   * and stops new ones being added. Presets are unaffected.
+   */
+  soundboardCustomEnabled: boolean;
 }
 
 export const DEFAULT_ROOMS: Room[] = [
@@ -288,12 +307,13 @@ export function defaultSettings(): PersistedSettings {
     customEmojis: [],
     quickReactions: ['🔥', '😂', '👍', '❤️', '🎉', '💀'],
     reactionsEnabled: true,
+    reactionsButtonEnabled: true,
     autoAcceptEnabled: true,
     autoAcceptUsers: [],
     soundboardEnabled: false,
     soundboardVolume: 0.5,
-    soundboardAutoSyncEnabled: true,
+    soundboardButtonEnabled: true,
     soundboardPresetsEnabled: true,
-    soundboardMuteOthersEnabled: false,
+    soundboardCustomEnabled: true,
   };
 }

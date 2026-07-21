@@ -11,6 +11,8 @@ interface SoundboardPopoverProps {
   ownClips: SoundboardLibraryClip[];
   peers: Peer[];
   presetsEnabled: boolean;
+  /** Custom clips specifically — off hides both "My Sounds" and "Others' Sounds"; presets are unaffected. */
+  customEnabled: boolean;
   onTrigger: (source: SoundboardClipSource, clipId: string) => void;
   onClose: () => void;
   anchorRect: DOMRect;
@@ -34,13 +36,13 @@ function collectPeerCustomClips(peers: Peer[]): PeerCustomClip[] {
 
 /**
  * The Soundboard button's popover: presets (always playable, bundled in the
- * app) + your own custom clips (playable immediately — you made them) + other
- * peers' custom clips (dimmed/no-op until this device has actually synced
- * their bytes — background P2P sync isn't wired up yet, so these currently
- * always show as not-yet-available; once it lands, this same cache.has()
- * check will start lighting tiles up as sync completes, no changes needed here).
+ * app, gated only by `presetsEnabled`) + your own custom clips (playable
+ * immediately — you made them) + other peers' custom clips (dimmed/no-op
+ * until this device has actually synced their bytes — the cache.has() check
+ * below lights tiles up as sync completes). "My Sounds" and "Others' Sounds"
+ * are both gated by `customEnabled`, independent of `presetsEnabled`.
  */
-export function SoundboardPopover({ ownClips, peers, presetsEnabled, onTrigger, onClose, anchorRect }: SoundboardPopoverProps): React.JSX.Element {
+export function SoundboardPopover({ ownClips, peers, presetsEnabled, customEnabled, onTrigger, onClose, anchorRect }: SoundboardPopoverProps): React.JSX.Element {
   const peerCustomClips = useMemo(() => collectPeerCustomClips(peers), [peers]);
   const [availableHashes, setAvailableHashes] = useState<Set<string>>(new Set());
   const [cooldown, setCooldown] = useState(false);
@@ -71,7 +73,7 @@ export function SoundboardPopover({ ownClips, peers, presetsEnabled, onTrigger, 
     };
   }, [peerCustomClips]);
 
-  const hasAnyClips = (presetsEnabled && PRESET_CLIPS.length > 0) || ownClips.length > 0 || peerCustomClips.length > 0;
+  const hasAnyClips = (presetsEnabled && PRESET_CLIPS.length > 0) || (customEnabled && (ownClips.length > 0 || peerCustomClips.length > 0));
 
   return (
     <ChevronMenu anchorRect={anchorRect} onClose={onClose} className="soundboard-pop menu-surface" snapToControlBar={true}>
@@ -96,7 +98,7 @@ export function SoundboardPopover({ ownClips, peers, presetsEnabled, onTrigger, 
         </>
       )}
 
-      {ownClips.length > 0 && (
+      {customEnabled && ownClips.length > 0 && (
         <>
           <div className="soundboard-pop__section-label">My Sounds</div>
           <div className="soundboard-pop__grid">
@@ -115,7 +117,7 @@ export function SoundboardPopover({ ownClips, peers, presetsEnabled, onTrigger, 
         </>
       )}
 
-      {peerCustomClips.length > 0 && (
+      {customEnabled && peerCustomClips.length > 0 && (
         <>
           <div className="soundboard-pop__section-label">Others&apos; Sounds</div>
           <div className="soundboard-pop__grid">

@@ -128,33 +128,20 @@ const api = {
       ipcRenderer.invoke('chickadee:release-batch', batchId),
   },
   /**
-   * Soundboard local library + cache. Ingest (inbox watch, ffmpeg transcode,
-   * hashing) runs entirely in main; the renderer only sees clip metadata and
-   * moves opaque hash-keyed bytes for both local-ingest output and P2P sync.
+   * Soundboard local library + cache. Ingest (ffmpeg transcode straight from
+   * a picked file's own path, hashing) runs entirely in main; the renderer
+   * only sees clip metadata and moves opaque hash-keyed bytes for both
+   * local-ingest output and P2P sync.
    */
   soundboard: {
-    /** Open a native multi-select file picker and copy the chosen files into the inbox. */
-    addFiles: (): Promise<void> => ipcRenderer.invoke('chickadee:soundboard-add-files'),
-    /** Reveal the inbox folder in Explorer (drag-and-drop entry point). */
-    openInbox: (): Promise<void> => ipcRenderer.invoke('chickadee:soundboard-open-inbox'),
+    /** Open a native multi-select file picker and ffmpeg-ingest each pick; resolves with any per-file failures. */
+    addFiles: (): Promise<{ errors: string[] }> => ipcRenderer.invoke('chickadee:soundboard-add-files'),
     /** Snapshot of this user's own (already-ingested) clips. */
     listClips: (): Promise<SoundboardLibraryClip[]> => ipcRenderer.invoke('chickadee:soundboard-list-clips'),
-    /** Remove one of this user's own clips (inbox source + cache + manifest entry). */
+    /** Remove one of this user's own clips (cache + manifest entry). */
     removeClip: (hash: string): Promise<void> => ipcRenderer.invoke('chickadee:soundboard-remove-clip', hash),
     /** Fired whenever the own-clip library changes (ingest complete, or a clip removed). */
     onManifestChanged: payloadSubscription<SoundboardLibraryClip[]>('chickadee:soundboard-manifest-changed'),
-    /** Ingest progress for a file currently being transcoded (0..1). */
-    onTranscodeProgress: payloadSubscription<{ jobId: string; sourceFile: string; ratio: number }>(
-      'chickadee:soundboard-transcode-progress',
-    ),
-    /** Ingest of a file finished successfully. */
-    onTranscodeDone: payloadSubscription<{ jobId: string; sourceFile: string; hash: string }>(
-      'chickadee:soundboard-transcode-done',
-    ),
-    /** Ingest of a file failed (corrupt/unsupported source, ffmpeg error, etc.). */
-    onTranscodeError: payloadSubscription<{ jobId: string; sourceFile: string; message: string }>(
-      'chickadee:soundboard-transcode-error',
-    ),
     cache: {
       /** Whether a clip with this content hash is already cached locally. */
       has: (hash: string): Promise<boolean> => ipcRenderer.invoke('chickadee:soundboard-cache-has', hash),

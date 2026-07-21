@@ -1,18 +1,21 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ClientMessage, SoundboardClipMeta, SoundboardLibraryClip } from '@chickadee/shared';
+import { useAutoClearError } from './useAutoClearError';
 
 export interface SoundboardLibraryArgs {
   send: (message: ClientMessage) => void;
   /** Keeps a future reconnect's `join` payload current (useSignaling.setSoundboardClips). */
   setSoundboardClips: (clips: SoundboardClipMeta[]) => void;
   enabled: boolean;
+  /** Custom clips specifically — off stops syncing them out and stops adding new ones, without deleting what's already local. */
+  customEnabled: boolean;
 }
 
 export interface SoundboardLibrary {
   ownClips: SoundboardLibraryClip[];
   addFiles: () => void;
   removeClip: (hash: string) => void;
-  openInboxFolder: () => void;
+  addError: string | null;
 }
 
 /**
@@ -24,8 +27,9 @@ export interface SoundboardLibrary {
  * separately (useSoundboardSync, Phase 5); this hook only ever moves small
  * {hash,name,durationMs} metadata.
  */
-export function useSoundboardLibrary({ send, setSoundboardClips, enabled }: SoundboardLibraryArgs): SoundboardLibrary {
+export function useSoundboardLibrary({ send, setSoundboardClips, enabled, customEnabled }: SoundboardLibraryArgs): SoundboardLibrary {
   const [ownClips, setOwnClips] = useState<SoundboardLibraryClip[]>([]);
+  const [addError, setAddError] = useAutoClearError();
 
   // Mirrors main's library regardless of `enabled` — Settings should still
   // list existing clips while the feature is toggled off, just not sync/play them.
@@ -41,20 +45,22 @@ export function useSoundboardLibrary({ send, setSoundboardClips, enabled }: Soun
   }, []);
 
   // Send-on-local-change (mirrors handleSaveAccent) + keep the join ref fresh.
-  // Disabled sends/keeps an EMPTY manifest — an explicit retraction to already-
-  // connected peers, not just a locally-hidden button.
+  // Disabled (either flag) sends/keeps an EMPTY manifest — an explicit
+  // retraction to already-connected peers, not just a locally-hidden button.
   useEffect(() => {
-    const meta: SoundboardClipMeta[] = enabled
+    const meta: SoundboardClipMeta[] = enabled && customEnabled
       ? ownClips.map(({ hash, name, durationMs, sizeBytes }) => ({ hash, name, durationMs, sizeBytes }))
       : [];
     setSoundboardClips(meta);
     send({ type: 'soundboard-manifest-state', clips: meta });
-  }, [enabled, ownClips, send, setSoundboardClips]);
+  }, [enabled, customEnabled, ownClips, send, setSoundboardClips]);
 
   const addFiles = useCallback(() => {
-    if (!enabled) return;
-    void window.chickadee?.soundboard.addFiles();
-  }, [enabled]);
+    if (!enabled || !customEnabled) return;
+    void window.chickadee?.soundboard.addFiles().then((result) => {
+      if (result?.errors.length) setAddError(result.errors.join('\n'));
+    });
+  }, [enabled, customEnabled, setAddError]);
 
   const removeClip = useCallback(
     (hash: string) => {
@@ -64,10 +70,5 @@ export function useSoundboardLibrary({ send, setSoundboardClips, enabled }: Soun
     [enabled],
   );
 
-  const openInboxFolder = useCallback(() => {
-    if (!enabled) return;
-    void window.chickadee?.soundboard.openInbox();
-  }, [enabled]);
-
-  return { ownClips, addFiles, removeClip, openInboxFolder };
+  return { ownClips, addFiles, removeClip, addError };
 }

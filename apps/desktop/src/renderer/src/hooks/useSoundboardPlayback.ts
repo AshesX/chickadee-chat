@@ -10,8 +10,8 @@ export interface SoundboardPlaybackArgs {
   volume: number;
   /** Live per-peer volume map (peer.id -> volume), the same one usePeerVolumes exposes; volume <= 0 means silenced. */
   volumes: Record<string, number>;
-  /** Blanket opt-out: when true, no inbound trigger plays regardless of per-peer volume. Your own clips still play. */
-  muteOthersEnabled: boolean;
+  /** Custom clips specifically — when false, inbound `source: 'custom'` triggers are dropped; presets are unaffected. */
+  customEnabled: boolean;
 }
 
 export interface SoundboardPlayback {
@@ -28,7 +28,9 @@ export interface SoundboardPlayback {
  * own clicks, and it would just make fast, intentional clicking feel broken.
  * The local mute gate (isSenderMuted) is inbound-only for the same reason:
  * a peer silenced via per-tile volume (volume <= 0) should be inaudible
- * everywhere, including their soundboard hits, not just their mic.
+ * everywhere, including their soundboard hits, not just their mic. An
+ * inbound `source: 'custom'` trigger is additionally dropped when
+ * `customEnabled` is off — presets are unaffected by that gate.
  */
 export function useSoundboardPlayback({
   subscribe,
@@ -36,7 +38,7 @@ export function useSoundboardPlayback({
   enabled,
   volume,
   volumes,
-  muteOthersEnabled,
+  customEnabled,
 }: SoundboardPlaybackArgs): SoundboardPlayback {
   const activeVoicesRef = useRef(0);
   const lastTriggerAtByPeerRef = useRef<Record<string, number>>({});
@@ -45,11 +47,11 @@ export function useSoundboardPlayback({
   const enabledRef = useRef(enabled);
   const volumeRef = useRef(volume);
   const volumesRef = useRef(volumes);
-  const muteOthersRef = useRef(muteOthersEnabled);
+  const customEnabledRef = useRef(customEnabled);
   enabledRef.current = enabled;
   volumeRef.current = volume;
   volumesRef.current = volumes;
-  muteOthersRef.current = muteOthersEnabled;
+  customEnabledRef.current = customEnabled;
 
   const play = useCallback((source: SoundboardClipSource, clipId: string) => {
     activeVoicesRef.current += 1;
@@ -61,7 +63,7 @@ export function useSoundboardPlayback({
   useEffect(() => {
     return subscribe((msg) => {
       if (msg.type !== 'soundboard-trigger' || !enabledRef.current) return;
-      if (muteOthersRef.current) return;
+      if (msg.source === 'custom' && !customEnabledRef.current) return;
       if (isSenderMuted(msg.from, volumesRef.current)) return;
       if (!shouldAcceptTrigger(msg.from, Date.now(), lastTriggerAtByPeerRef.current)) return;
       lastTriggerAtByPeerRef.current[msg.from] = Date.now();

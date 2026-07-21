@@ -63,11 +63,11 @@ interface ControlBarProps {
   onCycleInputMode: () => void;
   onInputModeMenu: (rect: DOMRect) => void;
   onReactMenu: (rect: DOMRect) => void;
-  /** When false, the React button + its flanking divider are hidden. */
-  reactionsEnabled: boolean;
+  /** When false, the React button + its flanking divider are hidden. Caller ANDs the master enable + button-visibility settings into this one flag. */
+  reactionsButtonVisible: boolean;
   onSoundboardMenu: (rect: DOMRect) => void;
-  /** When false, the Soundboard button + its flanking divider are hidden. */
-  soundboardEnabled: boolean;
+  /** When false, the Soundboard button + its flanking divider are hidden. Caller ANDs the master enable + button-visibility settings into this one flag. */
+  soundboardButtonVisible: boolean;
   onLeave: () => void;
   deafened: boolean;
   onToggleDeafen: () => void;
@@ -92,9 +92,9 @@ export function ControlBar({
   onCycleInputMode,
   onInputModeMenu,
   onReactMenu,
-  reactionsEnabled,
+  reactionsButtonVisible,
   onSoundboardMenu,
-  soundboardEnabled,
+  soundboardButtonVisible,
   onLeave,
   deafened,
   onToggleDeafen,
@@ -187,7 +187,7 @@ export function ControlBar({
         </div>
 
 
-        {reactionsEnabled && (
+        {reactionsButtonVisible && (
           <div
             onMouseEnter={onMouseEnterReact}
             onMouseLeave={onMouseLeaveReact}
@@ -201,7 +201,7 @@ export function ControlBar({
           </div>
         )}
 
-        {soundboardEnabled && (
+        {soundboardButtonVisible && (
           <ControlButton
             icon={Music2}
             label="Sounds"

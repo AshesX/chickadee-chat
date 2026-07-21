@@ -1,46 +1,26 @@
 import { randomUUID } from 'node:crypto';
-import { createWriteStream, existsSync, mkdirSync, readFileSync, watch, writeFileSync, type FSWatcher, type WriteStream } from 'node:fs';
-import { copyFile, readFile, rename, stat, unlink } from 'node:fs/promises';
+import { createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync, type WriteStream } from 'node:fs';
+import { readFile, rename, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
-import { app, dialog, ipcMain, shell } from 'electron';
+import { app, dialog, ipcMain } from 'electron';
 import type { BrowserWindow } from 'electron';
-import {
-  clampString,
-  sanitizeSaveFileName,
-  sanitizeSoundboardHash,
-  suffixedFileName,
-  type SoundboardLibraryClip,
-} from '@chickadee/shared';
-import { getSettings } from './settings';
+import { clampString, sanitizeSoundboardHash, type SoundboardLibraryClip } from '@chickadee/shared';
 import { sha256Hex } from './soundboardHash';
-import {
-  STABLE_SAMPLES,
-  SUPPORTED_AUDIO_EXTENSIONS,
-  addManifestSource,
-  deriveClipName,
-  isSizeStable,
-  isSupportedAudioFile,
-  normalizeManifestEntry,
-  removeManifestSource,
-} from './soundboardLibraryLogic';
+import { SUPPORTED_AUDIO_EXTENSIONS, addManifestClip, deriveClipName, normalizeManifestEntry } from './soundboardLibraryLogic';
 import { transcodeClip } from './soundboardTranscode';
 
 /**
- * Local soundboard asset management: an `fs.watch`-ed inbox folder for raw
- * user-dropped audio, a content-addressed cache of transcoded clips (shared
- * by local ingest AND P2P-synced clips — see useSoundboardSync), and the
- * manifest of "my own" clips persisted alongside it. All filesystem/process
- * work lives here; the sandboxed renderer only ever sees opaque hashes and
- * clip metadata over IPC, mirroring main/fileTransfer.ts's split. Pure
- * decision logic (debounce, extension allowlist, name derivation) lives in
- * soundboardLibraryLogic.ts so it's testable without an Electron runtime.
+ * Local soundboard asset management: a content-addressed cache of transcoded
+ * clips (shared by local ingest AND P2P-synced clips — see
+ * useSoundboardSync), and the manifest of "my own" clips persisted alongside
+ * it. Ingest transcodes straight from a user-picked file's own path (same
+ * pattern as main/customSfx.ts) — no intermediate folder. All
+ * filesystem/process work lives here; the sandboxed renderer only ever sees
+ * opaque hashes and clip metadata over IPC, mirroring main/fileTransfer.ts's
+ * split. Pure decision logic (extension allowlist, name derivation, manifest
+ * dedup) lives in soundboardLibraryLogic.ts so it's testable without an
+ * Electron runtime.
  */
-
-const POLL_INTERVAL_MS = 300;
-
-function inboxDir(): string {
-  return join(app.getPath('userData'), 'soundboard-inbox');
-}
 
 function cacheDir(): string {
   return join(app.getPath('userData'), 'soundboard-cache');
@@ -89,11 +69,6 @@ interface ActiveCacheWrite {
 
 /** hash -> open .part write stream for an in-progress P2P-synced clip. */
 const cacheWrites = new Map<string, ActiveCacheWrite>();
-/** inbox filename -> recent size samples, while its stabilize-poll is in flight. */
-const sizeHistories = new Map<string, number[]>();
-/** inbox filenames currently mid-transcode (or already resolved this tick) — re-entrancy guard. */
-const inFlight = new Set<string>();
-let watcher: FSWatcher | null = null;
 let mainWindow: BrowserWindow | null = null;
 
 export function setSoundboardMainWindow(w: BrowserWindow | null): void {
@@ -110,31 +85,16 @@ function pushManifestChanged(): void {
   pushToRenderer('chickadee:soundboard-manifest-changed', manifest.slice());
 }
 
-function handleInboxDeletion(filename: string): void {
-  // Refcounted by sourceFiles: the cached bytes only go once the LAST inbox
-  // file with this content is gone (content-identical files share one entry).
-  const { manifest: next, unlinkHash, changed } = removeManifestSource(manifest, filename);
-  if (!changed) return;
-  manifest = next;
-  persistManifest();
-  if (unlinkHash) void unlink(cachePath(unlinkHash)).catch(() => {});
-  pushManifestChanged();
-}
-
-async function processInboxFile(filename: string): Promise<void> {
-  if (inFlight.has(filename) || !isSupportedAudioFile(filename)) return;
-  // Re-checked live (not cached) so flipping the setting off stops new ffmpeg
-  // spawns immediately, without needing to tear the watcher down.
-  if (!getSettings().soundboardEnabled) return;
-
-  inFlight.add(filename);
-  const jobId = randomUUID();
-  const inputPath = join(inboxDir(), filename);
-  const tempOutputPath = join(cacheDir(), `.tmp-${jobId}${CACHE_EXT}`);
+/**
+ * Transcode a user-picked file straight from its own path (no copy step —
+ * same pattern as main/customSfx.ts) into the content-addressed cache.
+ */
+async function ingestPickedFile(
+  srcPath: string,
+): Promise<{ hash: string; name: string; durationMs: number; sizeBytes: number } | { error: string }> {
+  const tempOutputPath = join(cacheDir(), `.tmp-${randomUUID()}${CACHE_EXT}`);
   try {
-    const result = await transcodeClip(inputPath, tempOutputPath, (progress) => {
-      pushToRenderer('chickadee:soundboard-transcode-progress', { jobId, sourceFile: filename, ratio: progress.ratio });
-    });
+    const result = await transcodeClip(srcPath, tempOutputPath, () => {});
     const bytes = await readFile(tempOutputPath);
     const hash = await sha256Hex(bytes);
     const finalPath = cachePath(hash);
@@ -144,107 +104,65 @@ async function processInboxFile(filename: string): Promise<void> {
     } else {
       await rename(tempOutputPath, finalPath);
     }
-    // One entry per hash; a content-identical file joins the existing entry's
-    // sourceFiles instead of being silently dropped (which used to orphan it
-    // when the first-named duplicate was later deleted).
-    const added = addManifestSource(
-      manifest,
-      { hash, name: deriveClipName(filename), durationMs: result.durationMs, sizeBytes: bytes.length },
-      filename,
-    );
-    if (added.changed) {
-      manifest = added.manifest;
-      persistManifest();
-    }
-    pushToRenderer('chickadee:soundboard-transcode-done', { jobId, sourceFile: filename, hash });
-    pushManifestChanged();
+    return {
+      hash,
+      name: deriveClipName(srcPath.split(/[/\\]/).pop() ?? 'sound'),
+      durationMs: result.durationMs,
+      sizeBytes: bytes.length,
+    };
   } catch (err) {
     await unlink(tempOutputPath).catch(() => {});
-    pushToRenderer('chickadee:soundboard-transcode-error', {
-      jobId,
-      sourceFile: filename,
-      message: err instanceof Error ? err.message : String(err),
-    });
-  } finally {
-    inFlight.delete(filename);
+    return { error: err instanceof Error ? err.message : String(err) };
   }
-}
-
-function pollFile(filename: string): void {
-  stat(join(inboxDir(), filename))
-    .then((stats) => {
-      if (inFlight.has(filename)) return;
-      const history = [...(sizeHistories.get(filename) ?? []), stats.size].slice(-STABLE_SAMPLES);
-      if (isSizeStable(history)) {
-        sizeHistories.delete(filename);
-        void processInboxFile(filename);
-      } else {
-        sizeHistories.set(filename, history);
-        setTimeout(() => pollFile(filename), POLL_INTERVAL_MS);
-      }
-    })
-    .catch((err: NodeJS.ErrnoException) => {
-      sizeHistories.delete(filename);
-      if (err.code === 'ENOENT') handleInboxDeletion(filename);
-    });
-}
-
-/** Explorer-style free name inside the inbox ("clip.mp3" -> "clip (2).mp3" ...). */
-function availableInboxName(suggestedName: string): string {
-  const base = sanitizeSaveFileName(suggestedName);
-  let candidate = base;
-  for (let n = 2; existsSync(join(inboxDir(), candidate)); n++) {
-    if (n > 999) return `${Date.now()}-${base}`;
-    candidate = suffixedFileName(base, n);
-  }
-  return candidate;
 }
 
 export function configureSoundboard(): void {
-  mkdirSync(inboxDir(), { recursive: true });
   mkdirSync(cacheDir(), { recursive: true });
   loadManifest();
 
-  watcher = watch(inboxDir(), (_event, filename) => {
-    if (!filename || inFlight.has(filename)) return;
-    pollFile(filename);
-  });
-
   // --- Own-library management ---
 
-  ipcMain.handle('chickadee:soundboard-add-files', async (): Promise<void> => {
-    if (!mainWindow || mainWindow.isDestroyed()) return;
+  ipcMain.handle('chickadee:soundboard-add-files', async (): Promise<{ errors: string[] }> => {
+    if (!mainWindow || mainWindow.isDestroyed()) return { errors: [] };
     const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
       title: 'Add sounds',
       properties: ['openFile', 'multiSelections'],
       filters: [{ name: 'Audio', extensions: [...SUPPORTED_AUDIO_EXTENSIONS].map((ext) => ext.slice(1)) }],
     });
-    if (canceled) return;
-    for (const src of filePaths) {
-      const destName = availableInboxName(src.split(/[/\\]/).pop() ?? 'sound');
-      await copyFile(src, join(inboxDir(), destName)).catch(() => {});
-      // The watcher above picks the new file up from here — one ingest path.
-    }
-  });
+    if (canceled) return { errors: [] };
 
-  ipcMain.handle('chickadee:soundboard-open-inbox', (): void => {
-    void shell.openPath(inboxDir());
+    // Sequential: ffmpeg is a real child-process spawn, and a large multi-
+    // select shouldn't fan out unbounded concurrent transcodes. Each file is
+    // independent — one failure doesn't abort the rest.
+    const errors: string[] = [];
+    let changed = false;
+    for (const src of filePaths) {
+      const outcome = await ingestPickedFile(src);
+      if ('error' in outcome) {
+        errors.push(`${src.split(/[/\\]/).pop() ?? 'file'}: ${outcome.error}`);
+        continue;
+      }
+      const added = addManifestClip(manifest, outcome);
+      if (added.changed) {
+        manifest = added.manifest;
+        changed = true;
+      }
+    }
+    if (changed) {
+      persistManifest();
+      pushManifestChanged();
+    }
+    return { errors };
   });
 
   ipcMain.handle('chickadee:soundboard-list-clips', (): SoundboardLibraryClip[] => manifest.slice());
 
   ipcMain.handle('chickadee:soundboard-remove-clip', async (_e, hash: unknown): Promise<void> => {
     const h = sanitizeSoundboardHash(hash);
-    const entry = h ? manifest.find((c) => c.hash === h) : undefined;
-    if (!h || !entry) return;
+    if (!h || !manifest.some((c) => c.hash === h)) return;
     manifest = manifest.filter((c) => c.hash !== h);
     persistManifest();
     await unlink(cachePath(h)).catch(() => {});
-    // Remove EVERY inbox file that fed this clip, or the leftovers would sit
-    // invisible in the inbox (their entry is gone, their cache just unlinked).
-    for (const source of entry.sourceFiles) {
-      await unlink(join(inboxDir(), source)).catch(() => {});
-    }
     pushManifestChanged();
   });
 
@@ -324,8 +242,6 @@ export function configureSoundboard(): void {
   });
 
   app.on('will-quit', () => {
-    watcher?.close();
-    watcher = null;
     for (const entry of cacheWrites.values()) {
       entry.stream.destroy();
       void unlink(entry.partPath).catch(() => {});

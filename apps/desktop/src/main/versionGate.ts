@@ -29,7 +29,6 @@ function wipeTargets(): string[] {
     join(userData, 'settings.json'),
     join(userData, 'soundboard-manifest.json'),
     join(userData, 'soundboard-cache'),
-    join(userData, 'soundboard-inbox'),
     join(userData, 'custom-sfx'),
   ];
 }

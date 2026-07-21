@@ -6,36 +6,46 @@ import type { SettingsModalProps } from './types';
 type SoundboardTabProps = Pick<
   SettingsModalProps,
   | 'soundboardEnabled' | 'onChangeSoundboardEnabled'
+  | 'soundboardButtonEnabled' | 'onChangeSoundboardButtonEnabled'
   | 'soundboardVolume' | 'onChangeSoundboardVolume'
-  | 'soundboardAutoSyncEnabled' | 'onChangeSoundboardAutoSyncEnabled'
   | 'soundboardPresetsEnabled' | 'onChangeSoundboardPresetsEnabled'
-  | 'soundboardMuteOthersEnabled' | 'onChangeSoundboardMuteOthersEnabled'
-  | 'soundboardOwnClips' | 'onAddSoundboardFiles' | 'onRemoveSoundboardClip' | 'onOpenSoundboardInbox'
+  | 'soundboardCustomEnabled' | 'onChangeSoundboardCustomEnabled'
+  | 'soundboardOwnClips' | 'onAddSoundboardFiles' | 'onRemoveSoundboardClip' | 'soundboardAddError'
 >;
 
 export function SoundboardTab({
   soundboardEnabled,
   onChangeSoundboardEnabled,
+  soundboardButtonEnabled,
+  onChangeSoundboardButtonEnabled,
   soundboardVolume,
   onChangeSoundboardVolume,
-  soundboardAutoSyncEnabled,
-  onChangeSoundboardAutoSyncEnabled,
   soundboardPresetsEnabled,
   onChangeSoundboardPresetsEnabled,
-  soundboardMuteOthersEnabled,
-  onChangeSoundboardMuteOthersEnabled,
+  soundboardCustomEnabled,
+  onChangeSoundboardCustomEnabled,
   soundboardOwnClips,
   onAddSoundboardFiles,
   onRemoveSoundboardClip,
-  onOpenSoundboardInbox,
+  soundboardAddError,
 }: SoundboardTabProps): React.JSX.Element {
+  const customDisabled = !soundboardEnabled || !soundboardCustomEnabled;
+
   return (
     <>
       <ToggleRow
         label="Enable Soundboard"
-        hint="Adds the Sounds button next to React and turns on background sync."
+        hint="Hear soundboard clips others trigger, and enables playing your own. Turns on background sync."
         value={soundboardEnabled}
         onChange={onChangeSoundboardEnabled}
+      />
+
+      <ToggleRow
+        label="Show Soundboard button"
+        hint="Show the Sounds button in the control bar. Turn off if you'd rather not trigger sounds yourself but still want to hear others'."
+        value={soundboardButtonEnabled}
+        onChange={onChangeSoundboardButtonEnabled}
+        disabled={!soundboardEnabled}
       />
 
       <SliderRow
@@ -59,14 +69,6 @@ export function SoundboardTab({
       />
 
       <ToggleRow
-        label="Auto-sync others' sounds"
-        hint="Automatically download other room members' custom clips in the background so they play instantly when triggered."
-        value={soundboardAutoSyncEnabled}
-        onChange={onChangeSoundboardAutoSyncEnabled}
-        disabled={!soundboardEnabled}
-      />
-
-      <ToggleRow
         label="Preset sounds"
         hint="Show the bundled preset clips. Turn off to only use your own custom sounds."
         value={soundboardPresetsEnabled}
@@ -75,10 +77,10 @@ export function SoundboardTab({
       />
 
       <ToggleRow
-        label="Mute others' sounds"
-        hint="Don't play soundboard clips triggered by other room members. Your own clips still play."
-        value={soundboardMuteOthersEnabled}
-        onChange={onChangeSoundboardMuteOthersEnabled}
+        label="Enable custom sounds"
+        hint="Play and share your own custom sound clips. Turn off to only use presets — your added clips stay saved but stop syncing to others."
+        value={soundboardCustomEnabled}
+        onChange={onChangeSoundboardCustomEnabled}
         disabled={!soundboardEnabled}
       />
 
@@ -86,18 +88,15 @@ export function SoundboardTab({
 
       <SettingsRow
         label="Custom sounds"
-        hint="Drop audio files into the sounds folder, or add them here. Trimmed to 5s and compressed automatically."
-        disabled={!soundboardEnabled}
+        hint="Add your own sounds. Trimmed to 5s and compressed automatically."
+        disabled={customDisabled}
       >
-        <div style={{ display: 'flex', gap: 'var(--s-2)' }}>
-          <button className="btn btn--ghost" onClick={onOpenSoundboardInbox} disabled={!soundboardEnabled}>
-            Open folder
-          </button>
-          <button className="btn btn--primary" onClick={onAddSoundboardFiles} disabled={!soundboardEnabled}>
-            Add Sound
-          </button>
-        </div>
+        <button className="btn btn--primary" onClick={onAddSoundboardFiles} disabled={customDisabled}>
+          Add Sound
+        </button>
       </SettingsRow>
+
+      {soundboardAddError && <p className="field-error">{soundboardAddError}</p>}
 
       {soundboardOwnClips.length > 0 && (
         <SettingsRow label="My sounds" disabled={!soundboardEnabled}>

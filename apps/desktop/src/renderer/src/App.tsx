@@ -289,19 +289,23 @@ export function App(): React.JSX.Element {
   const [chatTtsSpeakOwnMessages, applyChatTtsSpeakOwnMessages] = usePersistedState(store.getChatTtsSpeakOwnMessages, store.setChatTtsSpeakOwnMessages);
   const [chatTtsSpeakWhenFocused, applyChatTtsSpeakWhenFocused] = usePersistedState(store.getChatTtsSpeakWhenFocused, store.setChatTtsSpeakWhenFocused);
   const [reactionsEnabled, applyReactionsEnabled] = usePersistedState(store.getReactionsEnabled, store.setReactionsEnabled);
+  const [reactionsButtonEnabled, applyReactionsButtonEnabled] = usePersistedState(
+    store.getReactionsButtonEnabled,
+    store.setReactionsButtonEnabled,
+  );
   const [soundboardEnabled, applySoundboardEnabled] = usePersistedState(store.getSoundboardEnabled, store.setSoundboardEnabled);
   const [soundboardVolume, applySoundboardVolume] = usePersistedState(store.getSoundboardVolume, store.setSoundboardVolume);
-  const [soundboardAutoSyncEnabled, applySoundboardAutoSyncEnabled] = usePersistedState(
-    store.getSoundboardAutoSyncEnabled,
-    store.setSoundboardAutoSyncEnabled,
+  const [soundboardButtonEnabled, applySoundboardButtonEnabled] = usePersistedState(
+    store.getSoundboardButtonEnabled,
+    store.setSoundboardButtonEnabled,
   );
   const [soundboardPresetsEnabled, applySoundboardPresetsEnabled] = usePersistedState(
     store.getSoundboardPresetsEnabled,
     store.setSoundboardPresetsEnabled,
   );
-  const [soundboardMuteOthersEnabled, applySoundboardMuteOthersEnabled] = usePersistedState(
-    store.getSoundboardMuteOthersEnabled,
-    store.setSoundboardMuteOthersEnabled,
+  const [soundboardCustomEnabled, applySoundboardCustomEnabled] = usePersistedState(
+    store.getSoundboardCustomEnabled,
+    store.setSoundboardCustomEnabled,
   );
   const [theme, applyTheme] = usePersistedState<ThemeName>(store.getTheme, store.setTheme);
   const [hideSpaceBanner, applyHideSpaceBanner] = usePersistedState(store.getHideSpaceBanner, store.setHideSpaceBanner);
@@ -876,6 +880,7 @@ export function App(): React.JSX.Element {
     send: signaling.send,
     setSoundboardClips: signaling.setSoundboardClips,
     enabled: soundboardEnabled,
+    customEnabled: soundboardCustomEnabled,
   });
   const soundboardPlayback = useSoundboardPlayback({
     subscribe: signaling.subscribe,
@@ -883,7 +888,7 @@ export function App(): React.JSX.Element {
     enabled: soundboardEnabled,
     volume: soundboardVolume,
     volumes,
-    muteOthersEnabled: soundboardMuteOthersEnabled,
+    customEnabled: soundboardCustomEnabled,
   });
   useSoundboardSync({
     peers: signaling.peers,
@@ -891,7 +896,7 @@ export function App(): React.JSX.Element {
     subscribe: signaling.subscribe,
     iceServers,
     enabled: soundboardEnabled,
-    autoSyncEnabled: soundboardAutoSyncEnabled,
+    customEnabled: soundboardCustomEnabled,
   });
 
   // Transient picker per gesture: input.click() must run synchronously inside
@@ -1510,9 +1515,9 @@ export function App(): React.JSX.Element {
               onCycleInputMode={cycleInputMode}
               onInputModeMenu={menus.openInputModeMenu}
               onReactMenu={menus.openReactionMenu}
-              reactionsEnabled={reactionsEnabled}
+              reactionsButtonVisible={reactionsEnabled && reactionsButtonEnabled}
               onSoundboardMenu={menus.openSoundboardMenu}
-              soundboardEnabled={soundboardEnabled}
+              soundboardButtonVisible={soundboardEnabled && soundboardButtonEnabled}
               onLeave={leaveRoom}
               deafened={deafened}
               onToggleDeafen={toggleDeafen}
@@ -1613,6 +1618,7 @@ export function App(): React.JSX.Element {
                 ownClips={soundboardLibrary.ownClips}
                 peers={signaling.peers}
                 presetsEnabled={soundboardPresetsEnabled}
+                customEnabled={soundboardCustomEnabled}
                 onTrigger={soundboardPlayback.triggerClip}
                 onClose={menus.closeSoundboardMenu}
                 anchorRect={menus.soundboardMenuAnchor}
@@ -1996,16 +2002,16 @@ export function App(): React.JSX.Element {
           onChangeSoundboardEnabled={applySoundboardEnabled}
           soundboardVolume={soundboardVolume}
           onChangeSoundboardVolume={applySoundboardVolume}
-          soundboardAutoSyncEnabled={soundboardAutoSyncEnabled}
-          onChangeSoundboardAutoSyncEnabled={applySoundboardAutoSyncEnabled}
+          soundboardButtonEnabled={soundboardButtonEnabled}
+          onChangeSoundboardButtonEnabled={applySoundboardButtonEnabled}
           soundboardPresetsEnabled={soundboardPresetsEnabled}
           onChangeSoundboardPresetsEnabled={applySoundboardPresetsEnabled}
-          soundboardMuteOthersEnabled={soundboardMuteOthersEnabled}
-          onChangeSoundboardMuteOthersEnabled={applySoundboardMuteOthersEnabled}
+          soundboardCustomEnabled={soundboardCustomEnabled}
+          onChangeSoundboardCustomEnabled={applySoundboardCustomEnabled}
           soundboardOwnClips={soundboardLibrary.ownClips}
           onAddSoundboardFiles={soundboardLibrary.addFiles}
           onRemoveSoundboardClip={soundboardLibrary.removeClip}
-          onOpenSoundboardInbox={soundboardLibrary.openInboxFolder}
+          soundboardAddError={soundboardLibrary.addError}
           micVolume={micVolume}
           onChangeMicVolume={applyMicVolume}
           outputVolume={outputVolume}
@@ -2047,6 +2053,8 @@ export function App(): React.JSX.Element {
           onChangeChatTtsSpeakWhenFocused={applyChatTtsSpeakWhenFocused}
           reactionsEnabled={reactionsEnabled}
           onChangeReactionsEnabled={applyReactionsEnabled}
+          reactionsButtonEnabled={reactionsButtonEnabled}
+          onChangeReactionsButtonEnabled={applyReactionsButtonEnabled}
           voicePreference={localVoicePreference}
           onChangeVoicePreference={applyVoicePreference}
           analyserNode={mesh.analyserNode}

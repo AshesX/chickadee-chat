@@ -107,10 +107,13 @@ export interface ScreenSource {
 
 /**
  * A clip in this user's own soundboard library, enumerated by the main
- * process (which owns the inbox folder, the content-addressed cache, and the
- * ffmpeg ingest pipeline) and reported to the renderer over IPC. Distinct
- * from `SoundboardClipMeta` (the wire-protocol shape advertised to peers):
- * `sourceFiles` is a local implementation detail peers never need to know.
+ * process (which owns the content-addressed cache and the ffmpeg ingest
+ * pipeline) and reported to the renderer over IPC. Same fields as
+ * `SoundboardClipMeta` (the wire-protocol shape advertised to peers) today,
+ * but kept as a separate type — they represent different domain concepts
+ * (an owned-library entry the user manages in Settings vs. metadata
+ * advertised to peers), and the seam leaves room for future local-only
+ * fields without touching the wire protocol.
  */
 export interface SoundboardLibraryClip {
   /** Content hash (SHA-256 hex) of the transcoded clip — also its cache filename. */
@@ -118,13 +121,6 @@ export interface SoundboardLibraryClip {
   name: string;
   durationMs: number;
   sizeBytes: number;
-  /**
-   * Every inbox basename whose transcode produced this content (≥1) — one
-   * entry per hash, so content-identical inbox files share a clip instead of
-   * minting duplicates. Deleting an inbox file only drops the clip (and its
-   * cached bytes) when it was the LAST source for that hash.
-   */
-  sourceFiles: string[];
 }
 
 /**

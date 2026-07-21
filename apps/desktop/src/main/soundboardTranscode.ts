@@ -1,5 +1,14 @@
 import { spawn } from 'node:child_process';
-import ffmpegPath from 'ffmpeg-static';
+import ffmpegPathRaw from 'ffmpeg-static';
+
+// electron-builder's asarUnpack puts the real ffmpeg.exe on disk next to the
+// archive (`app.asar.unpacked/...`), but ffmpeg-static's own path resolution
+// has no idea it's running under Electron and still returns the in-archive
+// `app.asar` path — `child_process.spawn` calls straight into CreateProcess,
+// which can't open a path inside the (single-file) asar archive, so every
+// spawn fails with ENOENT in packaged builds while working fine in dev (no
+// asar there). Rewrite to the unpacked path; a no-op string when unpackaged.
+const ffmpegPath = ffmpegPathRaw?.replace('app.asar', 'app.asar.unpacked') ?? null;
 
 /** Hard cap on a soundboard clip's length, enforced input-side (see buildTranscodeArgs). */
 export const MAX_CLIP_DURATION_S = 5;

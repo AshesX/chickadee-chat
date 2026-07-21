@@ -13,7 +13,8 @@ export interface SoundboardSyncArgs {
   subscribe: (listener: (message: ServerMessage) => void) => () => void;
   iceServers: RTCIceServer[];
   enabled: boolean;
-  autoSyncEnabled: boolean;
+  /** Custom clips specifically — sync is meaningless for presets (bundled, no sync needed), so this scopes the whole hook. */
+  customEnabled: boolean;
 }
 
 interface PendingRequest {
@@ -29,9 +30,12 @@ interface PendingRequest {
  * (createSendLink/createReceiveLink/createReceiveQueue via ReceiverIo) as a
  * silent pull instead of a user-prompted push; only the orchestration here
  * and the cache-backed IO are new. No UI surface — SoundboardPopover checks
- * cache.has() itself for the "syncing…" tile state.
+ * cache.has() itself for the "syncing…" tile state. Gated on `enabled`
+ * (master) AND `customEnabled` — there's no separate auto-sync toggle;
+ * syncing is unconditional whenever custom clips are on (presets never need
+ * this hook at all, since they're bundled).
  */
-export function useSoundboardSync({ peers, send, subscribe, iceServers, enabled, autoSyncEnabled }: SoundboardSyncArgs): void {
+export function useSoundboardSync({ peers, send, subscribe, iceServers, enabled, customEnabled }: SoundboardSyncArgs): void {
   const linksRef = useRef<Map<string, FileLink>>(new Map());
   /** Hashes confirmed present in the local cache — own clips and completed fetches alike. */
   const cachedHashesRef = useRef<Set<string>>(new Set());
@@ -54,7 +58,7 @@ export function useSoundboardSync({ peers, send, subscribe, iceServers, enabled,
 
   // --- Requester side: diff peers against the cache, request what's missing ---
   useEffect(() => {
-    if (!enabled || !autoSyncEnabled || !window.chickadee) return;
+    if (!enabled || !customEnabled || !window.chickadee) return;
     const bridge = window.chickadee;
     let cancelled = false;
 
@@ -78,7 +82,7 @@ export function useSoundboardSync({ peers, send, subscribe, iceServers, enabled,
         if (haveResults[i]) cachedHashesRef.current.add(h);
       });
 
-      const eligiblePeers = peers.filter((p) => shouldAutoSyncFrom(p.userId, { soundboardAutoSyncEnabled: autoSyncEnabled }));
+      const eligiblePeers = peers.filter((p) => shouldAutoSyncFrom(p.userId, { soundboardCustomEnabled: customEnabled }));
       const exclude = new Set([...cachedHashesRef.current, ...requestedHashesRef.current]);
       const plan = planMissingClipFetches(eligiblePeers, exclude, MAX_SOUNDBOARD_FETCH_HASHES);
       for (const { toPeerId, clips } of plan) {
@@ -97,7 +101,7 @@ export function useSoundboardSync({ peers, send, subscribe, iceServers, enabled,
     return () => {
       cancelled = true;
     };
-  }, [peers, enabled, autoSyncEnabled]);
+  }, [peers, enabled, customEnabled]);
 
   // --- Receiver side: lazily create a receive link for one planned clip ---
   const createFetchReceiveLink = (rootRequestId: string, index: number, hash: string, sizeBytes: number, fromPeerId: string): void => {
