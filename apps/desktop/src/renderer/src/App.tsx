@@ -1592,6 +1592,7 @@ export function App(): React.JSX.Element {
                 onSelectVideoMode={(mode) => {
                   if (mode === 'camera' && !cameraAvailable) {
                     mesh.setCameraError("No camera detected.");
+                    menus.closeVideoMenu();
                   } else {
                     setActiveVideoMode(mode);
                   }
