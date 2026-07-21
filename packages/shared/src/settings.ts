@@ -310,7 +310,7 @@ export function defaultSettings(): PersistedSettings {
     reactionsButtonEnabled: true,
     autoAcceptEnabled: true,
     autoAcceptUsers: [],
-    soundboardEnabled: false,
+    soundboardEnabled: true,
     soundboardVolume: 0.5,
     soundboardButtonEnabled: true,
     soundboardPresetsEnabled: true,
