@@ -212,6 +212,18 @@ export function usePeerMesh(
   /** peerId -> the MediaStream id that peer is using for its screen share. */
   const screenIdsRef = useRef<Map<PeerId, string>>(new Map());
   /**
+   * peerId -> every stream id that peer has EVER announced as its screen
+   * share (kept even after they stop). Once a sender stops sharing,
+   * `setLocalScreenStream(null)` only replaceTrack(null)s the sender — it
+   * never renegotiates — so the receiver's `ontrack` never refires and the
+   * now-frozen screen MediaStream just sits in `remoteStreamsRef` forever.
+   * Without this, `classifyPeerStreams` (called with `screenId: undefined`
+   * once sharing stops) falls back to "last non-screen id wins" and can
+   * mistake that stale, silent stream for the peer's camera/mic stream —
+   * cutting off their voice for everyone until they reconnect or reshare.
+   */
+  const knownScreenIdsRef = useRef<Map<PeerId, Set<string>>>(new Map());
+  /**
    * peerId -> what media that peer wants from us, derived from their opt-in
    * state (videoSubscriptions + wantsVideo) against our own userId. Defaults to
    * nothing until they join us (opt-in). Consulted at link creation + on change.
@@ -339,15 +351,19 @@ export function usePeerMesh(
     (peerId: PeerId) => {
       const streams = remoteStreamsRef.current.get(peerId);
       const screenId = screenIdsRef.current.get(peerId);
+      const knownScreenIds = knownScreenIdsRef.current.get(peerId);
+      // Exclude any id that was ever this peer's screen share but isn't the
+      // CURRENT one — a stopped share's now-silent stream must never be
+      // eligible for the camera/voice slot (see knownScreenIdsRef above).
+      const candidateIds = streams
+        ? [...streams.keys()].filter((id) => id === screenId || !knownScreenIds?.has(id))
+        : [];
       // Classify by id (pure, unit-tested), then look the MediaStream objects back
       // up. Keep the raw MediaStream reference stable: the per-peer audio graph
       // (ParticipantTile) sources from cameraStream and must not rebuild when a
       // gated video track is later added to the same object. The video tile re-binds
       // off the cameraVideoId scalar below instead of a new ref.
-      const { cameraStreamId, screenStreamId } = classifyPeerStreams(
-        streams ? [...streams.keys()] : [],
-        screenId,
-      );
+      const { cameraStreamId, screenStreamId } = classifyPeerStreams(candidateIds, screenId);
       const cameraStream = (cameraStreamId && streams?.get(cameraStreamId)) || null;
       const screenStream = (screenStreamId && streams?.get(screenStreamId)) || null;
       const cameraVideoId = cameraStream?.getVideoTracks()[0]?.id ?? null;
@@ -433,6 +449,7 @@ export function usePeerMesh(
     }
     remoteStreamsRef.current.delete(peerId);
     screenIdsRef.current.delete(peerId);
+    knownScreenIdsRef.current.delete(peerId);
     healthRef.current.delete(peerId);
     lastHealthUiRef.current.delete(peerId);
     setRemote((prev) => {
@@ -532,6 +549,7 @@ export function usePeerMesh(
     screenWireStreamRef.current = null;
     sharingScreenRef.current = false;
     screenIdsRef.current.clear();
+    knownScreenIdsRef.current.clear();
     peerMediaWantsRef.current.clear();
     remoteStreamsRef.current.clear();
     healthRef.current.clear();
@@ -843,13 +861,17 @@ export function usePeerMesh(
           linksRef.current.clear();
           remoteStreamsRef.current.clear();
           screenIdsRef.current.clear();
+          knownScreenIdsRef.current.clear();
           healthRef.current.clear();
           lastHealthUiRef.current.clear();
           reconcilePendingRef.current = {};
           setRemote({});
           peerMediaWantsRef.current.clear();
           for (const peer of msg.peers) {
-            if (peer.screenStreamId) screenIdsRef.current.set(peer.id, peer.screenStreamId);
+            if (peer.screenStreamId) {
+              screenIdsRef.current.set(peer.id, peer.screenStreamId);
+              knownScreenIdsRef.current.set(peer.id, new Set([peer.screenStreamId]));
+            }
             // Seed before ensureLink so a peer already subscribed to us (e.g. across
             // our own reconnect) receives the first frame, and nobody else does.
             peerMediaWantsRef.current.set(peer.id, computeWants(peer.videoSubscriptions, peer.wantsVideo));
@@ -902,8 +924,17 @@ export function usePeerMesh(
           break;
         }
         case 'screen-state':
-          if (msg.streamId) screenIdsRef.current.set(msg.from, msg.streamId);
-          else screenIdsRef.current.delete(msg.from);
+          if (msg.streamId) {
+            screenIdsRef.current.set(msg.from, msg.streamId);
+            let known = knownScreenIdsRef.current.get(msg.from);
+            if (!known) {
+              known = new Set();
+              knownScreenIdsRef.current.set(msg.from, known);
+            }
+            known.add(msg.streamId);
+          } else {
+            screenIdsRef.current.delete(msg.from);
+          }
           recomputeRemote(msg.from);
           break;
         case 'sink-state': {
