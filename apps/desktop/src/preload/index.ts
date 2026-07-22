@@ -101,6 +101,8 @@ const api = {
   stopScreenAudioCapture: (): Promise<void> => ipcRenderer.invoke('chickadee:stop-screen-audio-capture'),
   /** Raw PCM frames (16-bit stereo 48kHz) from native per-process audio capture. */
   onScreenAudioFrame: payloadSubscription<Uint8Array>('chickadee:screen-audio-frame'),
+  /** Fires if native per-process audio capture ends itself mid-share (e.g. the shared window's process crashed) — never for a deliberate stopScreenAudioCapture(). */
+  onScreenAudioCaptureEnded: subscription('chickadee:screen-audio-capture-ended'),
   /**
    * Receiver-side file-transfer disk IO. Write streams, the Save dialog, and
    * all filesystem paths live in main; the renderer only moves opaque transfer

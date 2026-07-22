@@ -36,6 +36,17 @@ async function stopProcessCapture(): Promise<void> {
   }
 }
 
+// Native capture can end itself mid-share (e.g. the target process crashed) —
+// see @chickadee/process-loopback's onStopped. processCaptureActive is stale
+// at that point, so route through stopProcessCapture() to actually join/
+// release the native resources, then tell the renderer so it can drop the
+// dead audio track instead of it just going silent with no explanation.
+async function handleProcessCaptureStoppedUnexpectedly(): Promise<void> {
+  if (!processCaptureActive) return; // an explicit stop already raced this
+  await stopProcessCapture();
+  mainWindow?.webContents.send('chickadee:screen-audio-capture-ended');
+}
+
 export function configureScreenShare(): void {
   ipcMain.handle('chickadee:get-screen-sources', async (): Promise<ScreenSource[]> => {
     const sources = await desktopCapturer.getSources({
@@ -70,9 +81,16 @@ export function configureScreenShare(): void {
 
       if (pid != null) {
         try {
-          await startCapture(pid, true, (chunk) => {
-            mainWindow?.webContents.send('chickadee:screen-audio-frame', chunk);
-          });
+          await startCapture(
+            pid,
+            true,
+            (chunk) => {
+              mainWindow?.webContents.send('chickadee:screen-audio-frame', chunk);
+            },
+            () => {
+              void handleProcessCaptureStoppedUnexpectedly();
+            },
+          );
           processCaptureActive = true;
           pendingShare = { sourceId, audioMode: 'process' };
           return 'process';

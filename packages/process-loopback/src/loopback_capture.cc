@@ -33,6 +33,10 @@ HANDLE g_readyEvent = nullptr;
 std::atomic<HRESULT> g_startResult{S_OK};
 UINT32 g_blockAlign = kChannels * (kBitsPerSample / 8);
 Napi::ThreadSafeFunction g_frameTsfn;
+// Fired once if capture ends itself (see RunCaptureLoop) instead of via a
+// deliberate stop() — so JS can notice its capture died instead of the
+// audio just silently going quiet.
+Napi::ThreadSafeFunction g_stoppedTsfn;
 
 // Completion handler for the async `ActivateAudioInterfaceAsync` call. Only
 // ever used synchronously (we block on `WaitForCompletion` before touching
@@ -186,6 +190,38 @@ void DeliverFrame(const BYTE* data, UINT32 numFrames, DWORD flags) {
   });
 }
 
+// Drains all WASAPI packets currently available. Returns false if capture
+// should stop — either a checked HRESULT failure, or (caught here) a
+// structured exception. A process-loopback session is tied to its target
+// process, and when that process dies mid-capture (e.g. it crashes) WASAPI
+// isn't guaranteed to fail cleanly — GetBuffer can hand back a pointer into
+// memory that's no longer valid. This runs on a background thread with no
+// other safety net, and this native module runs in-process inside Electron's
+// main process, so an uncaught fault here would crash the whole app, not
+// just this capture. No C++ objects with destructors are declared in this
+// function, so it's safe to mix with __try/__except (MSVC disallows the two
+// in a frame that requires C++ object unwinding).
+bool DrainAvailablePackets(IAudioCaptureClient* captureClient) {
+  __try {
+    UINT32 packetLength = 0;
+    if (FAILED(captureClient->GetNextPacketSize(&packetLength))) return false;
+
+    while (packetLength != 0) {
+      BYTE* data = nullptr;
+      UINT32 numFrames = 0;
+      DWORD flags = 0;
+      if (FAILED(captureClient->GetBuffer(&data, &numFrames, &flags, nullptr, nullptr))) return false;
+      if (numFrames > 0) DeliverFrame(data, numFrames, flags);
+      captureClient->ReleaseBuffer(numFrames);
+
+      if (FAILED(captureClient->GetNextPacketSize(&packetLength))) return false;
+    }
+    return true;
+  } __except (EXCEPTION_EXECUTE_HANDLER) {
+    return false;
+  }
+}
+
 void RunCaptureLoop(IAudioClient* audioClient, IAudioCaptureClient* captureClient) {
   HANDLE waitHandles[2] = {g_captureEvent, g_stopEvent};
   while (g_running.load()) {
@@ -193,27 +229,18 @@ void RunCaptureLoop(IAudioClient* audioClient, IAudioCaptureClient* captureClien
     if (wait == WAIT_OBJECT_0 + 1) break;  // stop() requested
     if (wait != WAIT_OBJECT_0) continue;   // timeout — re-check g_running
 
-    UINT32 packetLength = 0;
-    if (FAILED(captureClient->GetNextPacketSize(&packetLength))) break;
-
-    while (packetLength != 0) {
-      BYTE* data = nullptr;
-      UINT32 numFrames = 0;
-      DWORD flags = 0;
-      if (FAILED(captureClient->GetBuffer(&data, &numFrames, &flags, nullptr, nullptr))) {
-        g_running.store(false);
-        break;
-      }
-      if (numFrames > 0) DeliverFrame(data, numFrames, flags);
-      captureClient->ReleaseBuffer(numFrames);
-
-      if (FAILED(captureClient->GetNextPacketSize(&packetLength))) {
-        g_running.store(false);
-        break;
-      }
+    if (!DrainAvailablePackets(captureClient)) {
+      g_running.store(false);
+      g_stoppedTsfn.NonBlockingCall();
+      break;
     }
   }
-  audioClient->Stop();
+  __try {
+    audioClient->Stop();
+  } __except (EXCEPTION_EXECUTE_HANDLER) {
+    // Best-effort: the session may already be invalid if its target process
+    // died mid-capture; nothing to do but avoid crashing on the way out.
+  }
 }
 
 // Entry point for the dedicated capture thread: owns its own COM apartment
@@ -277,6 +304,7 @@ class WaitForReadyWorker : public Napi::AsyncWorker {
     if (g_stopEvent) { CloseHandle(g_stopEvent); g_stopEvent = nullptr; }
     if (g_readyEvent) { CloseHandle(g_readyEvent); g_readyEvent = nullptr; }
     g_frameTsfn.Release();
+    g_stoppedTsfn.Release();
     deferred_.Reject(e.Value());
   }
 
@@ -298,6 +326,7 @@ class StopWorker : public Napi::AsyncWorker {
 
   void OnOK() override {
     g_frameTsfn.Release();
+    g_stoppedTsfn.Release();
     deferred_.Resolve(Env().Undefined());
   }
 
@@ -319,8 +348,12 @@ Napi::Value StartCapture(const Napi::CallbackInfo& info) {
     return env.Undefined();
   }
 
-  if (info.Length() < 3 || !info[0].IsNumber() || !info[1].IsBoolean() || !info[2].IsFunction()) {
-    Napi::TypeError::New(env, "expected (pid: number, includeProcessTree: boolean, onFrame: (chunk: Buffer) => void)")
+  if (info.Length() < 4 || !info[0].IsNumber() || !info[1].IsBoolean() || !info[2].IsFunction() ||
+      !info[3].IsFunction()) {
+    Napi::TypeError::New(
+        env,
+        "expected (pid: number, includeProcessTree: boolean, onFrame: (chunk: Buffer) => void, "
+        "onStopped: () => void)")
         .ThrowAsJavaScriptException();
     return env.Undefined();
   }
@@ -328,8 +361,10 @@ Napi::Value StartCapture(const Napi::CallbackInfo& info) {
   const DWORD pid = static_cast<DWORD>(info[0].As<Napi::Number>().Uint32Value());
   const bool includeTree = info[1].As<Napi::Boolean>().Value();
   Napi::Function onFrame = info[2].As<Napi::Function>();
+  Napi::Function onStopped = info[3].As<Napi::Function>();
 
   g_frameTsfn = Napi::ThreadSafeFunction::New(env, onFrame, "ProcessLoopbackFrame", 0, 1);
+  g_stoppedTsfn = Napi::ThreadSafeFunction::New(env, onStopped, "ProcessLoopbackStopped", 0, 1);
 
   g_captureEvent = CreateEventW(nullptr, FALSE, FALSE, nullptr);
   g_stopEvent = CreateEventW(nullptr, FALSE, FALSE, nullptr);
@@ -348,12 +383,28 @@ Napi::Value StopCapture(const Napi::CallbackInfo& info) {
   Napi::Env env = info.Env();
   auto deferred = Napi::Promise::Deferred::New(env);
 
-  if (!g_running.exchange(false)) {
+  const bool wasRunning = g_running.exchange(false);
+  bool hasThreadToClean;
+  {
+    std::lock_guard<std::mutex> lock(g_stateMutex);
+    hasThreadToClean = g_captureThread.joinable();
+  }
+
+  // Nothing to do: never started, or a previous stop() already cleaned up.
+  if (!wasRunning && !hasThreadToClean) {
     deferred.Resolve(env.Undefined());
     return deferred.Promise();
   }
 
-  if (g_stopEvent) SetEvent(g_stopEvent);
+  // The capture thread can also self-stop (a WASAPI failure, or a caught
+  // fault in DrainAvailablePackets — e.g. its target process died mid-
+  // capture) without this function ever being called, in which case
+  // wasRunning is already false here. There's no thread left to wake with
+  // g_stopEvent in that case, but StopWorker must still run: skipping it
+  // would leave the thread unjoined and its handles/ThreadSafeFunction
+  // unreleased, and g_captureThread permanently "joinable" — which would
+  // fail every future start() with "already running or still stopping".
+  if (wasRunning && g_stopEvent) SetEvent(g_stopEvent);
 
   (new StopWorker(env, deferred))->Queue();
   return deferred.Promise();

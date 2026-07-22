@@ -2,7 +2,12 @@ import path from 'node:path';
 
 interface NativeBindings {
   resolvePidFromHwnd(hwnd: number): number | null;
-  start(pid: number, includeProcessTree: boolean, onFrame: (chunk: Buffer) => void): Promise<void>;
+  start(
+    pid: number,
+    includeProcessTree: boolean,
+    onFrame: (chunk: Buffer) => void,
+    onStopped: () => void,
+  ): Promise<void>;
   stop(): Promise<void>;
 }
 
@@ -28,15 +33,19 @@ export function resolvePidFromHwnd(hwnd: number): number | null {
  *
  * Resolves once capture is actually flowing; `onFrame` is then called
  * repeatedly with interleaved 16-bit stereo 48kHz PCM chunks until `stop()`
- * is called. Only one capture may be active at a time — always await
- * `stop()` before starting a new one.
+ * is called. `onStopped` fires once instead if capture ends itself — e.g.
+ * the target process died mid-capture — so a caller that never called
+ * `stop()` can still notice; it never fires for a deliberate `stop()`. Only
+ * one capture may be active at a time — always await `stop()` before
+ * starting a new one.
  */
 export function startCapture(
   pid: number,
   includeProcessTree: boolean,
   onFrame: (chunk: Buffer) => void,
+  onStopped: () => void,
 ): Promise<void> {
-  return native.start(pid, includeProcessTree, onFrame);
+  return native.start(pid, includeProcessTree, onFrame, onStopped);
 }
 
 /** Stops capture and tears down the WASAPI session. Idempotent. */

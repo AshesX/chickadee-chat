@@ -885,6 +885,19 @@ export function usePeerMesh(
     [send, stopScreenShare],
   );
 
+  // The native capture can self-stop mid-share (e.g. the shared window's
+  // process crashed) without ever calling stopScreenShare() — see
+  // packages/process-loopback's onStopped callback. Video may still be fine,
+  // so only drop the audio side and surface it, rather than the track just
+  // going quiet with no explanation.
+  useEffect(() => {
+    return window.chickadee?.onScreenAudioCaptureEnded?.(() => {
+      if (!screenAudioGeneratorRef.current) return;
+      stopScreenAudioGenerator();
+      setScreenError('Screen audio capture ended unexpectedly (the shared window may have closed).');
+    });
+  }, [stopScreenAudioGenerator, setScreenError]);
+
   // After a reconnect the server reset our peer to defaults; re-broadcast any
   // non-default local state so others' tiles reflect reality.
   const reannounceLocalState = useCallback(() => {

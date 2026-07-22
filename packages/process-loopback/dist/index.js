@@ -27,11 +27,14 @@ function resolvePidFromHwnd(hwnd) {
  *
  * Resolves once capture is actually flowing; `onFrame` is then called
  * repeatedly with interleaved 16-bit stereo 48kHz PCM chunks until `stop()`
- * is called. Only one capture may be active at a time — always await
- * `stop()` before starting a new one.
+ * is called. `onStopped` fires once instead if capture ends itself — e.g.
+ * the target process died mid-capture — so a caller that never called
+ * `stop()` can still notice; it never fires for a deliberate `stop()`. Only
+ * one capture may be active at a time — always await `stop()` before
+ * starting a new one.
  */
-function startCapture(pid, includeProcessTree, onFrame) {
-    return native.start(pid, includeProcessTree, onFrame);
+function startCapture(pid, includeProcessTree, onFrame, onStopped) {
+    return native.start(pid, includeProcessTree, onFrame, onStopped);
 }
 /** Stops capture and tears down the WASAPI session. Idempotent. */
 function stopCapture() {
