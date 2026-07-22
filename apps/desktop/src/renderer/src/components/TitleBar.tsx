@@ -6,6 +6,7 @@ import { ChevronMenu } from './ChevronMenu';
 
 interface TitleBarProps {
   chatOpen: boolean;
+  chatUnreadCount: number;
   onToggleChat: () => void;
   inRoom: boolean;
   compact: boolean;
@@ -18,6 +19,7 @@ interface TitleBarProps {
 
 export function TitleBar({
   chatOpen,
+  chatUnreadCount,
   onToggleChat,
   inRoom,
   compact,
@@ -29,6 +31,10 @@ export function TitleBar({
 }: TitleBarProps): React.JSX.Element {
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<DOMRect | null>(null);
+
+  const chatBadge = chatUnreadCount > 0 && (
+    <span className="chat-badge">{chatUnreadCount > 99 ? '99+' : chatUnreadCount}</span>
+  );
 
   const collapseBtn = (
     <button
@@ -99,6 +105,7 @@ export function TitleBar({
           >
             <MessageSquare size={14} />
             Chat
+            {chatBadge}
           </button>
         )}
         {inRoom && compact && (
@@ -109,6 +116,7 @@ export function TitleBar({
             aria-label={chatOpen ? 'Hide chat' : 'Show chat'}
           >
             <MessageSquare size={14} />
+            {chatBadge}
           </button>
         )}
         {collapseBtn}

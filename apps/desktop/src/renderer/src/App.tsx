@@ -263,6 +263,9 @@ export function App(): React.JSX.Element {
 
   const [badgeNotificationsEnabled, applyBadgeNotificationsEnabled] = usePersistedState(store.getBadgeNotificationsEnabled, store.setBadgeNotificationsEnabled);
   const [unreadCount, setUnreadCount] = useState(0);
+  // Messages missed while the chat panel itself is closed (independent of OS
+  // window focus, unlike unreadCount above) — drives the title-bar Chat badge.
+  const [chatUnreadCount, setChatUnreadCount] = useState(0);
 
   // File-transfer trust list. The store cache is what useFileTransfers reads at
   // offer time; this state mirror keeps the Settings list + modal checkbox live.
@@ -339,6 +342,7 @@ export function App(): React.JSX.Element {
   const handleNewMessage = useCallback((msg: ChatMessage) => {
     const focused = document.hasFocus();
     if (!focused) setUnreadCount((c) => c + 1);
+    if (!store.getChatVisible()) setChatUnreadCount((c) => c + 1);
     if (
       shouldSpeakChatMessage({
         chatTtsEnabled: store.getChatTtsEnabled(),
@@ -749,8 +753,10 @@ export function App(): React.JSX.Element {
 
   function toggleChat(): void {
     setChatOpen((v) => {
-      store.setChatVisible(!v);
-      return !v;
+      const next = !v;
+      store.setChatVisible(next);
+      if (next) setChatUnreadCount(0);
+      return next;
     });
   }
 
@@ -1095,6 +1101,12 @@ export function App(): React.JSX.Element {
     setVideoSubscriptions([]);
   }, [currentRoomId]);
 
+  // Chat unread badge is room-scoped too — useRoomChat clears messages on the
+  // same dependency, so a stale count can't outlive the room it was earned in.
+  useEffect(() => {
+    setChatUnreadCount(0);
+  }, [currentRoomId]);
+
   // Drop subscriptions to peers with nothing left to watch (stopped sharing /
   // camera off / left), so `subscribed` flips false and the Watch button
   // reappears when they share again. Also re-broadcasts the trimmed sink-state
@@ -1370,6 +1382,7 @@ export function App(): React.JSX.Element {
     >
       <TitleBar
         chatOpen={chatOpen}
+        chatUnreadCount={chatUnreadCount}
         onToggleChat={toggleChat}
         inRoom={inRoom}
         compact={compactMode}
