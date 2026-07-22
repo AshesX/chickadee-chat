@@ -33,7 +33,6 @@ import { configureFileTransfer, setFileTransferMainWindow } from './fileTransfer
 import { configureSoundboard, setSoundboardMainWindow } from './soundboardLibrary';
 import { configureCustomSfx, setCustomSfxMainWindow } from './customSfx';
 import { configureAutoUpdate, setAutoUpdateMainWindow } from './autoUpdate';
-import { runVersionGate } from './versionGate';
 
 // In dev, override userData per "instance slot" (default 0) so settings persist
 // across restarts (a fixed dir) while two instances stay isolated — run a second
@@ -361,12 +360,7 @@ app.on('second-instance', () => {
   mainWindow.focus();
 });
 
-app.whenReady().then(async () => {
-  // Beta wipe on any version change — MUST complete before loadSettings() and
-  // configureSoundboard() read the files it deletes, and before createWindow()
-  // (whose preload synchronously pulls settings into the renderer).
-  await runVersionGate();
-
+app.whenReady().then(() => {
   loadSettings();
 
   // Required on Windows for toast notifications + taskbar overlay badges to work in

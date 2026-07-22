@@ -28,8 +28,7 @@ export function deriveClipName(filename: string): string {
 
 /**
  * Validate one persisted manifest entry against the current schema.
- * Null = drop the entry (no read-time migration — old shapes are handled by
- * the version-gated wipe, see main/versionGate.ts).
+ * Null = drop the entry (an invalid/legacy shape is simply dropped, not migrated).
  */
 export function normalizeManifestEntry(value: unknown): SoundboardLibraryClip | null {
   const v = value as Partial<SoundboardLibraryClip> | null;

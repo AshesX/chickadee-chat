@@ -71,8 +71,7 @@ function setter<K extends keyof PersistedSettings>(key: K): (value: PersistedSet
 
 // Plain key-mirroring accessors come from the getter/setter factory; anything
 // with derivation (rooms-from-active-space, keyed-map writes) stays hand-written
-// below it. There are deliberately NO read-time schema migrations here — schema
-// changes ride the main process's version-gated wipe (versionGate.ts).
+// below it.
 export const store = {
   getUserId: (): string => cache.userId,
   getName: getter('displayName'),
