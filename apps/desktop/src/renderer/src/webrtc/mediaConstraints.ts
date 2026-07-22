@@ -28,6 +28,19 @@ export function buildMicAudioConstraints(
 }
 
 /**
+ * True when a getUserMedia rejection looks like it was caused by a specific
+ * `deviceId` constraint pointing at a device that no longer exists (unplugged
+ * headset, Windows default-device swap) rather than "no mic at all" —
+ * `OverconstrainedError`/`NotFoundError` are worth one retry against the
+ * system default device; anything else (e.g. `NotAllowedError` permission
+ * denial, `NotReadableError` device genuinely busy) is not.
+ */
+export function isStaleDeviceError(err: unknown): boolean {
+  const name = err instanceof DOMException ? err.name : undefined;
+  return name === 'OverconstrainedError' || name === 'NotFoundError';
+}
+
+/**
  * The camera/screen video capture constraints for a resolution preset +
  * framerate setting, falling back to `fallback` (a RESOLUTION_MAP key) for an
  * unknown preset and 30 fps for an unparsable framerate.

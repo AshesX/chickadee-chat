@@ -3,7 +3,12 @@ import type { AudioQuality, PeerId, VideoQuality } from '@chickadee/shared';
 import { createPeerLink, type PeerLink } from '../webrtc/peerLink';
 import type { MessageListener, Signaling } from './useSignaling';
 import { getSharedAudioContext } from '../lib/audioContext';
-import { buildMicAudioConstraints, buildVideoCaptureConstraints, createMicProcessingGraph } from '../webrtc/mediaConstraints';
+import {
+  buildMicAudioConstraints,
+  buildVideoCaptureConstraints,
+  createMicProcessingGraph,
+  isStaleDeviceError,
+} from '../webrtc/mediaConstraints';
 import { deriveWants, classifyPeerStreams } from '../webrtc/meshLogic';
 import { computeMeshEncoding, type MeshEncoding } from '../webrtc/encodingParams';
 import {
@@ -115,11 +120,17 @@ export function usePeerMesh(
   uploadBudgetBps: number,
   /** Notified on every per-link health transition (for the connection SFX cue). */
   onHealthChange?: (peerId: PeerId, health: HealthUi) => void,
+  /** Notified when a previously-selected input device turned out to be gone
+   *  (unplugged, OS default-device swap) and the mic fell back to the system
+   *  default — lets the caller clear the now-stale persisted deviceId. */
+  onInputDeviceStale?: () => void,
 ): PeerMesh {
   const { subscribe, send, status, peers } = signaling;
 
   const onHealthChangeRef = useRef(onHealthChange);
   onHealthChangeRef.current = onHealthChange;
+  const onInputDeviceStaleRef = useRef(onInputDeviceStale);
+  onInputDeviceStaleRef.current = onInputDeviceStale;
 
   // Presence mirror for the health monitor's reconciliation backstop (the
   // stable tick callback must read the latest roster without re-subscribing).
@@ -242,15 +253,54 @@ export function usePeerMesh(
   const reconcilePendingRef = useRef<Record<string, number>>({});
   const disposedRef = useRef(false);
 
+  // Auto-recover from the mic track dying unexpectedly mid-call (device
+  // unplugged, OS revokes access): clear every ref pointing at the dead
+  // stream/promise so a subsequent ensureLocalStream() actually retries
+  // getUserMedia instead of reusing dead state, and correctly flips
+  // `localStream` back to null so `hasMic` greys out the Mute button instead
+  // of leaving it stuck enabled over a dead track. Mirrors the camera/screen
+  // `onended` handling (stopCamera/stopScreenShare callers above).
+  const handleMicTrackEnded = useCallback(() => {
+    if (disposedRef.current) return;
+    rawStreamRef.current = null;
+    localStreamRef.current = null;
+    localStreamPromiseRef.current = null;
+    if (gainNodeRef.current) { gainNodeRef.current.disconnect(); gainNodeRef.current = null; }
+    if (analyserNodeRef.current) { analyserNodeRef.current.disconnect(); analyserNodeRef.current = null; }
+    setAnalyserNode(null);
+    setLocalStream(null);
+    setMicError('Microphone disconnected.');
+  }, []);
+
+  // Acquire a mic stream for `deviceId`, falling back once to the system
+  // default device if `deviceId` turns out to be stale (OverconstrainedError/
+  // NotFoundError — the previously-selected device vanished) rather than
+  // failing outright and getting stuck retrying a dead exact-id constraint
+  // forever.
+  const acquireMicStream = useCallback(async (deviceId: string): Promise<MediaStream> => {
+    try {
+      return await navigator.mediaDevices.getUserMedia({
+        audio: buildMicAudioConstraints(deviceId, ecRef.current, agcRef.current, nsRef.current),
+        video: false,
+      });
+    } catch (err) {
+      if (deviceId && isStaleDeviceError(err)) {
+        inputDeviceIdRef.current = '';
+        onInputDeviceStaleRef.current?.();
+        return navigator.mediaDevices.getUserMedia({
+          audio: buildMicAudioConstraints('', ecRef.current, agcRef.current, nsRef.current),
+          video: false,
+        });
+      }
+      throw err;
+    }
+  }, []);
+
   const ensureLocalStream = useCallback((): Promise<MediaStream | null> => {
     if (localStreamPromiseRef.current) return localStreamPromiseRef.current;
     disposedRef.current = false;
 
-    const promise = navigator.mediaDevices
-      .getUserMedia({
-        audio: buildMicAudioConstraints(inputDeviceIdRef.current, ecRef.current, agcRef.current, nsRef.current),
-        video: false,
-      })
+    const promise = acquireMicStream(inputDeviceIdRef.current)
       .then((stream) => {
         // The call may have ended while the permission prompt was open; if so,
         // stop the freshly-acquired mic instead of leaving it live.
@@ -260,6 +310,8 @@ export function usePeerMesh(
         }
 
         rawStreamRef.current = stream;
+        // Auto-recover if the device is unplugged/revoked mid-call.
+        for (const track of stream.getAudioTracks()) track.onended = handleMicTrackEnded;
 
         const ctx = getSharedAudioContext();
         if (!ctx) {
@@ -305,12 +357,17 @@ export function usePeerMesh(
         micEnabledRef.current = false;
         localStreamRef.current = null;
         setAnalyserNode(null);
+        // Don't wedge every future attempt on this one failure — clearing the
+        // cached promise means the next prepareMedia()/devicechange retry
+        // actually calls getUserMedia again instead of replaying this
+        // rejection forever (was previously only reset by a full teardown()).
+        localStreamPromiseRef.current = null;
         return null;
       });
 
     localStreamPromiseRef.current = promise;
     return promise;
-  }, []);
+  }, [acquireMicStream, handleMicTrackEnded]);
 
   useEffect(() => {
     if (gainNodeRef.current) {
@@ -630,10 +687,7 @@ export function usePeerMesh(
     if (!oldRaw) return; // not yet acquired — applies on next ensureLocalStream
     void (async () => {
       try {
-        const newRaw = await navigator.mediaDevices.getUserMedia({
-          audio: buildMicAudioConstraints(deviceId, ecRef.current, agcRef.current, nsRef.current),
-          video: false,
-        });
+        const newRaw = await acquireMicStream(deviceId);
         if (disposedRef.current) {
           for (const t of newRaw.getTracks()) t.stop();
           return;
@@ -662,6 +716,9 @@ export function usePeerMesh(
 
         if (videoTrack) nextStream.addTrack(videoTrack);
         for (const track of nextStream.getAudioTracks()) track.enabled = micEnabledRef.current;
+        // Auto-recover if this (possibly fallen-back-to-default) device is
+        // later unplugged/revoked mid-call.
+        for (const track of newRaw.getAudioTracks()) track.onended = handleMicTrackEnded;
 
         for (const link of linksRef.current.values()) {
           if (link.pc.getSenders().length === 0) {
@@ -671,7 +728,9 @@ export function usePeerMesh(
           }
         }
 
-        for (const t of oldRaw.getTracks()) t.stop();
+        // Clear the old track's onended first — stop() shouldn't fire it per
+        // spec, but this swap is intentional either way, not a failure.
+        for (const t of oldRaw.getTracks()) { t.onended = null; t.stop(); }
         if (oldProcessed && oldProcessed !== newRaw) {
           for (const t of oldProcessed.getAudioTracks()) t.stop();
         }
@@ -682,9 +741,10 @@ export function usePeerMesh(
         setLocalStream(nextStream);
       } catch (err) {
         console.error('input device switch failed', err);
+        setMicError('Could not switch microphone — check the device is still connected.');
       }
     })();
-  }, []);
+  }, [acquireMicStream, handleMicTrackEnded]);
 
   const stopCamera = useCallback(() => {
     const videoTrack = videoTrackRef.current;

@@ -163,7 +163,13 @@ export function App(): React.JSX.Element {
     },
     [sfxEnabled, sfxConnectionEnabled, sfxVolume],
   );
-  const mesh = usePeerMesh(signaling, iceServers, noiseSuppression, micVolume, cameraResolution, cameraFramerate, screenResolution, screenFramerate, videoQuality, audioQuality, echoCancellation, autoGainControl, inputDeviceId, localAvatarUrl, localVoicePreference, localAccentColor, userId, myStageKind, selfWatcherCount, uploadBudgetBps, onLinkHealthChange);
+  const mesh = usePeerMesh(signaling, iceServers, noiseSuppression, micVolume, cameraResolution, cameraFramerate, screenResolution, screenFramerate, videoQuality, audioQuality, echoCancellation, autoGainControl, inputDeviceId, localAvatarUrl, localVoicePreference, localAccentColor, userId, myStageKind, selfWatcherCount, uploadBudgetBps, onLinkHealthChange, () => {
+    // The selected input device vanished (unplugged, OS default-device swap)
+    // and the mic fell back to the system default — clear the now-stale
+    // persisted choice so future attempts don't keep re-pinning a dead id.
+    setInputDeviceId('');
+    store.setInputDeviceId('');
+  });
 
   const [displayName, setDisplayName] = useState(() => store.getName());
   const [currentRoomId, setCurrentRoomId] = useState<string | null>(null);
@@ -1226,6 +1232,24 @@ export function App(): React.JSX.Element {
 
   // Audio/video device lists for Settings and the chevron menus.
   const devices = useMediaDevices(inRoom || settingsOpen || menus.inputMenuOpen || menus.outputMenuOpen || menus.videoMenuOpen);
+
+  // React to a device hot-plug/unplug (useMediaDevices already listens for
+  // `devicechange`): reconcile a selected input device that just disappeared
+  // back to system default, and retry a previously-failed mic acquisition —
+  // e.g. a headset finishing initialization, or being replugged, after the
+  // initial getUserMedia() at join failed. mesh.prepareMedia() is a no-op
+  // once the mic is already live (ensureLocalStream reuses the resolved
+  // stream), so this can't cause a retry storm or repeat permission prompts.
+  useEffect(() => {
+    if (!devices.scanned) return;
+    if (inputDeviceId && !devices.inputs.some((d) => d.deviceId === inputDeviceId)) {
+      setInputDeviceId('');
+      store.setInputDeviceId('');
+    }
+    if ((inRoom || settingsOpen) && !mesh.localStream) {
+      mesh.prepareMedia();
+    }
+  }, [devices.inputs, devices.scanned, inputDeviceId, inRoom, settingsOpen, mesh.localStream, mesh.prepareMedia]);
   // Optimistic until the first device scan resolves, so the UI doesn't flash
   // "(No camera detected)" / disabled controls before enumerateDevices() returns.
   const hasCamera = !devices.scanned || devices.videoInputs.length > 0;

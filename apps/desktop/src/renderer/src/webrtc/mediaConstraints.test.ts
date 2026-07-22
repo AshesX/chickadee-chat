@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildMicAudioConstraints, buildVideoCaptureConstraints } from './mediaConstraints';
+import { buildMicAudioConstraints, buildVideoCaptureConstraints, isStaleDeviceError } from './mediaConstraints';
 
 describe('buildMicAudioConstraints', () => {
   it('pins the exact device when one is chosen', () => {
@@ -35,5 +35,27 @@ describe('buildVideoCaptureConstraints', () => {
 
   it('falls back to 30 fps for an unparsable framerate', () => {
     expect(buildVideoCaptureConstraints('480p', 'auto', '720p').frameRate).toEqual({ ideal: 30 });
+  });
+});
+
+describe('isStaleDeviceError', () => {
+  it('flags OverconstrainedError (a vanished exact deviceId)', () => {
+    expect(isStaleDeviceError(new DOMException('gone', 'OverconstrainedError'))).toBe(true);
+  });
+
+  it('flags NotFoundError (no matching device)', () => {
+    expect(isStaleDeviceError(new DOMException('gone', 'NotFoundError'))).toBe(true);
+  });
+
+  it('does not flag a permission denial', () => {
+    expect(isStaleDeviceError(new DOMException('denied', 'NotAllowedError'))).toBe(false);
+  });
+
+  it('does not flag a device-busy error', () => {
+    expect(isStaleDeviceError(new DOMException('busy', 'NotReadableError'))).toBe(false);
+  });
+
+  it('does not flag a non-DOMException value', () => {
+    expect(isStaleDeviceError(new Error('boom'))).toBe(false);
   });
 });
