@@ -271,25 +271,57 @@ check(
 
 // Soundboard manifest mirror — C advertises a custom-clip library, A/D told
 // (room broadcast, like avatar/accent), C not echoed. One malformed entry
-// (bad hash) is dropped while the well-formed one survives.
+// (bad hash) and one missing/empty `category` are dropped while the
+// well-formed one survives.
 const CLIP_HASH = '1'.repeat(64);
 c.ws.send(
   JSON.stringify({
     type: 'soundboard-manifest-state',
     clips: [
-      { hash: CLIP_HASH, name: 'Air Horn', durationMs: 2000, sizeBytes: 40_000 },
-      { hash: 'not-a-real-hash', name: 'Bad', durationMs: 100, sizeBytes: 100 },
+      { hash: CLIP_HASH, name: 'Air Horn', durationMs: 2000, sizeBytes: 40_000, category: 'Party' },
+      { hash: 'not-a-real-hash', name: 'Bad', durationMs: 100, sizeBytes: 100, category: 'Party' },
+      { hash: '9'.repeat(64), name: 'No Category', durationMs: 100, sizeBytes: 100, category: '' },
     ],
   }),
 );
 await wait(200);
 const cManifest = (ev) => ev.type === 'soundboard-manifest-state' && ev.from === wc.selfId;
 check(
-  'A receives C soundboard-manifest-state with the malformed entry dropped',
-  a.events.some((ev) => cManifest(ev) && ev.clips.length === 1 && ev.clips[0].hash === CLIP_HASH),
+  'A receives C soundboard-manifest-state with the malformed/uncategorized entries dropped',
+  a.events.some((ev) => cManifest(ev) && ev.clips.length === 1 && ev.clips[0].hash === CLIP_HASH && ev.clips[0].category === 'Party'),
 );
 check('D receives C soundboard-manifest-state', d.events.some(cManifest));
 check('C does not receive its own soundboard-manifest-state', !c.events.some((ev) => ev.type === 'soundboard-manifest-state'));
+
+// Active-clip / shared-category caps (MAX_ACTIVE_SOUNDBOARD_CLIPS=12,
+// MAX_SHARED_SOUNDBOARD_CATEGORIES=2) are enforced live by the server, not
+// just the unit-level sanitizer — a compliant client never exceeds either,
+// so this defends a stale/malicious sender.
+const manyClips = Array.from({ length: 13 }, (_, i) => ({
+  hash: i.toString().padStart(64, '0'),
+  name: `clip-${i}`,
+  durationMs: 100,
+  sizeBytes: 100,
+  category: i < 12 ? 'A' : 'B',
+}));
+c.ws.send(JSON.stringify({ type: 'soundboard-manifest-state', clips: manyClips }));
+await wait(200);
+check(
+  'server truncates an over-cap manifest to MAX_ACTIVE_SOUNDBOARD_CLIPS (12)',
+  a.events.some((ev) => cManifest(ev) && ev.clips.length === 12),
+);
+
+const threeCategoryClips = [
+  { hash: 'a'.repeat(64), name: 'A1', durationMs: 100, sizeBytes: 100, category: 'A' },
+  { hash: 'b'.repeat(64), name: 'B1', durationMs: 100, sizeBytes: 100, category: 'B' },
+  { hash: 'c'.repeat(64), name: 'C1', durationMs: 100, sizeBytes: 100, category: 'C' },
+];
+c.ws.send(JSON.stringify({ type: 'soundboard-manifest-state', clips: threeCategoryClips }));
+await wait(200);
+check(
+  'server truncates a manifest spanning >2 categories to MAX_SHARED_SOUNDBOARD_CATEGORIES (2)',
+  a.events.some((ev) => cManifest(ev) && ev.clips.length === 2 && new Set(ev.clips.map((cl) => cl.category)).size === 2),
+);
 
 // Soundboard trigger relay — C triggers a preset, A/D told (room-only, like
 // chat), C not echoed. An invalid source is silently dropped (no broadcast).
@@ -315,7 +347,7 @@ check(
 // who already had a library before connecting shows it correctly to the next joiner.
 const foxtrot = client('Foxtrot', {
   userId: 'uid-foxtrot',
-  soundboardClips: [{ hash: '2'.repeat(64), name: 'Ding', durationMs: 500, sizeBytes: 12_000 }],
+  soundboardClips: [{ hash: '2'.repeat(64), name: 'Ding', durationMs: 500, sizeBytes: 12_000, category: 'Party' }],
 });
 await foxtrot.ready;
 const golf = client('Golf', { userId: 'uid-golf' });

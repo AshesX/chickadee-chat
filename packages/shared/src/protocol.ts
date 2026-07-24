@@ -106,6 +106,21 @@ export interface ScreenSource {
 }
 
 /**
+ * A user-defined grouping of custom soundboard clips, local to this device's
+ * library. Sharing is whole-category: `shared` gates whether this category's
+ * clips are advertised to peers at all (see SoundboardClipMeta.category) —
+ * there's no separate per-clip enabled flag. Uncategorized clips (no
+ * matching SoundboardCategory) are represented by `categoryId: null` on the
+ * clip, not a real row here, so there's no reserved-id/undeletable special
+ * case to carry through delete/rename.
+ */
+export interface SoundboardCategory {
+  id: string;
+  name: string;
+  shared: boolean;
+}
+
+/**
  * A clip in this user's own soundboard library, enumerated by the main
  * process (which owns the content-addressed cache and the ffmpeg ingest
  * pipeline) and reported to the renderer over IPC. Same fields as
@@ -121,6 +136,8 @@ export interface SoundboardLibraryClip {
   name: string;
   durationMs: number;
   sizeBytes: number;
+  /** SoundboardCategory.id this clip belongs to, or null = Uncategorized (never shared). */
+  categoryId: string | null;
 }
 
 /**
@@ -129,12 +146,16 @@ export interface SoundboardLibraryClip {
  * don't need to know your local inbox filename, only enough to detect a
  * missing clip (hash), render it before it's synced (name/durationMs), and
  * size a receive queue for it (sizeBytes) once a P2P fetch actually starts.
+ * Only ever populated from clips in a currently-SHARED category, so
+ * `category` is always a non-empty label — peers group + attribute tiles by
+ * `${peer.displayName}: ${category}`.
  */
 export interface SoundboardClipMeta {
   hash: string;
   name: string;
   durationMs: number;
   sizeBytes: number;
+  category: string;
 }
 
 /** Messages sent from a client up to the signaling server. */

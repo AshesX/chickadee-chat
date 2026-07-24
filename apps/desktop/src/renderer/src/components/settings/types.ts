@@ -1,4 +1,12 @@
-import type { AudioQuality, CustomSfxSlot, SoundboardLibraryClip, ThemeName, VideoQuality } from '@chickadee/shared';
+import type {
+  AudioQuality,
+  CustomSfxSlot,
+  SoundboardCategory,
+  SoundboardLibraryClip,
+  SoundboardStats,
+  ThemeName,
+  VideoQuality,
+} from '@chickadee/shared';
 import type { MediaDeviceOption } from '../../hooks/useMediaDevices';
 
 export type TabId = 'profile' | 'audio' | 'video' | 'sfx' | 'chat' | 'reactions' | 'ui' | 'app' | 'keybindings' | 'soundboard';
@@ -110,9 +118,18 @@ export interface SettingsModalProps {
   soundboardCustomEnabled: boolean;
   onChangeSoundboardCustomEnabled: (on: boolean) => void;
   soundboardOwnClips: SoundboardLibraryClip[];
+  soundboardCategories: SoundboardCategory[];
+  soundboardStats: SoundboardStats;
   onAddSoundboardFiles: () => void;
   onRemoveSoundboardClip: (hash: string) => void;
   soundboardAddError: string | null;
+  onCreateSoundboardCategory: (name: string) => void;
+  onRenameSoundboardCategory: (id: string, name: string) => void;
+  onDeleteSoundboardCategory: (id: string) => void;
+  onSetSoundboardCategoryShared: (id: string, shared: boolean) => void;
+  onMoveSoundboardClip: (hash: string, categoryId: string | null, beforeHash: string | null) => void;
+  onRenameSoundboardClip: (hash: string, name: string) => void;
+  soundboardActionError: string | null;
   initialTab?: string;
   micVolume: number;
   onChangeMicVolume: (vol: number) => void;

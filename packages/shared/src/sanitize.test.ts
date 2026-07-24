@@ -8,9 +8,11 @@ import {
   MAX_FILE_NAME_LEN,
   MAX_FILE_SIZE_BYTES,
   MAX_ID_LEN,
+  MAX_ACTIVE_SOUNDBOARD_CLIPS,
+  MAX_SHARED_SOUNDBOARD_CATEGORIES,
+  MAX_SOUNDBOARD_CATEGORY_NAME_LEN,
   MAX_SOUNDBOARD_CLIP_NAME_LEN,
   MAX_SOUNDBOARD_CLIP_SIZE_BYTES,
-  MAX_SOUNDBOARD_CLIPS,
   MAX_SOUNDBOARD_DURATION_MS,
   MAX_SOUNDBOARD_FETCH_HASHES,
   clampString,
@@ -297,46 +299,97 @@ describe('sanitizeSoundboardClipMeta', () => {
   const hash = 'a'.repeat(64);
 
   it('passes a well-formed entry through', () => {
-    expect(sanitizeSoundboardClipMeta({ hash, name: 'Air Horn', durationMs: 2500, sizeBytes: 40_000 })).toEqual({
+    expect(
+      sanitizeSoundboardClipMeta({ hash, name: 'Air Horn', durationMs: 2500, sizeBytes: 40_000, category: 'Party' }),
+    ).toEqual({
       hash,
       name: 'Air Horn',
       durationMs: 2500,
       sizeBytes: 40_000,
+      category: 'Party',
     });
   });
 
   it('rejects an invalid hash', () => {
-    expect(sanitizeSoundboardClipMeta({ hash: 'not-a-hash', name: 'x', durationMs: 100, sizeBytes: 100 })).toBeNull();
+    expect(
+      sanitizeSoundboardClipMeta({ hash: 'not-a-hash', name: 'x', durationMs: 100, sizeBytes: 100, category: 'c' }),
+    ).toBeNull();
   });
 
   it('rejects an empty name', () => {
-    expect(sanitizeSoundboardClipMeta({ hash, name: '', durationMs: 100, sizeBytes: 100 })).toBeNull();
+    expect(sanitizeSoundboardClipMeta({ hash, name: '', durationMs: 100, sizeBytes: 100, category: 'c' })).toBeNull();
+  });
+
+  it('rejects an empty category', () => {
+    expect(sanitizeSoundboardClipMeta({ hash, name: 'x', durationMs: 100, sizeBytes: 100, category: '' })).toBeNull();
+    expect(
+      sanitizeSoundboardClipMeta({ hash, name: 'x', durationMs: 100, sizeBytes: 100 }),
+    ).toBeNull();
+  });
+
+  it('clamps an over-long category rather than rejecting', () => {
+    const entry = sanitizeSoundboardClipMeta({
+      hash,
+      name: 'x',
+      durationMs: 100,
+      sizeBytes: 100,
+      category: 'c'.repeat(500),
+    });
+    expect(entry!.category).toHaveLength(MAX_SOUNDBOARD_CATEGORY_NAME_LEN);
   });
 
   it('rejects a negative, non-finite, or over-cap duration', () => {
-    expect(sanitizeSoundboardClipMeta({ hash, name: 'x', durationMs: -1, sizeBytes: 100 })).toBeNull();
-    expect(sanitizeSoundboardClipMeta({ hash, name: 'x', durationMs: Infinity, sizeBytes: 100 })).toBeNull();
+    expect(sanitizeSoundboardClipMeta({ hash, name: 'x', durationMs: -1, sizeBytes: 100, category: 'c' })).toBeNull();
     expect(
-      sanitizeSoundboardClipMeta({ hash, name: 'x', durationMs: MAX_SOUNDBOARD_DURATION_MS + 1, sizeBytes: 100 }),
+      sanitizeSoundboardClipMeta({ hash, name: 'x', durationMs: Infinity, sizeBytes: 100, category: 'c' }),
     ).toBeNull();
     expect(
-      sanitizeSoundboardClipMeta({ hash, name: 'x', durationMs: MAX_SOUNDBOARD_DURATION_MS, sizeBytes: 100 }),
+      sanitizeSoundboardClipMeta({
+        hash,
+        name: 'x',
+        durationMs: MAX_SOUNDBOARD_DURATION_MS + 1,
+        sizeBytes: 100,
+        category: 'c',
+      }),
+    ).toBeNull();
+    expect(
+      sanitizeSoundboardClipMeta({
+        hash,
+        name: 'x',
+        durationMs: MAX_SOUNDBOARD_DURATION_MS,
+        sizeBytes: 100,
+        category: 'c',
+      }),
     ).not.toBeNull();
   });
 
   it('rejects a negative, non-integer, or over-cap size', () => {
-    expect(sanitizeSoundboardClipMeta({ hash, name: 'x', durationMs: 100, sizeBytes: -1 })).toBeNull();
-    expect(sanitizeSoundboardClipMeta({ hash, name: 'x', durationMs: 100, sizeBytes: 1.5 })).toBeNull();
+    expect(sanitizeSoundboardClipMeta({ hash, name: 'x', durationMs: 100, sizeBytes: -1, category: 'c' })).toBeNull();
     expect(
-      sanitizeSoundboardClipMeta({ hash, name: 'x', durationMs: 100, sizeBytes: MAX_SOUNDBOARD_CLIP_SIZE_BYTES + 1 }),
+      sanitizeSoundboardClipMeta({ hash, name: 'x', durationMs: 100, sizeBytes: 1.5, category: 'c' }),
     ).toBeNull();
     expect(
-      sanitizeSoundboardClipMeta({ hash, name: 'x', durationMs: 100, sizeBytes: MAX_SOUNDBOARD_CLIP_SIZE_BYTES }),
+      sanitizeSoundboardClipMeta({
+        hash,
+        name: 'x',
+        durationMs: 100,
+        sizeBytes: MAX_SOUNDBOARD_CLIP_SIZE_BYTES + 1,
+        category: 'c',
+      }),
+    ).toBeNull();
+    expect(
+      sanitizeSoundboardClipMeta({
+        hash,
+        name: 'x',
+        durationMs: 100,
+        sizeBytes: MAX_SOUNDBOARD_CLIP_SIZE_BYTES,
+        category: 'c',
+      }),
     ).not.toBeNull();
   });
 
   it('clamps an over-long name rather than rejecting', () => {
-    const entry = sanitizeSoundboardClipMeta({ hash, name: 'x'.repeat(500), durationMs: 100, sizeBytes: 100 });
+    const entry = sanitizeSoundboardClipMeta({ hash, name: 'x'.repeat(500), durationMs: 100, sizeBytes: 100, category: 'c' });
     expect(entry!.name).toHaveLength(MAX_SOUNDBOARD_CLIP_NAME_LEN);
   });
 
@@ -360,31 +413,65 @@ describe('sanitizeSoundboardClips', () => {
   it('drops malformed entries and keeps the rest', () => {
     expect(
       sanitizeSoundboardClips([
-        { hash: hash1, name: 'A', durationMs: 100, sizeBytes: 100 },
+        { hash: hash1, name: 'A', durationMs: 100, sizeBytes: 100, category: 'Party' },
         null,
-        { hash: 'bad', name: 'B', durationMs: 100, sizeBytes: 100 },
-        { hash: hash2, name: 'C', durationMs: 200, sizeBytes: 200 },
+        { hash: 'bad', name: 'B', durationMs: 100, sizeBytes: 100, category: 'Party' },
+        { hash: hash2, name: 'C', durationMs: 200, sizeBytes: 200, category: 'Party' },
       ]),
     ).toEqual([
-      { hash: hash1, name: 'A', durationMs: 100, sizeBytes: 100 },
-      { hash: hash2, name: 'C', durationMs: 200, sizeBytes: 200 },
+      { hash: hash1, name: 'A', durationMs: 100, sizeBytes: 100, category: 'Party' },
+      { hash: hash2, name: 'C', durationMs: 200, sizeBytes: 200, category: 'Party' },
     ]);
   });
 
   it('de-duplicates by hash (first wins) and caps the list length', () => {
     const deduped = sanitizeSoundboardClips([
-      { hash: hash1, name: 'First', durationMs: 100, sizeBytes: 100 },
-      { hash: hash1, name: 'Second', durationMs: 200, sizeBytes: 200 },
+      { hash: hash1, name: 'First', durationMs: 100, sizeBytes: 100, category: 'Party' },
+      { hash: hash1, name: 'Second', durationMs: 200, sizeBytes: 200, category: 'Party' },
     ]);
-    expect(deduped).toEqual([{ hash: hash1, name: 'First', durationMs: 100, sizeBytes: 100 }]);
+    expect(deduped).toEqual([{ hash: hash1, name: 'First', durationMs: 100, sizeBytes: 100, category: 'Party' }]);
 
-    const many = Array.from({ length: MAX_SOUNDBOARD_CLIPS + 10 }, (_, i) => ({
+    const many = Array.from({ length: MAX_ACTIVE_SOUNDBOARD_CLIPS + 10 }, (_, i) => ({
       hash: i.toString().padStart(64, '0'),
       name: `clip-${i}`,
       durationMs: 100,
       sizeBytes: 100,
+      category: 'Party',
     }));
-    expect(sanitizeSoundboardClips(many)).toHaveLength(MAX_SOUNDBOARD_CLIPS);
+    expect(sanitizeSoundboardClips(many)).toHaveLength(MAX_ACTIVE_SOUNDBOARD_CLIPS);
+  });
+
+  it('accepts exactly the cap: 12 clips across 2 categories', () => {
+    const clips = Array.from({ length: MAX_ACTIVE_SOUNDBOARD_CLIPS }, (_, i) => ({
+      hash: i.toString().padStart(64, '0'),
+      name: `clip-${i}`,
+      durationMs: 100,
+      sizeBytes: 100,
+      category: i < 6 ? 'A' : 'B',
+    }));
+    expect(sanitizeSoundboardClips(clips)).toHaveLength(MAX_ACTIVE_SOUNDBOARD_CLIPS);
+  });
+
+  it('truncates at the count cap regardless of category', () => {
+    const clips = Array.from({ length: MAX_ACTIVE_SOUNDBOARD_CLIPS + 1 }, (_, i) => ({
+      hash: i.toString().padStart(64, '0'),
+      name: `clip-${i}`,
+      durationMs: 100,
+      sizeBytes: 100,
+      category: i < 6 ? 'A' : 'B',
+    }));
+    expect(sanitizeSoundboardClips(clips)).toHaveLength(MAX_ACTIVE_SOUNDBOARD_CLIPS);
+  });
+
+  it('skips entries introducing more than MAX_SHARED_SOUNDBOARD_CATEGORIES distinct categories, but keeps later entries for already-accepted categories', () => {
+    expect(MAX_SHARED_SOUNDBOARD_CATEGORIES).toBe(2);
+    const result = sanitizeSoundboardClips([
+      { hash: hash1, name: 'A1', durationMs: 100, sizeBytes: 100, category: 'A' },
+      { hash: hash2, name: 'B1', durationMs: 100, sizeBytes: 100, category: 'B' },
+      { hash: '3'.repeat(64), name: 'C1', durationMs: 100, sizeBytes: 100, category: 'C' },
+      { hash: '4'.repeat(64), name: 'A2', durationMs: 100, sizeBytes: 100, category: 'A' },
+    ]);
+    expect(result.map((c) => c.name)).toEqual(['A1', 'B1', 'A2']);
   });
 });
 

@@ -146,6 +146,15 @@
   color: var(--danger-fg);
 }
 
+/* Arm-then-confirm (mirrors .space-header__delete-btn--armed): the danger
+   tint stays on persistently (not just on :hover) while armed, so the row
+   reads as "waiting for a second click" rather than a normal hover state. */
+.menu-item--armed-danger,
+.menu-item--armed-danger:hover {
+  background: var(--danger-bg);
+  color: var(--danger-fg);
+}
+
 /* ── Avatar primitive ────────────────────────────────────────
  */
 .avatar {
@@ -2530,6 +2539,15 @@
   margin-top: 0;
 }
 
+/* A category sub-header nested under "My Sounds" when it spans >1 shared category — smaller, no top margin of its own (the parent label already spaced it). */
+.soundboard-pop__section-label--sub {
+  font-size: var(--fs-1);
+  text-transform: none;
+  letter-spacing: normal;
+  margin-top: var(--s-1);
+  opacity: 0.8;
+}
+
 .soundboard-pop__grid {
   display: flex;
   flex-wrap: wrap;
@@ -4351,6 +4369,137 @@
   margin-top: var(--s-3);
   padding-top: var(--s-2);
   border-top: 1px solid var(--border);
+}
+
+/* ─── Settings → Soundboard sounds manager ───────────────────────────────── */
+/* The X/Y counters in the running-totals line — bolded so they're legible at a glance. */
+.soundboard-manager__stat {
+  font-weight: var(--fw-2);
+  color: var(--text);
+}
+
+/* One category section (header row + its nested clip rows). */
+.soundboard-manager__category {
+  margin-top: var(--s-3);
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--border);
+}
+
+/* Nested clip rows indent under their category header — structural only.
+   Overrides .mod-banlist's own top border/spacing (a divider line there would
+   visually detach the clips from the header they belong to). */
+.soundboard-manager__clips {
+  margin-left: var(--s-4);
+  margin-top: var(--s-1);
+  padding-top: 0;
+  border-top: none;
+  border-radius: var(--r-1);
+  transition: background var(--dur-1) var(--ease);
+}
+
+/* The zone currently under the pointer — a clean solid tint (no dashed
+   outline) marks the drop target without adding another boxy shape. */
+.soundboard-manager__clips--drop {
+  background: color-mix(in srgb, var(--orange) 12%, transparent);
+}
+
+.soundboard-manager__empty-hint {
+  margin: 0;
+  padding: var(--s-1) 0;
+  color: var(--dim);
+  font-size: var(--fs-1);
+  font-style: italic;
+}
+
+.soundboard-manager__clip-row {
+  margin-top: var(--s-1);
+  align-items: center;
+  border-top: 2px solid transparent;
+  transition: opacity var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
+}
+
+/* The row being dragged fades so its origin position reads clearly among the others. */
+.soundboard-manager__clip-row--dragging {
+  opacity: 0.4;
+}
+
+/* Hovering directly over a row while dragging indicates "will insert before this sound". */
+.soundboard-manager__clip-row--drop {
+  border-top-color: var(--orange);
+}
+
+/* Share/Unshare button, relabeled Active/Inactive — colored so the state
+   reads at a glance instead of relying on the label text alone. */
+.seg-btn--soundboard-active {
+  border-color: var(--green);
+  color: var(--green);
+  background: color-mix(in srgb, var(--green) 14%, transparent);
+}
+
+.seg-btn--soundboard-inactive {
+  border-color: var(--red);
+  color: var(--danger-fg);
+  background: var(--danger-bg);
+}
+
+/* Arm-then-confirm delete (mirrors .space-header__delete-btn--armed): one
+   click grows this into a labeled danger state instead of a native
+   window.confirm(); a second click (or the timeout lapsing) resolves it. */
+.seg-btn--armed-danger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  border-color: var(--red);
+  background: var(--danger-bg);
+  color: var(--danger-fg);
+}
+
+.soundboard-manager__grip {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  color: var(--dim);
+  cursor: grab;
+  touch-action: none; /* pointer-events drag: don't let the browser interpret this as a scroll/pan gesture */
+}
+
+.soundboard-manager__grip:active {
+  cursor: grabbing;
+}
+
+.soundboard-manager__grip--disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+/* Custom drag ghost (pointer-events drag, not native HTML5 DnD — see
+   SoundboardManager's doc comment for why): a small fixed-position badge
+   that follows the cursor, pointer-events:none so it's invisible to
+   elementFromPoint's hit-testing. This is the ONLY drag-in-progress visual
+   riding with the cursor — no OS-composited ghost/cursor decorations. */
+.soundboard-manager__drag-ghost {
+  position: fixed;
+  z-index: var(--z-tooltip);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--r-1);
+  background: var(--float);
+  color: var(--dim);
+  box-shadow: var(--sh-1);
+}
+
+/* Forces a consistent grabbing cursor everywhere for the duration of a
+   sounds-manager drag — fully our own CSS, so (unlike native HTML5 DnD) it
+   can never flicker to the browser's default/not-allowed cursor. */
+body.soundboard-manager-dragging,
+body.soundboard-manager-dragging * {
+  cursor: grabbing !important;
 }
 
 .avatar-settings-remove {

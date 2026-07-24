@@ -5,6 +5,7 @@ import {
   type CustomSfxSlot,
   type PersistedSettings,
   type ScreenSource,
+  type SoundboardCategory,
   type SoundboardLibraryClip,
 } from '@chickadee/shared';
 
@@ -147,14 +148,48 @@ const api = {
    * local-ingest output and P2P sync.
    */
   soundboard: {
-    /** Open a native multi-select file picker and ffmpeg-ingest each pick; resolves with any per-file failures. */
+    /** Open a native multi-select file picker and ffmpeg-ingest each pick (Uncategorized by default); resolves with any per-file failures, including hitting the 48-clip local cap. */
     addFiles: (): Promise<{ errors: string[] }> => ipcRenderer.invoke('chickadee:soundboard-add-files'),
-    /** Snapshot of this user's own (already-ingested) clips. */
-    listClips: (): Promise<SoundboardLibraryClip[]> => ipcRenderer.invoke('chickadee:soundboard-list-clips'),
+    /** Snapshot of this user's own (already-ingested) clips + their categories. */
+    listLibrary: (): Promise<{ clips: SoundboardLibraryClip[]; categories: SoundboardCategory[] }> =>
+      ipcRenderer.invoke('chickadee:soundboard-list-library'),
     /** Remove one of this user's own clips (cache + manifest entry). */
     removeClip: (hash: string): Promise<void> => ipcRenderer.invoke('chickadee:soundboard-remove-clip', hash),
-    /** Fired whenever the own-clip library changes (ingest complete, or a clip removed). */
-    onManifestChanged: payloadSubscription<SoundboardLibraryClip[]>('chickadee:soundboard-manifest-changed'),
+    /** Create a new, initially-unshared category. */
+    createCategory: (
+      name: string,
+    ): Promise<{ ok: true; category: SoundboardCategory } | { ok: false; error: 'invalid-name' | 'too-many-categories' }> =>
+      ipcRenderer.invoke('chickadee:soundboard-create-category', name),
+    /** Rename an existing category. */
+    renameCategory: (id: string, name: string): Promise<{ ok: boolean }> =>
+      ipcRenderer.invoke('chickadee:soundboard-rename-category', id, name),
+    /** Delete a category — its clips cascade to Uncategorized, not deleted. */
+    deleteCategory: (id: string): Promise<void> => ipcRenderer.invoke('chickadee:soundboard-delete-category', id),
+    /** Toggle a category's whole-category share state; rejected if it would exceed the shared-category or active-clip cap. */
+    setCategoryShared: (
+      id: string,
+      shared: boolean,
+    ): Promise<{ ok: true } | { ok: false; error?: 'too-many-shared-categories' | 'too-many-active-clips' }> =>
+      ipcRenderer.invoke('chickadee:soundboard-set-category-shared', id, shared),
+    /**
+     * Move a clip to a (possibly null/Uncategorized) category and/or reposition
+     * it — drag position IS clip order. `beforeHash: null` appends to the end
+     * (of the destination category); a given hash inserts immediately before
+     * that clip. Rejected if the destination is shared and at capacity.
+     */
+    moveClip: (
+      hash: string,
+      categoryId: string | null,
+      beforeHash: string | null,
+    ): Promise<{ ok: true } | { ok: false; error?: 'too-many-active-clips' }> =>
+      ipcRenderer.invoke('chickadee:soundboard-move-clip', hash, categoryId, beforeHash),
+    /** Rename one of this user's own clips. */
+    renameClip: (hash: string, name: string): Promise<{ ok: boolean }> =>
+      ipcRenderer.invoke('chickadee:soundboard-rename-clip', hash, name),
+    /** Fired whenever the own-library (clips or categories) changes. */
+    onLibraryChanged: payloadSubscription<{ clips: SoundboardLibraryClip[]; categories: SoundboardCategory[] }>(
+      'chickadee:soundboard-manifest-changed',
+    ),
     cache: {
       /** Whether a clip with this content hash is already cached locally. */
       has: (hash: string): Promise<boolean> => ipcRenderer.invoke('chickadee:soundboard-cache-has', hash),

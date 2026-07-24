@@ -4,9 +4,28 @@ import { readFile, rename, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { app, dialog, ipcMain } from 'electron';
 import type { BrowserWindow } from 'electron';
-import { clampString, sanitizeSoundboardHash, type SoundboardLibraryClip } from '@chickadee/shared';
+import {
+  MAX_LOCAL_SOUNDBOARD_CLIPS,
+  clampString,
+  sanitizeSoundboardHash,
+  type SoundboardCategory,
+  type SoundboardLibraryClip,
+} from '@chickadee/shared';
 import { sha256Hex } from './soundboardHash';
-import { SUPPORTED_AUDIO_EXTENSIONS, addManifestClip, deriveClipName, normalizeManifestEntry } from './soundboardLibraryLogic';
+import {
+  SUPPORTED_AUDIO_EXTENSIONS,
+  addManifestClip,
+  createCategory,
+  deleteCategory,
+  deriveClipName,
+  moveClipToCategory,
+  normalizeCategoryEntry,
+  normalizeManifestEntry,
+  reconcileOrphanCategories,
+  renameCategory,
+  renameClip,
+  setCategoryShared,
+} from './soundboardLibraryLogic';
 import { transcodeClip } from './soundboardTranscode';
 
 /**
@@ -37,23 +56,42 @@ function manifestPath(): string {
   return join(app.getPath('userData'), 'soundboard-manifest.json');
 }
 
+interface SoundboardManifestFile {
+  clips: SoundboardLibraryClip[];
+  categories: SoundboardCategory[];
+}
+
 let manifest: SoundboardLibraryClip[] = [];
+let categories: SoundboardCategory[] = [];
 
 function loadManifest(): void {
   try {
     const parsed: unknown = JSON.parse(readFileSync(manifestPath(), 'utf8'));
-    // normalizeManifestEntry drops entries that don't match the current schema.
-    manifest = Array.isArray(parsed)
-      ? parsed.map(normalizeManifestEntry).filter((e): e is SoundboardLibraryClip => e !== null)
-      : [];
+    const p = parsed as Partial<SoundboardManifestFile> | null;
+    // An old bare-array (pre-category) manifest fails this shape guard and
+    // loads empty — the intended drop-on-load behavior, no migration.
+    if (!p || typeof p !== 'object' || Array.isArray(p) || !Array.isArray(p.clips) || !Array.isArray(p.categories)) {
+      manifest = [];
+      categories = [];
+      return;
+    }
+    // normalizeManifestEntry/normalizeCategoryEntry drop entries that don't
+    // match the current schema; reconcileOrphanCategories then nulls any
+    // clip's categoryId left dangling by a dropped category.
+    const loadedCategories = p.categories.map(normalizeCategoryEntry).filter((c): c is SoundboardCategory => c !== null);
+    const loadedClips = p.clips.map(normalizeManifestEntry).filter((e): e is SoundboardLibraryClip => e !== null);
+    categories = loadedCategories;
+    manifest = reconcileOrphanCategories(loadedClips, loadedCategories);
   } catch {
     manifest = [];
+    categories = [];
   }
 }
 
 function persistManifest(): void {
   try {
-    writeFileSync(manifestPath(), JSON.stringify(manifest));
+    const file: SoundboardManifestFile = { clips: manifest, categories };
+    writeFileSync(manifestPath(), JSON.stringify(file));
   } catch {
     // Best-effort — a failed write only means the library doesn't survive this
     // particular change; the in-memory list (and the live UI) is unaffected.
@@ -82,7 +120,10 @@ function pushToRenderer(channel: string, payload: unknown): void {
 }
 
 function pushManifestChanged(): void {
-  pushToRenderer('chickadee:soundboard-manifest-changed', manifest.slice());
+  // Bundles both arrays atomically so the renderer's clips/categories state
+  // is never one tick out of sync — active-clip/shared-category math reads
+  // both together.
+  pushToRenderer('chickadee:soundboard-manifest-changed', { clips: manifest.slice(), categories: categories.slice() });
 }
 
 /**
@@ -137,15 +178,22 @@ export function configureSoundboard(): void {
     const errors: string[] = [];
     let changed = false;
     for (const src of filePaths) {
+      if (manifest.length >= MAX_LOCAL_SOUNDBOARD_CLIPS) {
+        errors.push(`Sound library is full (${MAX_LOCAL_SOUNDBOARD_CLIPS}/${MAX_LOCAL_SOUNDBOARD_CLIPS}) — remove a clip to add more.`);
+        break; // stop before wasting an ffmpeg spawn on a pick that can't be added
+      }
       const outcome = await ingestPickedFile(src);
       if ('error' in outcome) {
         errors.push(`${src.split(/[/\\]/).pop() ?? 'file'}: ${outcome.error}`);
         continue;
       }
-      const added = addManifestClip(manifest, outcome);
+      const added = addManifestClip(manifest, outcome, MAX_LOCAL_SOUNDBOARD_CLIPS);
       if (added.changed) {
         manifest = added.manifest;
         changed = true;
+      } else if (added.error === 'cap') {
+        errors.push(`Sound library is full (${MAX_LOCAL_SOUNDBOARD_CLIPS}/${MAX_LOCAL_SOUNDBOARD_CLIPS}) — remove a clip to add more.`);
+        break;
       }
     }
     if (changed) {
@@ -155,7 +203,90 @@ export function configureSoundboard(): void {
     return { errors };
   });
 
-  ipcMain.handle('chickadee:soundboard-list-clips', (): SoundboardLibraryClip[] => manifest.slice());
+  ipcMain.handle(
+    'chickadee:soundboard-list-library',
+    (): { clips: SoundboardLibraryClip[]; categories: SoundboardCategory[] } => ({
+      clips: manifest.slice(),
+      categories: categories.slice(),
+    }),
+  );
+
+  // --- Category management ---
+
+  ipcMain.handle(
+    'chickadee:soundboard-create-category',
+    (_e, name: unknown): { ok: true; category: SoundboardCategory } | { ok: false; error: 'invalid-name' | 'too-many-categories' } => {
+      const result = createCategory(categories, randomUUID(), name);
+      if ('error' in result) return { ok: false, error: result.error };
+      categories = result.categories;
+      persistManifest();
+      pushManifestChanged();
+      return { ok: true, category: result.category };
+    },
+  );
+
+  ipcMain.handle('chickadee:soundboard-rename-category', (_e, id: unknown, name: unknown): { ok: boolean } => {
+    if (typeof id !== 'string') return { ok: false };
+    const result = renameCategory(categories, id, name);
+    if (!result) return { ok: false };
+    categories = result;
+    persistManifest();
+    pushManifestChanged();
+    return { ok: true };
+  });
+
+  ipcMain.handle('chickadee:soundboard-delete-category', (_e, id: unknown): void => {
+    if (typeof id !== 'string') return;
+    const result = deleteCategory(manifest, categories, id);
+    manifest = result.clips;
+    categories = result.categories;
+    persistManifest();
+    pushManifestChanged();
+  });
+
+  ipcMain.handle(
+    'chickadee:soundboard-set-category-shared',
+    (_e, id: unknown, shared: unknown): { ok: true } | { ok: false; error?: 'too-many-shared-categories' | 'too-many-active-clips' } => {
+      if (typeof id !== 'string' || typeof shared !== 'boolean') return { ok: false };
+      const result = setCategoryShared(manifest, categories, id, shared);
+      if ('error' in result) return { ok: false, error: result.error };
+      categories = result.categories;
+      persistManifest();
+      pushManifestChanged();
+      return { ok: true };
+    },
+  );
+
+  ipcMain.handle(
+    'chickadee:soundboard-move-clip',
+    (
+      _e,
+      hash: unknown,
+      categoryId: unknown,
+      beforeHash: unknown,
+    ): { ok: true } | { ok: false; error?: 'too-many-active-clips' } => {
+      const h = sanitizeSoundboardHash(hash);
+      if (!h || (typeof categoryId !== 'string' && categoryId !== null)) return { ok: false };
+      if (typeof beforeHash !== 'string' && beforeHash !== null && beforeHash !== undefined) return { ok: false };
+      const result = moveClipToCategory(manifest, categories, h, categoryId, beforeHash ?? null);
+      if ('error' in result) return { ok: false, error: result.error };
+      manifest = result.clips;
+      persistManifest();
+      pushManifestChanged();
+      return { ok: true };
+    },
+  );
+
+  ipcMain.handle('chickadee:soundboard-rename-clip', (_e, hash: unknown, name: unknown): { ok: boolean } => {
+    const h = sanitizeSoundboardHash(hash);
+    if (!h) return { ok: false };
+    const result = renameClip(manifest, h, name);
+    if (!result) return { ok: false };
+    manifest = result;
+    persistManifest();
+    pushManifestChanged();
+    return { ok: true };
+  });
 
   ipcMain.handle('chickadee:soundboard-remove-clip', async (_e, hash: unknown): Promise<void> => {
     const h = sanitizeSoundboardHash(hash);

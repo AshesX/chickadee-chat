@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { AlertTriangle } from 'lucide-react';
 import { Modal } from './Modal';
 import { AdvancedConnectionSettings } from './AdvancedConnectionSettings';
 import { AvatarCropModal } from './AvatarCropModal';
+import { useDismissTimeout } from '../hooks/useDismissTimeout';
 import { userColor } from '../lib/userColors';
 import { SIDEBAR_HEADER_HEIGHT_PX, SIDEBAR_MAX_WIDTH_PX } from '../lib/spaceHeader';
 import { MAX_BANNER_DATA_URL_LEN, sanitizeBannerDataUrl, type SpaceInfo } from '@chickadee/shared';
@@ -52,6 +54,29 @@ export function SpaceSettingsModal({ space, myUserId, onSave, onSaveBanner, onCl
   const [bannerCropOpen, setBannerCropOpen] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [transferTarget, setTransferTarget] = useState('');
+  const [transferArmed, setTransferArmed] = useState(false);
+  const { arm: armTransfer, cancel: cancelArmTransfer } = useDismissTimeout(() => setTransferArmed(false));
+
+  function disarmTransfer(): void {
+    cancelArmTransfer();
+    setTransferArmed(false);
+  }
+
+  // Arm-then-confirm (mirrors the sidebar's Delete/Leave Space button): one
+  // click grows Transfer into a labeled danger state instead of a native
+  // window.confirm(); a second click (or the timeout lapsing) resolves it.
+  function handleTransferClick(): void {
+    const target = onlineMembers.find((m) => m.userId === transferTarget);
+    if (!target) return;
+    if (transferArmed) {
+      disarmTransfer();
+      onTransferOwnership(target.userId);
+      setTransferTarget('');
+    } else {
+      setTransferArmed(true);
+      armTransfer(4000);
+    }
+  }
   const isOwner = space.ownerId === myUserId;
   const bannedUsers = space.bannedUsers ?? [];
 
@@ -148,7 +173,13 @@ export function SpaceSettingsModal({ space, myUserId, onSave, onSaveBanner, onCl
               className="input mod-row__select"
               value={transferTarget}
               disabled={!isLive || onlineMembers.length === 0}
-              onChange={(e) => setTransferTarget(e.target.value)}
+              onChange={(e) => {
+                // A stale armed confirmation for the PREVIOUS target would be
+                // surprising to resolve against a newly-picked one — require
+                // a fresh click-to-arm whenever the selection changes.
+                if (transferArmed) disarmTransfer();
+                setTransferTarget(e.target.value);
+              }}
             >
               <option value="">
                 {onlineMembers.length === 0 ? 'No online members to transfer to' : 'Transfer ownership to…'}
@@ -160,20 +191,19 @@ export function SpaceSettingsModal({ space, myUserId, onSave, onSaveBanner, onCl
               ))}
             </select>
             <button
-              className="seg-btn"
+              className={`seg-btn${transferArmed ? ' seg-btn--armed-danger' : ''}`}
               disabled={!isLive || !transferTarget}
-              onClick={() => {
-                const target = onlineMembers.find((m) => m.userId === transferTarget);
-                if (
-                  target &&
-                  window.confirm(`Transfer ownership of "${space.name}" to ${target.name}? You will lose owner powers.`)
-                ) {
-                  onTransferOwnership(target.userId);
-                  setTransferTarget('');
-                }
-              }}
+              title={transferArmed ? undefined : 'You will lose owner powers.'}
+              onClick={handleTransferClick}
             >
-              Transfer
+              {transferArmed ? (
+                <>
+                  <AlertTriangle size={12} />
+                  <span>Confirm transfer?</span>
+                </>
+              ) : (
+                'Transfer'
+              )}
             </button>
           </div>
 

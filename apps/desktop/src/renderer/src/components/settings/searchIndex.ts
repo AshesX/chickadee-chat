@@ -26,6 +26,8 @@ export const SETTINGS_SEARCH_INDEX: SearchEntry[] = [
   { label: 'Preset Sounds', description: 'Show or hide the bundled preset clips', tab: 'soundboard', keywords: ['soundboard', 'presets', 'default sounds', 'custom only'] },
   { label: 'Enable Custom Sounds', description: 'Play and share your own custom soundboard clips', tab: 'soundboard', keywords: ['soundboard', 'custom', 'enable', 'disable', 'sync'] },
   { label: 'Custom Sounds', description: 'Add or remove your own soundboard clips', tab: 'soundboard', keywords: ['soundboard', 'custom', 'add sound', 'clips'] },
+  { label: 'Sounds Manager', description: 'Organize your soundboard clips into categories', tab: 'soundboard', keywords: ['soundboard', 'categories', 'organize', 'manager', 'groups'] },
+  { label: 'Share a Category', description: 'Share a soundboard category with the room (up to 2 categories, 12 clips)', tab: 'soundboard', keywords: ['soundboard', 'share', 'active', 'category', 'unshare'] },
   { label: 'Text-to-Speech', description: 'Speaks new chat messages aloud', tab: 'chat', sectionId: 'section-chat-tts', keywords: ['tts', 'text to speech', 'read aloud', 'voice', 'speak', 'speech'] },
   { label: 'Speak Own Messages', description: 'Also reads your own sent messages', tab: 'chat', sectionId: 'section-chat-tts', keywords: ['tts', 'own', 'self', 'sent', 'my messages'] },
   { label: 'Speak While Focused', description: 'Reads messages even while the app is focused', tab: 'chat', sectionId: 'section-chat-tts', keywords: ['tts', 'focus', 'focused', 'unfocused', 'background'] },

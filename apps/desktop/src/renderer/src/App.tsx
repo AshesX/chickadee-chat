@@ -1652,7 +1652,8 @@ export function App(): React.JSX.Element {
             )}
             {menus.soundboardMenuOpen && menus.soundboardMenuAnchor && (
               <SoundboardPopover
-                ownClips={soundboardLibrary.ownClips}
+                ownClips={soundboardLibrary.activeOwnClips}
+                ownCategories={soundboardLibrary.categories}
                 peers={signaling.peers}
                 presetsEnabled={soundboardPresetsEnabled}
                 customEnabled={soundboardCustomEnabled}
@@ -2046,9 +2047,18 @@ export function App(): React.JSX.Element {
           soundboardCustomEnabled={soundboardCustomEnabled}
           onChangeSoundboardCustomEnabled={applySoundboardCustomEnabled}
           soundboardOwnClips={soundboardLibrary.ownClips}
+          soundboardCategories={soundboardLibrary.categories}
+          soundboardStats={soundboardLibrary.stats}
           onAddSoundboardFiles={soundboardLibrary.addFiles}
           onRemoveSoundboardClip={soundboardLibrary.removeClip}
           soundboardAddError={soundboardLibrary.addError}
+          onCreateSoundboardCategory={soundboardLibrary.createCategory}
+          onRenameSoundboardCategory={soundboardLibrary.renameCategory}
+          onDeleteSoundboardCategory={soundboardLibrary.deleteCategory}
+          onSetSoundboardCategoryShared={soundboardLibrary.setCategoryShared}
+          onMoveSoundboardClip={soundboardLibrary.moveClip}
+          onRenameSoundboardClip={soundboardLibrary.renameClip}
+          soundboardActionError={soundboardLibrary.actionError}
           micVolume={micVolume}
           onChangeMicVolume={applyMicVolume}
           outputVolume={outputVolume}

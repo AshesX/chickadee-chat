@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { SOUNDBOARD_FETCH_CONCURRENCY, canStartFetch, planMissingClipFetches } from './soundboardSyncPolicy';
+import {
+  SOUNDBOARD_FETCH_CONCURRENCY,
+  SOUNDBOARD_REQUEST_CONCURRENCY,
+  canStartFetch,
+  canStartRequest,
+  nextRequestsToStart,
+  planMissingClipFetches,
+} from './soundboardSyncPolicy';
 
 const hash1 = '1'.repeat(64);
 const hash2 = '2'.repeat(64);
@@ -81,5 +88,54 @@ describe('canStartFetch', () => {
   it('honors a custom cap', () => {
     expect(canStartFetch(1, 2)).toBe(true);
     expect(canStartFetch(2, 2)).toBe(false);
+  });
+});
+
+describe('canStartRequest', () => {
+  it('allows starting under the default concurrency cap', () => {
+    expect(canStartRequest(0)).toBe(true);
+    expect(canStartRequest(SOUNDBOARD_REQUEST_CONCURRENCY - 1)).toBe(true);
+  });
+
+  it('blocks at and above the default cap', () => {
+    expect(canStartRequest(SOUNDBOARD_REQUEST_CONCURRENCY)).toBe(false);
+  });
+});
+
+describe('nextRequestsToStart', () => {
+  const req = (toPeerId: string) => ({ toPeerId, clips: [{ hash: hash1, sizeBytes: 100 }] });
+
+  it('returns an empty array for an empty queue', () => {
+    expect(nextRequestsToStart([], new Set())).toEqual([]);
+  });
+
+  it('starts up to the concurrency cap when nothing is active', () => {
+    const queued = [req('p1'), req('p2'), req('p3')];
+    const started = nextRequestsToStart(queued, new Set(), 2);
+    expect(started.map((r) => r.toPeerId)).toEqual(['p1', 'p2']);
+  });
+
+  it('accounts for already-active peers against the cap', () => {
+    const queued = [req('p2'), req('p3')];
+    const started = nextRequestsToStart(queued, new Set(['p1']), 2);
+    expect(started.map((r) => r.toPeerId)).toEqual(['p2']);
+  });
+
+  it('returns empty once already at/above the cap', () => {
+    const queued = [req('p3')];
+    const started = nextRequestsToStart(queued, new Set(['p1', 'p2']), 2);
+    expect(started).toEqual([]);
+  });
+
+  it('skips a queued request for a peer that is already active', () => {
+    const queued = [req('p1'), req('p2')];
+    const started = nextRequestsToStart(queued, new Set(['p1']), 2);
+    expect(started.map((r) => r.toPeerId)).toEqual(['p2']);
+  });
+
+  it('never starts two queued requests for the same peer in one batch', () => {
+    const queued = [req('p1'), req('p1')];
+    const started = nextRequestsToStart(queued, new Set(), 5);
+    expect(started).toHaveLength(1);
   });
 });

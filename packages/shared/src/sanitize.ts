@@ -185,8 +185,19 @@ export function sanitizeSoundboardHash(value: unknown): string | null {
 
 /** Max length of a soundboard clip's display name (relayed space-wide). */
 export const MAX_SOUNDBOARD_CLIP_NAME_LEN = 80;
-/** Cap on one peer's advertised custom-clip library — an anti-nonsense bound. */
-export const MAX_SOUNDBOARD_CLIPS = 200;
+/** Max length of a soundboard category's display name/label (relayed space-wide via SoundboardClipMeta.category). */
+export const MAX_SOUNDBOARD_CATEGORY_NAME_LEN = 40;
+/**
+ * Cap on one peer's advertised custom-clip library — the true "active
+ * clips" limit, not slack above it: a compliant client only ever advertises
+ * clips from its shared categories, which it independently caps at this
+ * same number (see @chickadee/shared's canShareCategory). Replaces the old
+ * MAX_SOUNDBOARD_CLIPS=200 anti-nonsense bound now that sharing is
+ * meaningfully capped client-side.
+ */
+export const MAX_ACTIVE_SOUNDBOARD_CLIPS = 12;
+/** Cap on distinct shared-category labels in one advertised manifest. */
+export const MAX_SHARED_SOUNDBOARD_CATEGORIES = 2;
 /** Ceiling on a clip's declared duration — the 5s ingest trim plus generous slack. */
 export const MAX_SOUNDBOARD_DURATION_MS = 5_500;
 /** Ceiling on a clip's declared byte size — 128kbps*5.5s is ~88KB; generous slack for container overhead. */
@@ -194,18 +205,21 @@ export const MAX_SOUNDBOARD_CLIP_SIZE_BYTES = 256 * 1024;
 
 /**
  * Validate one untrusted soundboard clip manifest entry. Returns the
- * sanitized `{hash, name, durationMs, sizeBytes}`, or null to drop just this
- * entry (unlike a file-offer batch, a manifest is an additive/resilient list,
- * not a one-shot transactional offer, so one bad entry doesn't reject the rest).
+ * sanitized `{hash, name, durationMs, sizeBytes, category}`, or null to drop
+ * just this entry (unlike a file-offer batch, a manifest is an
+ * additive/resilient list, not a one-shot transactional offer, so one bad
+ * entry doesn't reject the rest).
  */
 export function sanitizeSoundboardClipMeta(
   value: unknown,
-): { hash: string; name: string; durationMs: number; sizeBytes: number } | null {
+): { hash: string; name: string; durationMs: number; sizeBytes: number; category: string } | null {
   if (!value || typeof value !== 'object') return null;
   const hash = sanitizeSoundboardHash((value as { hash?: unknown }).hash);
   if (!hash) return null;
   const name = clampString((value as { name?: unknown }).name, MAX_SOUNDBOARD_CLIP_NAME_LEN);
   if (!name) return null;
+  const category = clampString((value as { category?: unknown }).category, MAX_SOUNDBOARD_CATEGORY_NAME_LEN);
+  if (!category) return null;
   const durationMs = (value as { durationMs?: unknown }).durationMs;
   if (typeof durationMs !== 'number' || !Number.isFinite(durationMs) || durationMs < 0 || durationMs > MAX_SOUNDBOARD_DURATION_MS) {
     return null;
@@ -219,25 +233,32 @@ export function sanitizeSoundboardClipMeta(
   ) {
     return null;
   }
-  return { hash, name, durationMs, sizeBytes };
+  return { hash, name, durationMs, sizeBytes, category };
 }
 
 /**
  * Validate an untrusted soundboard manifest (`soundboard-manifest-state`):
- * drops malformed entries, de-duplicates by hash (first wins), and caps the
- * list — styled after `sanitizeBannedUsers`, not `sanitizeFileOfferFiles`.
+ * drops malformed entries, de-duplicates by hash (first wins), and enforces
+ * TWO independent caps — at most MAX_ACTIVE_SOUNDBOARD_CLIPS entries total,
+ * and at most MAX_SHARED_SOUNDBOARD_CATEGORIES distinct `category` labels
+ * among them. A compliant client never exceeds either (see
+ * @chickadee/shared's canShareCategory), so this is defense-in-depth against
+ * a stale/malicious sender, not a limit real clients are expected to hit.
  */
 export function sanitizeSoundboardClips(
   value: unknown,
-): { hash: string; name: string; durationMs: number; sizeBytes: number }[] {
+): { hash: string; name: string; durationMs: number; sizeBytes: number; category: string }[] {
   if (!Array.isArray(value)) return [];
-  const out: { hash: string; name: string; durationMs: number; sizeBytes: number }[] = [];
-  const seen = new Set<string>();
+  const out: { hash: string; name: string; durationMs: number; sizeBytes: number; category: string }[] = [];
+  const seenHashes = new Set<string>();
+  const seenCategories = new Set<string>();
   for (const entry of value) {
-    if (out.length >= MAX_SOUNDBOARD_CLIPS) break;
+    if (out.length >= MAX_ACTIVE_SOUNDBOARD_CLIPS) break;
     const meta = sanitizeSoundboardClipMeta(entry);
-    if (!meta || seen.has(meta.hash)) continue;
-    seen.add(meta.hash);
+    if (!meta || seenHashes.has(meta.hash)) continue;
+    if (!seenCategories.has(meta.category) && seenCategories.size >= MAX_SHARED_SOUNDBOARD_CATEGORIES) continue;
+    seenHashes.add(meta.hash);
+    seenCategories.add(meta.category);
     out.push(meta);
   }
   return out;

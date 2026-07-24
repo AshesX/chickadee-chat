@@ -1,6 +1,7 @@
 import { SettingsRow } from './SettingsRow';
 import { ToggleRow } from './ToggleRow';
 import { SliderRow } from './SliderRow';
+import { SoundboardManager } from './SoundboardManager';
 import type { SettingsModalProps } from './types';
 
 type SoundboardTabProps = Pick<
@@ -10,7 +11,10 @@ type SoundboardTabProps = Pick<
   | 'soundboardVolume' | 'onChangeSoundboardVolume'
   | 'soundboardPresetsEnabled' | 'onChangeSoundboardPresetsEnabled'
   | 'soundboardCustomEnabled' | 'onChangeSoundboardCustomEnabled'
-  | 'soundboardOwnClips' | 'onAddSoundboardFiles' | 'onRemoveSoundboardClip' | 'soundboardAddError'
+  | 'soundboardOwnClips' | 'soundboardCategories' | 'soundboardStats'
+  | 'onAddSoundboardFiles' | 'onRemoveSoundboardClip' | 'soundboardAddError'
+  | 'onCreateSoundboardCategory' | 'onRenameSoundboardCategory' | 'onDeleteSoundboardCategory'
+  | 'onSetSoundboardCategoryShared' | 'onMoveSoundboardClip' | 'onRenameSoundboardClip' | 'soundboardActionError'
 >;
 
 export function SoundboardTab({
@@ -25,9 +29,18 @@ export function SoundboardTab({
   soundboardCustomEnabled,
   onChangeSoundboardCustomEnabled,
   soundboardOwnClips,
+  soundboardCategories,
+  soundboardStats,
   onAddSoundboardFiles,
   onRemoveSoundboardClip,
   soundboardAddError,
+  onCreateSoundboardCategory,
+  onRenameSoundboardCategory,
+  onDeleteSoundboardCategory,
+  onSetSoundboardCategoryShared,
+  onMoveSoundboardClip,
+  onRenameSoundboardClip,
+  soundboardActionError,
 }: SoundboardTabProps): React.JSX.Element {
   const customDisabled = !soundboardEnabled || !soundboardCustomEnabled;
 
@@ -50,20 +63,19 @@ export function SoundboardTab({
 
       <SliderRow
         label="Soundboard volume"
-        hint="Playback volume for triggered clips. >100% may distort."
+        hint="Playback volume for triggered clips."
         disabled={!soundboardEnabled}
         slider={{
           min: 0,
-          max: 2,
+          max: 1,
           step: 0.05,
           value: soundboardVolume,
           onChange: onChangeSoundboardVolume,
-          boostFrom: 1.0,
-          markers: [0, 0.5, 1.0, 1.5, 2.0],
+          markers: [0, 0.5, 1.0],
           labels: [
             { value: 0, text: '0%' },
+            { value: 0.5, text: '50%' },
             { value: 1.0, text: '100%' },
-            { value: 2.0, text: '200%' },
           ],
         }}
       />
@@ -98,21 +110,23 @@ export function SoundboardTab({
 
       {soundboardAddError && <p className="field-error">{soundboardAddError}</p>}
 
+      {soundboardActionError && <p className="field-error">{soundboardActionError}</p>}
+
       {soundboardOwnClips.length > 0 && (
-        <SettingsRow label="My sounds" disabled={!soundboardEnabled}>
-          <div className="mod-banlist">
-            {soundboardOwnClips.map((clip) => (
-              <div key={clip.hash} className="mod-row">
-                <span className="mod-row__label" title={clip.name}>
-                  {clip.name}
-                </span>
-                <button className="seg-btn" onClick={() => onRemoveSoundboardClip(clip.hash)} disabled={!soundboardEnabled}>
-                  Remove
-                </button>
-              </div>
-            ))}
-          </div>
-        </SettingsRow>
+        <SoundboardManager
+          clips={soundboardOwnClips}
+          categories={soundboardCategories}
+          stats={soundboardStats}
+          disabled={customDisabled}
+          soundboardVolume={soundboardVolume}
+          onRemoveClip={onRemoveSoundboardClip}
+          onCreateCategory={onCreateSoundboardCategory}
+          onRenameCategory={onRenameSoundboardCategory}
+          onDeleteCategory={onDeleteSoundboardCategory}
+          onSetCategoryShared={onSetSoundboardCategoryShared}
+          onMoveClip={onMoveSoundboardClip}
+          onRenameClip={onRenameSoundboardClip}
+        />
       )}
     </>
   );

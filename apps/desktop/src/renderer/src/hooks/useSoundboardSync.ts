@@ -4,7 +4,13 @@ import { MAX_SOUNDBOARD_FETCH_HASHES } from '@chickadee/shared';
 import { createReceiveLink, createSendLink, type FileLink } from '../webrtc/fileTransferLink';
 import { makeBatchFileId, parseBatchFileId } from '../webrtc/fileTransferPolicy';
 import type { ReceiverIo } from '../webrtc/transferQueue';
-import { canStartFetch, planMissingClipFetches } from '../webrtc/soundboardSyncPolicy';
+import {
+  SOUNDBOARD_SYNC_STARTUP_DELAY_MS,
+  canStartFetch,
+  nextRequestsToStart,
+  planMissingClipFetches,
+  type PlannedFetch,
+} from '../webrtc/soundboardSyncPolicy';
 import { shouldAutoSyncFrom } from '../lib/soundboardTrust';
 
 export interface SoundboardSyncArgs {
@@ -18,8 +24,11 @@ export interface SoundboardSyncArgs {
 }
 
 interface PendingRequest {
+  toPeerId: string;
   /** index-aligned with the hashes sent in the original soundboard-fetch-request. */
   clips: { hash: string; sizeBytes: number }[];
+  /** Clips not yet settled (done/error/cancelled) — the request frees its requester-side concurrency slot once this hits 0. */
+  remaining: number;
 }
 
 /**
@@ -34,15 +43,31 @@ interface PendingRequest {
  * (master) AND `customEnabled` — there's no separate auto-sync toggle;
  * syncing is unconditional whenever custom clips are on (presets never need
  * this hook at all, since they're bundled).
+ *
+ * Requester-side fan-out is throttled on TWO axes: SOUNDBOARD_REQUEST_CONCURRENCY
+ * caps how many DIFFERENT possessors are contacted at once (queuedPlanRef /
+ * activeRequestPeersRef / startNextRequests below), and each possessor
+ * independently caps its own concurrent sends via SOUNDBOARD_FETCH_CONCURRENCY
+ * (handleFetchRequest's startNext). Without the requester-side gate, a join
+ * where N peers each have missing clips fires N simultaneous
+ * soundboard-fetch-requests in the same tick — see soundboardSyncPolicy.ts's
+ * doc comment for the concrete worst case this prevents. A short startup
+ * delay (SOUNDBOARD_SYNC_STARTUP_DELAY_MS) also lets the voice/video mesh's
+ * own initial SDP/ICE flurry mostly clear before this hook adds its own
+ * signaling traffic on top.
  */
 export function useSoundboardSync({ peers, send, subscribe, iceServers, enabled, customEnabled }: SoundboardSyncArgs): void {
   const linksRef = useRef<Map<string, FileLink>>(new Map());
   /** Hashes confirmed present in the local cache — own clips and completed fetches alike. */
   const cachedHashesRef = useRef<Set<string>>(new Set());
-  /** Hashes with a fetch-request already in flight this session — avoids re-requesting on every peers[] change. */
+  /** Hashes already queued or in-flight this session — avoids re-planning them on every peers[] change. */
   const requestedHashesRef = useRef<Set<string>>(new Set());
   /** My own outbound requests, keyed by the root requestId I generated. */
   const pendingRequestsRef = useRef<Map<string, PendingRequest>>(new Map());
+  /** Planned-but-not-yet-started possessor requests, drained by startNextRequests as concurrency allows. */
+  const queuedPlanRef = useRef<PlannedFetch[]>([]);
+  /** Possessor ids with a currently in-flight (started, not yet fully settled) request. */
+  const activeRequestPeersRef = useRef<Set<string>>(new Set());
 
   const sendRef = useRef(send);
   sendRef.current = send;
@@ -56,50 +81,91 @@ export function useSoundboardSync({ peers, send, subscribe, iceServers, enabled,
     linksRef.current.delete(id);
   };
 
-  // --- Requester side: diff peers against the cache, request what's missing ---
+  // --- Requester-side queue draining: start queued possessor requests up to the concurrency cap ---
+  const startNextRequests = (): void => {
+    const toStart = nextRequestsToStart(queuedPlanRef.current, activeRequestPeersRef.current);
+    if (toStart.length === 0) return;
+    queuedPlanRef.current = queuedPlanRef.current.filter((r) => !toStart.includes(r));
+    for (const request of toStart) {
+      activeRequestPeersRef.current.add(request.toPeerId);
+      const requestId = crypto.randomUUID();
+      pendingRequestsRef.current.set(requestId, {
+        toPeerId: request.toPeerId,
+        clips: request.clips,
+        remaining: request.clips.length,
+      });
+      sendRef.current({
+        type: 'soundboard-fetch-request',
+        to: request.toPeerId,
+        requestId,
+        hashes: request.clips.map((c) => c.hash),
+      });
+    }
+  };
+
+  /** A whole outbound request has settled (done, errored, or the possessor cancelled it) — free its concurrency slot and drain more. */
+  const settleRequest = (rootRequestId: string): void => {
+    const pending = pendingRequestsRef.current.get(rootRequestId);
+    if (!pending) return;
+    pendingRequestsRef.current.delete(rootRequestId);
+    activeRequestPeersRef.current.delete(pending.toPeerId);
+    startNextRequests();
+  };
+
+  /** One clip within an outbound request settled; once every clip has, the whole request settles. */
+  const settleRequestClip = (rootRequestId: string): void => {
+    const pending = pendingRequestsRef.current.get(rootRequestId);
+    if (!pending) return;
+    pending.remaining -= 1;
+    if (pending.remaining <= 0) settleRequest(rootRequestId);
+  };
+
+  // --- Requester side: diff peers against the cache, queue what's missing ---
   useEffect(() => {
     if (!enabled || !customEnabled || !window.chickadee) return;
     const bridge = window.chickadee;
     let cancelled = false;
 
-    void (async () => {
-      const toCheck: string[] = [];
-      const seen = new Set<string>();
-      for (const peer of peers) {
-        for (const clip of peer.soundboardClips) {
-          if (seen.has(clip.hash)) continue;
-          seen.add(clip.hash);
-          if (!cachedHashesRef.current.has(clip.hash) && !requestedHashesRef.current.has(clip.hash)) {
-            toCheck.push(clip.hash);
+    const timer = setTimeout(() => {
+      void (async () => {
+        const toCheck: string[] = [];
+        const seen = new Set<string>();
+        for (const peer of peers) {
+          for (const clip of peer.soundboardClips) {
+            if (seen.has(clip.hash)) continue;
+            seen.add(clip.hash);
+            if (!cachedHashesRef.current.has(clip.hash) && !requestedHashesRef.current.has(clip.hash)) {
+              toCheck.push(clip.hash);
+            }
           }
         }
-      }
-      if (toCheck.length === 0) return;
+        if (toCheck.length === 0) return;
 
-      const haveResults = await Promise.all(toCheck.map((h) => bridge.soundboard.cache.has(h)));
-      if (cancelled) return;
-      toCheck.forEach((h, i) => {
-        if (haveResults[i]) cachedHashesRef.current.add(h);
-      });
-
-      const eligiblePeers = peers.filter((p) => shouldAutoSyncFrom(p.userId, { soundboardCustomEnabled: customEnabled }));
-      const exclude = new Set([...cachedHashesRef.current, ...requestedHashesRef.current]);
-      const plan = planMissingClipFetches(eligiblePeers, exclude, MAX_SOUNDBOARD_FETCH_HASHES);
-      for (const { toPeerId, clips } of plan) {
-        const requestId = crypto.randomUUID();
-        pendingRequestsRef.current.set(requestId, { clips });
-        for (const c of clips) requestedHashesRef.current.add(c.hash);
-        sendRef.current({
-          type: 'soundboard-fetch-request',
-          to: toPeerId,
-          requestId,
-          hashes: clips.map((c) => c.hash),
+        const haveResults = await Promise.all(toCheck.map((h) => bridge.soundboard.cache.has(h)));
+        if (cancelled) return;
+        toCheck.forEach((h, i) => {
+          if (haveResults[i]) cachedHashesRef.current.add(h);
         });
-      }
-    })();
+
+        const eligiblePeers = peers.filter((p) => shouldAutoSyncFrom(p.userId, { soundboardCustomEnabled: customEnabled }));
+        const exclude = new Set([...cachedHashesRef.current, ...requestedHashesRef.current]);
+        const plan = planMissingClipFetches(eligiblePeers, exclude, MAX_SOUNDBOARD_FETCH_HASHES);
+        if (plan.length === 0) return;
+
+        // Mark hashes requested as soon as they're QUEUED (not once actually
+        // sent) so a later peers[] change never re-plans the same hash while
+        // it's still waiting for a free concurrency slot.
+        for (const request of plan) {
+          for (const c of request.clips) requestedHashesRef.current.add(c.hash);
+        }
+        queuedPlanRef.current = [...queuedPlanRef.current, ...plan];
+        startNextRequests();
+      })();
+    }, SOUNDBOARD_SYNC_STARTUP_DELAY_MS);
 
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
   }, [peers, enabled, customEnabled]);
 
@@ -139,6 +205,7 @@ export function useSoundboardSync({ peers, send, subscribe, iceServers, enabled,
           cachedHashesRef.current.add(hash);
           requestedHashesRef.current.delete(hash);
           closeLink(derivedId);
+          settleRequestClip(rootRequestId);
         },
         // A fetch that fails or gets cancelled isn't retried automatically —
         // fire-and-forget, same delivery posture as chat/reactions — but it's
@@ -147,10 +214,12 @@ export function useSoundboardSync({ peers, send, subscribe, iceServers, enabled,
         onError: () => {
           requestedHashesRef.current.delete(hash);
           closeLink(derivedId);
+          settleRequestClip(rootRequestId);
         },
         onPeerCancel: () => {
           requestedHashesRef.current.delete(hash);
           closeLink(derivedId);
+          settleRequestClip(rootRequestId);
         },
       },
     });
@@ -247,7 +316,9 @@ export function useSoundboardSync({ peers, send, subscribe, iceServers, enabled,
     for (const id of [...linksRef.current.keys()]) {
       if (id === msg.requestId || id.startsWith(prefix)) closeLink(id);
     }
-    pendingRequestsRef.current.delete(msg.requestId);
+    // The whole outbound request was declined (or is being torn down) — settle
+    // it as one unit rather than waiting for per-clip callbacks that will never fire.
+    settleRequest(msg.requestId);
   };
 
   useEffect(() => {
@@ -267,6 +338,8 @@ export function useSoundboardSync({ peers, send, subscribe, iceServers, enabled,
     linksRef.current.clear();
     pendingRequestsRef.current.clear();
     requestedHashesRef.current.clear();
+    queuedPlanRef.current = [];
+    activeRequestPeersRef.current.clear();
   }, [enabled]);
 
   useEffect(() => {
