@@ -87,6 +87,10 @@ To build a release locally instead of via CI: `npm run release` (needs a `GH_TOK
 
 ## Connecting to a signaling server
 
+> **Just want to run your own server without a development setup?** Follow the
+> [step-by-step self-hosting guide](docs/self-hosting-signaling-server.md) — aimed at end users,
+> no coding or Git required.
+
 The desktop app needs a signaling server to broker the WebRTC handshake (it never relays media):
 
 - **Packaged `.exe`** connects to the hosted server `wss://chickadee-signaling.onrender.com` by default.
